@@ -51,7 +51,7 @@ var BaseTypes = map[string]interface{}{
 		}
 		return value, nil
 	},
-	"[]uint8": func(_ []uint8, stub shim.ChaincodeStubInterface, in string) ([]uint8, error) {
+	"[]uint8": func(_ []uint8, _ shim.ChaincodeStubInterface, in string) ([]uint8, error) {
 		return base58.Decode(in), nil
 	},
 }
