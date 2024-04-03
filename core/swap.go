@@ -189,7 +189,7 @@ func (bc *BaseContract) TxSwapCancel(_ *types.Sender, swapID string) error { // 
 
 	// Very dangerous, bug in the cancel swap logic
 	// PFI
-	// code for RU is commented out, swap and acl should be redesigned.
+	// code is commented out, swap and acl should be redesigned.
 	// In the meantime, the site should ensure correctness of swapCancel calls
 	// 1. filter out all swapCancel calls, except for those made on behalf of the site.
 	// 2. Do not call swapCancel on the FROM channel until swapCancel has passed on the TO channel

@@ -21,7 +21,7 @@ type BaseContract struct {
 	id          string
 	stub        shim.ChaincodeStubInterface
 	methods     []string
-	atomyzeSKI  []byte
+	platformSKI []byte
 	initArgs    []string
 	noncePrefix StateKey
 	srcFs       *embed.FS
@@ -52,19 +52,19 @@ func (bc *BaseContract) addMethod(mm string) { //nolint:unused
 
 func (bc *BaseContract) setStubAndInitArgs( //nolint:unused
 	stub shim.ChaincodeStubInterface,
-	atomyzeSKI []byte,
+	platformSKI []byte,
 	args []string,
 	noncePrefix StateKey,
 ) {
 	bc.stub = stub
-	bc.atomyzeSKI = atomyzeSKI
+	bc.platformSKI = platformSKI
 	bc.initArgs = args
 	bc.noncePrefix = noncePrefix
 }
 
-// GetAtomyzeSKI returns atomyzeSKI
-func (bc *BaseContract) GetAtomyzeSKI() []byte {
-	return bc.atomyzeSKI
+// GetPlatformSKI returns platformSKI
+func (bc *BaseContract) GetPlatformSKI() []byte {
+	return bc.platformSKI
 }
 
 // GetInitArg returns init arg by index
@@ -235,7 +235,7 @@ type BaseContractInterface interface { //nolint:interfacebloat
 
 	addMethod(string)
 	baseContractInit(BaseContractInterface)
-	setStubAndInitArgs(stub shim.ChaincodeStubInterface, atomyzeSKI []byte, args []string, noncePrefix StateKey)
+	setStubAndInitArgs(stub shim.ChaincodeStubInterface, platformSKI []byte, args []string, noncePrefix StateKey)
 	setSrcFs(*embed.FS)
 	tokenBalanceAdd(address *types.Address, amount *big.Int, token string) error
 

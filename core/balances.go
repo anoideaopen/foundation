@@ -17,7 +17,7 @@ type StateKey byte
 
 // StateKey constants
 const (
-	StateKeyNonce StateKey = iota + 42 // This prefix is used for nons at RU and CH
+	StateKeyNonce StateKey = iota + 42 // This prefix is used for US
 	StateKeyTokenBalance
 	StateKeyAllowedBalance
 	StateKeyGivenBalance

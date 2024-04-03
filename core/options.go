@@ -9,7 +9,7 @@ package core
 // that is older than the maximum nonce (at the current moment) by more than NonceTTL,
 // we will not execute it and receive an error. In the US, it is set to 50 seconds.
 // If NonceTTL = 0, then the check is done "the old way" when adding preimages.
-// IsOtherNoncePrefix - historically, Atomyze-US uses a different prefix for nonces.
+// IsOtherNoncePrefix - historically, US uses a different prefix for nonces.
 // We are obligated to support different prefixes, but it's not worth creating more of them. Therefore, it's only a flag.
 
 // ContractOptions is a struct for contract options

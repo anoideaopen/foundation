@@ -1,6 +1,6 @@
 # SWAP
 
-Description of the features of working with swaps in Atomyze.
+Description of the features of working with swaps in Foundation.
 
 ## Table of Contents
 

@@ -32,8 +32,8 @@ var (
 
 // Config is global chaincode parameters from Chaincode Init arguments
 type Config struct {
-	// AtomyzeSKI is 0 index from init args
-	AtomyzeSKI []byte
+	// PlatformSKI is 0 index from init args
+	PlatformSKI []byte
 	// RobotSKI is 1 index from init args
 	RobotSKI []byte
 	// Args is subarray from init args from 2 index to last index arg
@@ -41,7 +41,7 @@ type Config struct {
 }
 
 // InitChaincode initializes the chaincode with provided arguments.
-// It validates the admin creator and stores necessary data (atomyzeSKI, robotSKI, initArgs) in the state.
+// It validates the admin creator and stores necessary data (platformSKI, robotSKI, initArgs) in the state.
 func InitChaincode(stub shim.ChaincodeStubInterface) error {
 	if stub == nil {
 		return ErrNilStub
@@ -54,14 +54,14 @@ func InitChaincode(stub shim.ChaincodeStubInterface) error {
 
 	args := stub.GetStringArgs()
 	if len(args) < minChaincodeArgsCount {
-		return fmt.Errorf("should set SKI of atomyzeSKI and robotSKI certs. expected %d but found %d",
+		return fmt.Errorf("should set SKI of platformSKI and robotSKI certs. expected %d but found %d",
 			minChaincodeArgsCount,
 			len(args),
 		)
 	}
-	atomyzeSKI, err := hex.DecodeString(args[0])
+	platformSKI, err := hex.DecodeString(args[0])
 	if err != nil {
-		return fmt.Errorf("failed to hex decode from string atomyzeSKI %s: %w", args[0], err)
+		return fmt.Errorf("failed to hex decode from string platformSKI %s: %w", args[0], err)
 	}
 	robotSKI, err := hex.DecodeString(args[1])
 	if err != nil {
@@ -69,9 +69,9 @@ func InitChaincode(stub shim.ChaincodeStubInterface) error {
 	}
 
 	initArgs := Config{
-		AtomyzeSKI: atomyzeSKI,
-		RobotSKI:   robotSKI,
-		Args:       args[2:],
+		PlatformSKI: platformSKI,
+		RobotSKI:    robotSKI,
+		Args:        args[2:],
 	}
 	err = saveInitArgs(stub, initArgs)
 	if err != nil {
@@ -135,9 +135,9 @@ func LoadInitArgs(stub shim.ChaincodeStubInterface) (Config, error) {
 	}
 
 	config := Config{
-		AtomyzeSKI: initArgs.AtomyzeSKI,
-		RobotSKI:   initArgs.RobotSKI,
-		Args:       initArgs.Args,
+		PlatformSKI: initArgs.PlatformSKI,
+		RobotSKI:    initArgs.RobotSKI,
+		Args:        initArgs.Args,
 	}
 
 	return config, nil
@@ -150,9 +150,9 @@ func saveInitArgs(stub shim.ChaincodeStubInterface, initArgs Config) error {
 	}
 
 	initArgsBytes, err := pb.Marshal(&proto.InitArgs{
-		AtomyzeSKI: initArgs.AtomyzeSKI,
-		RobotSKI:   initArgs.RobotSKI,
-		Args:       initArgs.Args,
+		PlatformSKI: initArgs.PlatformSKI,
+		RobotSKI:    initArgs.RobotSKI,
+		Args:        initArgs.Args,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to marshal InitArgs %v: %w", initArgs, err)

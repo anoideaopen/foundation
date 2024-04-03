@@ -137,7 +137,7 @@ func (cc *ChainCode) loadFromBatch( //nolint:funlen
 func (cc *ChainCode) batchExecute(
 	stub shim.ChaincodeStubInterface,
 	dataIn string,
-	atomyzeSKI []byte,
+	platformSKI []byte,
 	initArgs []string,
 ) peer.Response {
 	logger := Logger()
@@ -162,7 +162,7 @@ func (cc *ChainCode) batchExecute(
 	}
 
 	for _, txID := range batch.TxIDs {
-		resp, event := cc.batchedTxExecute(btchStub, txID, batchTimestamp.Seconds, atomyzeSKI, initArgs)
+		resp, event := cc.batchedTxExecute(btchStub, txID, batchTimestamp.Seconds, platformSKI, initArgs)
 		response.TxResponses = append(response.TxResponses, resp)
 		events.Events = append(events.Events, event)
 	}
@@ -223,7 +223,7 @@ func (cc *ChainCode) batchedTxExecute( //nolint:funlen
 	stub *batchStub,
 	binaryTxID []byte,
 	batchTimestamp int64,
-	atomyzeSKI []byte,
+	platformSKI []byte,
 	initArgs []string,
 ) (r *proto.TxResponse, e *proto.BatchTxEvent) {
 	logger := Logger()
@@ -264,7 +264,7 @@ func (cc *ChainCode) batchedTxExecute( //nolint:funlen
 	}
 	methodName = pending.Method
 
-	response, err := cc.callMethod(txStub, method, pending.Sender, pending.Args, atomyzeSKI, initArgs)
+	response, err := cc.callMethod(txStub, method, pending.Sender, pending.Args, platformSKI, initArgs)
 	if err != nil {
 		_ = stub.ChaincodeStubInterface.DelState(key)
 		ee := proto.ResponseError{Error: err.Error()}
