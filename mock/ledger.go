@@ -123,7 +123,7 @@ type TxResponse struct {
 	Accounting []*proto.AccountingRecord `json:"accounting"`
 }
 
-const batchRobotCertHash = "380499dcb3d3ee374ccfd74cbdcbe03a1cd5ae66b282e5673dcb13cbe290965b" //nolint:gosec
+const batchRobotCertHash = "380499dcb3d3ee374ccfd74cbdcbe03a1cd5ae66b282e5673dcb13cbe290965b"
 
 // NewChainCode creates new chaincode
 func (ledger *Ledger) NewChainCode(name string, bci core.BaseContractInterface, options *core.ContractOptions, fs *embed.FS, initArgs ...string) string {
