@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/atomyze-foundation/foundation/mock"
-	"github.com/atomyze-foundation/foundation/token"
+	"github.com/anoideaopen/foundation/mock"
+	"github.com/anoideaopen/foundation/token"
 	"golang.org/x/crypto/sha3"
 )
 

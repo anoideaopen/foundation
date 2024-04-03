@@ -2,36 +2,35 @@ name: Go
 
 on:
   push:
-    branches:
-      - main
+    branches: ["**"]
   pull_request:
-    branches:
-      - main
+    branches: ["**"]
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
   validate:
-    uses: atomyze-foundation/workflows/.github/workflows/validate--v1.yml@main
+    uses: anoideaopen/workflows/.github/workflows/validate--v1.yml@main
 
   go-qa-l0:
     needs:
       - validate
-    uses: atomyze-foundation/workflows/.github/workflows/go-validate--v1.yml@main
+    uses: anoideaopen/workflows/.github/workflows/go-validate--v1.yml@main
     secrets: inherit
 
   go-qa-l1:
     needs:
       - go-qa-l0
-    uses: atomyze-foundation/workflows/.github/workflows/go-lint--v1.yml@main
+    uses: anoideaopen/workflows/.github/workflows/go-lint--v1.yml@main
 
   go-qa-l2:
     needs:
       - go-qa-l1
-    uses: atomyze-foundation/workflows/.github/workflows/go-test--v1.yml@main
+    uses: anoideaopen/workflows/.github/workflows/go-test--v1.yml@main
 
   go-qa-l3:
     needs:
       - go-qa-l2
-    uses: atomyze-foundation/workflows/.github/workflows/go-static--v1.yml@main
+    uses: anoideaopen/workflows/.github/workflows/go-static--v1.yml@main

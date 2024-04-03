@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"unicode"
 
-	"github.com/atomyze-foundation/foundation/core/types"
+	"github.com/anoideaopen/foundation/core/types"
 )
 
 // ErrMethodAlreadyDefined is an error message

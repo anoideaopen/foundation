@@ -5,7 +5,7 @@ import (
 	"math/big"
 	"testing"
 
-	customBig "github.com/atomyze-foundation/foundation/core/types/big"
+	customBig "github.com/anoideaopen/foundation/core/types/big"
 	"github.com/stretchr/testify/assert"
 )
 

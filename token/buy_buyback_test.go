@@ -3,8 +3,8 @@ package token
 import (
 	"testing"
 
-	"github.com/atomyze-foundation/foundation/core"
-	ma "github.com/atomyze-foundation/foundation/mock"
+	"github.com/anoideaopen/foundation/core"
+	ma "github.com/anoideaopen/foundation/mock"
 	"github.com/stretchr/testify/assert"
 )
 

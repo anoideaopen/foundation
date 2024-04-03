@@ -1,5 +1,7 @@
 # Foundation
 
+[![Go](https://github.com/anoideaopen/foundation/actions/workflows/go.yml/badge.svg?branch=main)](https://github.com/anoideaopen/foundation/actions/workflows/go.yml)
+
 A basic library for creating Atomyze platform chaincodes.
 
 ## Table of Contents
@@ -37,7 +39,7 @@ The library implements functionality for interacting with access control list (A
 
 ## Links
 
-* [Original Repository](https://github.com/atomyze-foundation/foundation)
+* [Original Repository](https://github.com/anoideaopen/foundation)
 
 ## License
 

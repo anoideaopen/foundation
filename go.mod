@@ -1,4 +1,4 @@
-module github.com/atomyze-foundation/foundation
+module github.com/anoideaopen/foundation
 
 go 1.18
 

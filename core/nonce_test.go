@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	pb "github.com/atomyze-foundation/foundation/proto"
+	pb "github.com/anoideaopen/foundation/proto"
 	"github.com/stretchr/testify/assert"
 )
 

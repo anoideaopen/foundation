@@ -16,7 +16,7 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/atomyze-foundation/foundation/core/types/big"
+	"github.com/anoideaopen/foundation/core/types/big"
 	"github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/hyperledger/fabric-chaincode-go/shim"

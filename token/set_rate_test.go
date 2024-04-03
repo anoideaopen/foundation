@@ -3,10 +3,10 @@ package token
 import (
 	"testing"
 
-	"github.com/atomyze-foundation/foundation/core"
-	"github.com/atomyze-foundation/foundation/core/types/big"
-	ma "github.com/atomyze-foundation/foundation/mock"
-	"github.com/atomyze-foundation/foundation/proto"
+	"github.com/anoideaopen/foundation/core"
+	"github.com/anoideaopen/foundation/core/types/big"
+	ma "github.com/anoideaopen/foundation/mock"
+	"github.com/anoideaopen/foundation/proto"
 	"github.com/stretchr/testify/assert"
 	pb "google.golang.org/protobuf/proto"
 )

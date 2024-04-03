@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/atomyze-foundation/foundation/core/types"
-	"github.com/atomyze-foundation/foundation/proto"
+	"github.com/anoideaopen/foundation/core/types"
+	"github.com/anoideaopen/foundation/proto"
 	pb "github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/hyperledger/fabric-chaincode-go/shim"
 	"github.com/hyperledger/fabric-protos-go/peer"

@@ -1,6 +1,6 @@
 package proto
 
-import "github.com/atomyze-foundation/foundation/core/types/big"
+import "github.com/anoideaopen/foundation/core/types/big"
 
 // InLimit checks if the amount is in the limit
 func (x *TokenRate) InLimit(amount *big.Int) bool {

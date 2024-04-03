@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"errors"
 
-	"github.com/atomyze-foundation/foundation/core/helpers"
-	"github.com/atomyze-foundation/foundation/core/types"
-	"github.com/atomyze-foundation/foundation/core/types/big"
+	"github.com/anoideaopen/foundation/core/helpers"
+	"github.com/anoideaopen/foundation/core/types"
+	"github.com/anoideaopen/foundation/core/types/big"
 )
 
 const (

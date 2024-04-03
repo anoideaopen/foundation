@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/atomyze-foundation/foundation/core"
-	"github.com/atomyze-foundation/foundation/core/types"
-	ma "github.com/atomyze-foundation/foundation/mock"
+	"github.com/anoideaopen/foundation/core"
+	"github.com/anoideaopen/foundation/core/types"
+	ma "github.com/anoideaopen/foundation/mock"
 	"github.com/stretchr/testify/assert"
 )
 

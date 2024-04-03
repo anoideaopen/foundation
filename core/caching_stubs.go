@@ -3,9 +3,9 @@ package core
 import (
 	"sort"
 
-	"github.com/atomyze-foundation/foundation/core/types"
-	"github.com/atomyze-foundation/foundation/core/types/big"
-	"github.com/atomyze-foundation/foundation/proto"
+	"github.com/anoideaopen/foundation/core/types"
+	"github.com/anoideaopen/foundation/core/types/big"
+	"github.com/anoideaopen/foundation/proto"
 	"github.com/hyperledger/fabric-chaincode-go/shim"
 )
 

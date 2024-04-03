@@ -17,11 +17,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/atomyze-foundation/foundation/core"
-	"github.com/atomyze-foundation/foundation/core/cctransfer"
-	"github.com/atomyze-foundation/foundation/core/types/big"
-	"github.com/atomyze-foundation/foundation/mock/stub"
-	"github.com/atomyze-foundation/foundation/proto"
+	"github.com/anoideaopen/foundation/core"
+	"github.com/anoideaopen/foundation/core/cctransfer"
+	"github.com/anoideaopen/foundation/core/types/big"
+	"github.com/anoideaopen/foundation/mock/stub"
+	"github.com/anoideaopen/foundation/proto"
 	"github.com/btcsuite/btcutil/base58"
 	pb "github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/google/uuid"

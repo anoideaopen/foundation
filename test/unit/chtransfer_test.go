@@ -5,11 +5,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/atomyze-foundation/foundation/core"
-	"github.com/atomyze-foundation/foundation/core/cctransfer"
-	"github.com/atomyze-foundation/foundation/mock"
-	pb "github.com/atomyze-foundation/foundation/proto"
-	"github.com/atomyze-foundation/foundation/token"
+	"github.com/anoideaopen/foundation/core"
+	"github.com/anoideaopen/foundation/core/cctransfer"
+	"github.com/anoideaopen/foundation/mock"
+	pb "github.com/anoideaopen/foundation/proto"
+	"github.com/anoideaopen/foundation/token"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 )

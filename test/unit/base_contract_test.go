@@ -4,11 +4,11 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/atomyze-foundation/foundation/core"
-	"github.com/atomyze-foundation/foundation/core/types"
-	"github.com/atomyze-foundation/foundation/core/types/big"
-	"github.com/atomyze-foundation/foundation/mock"
-	"github.com/atomyze-foundation/foundation/token"
+	"github.com/anoideaopen/foundation/core"
+	"github.com/anoideaopen/foundation/core/types"
+	"github.com/anoideaopen/foundation/core/types/big"
+	"github.com/anoideaopen/foundation/mock"
+	"github.com/anoideaopen/foundation/token"
 	"github.com/stretchr/testify/assert"
 )
 

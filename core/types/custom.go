@@ -7,9 +7,9 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/atomyze-foundation/foundation/core/helpers"
-	"github.com/atomyze-foundation/foundation/core/types/big"
-	pb "github.com/atomyze-foundation/foundation/proto"
+	"github.com/anoideaopen/foundation/core/helpers"
+	"github.com/anoideaopen/foundation/core/types/big"
+	pb "github.com/anoideaopen/foundation/proto"
 	"github.com/btcsuite/btcutil/base58"
 	"github.com/hyperledger/fabric-chaincode-go/shim"
 )

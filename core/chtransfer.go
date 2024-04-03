@@ -5,10 +5,10 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/atomyze-foundation/foundation/core/cctransfer"
-	"github.com/atomyze-foundation/foundation/core/types"
-	"github.com/atomyze-foundation/foundation/core/types/big"
-	pb "github.com/atomyze-foundation/foundation/proto"
+	"github.com/anoideaopen/foundation/core/cctransfer"
+	"github.com/anoideaopen/foundation/core/types"
+	"github.com/anoideaopen/foundation/core/types/big"
+	pb "github.com/anoideaopen/foundation/proto"
 	"github.com/golang/protobuf/proto" //nolint:staticcheck
 )
 

@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/atomyze-foundation/foundation/core/types"
-	"github.com/atomyze-foundation/foundation/mock/stub"
-	"github.com/atomyze-foundation/foundation/proto"
+	"github.com/anoideaopen/foundation/core/types"
+	"github.com/anoideaopen/foundation/mock/stub"
+	"github.com/anoideaopen/foundation/proto"
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/stretchr/testify/assert"

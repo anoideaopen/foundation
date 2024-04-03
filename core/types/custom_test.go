@@ -4,8 +4,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/atomyze-foundation/foundation/core/types/big"
-	pb "github.com/atomyze-foundation/foundation/proto"
+	"github.com/anoideaopen/foundation/core/types/big"
+	pb "github.com/anoideaopen/foundation/proto"
 	"github.com/stretchr/testify/assert"
 )
 
