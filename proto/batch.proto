@@ -47,7 +47,7 @@ message Batch {
 }
 
 message InitArgs {
-    bytes atomyzeSKI = 1;
+    bytes platformSKI = 1;
     bytes robotSKI = 2;
     repeated string args = 3;
 }

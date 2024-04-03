@@ -247,7 +247,7 @@ func (cc *ChainCode) noBatchHandler(stub shim.ChaincodeStubInterface, funcName s
 	if err != nil {
 		return shim.Error(fmt.Sprintf("incorrect tx id %s", err.Error()))
 	}
-	resp, err := cc.callMethod(stub, fn, sender, args, initArgs.AtomyzeSKI, initArgs.Args)
+	resp, err := cc.callMethod(stub, fn, sender, args, initArgs.PlatformSKI, initArgs.Args)
 	if err != nil {
 		return shim.Error(err.Error())
 	}
@@ -293,7 +293,7 @@ func (cc *ChainCode) multiSwapDoneHandler(stub shim.ChaincodeStubInterface, args
 	if err != nil {
 		return shim.Error(fmt.Sprintf("incorrect tx id %s", err.Error()))
 	}
-	_, contract := copyContract(cc.contract, stub, initArgs.AtomyzeSKI, initArgs.Args, cc.noncePrefix)
+	_, contract := copyContract(cc.contract, stub, initArgs.PlatformSKI, initArgs.Args, cc.noncePrefix)
 	return multiSwapUserDone(contract, args[0], args[1])
 }
 
@@ -305,7 +305,7 @@ func (cc *ChainCode) swapDoneHandler(stub shim.ChaincodeStubInterface, args []st
 	if err != nil {
 		return shim.Error(fmt.Sprintf("incorrect tx id %s", err.Error()))
 	}
-	_, contract := copyContract(cc.contract, stub, initArgs.AtomyzeSKI, initArgs.Args, cc.noncePrefix)
+	_, contract := copyContract(cc.contract, stub, initArgs.PlatformSKI, initArgs.Args, cc.noncePrefix)
 	return swapUserDone(contract, args[0], args[1])
 }
 
@@ -320,7 +320,7 @@ func (cc *ChainCode) batchExecuteHandler(stub shim.ChaincodeStubInterface, creat
 		return shim.Error(err.Error())
 	}
 
-	return cc.batchExecute(stub, args[0], initArgs.AtomyzeSKI, initArgs.Args)
+	return cc.batchExecute(stub, args[0], initArgs.PlatformSKI, initArgs.Args)
 }
 
 func (cc *ChainCode) callMethod(
@@ -328,7 +328,7 @@ func (cc *ChainCode) callMethod(
 	method *Fn,
 	sender *proto.Address,
 	args []string,
-	atomyzeSKI []byte,
+	platformSKI []byte,
 	initArgs []string,
 ) ([]byte, error) {
 	values, err := doConvertToCall(stub, method, args)
@@ -341,7 +341,7 @@ func (cc *ChainCode) callMethod(
 		}, values...)
 	}
 
-	contract, _ := copyContract(cc.contract, stub, atomyzeSKI, initArgs, cc.noncePrefix)
+	contract, _ := copyContract(cc.contract, stub, platformSKI, initArgs, cc.noncePrefix)
 
 	out := method.fn.Call(append([]reflect.Value{contract}, values...))
 	errInt := out[0].Interface()
@@ -451,7 +451,7 @@ func doPrepareToSave(stub shim.ChaincodeStubInterface, method *Fn, args []string
 func copyContract(
 	orig BaseContractInterface,
 	stub shim.ChaincodeStubInterface,
-	atomyzeSKI []byte,
+	platformSKI []byte,
 	initArgs []string,
 	noncePrefix StateKey,
 ) (reflect.Value, BaseContractInterface) {
@@ -466,7 +466,7 @@ func copyContract(
 	if !ok {
 		return cp, nil
 	}
-	contract.setStubAndInitArgs(stub, atomyzeSKI, initArgs, noncePrefix)
+	contract.setStubAndInitArgs(stub, platformSKI, initArgs, noncePrefix)
 	return cp, contract
 }
 

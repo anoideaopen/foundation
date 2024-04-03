@@ -140,7 +140,7 @@ func (ledger *Ledger) NewChainCode(name string, bci core.BaseContractInterface, 
 	}
 	cert, err := base64.StdEncoding.DecodeString(adminCert)
 	assert.NoError(ledger.t, err)
-	_ = ledger.stubs[name].SetCreatorCert("atomyzeMSP", cert)
+	_ = ledger.stubs[name].SetCreatorCert("platformMSP", cert)
 	res := ledger.stubs[name].MockInit(txIDGen(), args)
 	message := res.Message
 	if message != "" {
@@ -290,7 +290,7 @@ func (ledger *Ledger) doInvoke(ch string, txID string, fn string, args ...string
 	if len(creator) == 0 {
 		cert, err := base64.StdEncoding.DecodeString(defaultCert)
 		assert.NoError(ledger.t, err)
-		_ = ledger.stubs[ch].SetCreatorCert("atomyzeMSP", cert)
+		_ = ledger.stubs[ch].SetCreatorCert("platformMSP", cert)
 	}
 
 	input, err := pb.Marshal(&peer.ChaincodeInvocationSpec{
@@ -327,7 +327,7 @@ func (ledger *Ledger) doInvokeWithErrorReturned(ch string, txID string, fn strin
 	if len(creator) == 0 {
 		cert, err := base64.StdEncoding.DecodeString(defaultCert)
 		assert.NoError(ledger.t, err)
-		_ = ledger.stubs[ch].SetCreatorCert("atomyzeMSP", cert)
+		_ = ledger.stubs[ch].SetCreatorCert("platformMSP", cert)
 	}
 
 	input, err := pb.Marshal(&peer.ChaincodeInvocationSpec{

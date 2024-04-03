@@ -2,7 +2,7 @@
 
 [![Go](https://github.com/anoideaopen/foundation/actions/workflows/go.yml/badge.svg?branch=main)](https://github.com/anoideaopen/foundation/actions/workflows/go.yml)
 
-A basic library for creating Atomyze platform chaincodes.
+A basic library for creating platform chaincodes.
 
 ## Table of Contents
 - [Foundation](#-foundation)

@@ -4,7 +4,7 @@ Copyright IBM Corp. All Rights Reserved.
 SPDX-License-Identifier: [Default license](LICENSE)
 */
 
-// Package stub mocked_atomyze provides APIs for the chaincode to access its state
+// Package stub mocked provides APIs for the chaincode to access its state
 // variables, transaction context and call other chaincodes.
 package stub
 

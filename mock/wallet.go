@@ -338,7 +338,7 @@ func (w *Wallet) RawSignedMultiSwapInvoke(ch string, fn string, args ...string) 
 	args, _ = w.sign(fn, ch, args...)
 	cert, err := base64.StdEncoding.DecodeString(userCert)
 	assert.NoError(w.ledger.t, err)
-	_ = w.ledger.stubs[ch].SetCreatorCert("atomyzeMSP", cert)
+	_ = w.ledger.stubs[ch].SetCreatorCert("platformMSP", cert)
 	w.ledger.doInvoke(ch, txID, fn, args...)
 
 	id, err := hex.DecodeString(txID)
@@ -391,7 +391,7 @@ func (w *Wallet) RawSignedInvokeWithErrorReturned(ch string, fn string, args ...
 	args, _ = w.sign(fn, ch, args...)
 	cert, err := base64.StdEncoding.DecodeString(userCert)
 	assert.NoError(w.ledger.t, err)
-	_ = w.ledger.stubs[ch].SetCreatorCert("atomyzeMSP", cert)
+	_ = w.ledger.stubs[ch].SetCreatorCert("platformMSP", cert)
 	err = w.ledger.doInvokeWithErrorReturned(ch, txID, fn, args...)
 	if err != nil {
 		return err
@@ -585,7 +585,7 @@ func (w *Wallet) OtfNbInvoke(ch string, fn string, args ...string) (string, stri
 	message, hash := w.sign(fn, ch, args...)
 	cert, err := base64.StdEncoding.DecodeString(userCert)
 	assert.NoError(w.ledger.t, err)
-	_ = w.ledger.stubs[ch].SetCreatorCert("atomyzeMSP", cert)
+	_ = w.ledger.stubs[ch].SetCreatorCert("platformMSP", cert)
 	w.ledger.doInvoke(ch, txID, fn, message...)
 
 	nested, err := pb.Marshal(&proto.Nested{Args: append([]string{fn}, message...)})
