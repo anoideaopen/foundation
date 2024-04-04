@@ -7,6 +7,7 @@ Description of project testing features
 - [QA](#qa)
   - [TOC](#toc)
     - [Unit tests](#unit-tests)
+    - [Integration tests](#integration-tests)
   - [Links](#links)
 
 
@@ -16,6 +17,8 @@ Description of project testing features
 # Run unit tests
 go test ./...
 ```
+
+### Integration tests
 
 ## Links
 

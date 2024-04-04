@@ -1,6 +1,7 @@
 package mock
 
 import (
+	"crypto/rand"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -11,20 +12,55 @@ import (
 	"testing"
 	"time"
 
-	"github.com/anoideaopen/foundation/core"
+	"github.com/anoideaopen/foundation/core/balance"
+	"github.com/anoideaopen/foundation/core/gost"
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/core/types/big"
 	"github.com/anoideaopen/foundation/mock/stub"
 	"github.com/anoideaopen/foundation/proto"
 	"github.com/btcsuite/btcutil/base58"
+	"github.com/ddulesov/gogost/gost3410"
 	pb "github.com/golang/protobuf/proto" //nolint:staticcheck
+	"github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/crypto/ed25519"
 	"golang.org/x/crypto/sha3"
 )
 
-const batchRobotCert = "0a0a61746f6d797a654d535012d7062d2d2d2d2d424547494e2043455254494649434154452d2d2d2d2d0a4d494943536a434341664367417749424167495241496b514e37444f456b6836686f52425057633157495577436759494b6f5a497a6a304541774977675963780a437a414a42674e5642415954416c56544d524d77455159445651514945777044595778705a6d3979626d6c684d525977464159445651514845773154595734670a526e4a68626d4e7063324e764d534d77495159445651514b45787068644739746558706c4c6e56686443356b624851755958527662586c365a53356a6144456d0a4d4351474131554541784d64593245755958527662586c365a533531595851755a4778304c6d463062323135656d5575593267774868634e4d6a41784d44457a0a4d4467314e6a41775768634e4d7a41784d4445784d4467314e6a4177576a42324d517377435159445651514745774a56557a45544d4245474131554543424d4b0a5132467361575a76636d3570595445574d4251474131554542784d4e5532467549455a795957356a61584e6a627a45504d4130474131554543784d47593278700a5a5735304d536b774a7759445651514444434256633256794d554268644739746558706c4c6e56686443356b624851755958527662586c365a53356a6144425a0a4d424d4742797147534d34394167454743437147534d3439417745484130494142427266315057484d51674d736e786263465a346f3579774b476e677830594e0a504b6270494335423761446f6a46747932576e4871416b5656723270697853502b4668497634434c634935633162473963365a375738616a5454424c4d4134470a41315564447745422f775145417749486744414d42674e5648524d4241663845416a41414d437347413155644977516b4d434b4149464b2f5335356c6f4865700a6137384441363173364e6f7433727a4367436f435356386f71462b37585172344d416f4743437147534d343942414d43413067414d4555434951436e6870476d0a58515664754b632b634266554d6b31494a6835354444726b3335436d436c4d657041533353674967596b634d6e5a6b385a42727179796953544d6466526248740a5a32506837364e656d536b62345651706230553d0a2d2d2d2d2d454e442043455254494649434154452d2d2d2d2d0a" //nolint:gofumpt
-const userCert = `MIICSTCCAe+gAwIBAgIQW3KyKC2acfVxSNneRkHZPjAKBggqhkjOPQQDAjCBhzEL
+const (
+	batchRobotCert = "0a0a61746f6d797a654d535012d7062d2d2d2d2d42" +
+		"4547494e2043455254494649434154452d2d2d2d2d0a4d494943536" +
+		"a434341664367417749424167495241496b514e37444f456b683668" +
+		"6f52425057633157495577436759494b6f5a497a6a3045417749776" +
+		"75963780a437a414a42674e5642415954416c56544d524d77455159" +
+		"445651514945777044595778705a6d3979626d6c684d52597746415" +
+		"9445651514845773154595734670a526e4a68626d4e7063324e764d" +
+		"534d77495159445651514b45787068644739746558706c4c6e56686" +
+		"443356b624851755958527662586c365a53356a6144456d0a4d4351" +
+		"474131554541784d64593245755958527662586c365a53353159585" +
+		"1755a4778304c6d463062323135656d5575593267774868634e4d6a" +
+		"41784d44457a0a4d4467314e6a41775768634e4d7a41784d4445784" +
+		"d4467314e6a4177576a42324d517377435159445651514745774a56" +
+		"557a45544d4245474131554543424d4b0a5132467361575a76636d3" +
+		"570595445574d4251474131554542784d4e5532467549455a795957" +
+		"356a61584e6a627a45504d4130474131554543784d47593278700a5" +
+		"a5735304d536b774a7759445651514444434256633256794d554268" +
+		"644739746558706c4c6e56686443356b624851755958527662586c3" +
+		"65a53356a6144425a0a4d424d4742797147534d3439416745474343" +
+		"7147534d3439417745484130494142427266315057484d51674d736" +
+		"e786263465a346f3579774b476e677830594e0a504b627049433542" +
+		"3761446f6a46747932576e4871416b5656723270697853502b46684" +
+		"97634434c634935633162473963365a375738616a5454424c4d4134" +
+		"470a41315564447745422f775145417749486744414d42674e56485" +
+		"24d4241663845416a41414d437347413155644977516b4d434b4149" +
+		"464b2f5335356c6f4865700a6137384441363173364e6f7433727a4" +
+		"367436f435356386f71462b37585172344d416f4743437147534d34" +
+		"3942414d43413067414d4555434951436e6870476d0a58515664754" +
+		"b632b634266554d6b31494a6835354444726b3335436d436c4d6570" +
+		"41533353674967596b634d6e5a6b385a42727179796953544d64665" +
+		"26248740a5a32506837364e656d536b62345651706230553d0a2d2d" +
+		"2d2d2d454e442043455254494649434154452d2d2d2d2d0a"
+	userCert = `MIICSTCCAe+gAwIBAgIQW3KyKC2acfVxSNneRkHZPjAKBggqhkjOPQQDAjCBhzEL
 MAkGA1UEBhMCVVMxEzARBgNVBAgTCkNhbGlmb3JuaWExFjAUBgNVBAcTDVNhbiBG
 cmFuY2lzY28xIzAhBgNVBAoTGmF0b215emUudWF0LmRsdC5hdG9teXplLmNoMSYw
 JAYDVQQDEx1jYS5hdG9teXplLnVhdC5kbHQuYXRvbXl6ZS5jaDAeFw0yMDEwMTMw
@@ -36,7 +72,9 @@ jJEsrbhodUt9GjUx04uOo05uRWhOI+O4fi0EEu+RSkx98hFUapWfRqNNMEswDgYD
 VR0PAQH/BAQDAgeAMAwGA1UdEwEB/wQCMAAwKwYDVR0jBCQwIoAgUr9LnmWgd6lr
 vwMDrWzo2i3evMKAKgJJXyioX7tdCvgwCgYIKoZIzj0EAwIDSAAwRQIhAPUozDTR
 MOS4WBh87DbsJjI8gIuXPGXwoFXDQQhc2gz0AiAz9jt95z3MKnwj0dWPhjnzAGP8
-8PrsVxYtGp6/TnpiPQ==` //nolint:gofumpt
+8PrsVxYtGp6/TnpiPQ==`
+)
+
 const (
 	shouldNotBeHereMsg = "shouldn't be here"
 	batchFn            = "batchExecute"
@@ -45,9 +83,21 @@ const (
 // Wallet is a wallet
 type Wallet struct {
 	ledger *Ledger
-	pKey   ed25519.PublicKey
-	sKey   ed25519.PrivateKey
-	addr   string
+
+	pKey ed25519.PublicKey
+	sKey ed25519.PrivateKey
+
+	// Additional GOST Keys.
+	primaryGOST bool
+	pKeyGOST    *gost3410.PublicKey
+	sKeyGOST    *gost3410.PrivateKey
+
+	addr     string
+	addrGOST string
+}
+
+func (w *Wallet) SetGOSTPrimary(primary bool) {
+	w.primaryGOST = primary
 }
 
 // ChangeKeys change private key, then public key will be derived and changed too
@@ -64,6 +114,10 @@ func (w *Wallet) ChangeKeys(sKey ed25519.PrivateKey) error {
 // Address returns the address of the wallet
 func (w *Wallet) Address() string {
 	return w.addr
+}
+
+func (w *Wallet) AddressGOST() string {
+	return w.addrGOST
 }
 
 // PubKey returns the public key of the wallet
@@ -90,7 +144,7 @@ func (w *Wallet) AddressType() *types.Address {
 	return &types.Address{Address: append([]byte{ver}, value...)[:32]}
 }
 
-func (w *Wallet) addBalance(stub *stub.Stub, amount *big.Int, balanceType core.StateKey, path ...string) {
+func (w *Wallet) addBalance(stub *stub.Stub, amount *big.Int, balanceType balance.BalanceType, path ...string) {
 	prefix := hex.EncodeToString([]byte{byte(balanceType)})
 	key, err := stub.CreateCompositeKey(prefix, append([]string{w.Address()}, path...))
 	assert.NoError(w.ledger.t, err)
@@ -103,7 +157,7 @@ func (w *Wallet) addBalance(stub *stub.Stub, amount *big.Int, balanceType core.S
 // CheckGivenBalanceShouldBe checks the balance of the wallet
 func (w *Wallet) CheckGivenBalanceShouldBe(ch string, token string, expectedBalance uint64) {
 	st := w.ledger.stubs[ch]
-	prefix := hex.EncodeToString([]byte{byte(core.StateKeyGivenBalance)})
+	prefix := hex.EncodeToString([]byte{byte(balance.BalanceTypeGiven)})
 	key, err := st.CreateCompositeKey(prefix, []string{token})
 	assert.NoError(w.ledger.t, err)
 	bytes := st.State[key]
@@ -117,18 +171,18 @@ func (w *Wallet) CheckGivenBalanceShouldBe(ch string, token string, expectedBala
 
 // AddBalance adds balance to the wallet
 func (w *Wallet) AddBalance(ch string, amount uint64) {
-	w.addBalance(w.ledger.stubs[ch], new(big.Int).SetUint64(amount), core.StateKeyTokenBalance)
+	w.addBalance(w.ledger.stubs[ch], new(big.Int).SetUint64(amount), balance.BalanceTypeToken)
 }
 
 // AddAllowedBalance adds allowed balance to the wallet
 func (w *Wallet) AddAllowedBalance(ch string, token string, amount uint64) {
-	w.addBalance(w.ledger.stubs[ch], new(big.Int).SetUint64(amount), core.StateKeyAllowedBalance, token)
+	w.addBalance(w.ledger.stubs[ch], new(big.Int).SetUint64(amount), balance.BalanceTypeAllowed, token)
 }
 
 // AddGivenBalance adds given balance to the wallet
 func (w *Wallet) AddGivenBalance(ch string, givenBalanceChannel string, amount uint64) {
 	st := w.ledger.stubs[ch]
-	prefix := hex.EncodeToString([]byte{byte(core.StateKeyGivenBalance)})
+	prefix := hex.EncodeToString([]byte{byte(balance.BalanceTypeGiven)})
 	key, err := st.CreateCompositeKey(prefix, []string{givenBalanceChannel})
 	assert.NoError(w.ledger.t, err)
 	newBalance := new(big.Int).SetUint64(amount)
@@ -138,7 +192,7 @@ func (w *Wallet) AddGivenBalance(ch string, givenBalanceChannel string, amount u
 // AddTokenBalance adds token balance to the wallet
 func (w *Wallet) AddTokenBalance(ch string, token string, amount uint64) {
 	parts := strings.Split(token, "_")
-	w.addBalance(w.ledger.stubs[ch], new(big.Int).SetUint64(amount), core.StateKeyTokenBalance, parts[len(parts)-1])
+	w.addBalance(w.ledger.stubs[ch], new(big.Int).SetUint64(amount), balance.BalanceTypeToken, parts[len(parts)-1])
 }
 
 // BalanceShouldBe checks the balance of the wallet
@@ -205,6 +259,10 @@ func (w *Wallet) InvokeWithError(ch string, fn string, args ...string) error {
 	return w.ledger.doInvokeWithErrorReturned(ch, txIDGen(), fn, args...)
 }
 
+func (w *Wallet) InvokeWithPeerResponse(ch string, fn string, args ...string) (peer.Response, error) {
+	return w.ledger.doInvokeWithPeerResponse(ch, txIDGen(), fn, args...)
+}
+
 // SignArgs signs the arguments
 func (w *Wallet) SignArgs(ch string, fn string, args ...string) []string {
 	resp, _ := w.sign(fn, ch, args...)
@@ -260,11 +318,62 @@ func (w *Wallet) BatchedInvoke(ch string, fn string, args ...string) (string, Tx
 }
 
 func (w *Wallet) sign(fn string, ch string, args ...string) ([]string, string) {
-	time.Sleep(time.Millisecond * 5) //nolint:gomnd
+	// Artificial delay to update the nonce value.
+	time.Sleep(time.Millisecond * 5)
+
+	// Generation of nonce based on current time in milliseconds.
 	nonce := strconv.FormatInt(time.Now().UnixNano()/1000000, 10)
-	result := append(append([]string{fn, "", ch, ch}, args...), nonce, base58.Encode(w.pKey))
-	message := sha3.Sum256([]byte(strings.Join(result, "")))
-	return append(result[1:], base58.Encode(ed25519.Sign(w.sKey, message[:]))), hex.EncodeToString(message[:])
+
+	// Forming a message for signature, including function name,
+	// empty string (placeholder), channel name, arguments and nonce.
+	var publicKey []byte
+	if !w.primaryGOST {
+		publicKey = w.pKey
+	} else {
+		publicKey = w.pKeyGOST.Raw()
+	}
+
+	messageChunks := []string{fn, "", ch, ch}
+	messageChunks = append(messageChunks, args...)                  // Adding call arguments.
+	messageChunks = append(messageChunks, nonce)                    // Adding nonce.
+	messageChunks = append(messageChunks, base58.Encode(publicKey)) // Adding an encoded public key.
+	message := []byte(strings.Join(messageChunks, ""))
+
+	// Calculating the hash of the message and signing the hash with the secret key and adding the signature to the message.
+	var (
+		digest    []byte
+		signature []byte
+	)
+	if !w.primaryGOST {
+		digestRawSHA3 := sha3.Sum256(message)
+		digest = digestRawSHA3[:]
+		signature = ed25519.Sign(w.sKey, digest)
+	} else {
+		digestRawGOST := gost.Sum256(message)
+		// Reverse the bytes for compatibility with client-side HSM.
+
+		digest = digestRawGOST[:]
+		digest = reverseBytes(digest)
+
+		signature, _ = w.sKeyGOST.SignDigest(digest, rand.Reader)
+		signature = reverseBytes(signature)
+	}
+
+	// We remove the function name from the message and add a caption.
+	signedMessage := append(messageChunks[1:], base58.Encode(signature)) //nolint:gocritic
+
+	// Return the signed message and hash in hexadecimal format.
+	return signedMessage, hex.EncodeToString(digest)
+}
+
+func reverseBytes(in []byte) []byte {
+	n := len(in)
+	reversed := make([]byte, n)
+	for i, b := range in {
+		reversed[n-i-1] = b
+	}
+
+	return reversed
 }
 
 // BatchTxResponse is a batch transaction response
@@ -381,8 +490,6 @@ func (w *Wallet) RawSignedMultiSwapInvoke(ch string, fn string, args ...string) 
 }
 
 // RawSignedInvokeWithErrorReturned invokes a function on the ledger
-//
-//nolint:funlen
 func (w *Wallet) RawSignedInvokeWithErrorReturned(ch string, fn string, args ...string) error {
 	if err := w.verifyIncoming(ch, fn); err != nil {
 		return err

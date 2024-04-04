@@ -1,68 +1,167 @@
 package core
 
 import (
-	"bytes"
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	"crypto/sha256"
-	"crypto/x509"
 	"embed"
 	"encoding/hex"
 	"encoding/json"
-	"encoding/pem"
 	"fmt"
 	"log"
 	"os"
 	"reflect"
 	"runtime/debug"
+	"time"
 
-	"github.com/anoideaopen/foundation/core/initialize"
+	"github.com/anoideaopen/foundation/core/balance"
 	"github.com/anoideaopen/foundation/core/types"
+	"github.com/anoideaopen/foundation/hlfcreator"
+	"github.com/anoideaopen/foundation/internal/config"
 	"github.com/anoideaopen/foundation/proto"
-	pb "github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/hyperledger/fabric-chaincode-go/shim"
-	"github.com/hyperledger/fabric-protos-go/msp"
 	"github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/pkg/errors"
-	"golang.org/x/crypto/sha3"
 )
 
 const (
+	// assertInterfaceErrMsg is the error message used when an interface to error type assertion fails.
 	assertInterfaceErrMsg = "assertion interface -> error is failed"
 
-	chaincodeExecModeEnv    = "CHAINCODE_EXEC_MODE"
+	// chaincodeExecModeEnv is the environment variable that specifies the execution mode of the chaincode.
+	chaincodeExecModeEnv = "CHAINCODE_EXEC_MODE"
+	// chaincodeExecModeServer is the value that, when set for the CHAINCODE_EXEC_MODE environment variable,
+	// indicates that the chaincode is running in server mode.
 	chaincodeExecModeServer = "server"
-	chaincodeCcIDEnv        = "CHAINCODE_ID"
+	// chaincodeCcIDEnv is the environment variable that holds the chaincode ID.
+	chaincodeCcIDEnv = "CHAINCODE_ID"
 
+	// chaincodeServerDefaultPort is the default port on which the chaincode server listens if no other port is specified.
 	chaincodeServerDefaultPort = "9999"
-	chaincodeServerPortEnv     = "CHAINCODE_SERVER_PORT"
+	// chaincodeServerPortEnv is the environment variable that specifies the port on which the chaincode server listens.
+	chaincodeServerPortEnv = "CHAINCODE_SERVER_PORT"
+
+	// TLS environment variables for the chaincode's TLS configuration with files.
+	// tlsKeyFileEnv is the environment variable that specifies the private key file for TLS communication.
+	tlsKeyFileEnv = "CHAINCODE_TLS_KEY_FILE"
+	// tlsCertFileEnv is the environment variable that specifies the public key certificate file for TLS communication.
+	tlsCertFileEnv = "CHAINCODE_TLS_CERT_FILE"
+	// tlsClientCACertsFileEnv is the environment variable that specifies the client CA certificates file for TLS communication.
+	tlsClientCACertsFileEnv = "CHAINCODE_TLS_CLIENT_CA_CERTS_FILE"
+
+	// TLS environment variables for the chaincode's TLS configuration, directly from ENVs.
+	// tlsKeyEnv is the environment variable that specifies the private key for TLS communication.
+	tlsKeyEnv = "CHAINCODE_TLS_KEY"
+	// tlsCertEnv is the environment variable that specifies the public key certificate for TLS communication.
+	tlsCertEnv = "CHAINCODE_TLS_CERT"
+	// tlsClientCACertsEnv is the environment variable that specifies the client CA certificates for TLS communication.
+	tlsClientCACertsEnv = "CHAINCODE_TLS_CLIENT_CA_CERTS"
 )
 
-// NonceCheckFn is a function for checking nonce
-type NonceCheckFn func(shim.ChaincodeStubInterface, *types.Sender, uint64) error
+var (
+	ErrSwapDisabled      = errors.New("swap is disabled")
+	ErrMultiSwapDisabled = errors.New("multi-swap is disabled")
+)
 
-// ChaincodeOption func for each Opts argument
+const (
+	noBatchPrefix = "NBTx"
+	queryPrefix   = "Query"
+	txPrefix      = "Tx"
+)
+
+const (
+	CreateIndex          = "createIndex"
+	SetIndexCreatedFlag  = "setIndexCreatedFlag"
+	BatchExecute         = "batchExecute"
+	SwapDone             = "swapDone"
+	MultiSwapDone        = "multiSwapDone"
+	CreateCCTransferTo   = "createCCTransferTo"
+	DeleteCCTransferTo   = "deleteCCTransferTo"
+	CommitCCTransferFrom = "commitCCTransferFrom"
+	CancelCCTransferFrom = "cancelCCTransferFrom"
+	DeleteCCTransferFrom = "deleteCCTransferFrom"
+)
+
+// TokenConfigurable is an interface that defines methods for validating, applying, and
+// retrieving token configuration.
+type TokenConfigurable interface {
+	// ValidateTokenConfig validates the provided token configuration data.
+	// It takes a byte slice containing JSON-encoded token configuration and returns an error
+	// if the validation fails. The error should provide information about the validation failure.
+	//
+	// The implementation of this method may include unmarshalling the JSON-encoded data and
+	// invoking specific validation logic on the deserialized token configuration.
+	ValidateTokenConfig(config []byte) error
+
+	// ApplyTokenConfig applies the provided token configuration to the implementing object.
+	// It takes a pointer to a proto.TokenConfig struct and returns an error if applying the
+	// configuration fails. The error should provide information about the failure.
+	//
+	// The implementation of this method may include setting various properties of the implementing
+	// object based on the values in the provided token configuration.
+	ApplyTokenConfig(config *proto.TokenConfig) error
+
+	// TokenConfig retrieves the current token configuration from the implementing object.
+	// It returns a pointer to a proto.TokenConfig struct representing the current configuration.
+	//
+	// The implementation of this method should return the current state of the token configuration
+	// stored within the object.
+	TokenConfig() *proto.TokenConfig
+}
+
+// ExternalConfigurable is an interface that defines methods for validating and applying external configuration.
+// This interface should be implemented in chaincode to initialize some extended chaincode attributes
+// on Init() call.
+// ValidateExtConfig function called in shim.Chaincode.Init function, verify that config is OK.
+// ApplyExtConfig function called each time shim.Chaincode.Invoke called. It loads configuration from state
+// and apply to chaincode.
+type ExternalConfigurable interface {
+	// ValidateExtConfig validates the provided external configuration data.
+	// It takes a byte slice containing the external configuration data, typically in a
+	// specific format, and returns an error if the validation fails. The error should
+	// provide information about the validation failure.
+	ValidateExtConfig(cfgBytes []byte) error
+
+	// ApplyExtConfig applies the provided external configuration to the chaincode.
+	// It takes a byte slice containing the external configuration data and returns an error
+	// if applying the configuration fails. The error should provide information about the failure.
+	ApplyExtConfig(cfgBytes []byte) error
+}
+
+// ChaincodeOption represents a function that applies configuration options to
+// a chaincodeOptions object.
+//
+// opts: A pointer to a chaincodeOptions object that the function will modify.
+//
+// error: The function returns an error if applying the option fails.
 type ChaincodeOption func(opts *chaincodeOptions) error
 
-// opts allows the user to specify more advanced options
+// TLS holds the key and certificate data for TLS communication, as well as
+// client CA certificates for peer verification if needed.
+type TLS struct {
+	Key           []byte // Private key for TLS authentication.
+	Cert          []byte // Public certificate for TLS authentication.
+	ClientCACerts []byte // Optional client CA certificates for verifying connecting peers.
+}
+
+// chaincodeOptions is a structure that holds advanced options for configuring
+// a ChainCode instance.
 type chaincodeOptions struct {
-	SrcFs *embed.FS
+	SrcFs *embed.FS // SrcFs is a file system that contains the source files for the chaincode.
+	TLS   *TLS      // TLS contains the TLS configuration for the chaincode.
 }
 
-// ChainCode is a chaincode	struct which implements shim.Chaincode interface
+// ChainCode defines the structure for a chaincode instance, with methods,
+// configuration, and options for transaction processing.
 type ChainCode struct {
-	contract          BaseContractInterface
-	methods           map[string]*Fn
-	disableSwaps      bool
-	disableMultiSwaps bool
-	txTTL             uint
-	batchPrefix       string
-	nonceTTL          uint
-	noncePrefix       StateKey
-	nonceCheckFn      NonceCheckFn
+	contract BaseContractInterface // Contract interface containing the chaincode logic.
+	tls      shim.TLSProperties    // TLS configuration properties.
+	// methods stores contract public methods, filled through parseContractMethods.
+	methods ContractMethods
 }
 
-// WithSrcFS specifies a set src fs
+// WithSrcFS is a ChaincodeOption that specifies the source file system to be used by the ChainCode.
+//
+// fs: A pointer to an embedded file system containing the chaincode files.
+//
+// It returns a ChaincodeOption that sets the SrcFs field in the chaincodeOptions.
 func WithSrcFS(fs *embed.FS) ChaincodeOption {
 	return func(o *chaincodeOptions) error {
 		o.SrcFs = fs
@@ -70,67 +169,254 @@ func WithSrcFS(fs *embed.FS) ChaincodeOption {
 	}
 }
 
-// NewCC creates new ChainCode
+// WithTLS is a ChaincodeOption that specifies the TLS configuration for the ChainCode.
+//
+// tls: A pointer to a TLS structure containing the TLS certificates and keys.
+//
+// It returns a ChaincodeOption that sets the TLS field in the chaincodeOptions.
+func WithTLS(tls *TLS) ChaincodeOption {
+	return func(o *chaincodeOptions) error {
+		o.TLS = tls
+		return nil
+	}
+}
+
+// WithTLSFromFiles returns a ChaincodeOption that sets the TLS configuration
+// for the ChainCode from provided file paths. It reads the specified files
+// and uses their contents to configure TLS for the chaincode.
+//
+// keyPath: A string representing the file path to the TLS private key.
+//
+// certPath: A string representing the file path to the TLS public certificate.
+//
+// clientCACertPath: An optional string representing the file path to the client
+// CA certificate. If no client CA certificate is needed, this can be left empty.
+//
+// It returns a ChaincodeOption or an error if reading any of the files fails.
+//
+// Example:
+//
+//	tlsOpt, err := core.WithTLSFromFiles("tls/key.pem", "tls/cert.pem", "tls/ca.pem")
+//	if err != nil {
+//	    log.Fatalf("Error configuring TLS: %v", err)
+//	}
+//	cc, err := core.NewCC(contractInstance, contractOptions, tlsOpt)
+//	if err != nil {
+//	    log.Fatalf("Error creating new chaincode instance: %v", err)
+//	}
+//
+// This example sets up the chaincode TLS configuration using the key, certificate,
+// and CA certificate files located in the "tls" directory. After obtaining the
+// ChaincodeOption from WithTLSFromFiles, it is passed to NewCC to create a new
+// instance of ChainCode with TLS enabled.
+func WithTLSFromFiles(keyPath, certPath, clientCACertPath string) (ChaincodeOption, error) {
+	key, err := os.ReadFile(keyPath)
+	if err != nil {
+		return nil, errors.New("failed to read TLS key: " + err.Error())
+	}
+
+	cert, err := os.ReadFile(certPath)
+	if err != nil {
+		return nil, errors.New("failed to read TLS certificate: " + err.Error())
+	}
+
+	tls := &TLS{
+		Key:  key,
+		Cert: cert,
+	}
+
+	if clientCACertPath != "" {
+		clientCACerts, err := os.ReadFile(clientCACertPath)
+		if err != nil {
+			return nil, errors.New("failed to read client CA certificates: " + err.Error())
+		}
+		tls.ClientCACerts = clientCACerts
+	}
+
+	return func(o *chaincodeOptions) error {
+		o.TLS = tls
+		return nil
+	}, nil
+}
+
+// NewCC creates a new instance of ChainCode with the given contract interface
+// and configurable options. It initializes the ChainCode instance with the provided
+// BaseContractInterface and applies advanced configuration settings through
+// a combination of ChaincodeOption functions and environmental variables.
+//
+// The environmental variables are checked first to configure TLS settings,
+// which takes precedence over the settings provided by the ChaincodeOption functions.
+// The function will configure TLS if the respective environment variables contain
+// the necessary information. These variables are:
+//
+// - CHAINCODE_TLS_KEY or CHAINCODE_TLS_KEY_FILE: For the private key in PEM format or file path.
+// - CHAINCODE_TLS_CERT or CHAINCODE_TLS_CERT_FILE: For the public key certificate in PEM format or file path.
+// - CHAINCODE_TLS_CLIENT_CA_CERTS or CHAINCODE_TLS_CLIENT_CA_CERTS_FILE: For the client CA certificates in PEM format or file path.
+//
+// If the environment variables do not provide the TLS configuration, the function
+// will fall back to the configuration provided by ChaincodeOption functions, such as
+// WithTLS or WithTLSFromFiles. If neither are provided, the TLS feature will remain
+// disabled in the chaincode configuration.
+//
+// Args:
+// cc: The BaseContractInterface which encapsulates the contract logic that
+// the ChainCode will execute.
+//
+// options: ContractOptions is a pointer to the configuration settings that will
+// be applied to the chaincode. The settings within options allow for fine-tuned
+// control of the chaincode's behavior, such as transaction TTL, batching prefixes,
+// and swap behavior. If this parameter is not needed, it can be omitted or set to nil.
+//
+// chOptions: A variadic number of ChaincodeOption function types which are used
+// to apply specific configurations to the chaincodeOptions structure. These options
+// may include configurations that can be overridden by environmental variables,
+// particularly for TLS.
+//
+// Returns:
+// A pointer to a ChainCode instance and an error. An error is non-nil
+// if there is a failure in applying the provided ChaincodeOption functions, or if
+// there is an issue with reading and processing the environmental variables for the
+// TLS configuration.
+//
+// Example usage:
+//
+//	tlsConfig := &core.TLS{ /* ... */ }
+//	cc, err := core.NewCC(contract, contractOptions, core.WithTLS(tlsConfig))
+//	if err != nil {
+//		// Handle error
+//	}
+//
+// In the above example, tlsConfig provided by WithTLS will be overridden if the
+// corresponding environmental variables for TLS configuration are set.
 func NewCC(
 	cc BaseContractInterface,
-	options *ContractOptions,
 	chOptions ...ChaincodeOption,
 ) (*ChainCode, error) {
+	empty := new(ChainCode) // Empty chaincode result fixes integration tests.
+
+	// Default TLS properties, disabled unless keys and certs are provided.
+	tlsProps := shim.TLSProperties{
+		Disabled: true,
+	}
+
+	// Try to read TLS configuration from environment variables.
+	key, cert, clientCACerts, err := readTLSConfigFromEnv()
+	if err != nil {
+		return empty, fmt.Errorf("error reading TLS config from environment: %w", err)
+	}
+
+	// If TLS configuration is found in environment variables, use it.
+	if key != nil && cert != nil {
+		tlsProps.Disabled = false
+		tlsProps.Key = key
+		tlsProps.Cert = cert
+		tlsProps.ClientCACerts = clientCACerts
+	}
+
+	// Apply chaincode options provided by the caller.
 	chOpts := chaincodeOptions{}
 	for _, option := range chOptions {
-		err := option(&chOpts)
+		if option == nil {
+			continue
+		}
+		err = option(&chOpts)
 		if err != nil {
-			return &ChainCode{}, fmt.Errorf("failed to read opts: %w", err)
+			return empty, fmt.Errorf("reading opts: %w", err)
 		}
 	}
 
-	cc.baseContractInit(cc)
+	// If TLS was provided via options, overwrite env vars.
+	if chOpts.TLS != nil {
+		tlsProps.Disabled = false
+		tlsProps.Key = chOpts.TLS.Key
+		tlsProps.Cert = chOpts.TLS.Cert
+		tlsProps.ClientCACerts = chOpts.TLS.ClientCACerts
+	}
+
+	// Initialize the contract.
 	cc.setSrcFs(chOpts.SrcFs)
 
-	methods, err := ParseContract(cc, options)
-	if err != nil {
-		return &ChainCode{}, err
-	}
-
+	// Set up the ChainCode structure.
 	out := &ChainCode{
-		contract:     cc,
-		methods:      methods,
-		batchPrefix:  batchKey,
-		noncePrefix:  StateKeyNonce,
-		nonceCheckFn: checkNonce(0, StateKeyNonce),
-	}
-
-	if options != nil {
-		out.disableSwaps = options.DisableSwaps
-		out.disableMultiSwaps = options.DisableMultiSwaps
-		out.txTTL = options.TxTTL
-		if options.BatchPrefix != "" {
-			out.batchPrefix = options.BatchPrefix
-		}
-		if options.NonceTTL != 0 {
-			out.nonceTTL = options.NonceTTL
-		}
-		if options.IsOtherNoncePrefix {
-			out.noncePrefix = StateKeyPassedNonce
-		}
-
-		out.nonceCheckFn = checkNonce(out.nonceTTL, out.noncePrefix)
+		contract: cc,
+		tls:      tlsProps,
 	}
 
 	return out, nil
 }
 
-// Init initializes chaincode
+// Init is called during chaincode instantiation to initialize any
+// data. Note that upgrade also calls this function to reset or to migrate data.
+//
+// Args:
+// stub: The shim.ChaincodeStubInterface containing the context of the call.
+//
+// Returns:
+// - A success response if initialization succeeds.
+// - An error response if it fails to get the creator or to initialize the chaincode.
 func (cc *ChainCode) Init(stub shim.ChaincodeStubInterface) peer.Response {
-	err := initialize.InitChaincode(stub)
+	creator, err := stub.GetCreator()
 	if err != nil {
-		return shim.Error(err.Error())
+		return shim.Error(fmt.Sprintf("init: getting creator of transaction: %s", err.Error()))
+	}
+	if err := hlfcreator.ValidateAdminCreator(creator); err != nil {
+		return shim.Error(fmt.Sprintf("init: validating admin creator: %s", err))
+	}
+
+	args := stub.GetStringArgs()
+
+	var cfgBytes []byte
+	if config.IsJSONConfig(args) {
+		cfgBytes = []byte(args[0])
+	} else {
+		// handle args as position parameters and fill config structure.
+		// TODO: remove this code when all users moved to json-config initialization.
+		cfgBytes, err = config.ParseArgsArr(stub.GetChannelID(), args)
+		if err != nil {
+			return shim.Error(fmt.Sprintf("init: parsing args old way: %s", err))
+		}
+	}
+
+	if err := validateContractMethods(cc.contract); err != nil {
+		return shim.Error(fmt.Sprintf("init: validating contract methods: %s", err.Error()))
+	}
+
+	if c, ok := cc.contract.(ContractConfigurable); ok {
+		if err := c.ValidateConfig(cfgBytes); err != nil {
+			return shim.Error(fmt.Sprintf("init: validating base config: %s", err))
+		}
+	} else {
+		return shim.Error("chaincode does not implement ContractConfigurable interface")
+	}
+
+	if t, ok := cc.contract.(TokenConfigurable); ok {
+		if err := t.ValidateTokenConfig(cfgBytes); err != nil {
+			return shim.Error(fmt.Sprintf("init: validating token config: %s", err))
+		}
+	}
+
+	if tc, ok := cc.contract.(ExternalConfigurable); ok {
+		if err := tc.ValidateExtConfig(cfgBytes); err != nil {
+			return shim.Error(fmt.Sprintf("init: validating extended token config: %s", err))
+		}
+	}
+
+	if err := config.SaveConfig(stub, cfgBytes); err != nil {
+		return shim.Error(fmt.Sprintf("init: saving config: %s", err.Error()))
 	}
 
 	return shim.Success(nil)
 }
 
-// Invoke invokes chaincode
+// Invoke is called to update or query the ledger in a proposal transaction.
+// Given the function name, it delegates the execution to the respective handler.
+//
+// Args:
+// stub: The shim.ChaincodeStubInterface containing the context of the call.
+//
+// Returns:
+// - A response from the executed handler.
+// - An error response if any validations fail or the required method is not found.
 func (cc *ChainCode) Invoke(stub shim.ChaincodeStubInterface) (r peer.Response) {
 	r = shim.Error("panic invoke")
 	defer func() {
@@ -139,81 +425,158 @@ func (cc *ChainCode) Invoke(stub shim.ChaincodeStubInterface) (r peer.Response) 
 		}
 	}()
 
-	err := cc.ValidateTxID(stub)
-	if err != nil {
-		return shim.Error(err.Error())
+	// Transaction context.
+	var (
+		transacrionID           = stub.GetTxID()
+		functionName, arguments = stub.GetFunctionAndParameters()
+	)
+
+	logger := Logger()
+	start := time.Now()
+
+	logger.Infof("begin id: %s, name: %s", transacrionID, functionName)
+
+	defer func() {
+		logger.Infof(
+			"end id: %s, name: %s, elapsed time %d ms",
+			transacrionID,
+			functionName,
+			time.Since(start).Milliseconds(),
+		)
+	}()
+
+	if err := cc.ValidateTxID(stub); err != nil {
+		return shim.Error(fmt.Sprintf("invoke: validating transaction ID: %s", err.Error()))
 	}
 
-	creatorSKI, hashedCert, err := creatorSKIAndHashedCertByStub(stub)
+	creatorBytes, err := stub.GetCreator()
 	if err != nil {
-		return shim.Error(err.Error())
+		return shim.Error(
+			fmt.Sprintf("invoke: failed to get creator of transaction: %s", err.Error()),
+		)
 	}
 
-	functionName, args := stub.GetFunctionAndParameters()
+	creatorSKI, hashedCert, err := hlfcreator.CreatorSKIAndHashedCert(creatorBytes)
+	if err != nil {
+		return shim.Error(fmt.Sprintf("invoke: validating creator: %s", err.Error()))
+	}
+
+	cfgBytes, err := config.LoadRawConfig(stub)
+	if err != nil {
+		return shim.Error(fmt.Sprintf("invoke: loading raw config: %s", err.Error()))
+	}
+
+	// Apply config on all layers: base contract (SKI's & chaincode options),
+	// token base attributes and extended token parameters.
+	if err := applyConfig(&cc.contract, stub, cfgBytes); err != nil {
+		return shim.Error(fmt.Sprintf("applying configutarion: %s", err.Error()))
+	}
+
+	cc.methods, err = parseContractMethods(cc.contract)
+	if err != nil {
+		return shim.Error(fmt.Sprintf("invoke: parsing contract methods: %s", err.Error()))
+	}
+
+	// it is probably worth checking if the function is not locked before it is executed.
+	// You should also check with swap and multiswap locking and
+	// display the error explicitly instead of saying that the function was not found.
 	switch functionName {
-	case "batchExecute":
-		return cc.batchExecuteHandler(stub, creatorSKI, hashedCert, args)
-	case "swapDone":
-		return cc.swapDoneHandler(stub, args)
-	case "multiSwapDone":
-		return cc.multiSwapDoneHandler(stub, args)
-	case "createCCTransferTo", "cancelCCTransferFrom", "commitCCTransferFrom",
-		"deleteCCTransferFrom", "deleteCCTransferTo":
-		initArgs, err := initialize.LoadInitArgs(stub)
-		if err != nil {
-			return shim.Error(fmt.Sprintf("incorrect tx id %s", err.Error()))
+	case CreateIndex: // Creating a reverse index to find token owners.
+		if len(arguments) != 1 {
+			return shim.Error(fmt.Sprintf("invoke: incorrect number of arguments: %d", len(arguments)))
 		}
 
-		err = validateRobotSKI(initArgs.RobotSKI, creatorSKI, hashedCert)
+		balanceType, err := balance.StringToBalanceType(arguments[0])
 		if err != nil {
-			return shim.Error(err.Error())
+			return shim.Error(fmt.Sprintf("invoke: parsing object type: %s", err.Error()))
+		}
+
+		if err = balance.CreateIndex(stub, balanceType); err != nil {
+			return shim.Error(fmt.Sprintf("invoke: create index: %s", err.Error()))
+		}
+
+		return shim.Success([]byte(`{"status": "success"}`))
+
+	case BatchExecute:
+		return cc.batchExecuteHandler(stub, creatorSKI, hashedCert, arguments, cfgBytes)
+
+	case SwapDone:
+		return cc.swapDoneHandler(stub, arguments, cfgBytes)
+
+	case MultiSwapDone:
+		return cc.multiSwapDoneHandler(stub, arguments, cfgBytes)
+
+	case CreateCCTransferTo,
+		DeleteCCTransferTo,
+		CommitCCTransferFrom,
+		CancelCCTransferFrom,
+		DeleteCCTransferFrom:
+		contractCfg, err := config.ContractConfigFromBytes(cfgBytes)
+		if err != nil {
+			return shim.Error(fmt.Sprintf("loading base config %s", err.Error()))
+		}
+
+		robotSKIBytes, _ := hex.DecodeString(contractCfg.RobotSKI)
+		err = hlfcreator.ValidateSKI(robotSKIBytes, creatorSKI, hashedCert)
+		if err != nil {
+			return shim.Error(
+				fmt.Sprintf(
+					"invoke:unauthorized: robotSKI is not equal creatorSKI and hashedCert: %s",
+					err.Error(),
+				),
+			)
 		}
 	}
 
-	// fetch function details by function name
-	fn, err := cc.FetchFnByName(functionName)
+	method, err := cc.methods.Method(functionName)
 	if err != nil {
-		return shim.Error(err.Error())
+		return shim.Error(fmt.Sprintf("invoke: finding method: %s", err.Error()))
 	}
 
 	// handle invoke and query methods executed without batch process
-	if fn.noBatch {
-		return cc.noBatchHandler(stub, functionName, fn, args)
+	if method.noBatch {
+		return cc.noBatchHandler(stub, functionName, method, arguments, cfgBytes)
 	}
 
 	// handle invoke method with batch process
-	return cc.BatchHandler(stub, functionName, fn, args)
+	return cc.BatchHandler(stub, functionName, method, arguments)
 }
 
-func validateRobotSKI(robotSKI []byte, creatorSKI [32]byte, hashedCert [32]byte) error {
-	if !bytes.Equal(hashedCert[:], robotSKI) &&
-		!bytes.Equal(creatorSKI[:], robotSKI) {
-		return fmt.Errorf("unauthorized: robotSKI and creatorSKI, hashedCert is not equal")
-	}
-	return nil
-}
-
-// ValidateTxID validates tx id
+// ValidateTxID validates the transaction ID to ensure it is correctly formatted.
+//
+// Args:
+// stub: The shim.ChaincodeStubInterface to access the transaction ID.
+//
+// Returns:
+// - nil if the transaction ID is valid.
+// - An error if the transaction ID is not valid hexadecimal.
 func (cc *ChainCode) ValidateTxID(stub shim.ChaincodeStubInterface) error {
 	_, err := hex.DecodeString(stub.GetTxID())
 	if err != nil {
 		return fmt.Errorf("incorrect tx id: %w", err)
 	}
+
 	return nil
 }
 
-// FetchFnByName fetches function by name
-func (cc *ChainCode) FetchFnByName(f string) (*Fn, error) {
-	method, exists := cc.methods[f]
-	if !exists {
-		return nil, fmt.Errorf("method not found: '%s'", f)
-	}
-	return method, nil
-}
-
-// BatchHandler handles batch process
-func (cc *ChainCode) BatchHandler(stub shim.ChaincodeStubInterface, funcName string, fn *Fn, args []string) peer.Response {
-	sender, args, nonce, err := cc.checkAuthIfNeeds(stub, fn, funcName, args, true)
+// BatchHandler handles the batching logic for chaincode invocations.
+//
+// Args:
+// stub: The shim.ChaincodeStubInterface containing the context of the call.
+// funcName: The name of the chaincode function to be executed.
+// fn: A pointer to the chaincode function to be executed.
+// args: A slice of arguments to pass to the function.
+//
+// Returns:
+// - A success response if the batching is successful.
+// - An error response if there is any failure in authentication, preparation, or saving to batch.
+func (cc *ChainCode) BatchHandler(
+	stub shim.ChaincodeStubInterface,
+	funcName string,
+	fn *Fn,
+	args []string,
+) peer.Response {
+	sender, args, nonce, err := cc.validateAndExtractInvocationContext(stub, fn, funcName, args)
 	if err != nil {
 		return shim.Error(err.Error())
 	}
@@ -222,19 +585,32 @@ func (cc *ChainCode) BatchHandler(stub shim.ChaincodeStubInterface, funcName str
 		return shim.Error(err.Error())
 	}
 
-	if err = cc.saveToBatch(stub, funcName, sender, args[:len(fn.in)], nonce); err != nil {
+	if err = cc.saveToBatch(stub, funcName, fn, sender, args[:len(fn.in)], nonce); err != nil {
 		return shim.Error(err.Error())
 	}
 
 	return shim.Success(nil)
 }
 
-func (cc *ChainCode) noBatchHandler(stub shim.ChaincodeStubInterface, funcName string, fn *Fn, args []string) peer.Response {
+// noBatchHandler is called for functions that should be executed immediately without batching.
+// It processes the chaincode function invocation that does not require batch processing.
+// This method handles authorization, argument preparation and execution of the chaincode function.
+//
+// If the function is marked as a 'query', it modifies the stub to ensure that no state changes are persisted.
+//
+// Returns a shim.Success response if the function invocation is successful. Otherwise, it returns a shim.Error response.
+func (cc *ChainCode) noBatchHandler(
+	stub shim.ChaincodeStubInterface,
+	funcName string,
+	fn *Fn,
+	args []string,
+	cfgBytes []byte,
+) peer.Response {
 	if fn.query {
 		stub = newQueryStub(stub)
 	}
 
-	sender, args, _, err := cc.checkAuthIfNeeds(stub, fn, funcName, args, true)
+	sender, args, _, err := cc.validateAndExtractInvocationContext(stub, fn, funcName, args)
 	if err != nil {
 		return shim.Error(err.Error())
 	}
@@ -243,11 +619,7 @@ func (cc *ChainCode) noBatchHandler(stub shim.ChaincodeStubInterface, funcName s
 		return shim.Error(err.Error())
 	}
 
-	initArgs, err := initialize.LoadInitArgs(stub)
-	if err != nil {
-		return shim.Error(fmt.Sprintf("incorrect tx id %s", err.Error()))
-	}
-	resp, err := cc.callMethod(stub, fn, sender, args, initArgs.PlatformSKI, initArgs.Args)
+	resp, err := cc.callMethod(stub, fn, sender, args, cfgBytes)
 	if err != nil {
 		return shim.Error(err.Error())
 	}
@@ -255,81 +627,106 @@ func (cc *ChainCode) noBatchHandler(stub shim.ChaincodeStubInterface, funcName s
 	return shim.Success(resp)
 }
 
-func creatorSKIAndHashedCertByStub(stub shim.ChaincodeStubInterface) ([32]byte, [32]byte, error) {
-	var creatorSKI [32]byte
-	var hashedCert [32]byte
-	creator, err := stub.GetCreator()
-	if err != nil {
-		return creatorSKI, hashedCert, err
+// multiSwapDoneHandler processes a request to mark multiple swaps as done.
+// If the ChainCode is configured to disable multi swaps, it will immediately return an error.
+//
+// It loads initial arguments and then proceeds to execute the multi-swap user done logic.
+//
+// Returns a shim.Success response if the multi-swap done logic executes successfully.
+// Otherwise, it returns a shim.Error response.
+func (cc *ChainCode) multiSwapDoneHandler(
+	stub shim.ChaincodeStubInterface,
+	args []string,
+	cfgBytes []byte,
+) peer.Response {
+	if cc.contract.ContractConfig().Options.DisableMultiSwaps {
+		return shim.Error(fmt.Sprintf(
+			"handling multi-swap done failed, %s", ErrMultiSwapDisabled.Error(),
+		))
 	}
 
-	var identity msp.SerializedIdentity
-	if err = pb.Unmarshal(creator, &identity); err != nil {
-		return creatorSKI, hashedCert, err
-	}
+	_, contract := copyContractWithConfig(cc.contract, stub, cfgBytes)
 
-	b, _ := pem.Decode(identity.IdBytes)
-	parsed, err := x509.ParseCertificate(b.Bytes)
-	if err != nil {
-		return creatorSKI, hashedCert, err
-	}
-
-	pk, ok := parsed.PublicKey.(*ecdsa.PublicKey)
-	if !ok {
-		return creatorSKI, hashedCert, errors.New("public key type assertion failed")
-	}
-
-	creatorSKI = sha256.Sum256(elliptic.Marshal(pk.Curve, pk.X, pk.Y))
-	hashedCert = sha3.Sum256(creator)
-
-	return creatorSKI, hashedCert, nil
-}
-
-func (cc *ChainCode) multiSwapDoneHandler(stub shim.ChaincodeStubInterface, args []string) peer.Response {
-	if cc.disableMultiSwaps {
-		return shim.Error("multiswaps disabled")
-	}
-	initArgs, err := initialize.LoadInitArgs(stub)
-	if err != nil {
-		return shim.Error(fmt.Sprintf("incorrect tx id %s", err.Error()))
-	}
-	_, contract := copyContract(cc.contract, stub, initArgs.PlatformSKI, initArgs.Args, cc.noncePrefix)
 	return multiSwapUserDone(contract, args[0], args[1])
 }
 
-func (cc *ChainCode) swapDoneHandler(stub shim.ChaincodeStubInterface, args []string) peer.Response {
-	if cc.disableSwaps {
-		return shim.Error("swaps disabled")
+// swapDoneHandler processes a request to mark a swap as done.
+// If the ChainCode is configured to disable swaps, it will immediately return an error.
+//
+// It loads initial arguments and then proceeds to execute the swap user done logic.
+//
+// Returns a shim.Success response if the swap done logic executes successfully.
+// Otherwise, it returns a shim.Error response.
+func (cc *ChainCode) swapDoneHandler(
+	stub shim.ChaincodeStubInterface,
+	args []string,
+	cfgBytes []byte,
+) peer.Response {
+	if cc.contract.ContractConfig().Options.DisableSwaps {
+		return shim.Error(fmt.Sprintf("handling swap done failed, %s", ErrSwapDisabled.Error()))
 	}
-	initArgs, err := initialize.LoadInitArgs(stub)
-	if err != nil {
-		return shim.Error(fmt.Sprintf("incorrect tx id %s", err.Error()))
-	}
-	_, contract := copyContract(cc.contract, stub, initArgs.PlatformSKI, initArgs.Args, cc.noncePrefix)
+
+	_, contract := copyContractWithConfig(cc.contract, stub, cfgBytes)
+
 	return swapUserDone(contract, args[0], args[1])
 }
 
-func (cc *ChainCode) batchExecuteHandler(stub shim.ChaincodeStubInterface, creatorSKI [32]byte, hashedCert [32]byte, args []string) peer.Response {
-	initArgs, err := initialize.LoadInitArgs(stub)
+// batchExecuteHandler is responsible for executing a batch of transactions.
+// This handler is invoked when the chaincode function named "batchExecute" is called.
+//
+// It performs authorization checks using the creator's Subject Key Identifier (SKI) and the hashed certificate
+// before proceeding to execute the batch.
+//
+// Returns a shim.Success response if the batch execution is successful. Otherwise, it returns a shim.Error response
+// indicating either an incorrect transaction ID or unauthorized access.
+func (cc *ChainCode) batchExecuteHandler(
+	stub shim.ChaincodeStubInterface,
+	creatorSKI [32]byte,
+	hashedCert [32]byte,
+	args []string,
+	cfgBytes []byte,
+) peer.Response {
+	contractCfg, err := config.ContractConfigFromBytes(cfgBytes)
 	if err != nil {
-		return shim.Error(fmt.Sprintf("incorrect tx id %s", err.Error()))
+		return peer.Response{}
 	}
 
-	err = validateRobotSKI(initArgs.RobotSKI, creatorSKI, hashedCert)
+	robotSKIBytes, _ := hex.DecodeString(contractCfg.RobotSKI)
+
+	err = hlfcreator.ValidateSKI(robotSKIBytes, creatorSKI, hashedCert)
 	if err != nil {
-		return shim.Error(err.Error())
+		return shim.Error(
+			fmt.Sprintf(
+				"unauthorized: robotSKI is not equal creatorSKI and hashedCert: %s",
+				err.Error(),
+			),
+		)
 	}
 
-	return cc.batchExecute(stub, args[0], initArgs.PlatformSKI, initArgs.Args)
+	return cc.batchExecute(stub, args[0], cfgBytes)
 }
 
+// callMethod invokes a method on the ChainCode contract using reflection. It converts the
+// arguments from strings to their expected types, handles sender address if provided,
+// creates a copy of the contract with provided initialization arguments, and then
+// calls the specified method on the contract.
+//
+// Returns:
+//   - A byte slice containing the JSON-marshaled return value of the method, if method.out is true.
+//   - An error if there is any issue with argument conversion, contract copying, or method call.
+//
+// If 'sender' is non-nil, it is converted to a types.Sender and prepended to the argument list.
+// If 'method.out' is true, the return value of the method call is JSON-marshaled and returned as a byte slice.
+// If the method call returns an error or the return value cannot be converted to an error, it is returned as is.
+//
+// Errors from the method call are converted to Go errors and returned. If the conversion is not possible,
+// a generic error with message assertInterfaceErrMsg is returned.
 func (cc *ChainCode) callMethod(
 	stub shim.ChaincodeStubInterface,
 	method *Fn,
 	sender *proto.Address,
 	args []string,
-	platformSKI []byte,
-	initArgs []string,
+	cfgBytes []byte,
 ) ([]byte, error) {
 	values, err := doConvertToCall(stub, method, args)
 	if err != nil {
@@ -341,7 +738,7 @@ func (cc *ChainCode) callMethod(
 		}, values...)
 	}
 
-	contract, _ := copyContract(cc.contract, stub, platformSKI, initArgs, cc.noncePrefix)
+	contract, _ := copyContractWithConfig(cc.contract, stub, cfgBytes)
 
 	out := method.fn.Call(append([]reflect.Value{contract}, values...))
 	errInt := out[0].Interface()
@@ -362,13 +759,27 @@ func (cc *ChainCode) callMethod(
 	return nil, nil
 }
 
-func doConvertToCall(stub shim.ChaincodeStubInterface, method *Fn, args []string) ([]reflect.Value, error) {
+// doConvertToCall prepares the arguments for a chaincode method call by converting each
+// string argument to its expected Go type as defined in the method's 'in' field. It uses reflection
+// to dynamically convert arguments and checks if the number of provided arguments matches the expectation.
+//
+// It returns a slice of reflect.Value representing the converted arguments, and an error if
+// the conversion fails or if there is an incorrect number of arguments.
+func doConvertToCall(
+	stub shim.ChaincodeStubInterface,
+	method *Fn,
+	args []string,
+) ([]reflect.Value, error) {
 	found := len(args)
 	expected := len(method.in)
 	if found < expected {
-		return nil, fmt.Errorf("incorrect number of arguments, found %d but expected more than %d", found, expected)
+		return nil, fmt.Errorf(
+			"incorrect number of arguments, found %d but expected more than %d",
+			found,
+			expected,
+		)
 	}
-
+	// todo check is args enough
 	vArgs := make([]reflect.Value, len(method.in))
 	for i := range method.in {
 		var impl reflect.Value
@@ -388,17 +799,31 @@ func doConvertToCall(stub shim.ChaincodeStubInterface, method *Fn, args []string
 			if !ok {
 				return nil, errors.New(assertInterfaceErrMsg)
 			}
-			return nil, err
+			return nil, fmt.Errorf(
+				"failed to convert arg value '%s' to type '%s' on index '%d': %w",
+				args[i], impl.String(), i, err,
+			)
 		}
 		vArgs[i] = res[0]
 	}
 	return vArgs, nil
 }
 
-func doPrepareToSave(stub shim.ChaincodeStubInterface, method *Fn, args []string) ([]string, error) {
+// doPrepareToSave prepares the arguments for storage by ensuring they are in the correct format.
+// It checks if there are enough arguments and uses either a custom 'prepareToSave' or 'convertToCall'
+// method defined in the method's 'in' field for conversion. It returns the processed arguments as a
+// slice of strings, and an error if the conversion fails or if there is an incorrect number of arguments.
+func doPrepareToSave(
+	stub shim.ChaincodeStubInterface,
+	method *Fn,
+	args []string,
+) ([]string, error) {
 	if len(args) < len(method.in) {
-		return nil, fmt.Errorf("incorrect number of arguments. current count of args is %d but expected more than %d",
-			len(args), len(method.in))
+		return nil, fmt.Errorf(
+			"incorrect number of arguments. current count of args is %d but expected more than %d",
+			len(args),
+			len(method.in),
+		)
 	}
 	as := make([]string, len(method.in))
 	for i := range method.in {
@@ -448,12 +873,14 @@ func doPrepareToSave(stub shim.ChaincodeStubInterface, method *Fn, args []string
 	return as, nil
 }
 
-func copyContract(
+// copyContract creates a deep copy of a contract's interface. It uses reflection to copy each field
+// from the original to a new instance of the same type. The new copy is initialized with the provided
+// stub, cfgBytes and noncePrefix. It returns a reflect.Value of the copied contract and
+// an interface to the copied contract.
+func copyContractWithConfig(
 	orig BaseContractInterface,
 	stub shim.ChaincodeStubInterface,
-	platformSKI []byte,
-	initArgs []string,
-	noncePrefix StateKey,
+	cfgBytes []byte,
 ) (reflect.Value, BaseContractInterface) {
 	cp := reflect.New(reflect.ValueOf(orig).Elem().Type())
 	val := reflect.ValueOf(orig).Elem()
@@ -462,15 +889,22 @@ func copyContract(
 			cp.Elem().Field(i).Set(val.Field(i))
 		}
 	}
+
 	contract, ok := cp.Interface().(BaseContractInterface)
 	if !ok {
 		return cp, nil
 	}
-	contract.setStubAndInitArgs(stub, platformSKI, initArgs, noncePrefix)
+
+	_ = applyConfig(&contract, stub, cfgBytes)
+
 	return cp, contract
 }
 
-// Start starts chaincode
+// Start begins the chaincode execution based on the environment configuration. It decides whether to
+// start the chaincode in the default mode or as a server based on the CHAINCODE_EXEC_MODE environment
+// variable. In server mode, it requires the CHAINCODE_ID to be set and uses CHAINCODE_SERVER_PORT for
+// the port or defaults to a predefined port if not set. It returns an error if the necessary
+// environment variables are not set or if the chaincode fails to start.
 func (cc *ChainCode) Start() error {
 	// get chaincode execution mode
 	execMode := os.Getenv(chaincodeExecModeEnv)
@@ -491,12 +925,106 @@ func (cc *ChainCode) Start() error {
 	}
 
 	srv := shim.ChaincodeServer{
-		CCID:    ccID,
-		Address: fmt.Sprintf("%s:%s", "0.0.0.0", port),
-		CC:      cc,
-		TLSProps: shim.TLSProperties{
-			Disabled: true,
-		},
+		CCID:     ccID,
+		Address:  fmt.Sprintf("%s:%s", "0.0.0.0", port),
+		CC:       cc,
+		TLSProps: cc.tls,
 	}
 	return srv.Start()
+}
+
+// readTLSConfigFromEnv tries to read TLS configuration from environment variables.
+func readTLSConfigFromEnv() ([]byte, []byte, []byte, error) {
+	var (
+		key, cert, clientCACerts []byte
+		err                      error
+	)
+
+	if keyEnv := os.Getenv(tlsKeyEnv); keyEnv != "" {
+		key = []byte(keyEnv)
+	} else if keyFile := os.Getenv(tlsKeyFileEnv); keyFile != "" {
+		key, err = os.ReadFile(keyFile)
+		if err != nil {
+			return nil, nil, nil, fmt.Errorf("failed to read TLS key file: %w", err)
+		}
+	}
+
+	if certEnv := os.Getenv(tlsCertEnv); certEnv != "" {
+		cert = []byte(certEnv)
+	} else if certFile := os.Getenv(tlsCertFileEnv); certFile != "" {
+		cert, err = os.ReadFile(certFile)
+		if err != nil {
+			return nil, nil, nil, fmt.Errorf("failed to read TLS certificate file: %w", err)
+		}
+	}
+
+	if caCertsEnv := os.Getenv(tlsClientCACertsEnv); caCertsEnv != "" {
+		clientCACerts = []byte(caCertsEnv)
+	} else if caCertsFile := os.Getenv(tlsClientCACertsFileEnv); caCertsFile != "" {
+		clientCACerts, err = os.ReadFile(caCertsFile)
+		if err != nil {
+			return nil, nil, nil, fmt.Errorf("failed to read client CA certificates file: %w", err)
+		}
+	}
+
+	return key, cert, clientCACerts, nil
+}
+
+// applyConfig applies the provided configuration to a BaseContractInterface, updating its internal state.
+//
+// The function takes a BaseContractInterface (bci), a shim.ChaincodeStubInterface (stub), and the
+// configuration data in the form of a byte slice (cfgBytes). It sets the ChaincodeStubInterface on
+// the BaseContractInterface and tries to apply Base, Token and Extended configurations
+// based on the implemented interfaces of the
+// ContractConfigurable, TokenConfigurable and ExternalConfigurable consequently.
+//
+// If the BaseContractInterface does not implement the ContractConfigurable interface, an error is returned.
+//
+// If any step in the configuration application process fails, an error is returned with details about
+// the specific error encountered.
+func applyConfig(
+	bci *BaseContractInterface,
+	stub shim.ChaincodeStubInterface,
+	cfgBytes []byte,
+) error {
+	// WARN: if stub is not set,
+	// it should be thrown through it into all methods before CallMethod.
+	(*bci).setStub(stub)
+
+	ccbc, ok := (*bci).(ContractConfigurable)
+	if !ok {
+		return fmt.Errorf("chaincode is not ContractConfigurable")
+	}
+
+	contractCfg, err := config.ContractConfigFromBytes(cfgBytes)
+	if err != nil {
+		return fmt.Errorf("parsing base config: %w", err)
+	}
+
+	if contractCfg.Options == nil {
+		contractCfg.Options = new(proto.ChaincodeOptions)
+	}
+
+	if err = ccbc.ApplyContractConfig(contractCfg); err != nil {
+		return fmt.Errorf("applying base config: %w", err)
+	}
+
+	if tc, ok := (*bci).(TokenConfigurable); ok {
+		tokenCfg, err := config.TokenConfigFromBytes(cfgBytes)
+		if err != nil {
+			return fmt.Errorf("parsing token config: %w", err)
+		}
+
+		if err = tc.ApplyTokenConfig(tokenCfg); err != nil {
+			return fmt.Errorf("applying token config: %w", err)
+		}
+	}
+
+	if ec, ok := (*bci).(ExternalConfigurable); ok {
+		if err := ec.ApplyExtConfig(cfgBytes); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

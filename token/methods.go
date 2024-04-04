@@ -47,24 +47,27 @@ func (bt *BaseToken) QueryMetadata() (*Metadata, error) {
 		return &Metadata{}, err
 	}
 	m := &Metadata{
-		Name:            bt.Name,
-		Symbol:          bt.Symbol,
-		Decimals:        bt.Decimals,
-		UnderlyingAsset: bt.UnderlyingAsset,
-		Issuer:          bt.Issuer().String(),
-		Methods:         bt.GetMethods(),
+		Name:            bt.TokenConfig().Name,
+		Symbol:          bt.ContractConfig().Symbol,
+		Decimals:        uint(bt.TokenConfig().Decimals),
+		UnderlyingAsset: bt.TokenConfig().UnderlyingAsset,
+		Issuer:          bt.TokenConfig().Issuer.Address,
+		Methods:         bt.GetMethods(bt),
 		TotalEmission:   new(big.Int).SetBytes(bt.config.TotalEmission),
 		Fee:             &Fee{},
 	}
+
 	if types.IsValidAddressLen(bt.config.FeeAddress) {
 		m.Fee.Address = types.AddrFromBytes(bt.config.FeeAddress).String()
 	}
+
 	if bt.config.Fee != nil {
 		m.Fee.Currency = bt.config.Fee.Currency
 		m.Fee.Fee = new(big.Int).SetBytes(bt.config.Fee.Fee)
 		m.Fee.Floor = new(big.Int).SetBytes(bt.config.Fee.Floor)
 		m.Fee.Cap = new(big.Int).SetBytes(bt.config.Fee.Cap)
 	}
+
 	for _, r := range bt.config.Rates {
 		m.Rates = append(m.Rates, &MetadataRate{
 			DealType: r.DealType,
@@ -74,6 +77,7 @@ func (bt *BaseToken) QueryMetadata() (*Metadata, error) {
 			Max:      new(big.Int).SetBytes(r.Max),
 		})
 	}
+
 	return m, nil
 }
 
@@ -119,7 +123,7 @@ func (bt *BaseToken) TxSetRate(sender *types.Sender, dealType string, currency s
 	if rate.Sign() == 0 {
 		return errors.New("trying to set rate = 0")
 	}
-	if bt.Symbol == currency {
+	if bt.ContractConfig().Symbol == currency {
 		return errors.New("currency is equals token: it is impossible")
 	}
 	if err := bt.loadConfigUnlessLoaded(); err != nil {
@@ -174,7 +178,7 @@ func (bt *BaseToken) TxDeleteRate(sender *types.Sender, dealType string, currenc
 	if !sender.Equal(bt.Issuer()) {
 		return errors.New("unauthorized")
 	}
-	if bt.Symbol == currency {
+	if bt.ContractConfig().Symbol == currency {
 		return errors.New("currency is equals token: it is impossible")
 	}
 	if err := bt.loadConfigUnlessLoaded(); err != nil {

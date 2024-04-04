@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package unit;
+
+import "config.proto";
+import "validate/validate.proto";
+
+option go_package = "./;unit";
+
+message ExtConfig {
+  string asset = 1 [(validate.rules).string.min_len = 3];
+  string amount = 2 [(validate.rules).string.min_len = 1];
+  proto.Wallet issuer = 3 [(validate.rules).message.required = true];
+}

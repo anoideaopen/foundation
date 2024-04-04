@@ -6,9 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	mathbig "math/big"
 	"runtime/debug"
 	"strings"
 
+	"github.com/anoideaopen/foundation/core/balance"
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/core/types/big"
 	"github.com/anoideaopen/foundation/proto"
@@ -21,17 +23,15 @@ import (
 const (
 	// MultiSwapCompositeType is a composite key for multiswap
 	MultiSwapCompositeType = "multi_swap"
-	// MultiSwapReason is a reason for multiswap
-	MultiSwapReason = "multi_swap"
 	// MultiSwapKeyEvent is a reason for multiswap
 	MultiSwapKeyEvent = "multi_swap_key"
 )
 
 func multiSwapAnswer(stub *batchStub, swap *proto.MultiSwap) (r *proto.SwapResponse) {
-	r = &proto.SwapResponse{Id: swap.Id, Error: &proto.ResponseError{Error: "panic swapAnswer"}}
+	r = &proto.SwapResponse{Id: swap.Id, Error: &proto.ResponseError{Error: "panic multiSwapAnswer"}}
 	defer func() {
 		if rc := recover(); rc != nil {
-			log.Println("panic swapAnswer: " + hex.EncodeToString(swap.Id) + "\n" + string(debug.Stack()))
+			log.Println("panic multiSwapAnswer: " + hex.EncodeToString(swap.Id) + "\n" + string(debug.Stack()))
 		}
 	}()
 
@@ -49,7 +49,7 @@ func multiSwapAnswer(stub *batchStub, swap *proto.MultiSwap) (r *proto.SwapRespo
 		// nothing to do
 	case swap.Token == swap.To:
 		for _, asset := range swap.Assets {
-			if err = GivenBalanceSub(txStub, swap.From, new(big.Int).SetBytes(asset.Amount)); err != nil {
+			if err = balance.Sub(txStub, balance.BalanceTypeGiven, swap.From, "", new(mathbig.Int).SetBytes(asset.Amount)); err != nil {
 				return &proto.SwapResponse{Id: swap.Id, Error: &proto.ResponseError{Error: err.Error()}}
 			}
 		}
@@ -57,7 +57,7 @@ func multiSwapAnswer(stub *batchStub, swap *proto.MultiSwap) (r *proto.SwapRespo
 		return &proto.SwapResponse{Id: swap.Id, Error: &proto.ResponseError{Error: ErrIncorrectSwap}}
 	}
 
-	if _, err = MultiSwapSave(txStub, hex.EncodeToString(swap.Id), swap); err != nil {
+	if err = MultiSwapSave(txStub, hex.EncodeToString(swap.Id), swap); err != nil {
 		return &proto.SwapResponse{Id: swap.Id, Error: &proto.ResponseError{Error: err.Error()}}
 	}
 	writes, _ := txStub.Commit()
@@ -65,10 +65,10 @@ func multiSwapAnswer(stub *batchStub, swap *proto.MultiSwap) (r *proto.SwapRespo
 }
 
 func multiSwapRobotDone(stub *batchStub, swapID []byte, key string) (r *proto.SwapResponse) {
-	r = &proto.SwapResponse{Id: swapID, Error: &proto.ResponseError{Error: "panic swapRobotDone"}}
+	r = &proto.SwapResponse{Id: swapID, Error: &proto.ResponseError{Error: "panic multiSwapRobotDone"}}
 	defer func() {
 		if rc := recover(); rc != nil {
-			log.Println("panic swapRobotDone: " + hex.EncodeToString(swapID) + "\n" + string(debug.Stack()))
+			log.Println("panic multiSwapRobotDone: " + hex.EncodeToString(swapID) + "\n" + string(debug.Stack()))
 		}
 	}()
 
@@ -84,7 +84,7 @@ func multiSwapRobotDone(stub *batchStub, swapID []byte, key string) (r *proto.Sw
 
 	if swap.Token == swap.From {
 		for _, asset := range swap.Assets {
-			if err = GivenBalanceAdd(txStub, swap.To, new(big.Int).SetBytes(asset.Amount)); err != nil {
+			if err = balance.Add(txStub, balance.BalanceTypeGiven, swap.To, "", new(mathbig.Int).SetBytes(asset.Amount)); err != nil {
 				return &proto.SwapResponse{Id: swapID, Error: &proto.ResponseError{Error: err.Error()}}
 			}
 		}
@@ -110,14 +110,13 @@ func multiSwapUserDone(bc BaseContractInterface, swapID string, key string) peer
 	if bytes.Equal(swap.Creator, swap.Owner) {
 		return shim.Error(ErrIncorrectSwap)
 	}
-
 	if swap.Token == swap.From {
-		if err = bc.AllowedIndustrialBalanceAdd(types.AddrFromBytes(swap.Owner), swap.Assets, MultiSwapReason); err != nil {
+		if err = bc.AllowedIndustrialBalanceAdd(types.AddrFromBytes(swap.Owner), swap.Assets, "multi-swap done"); err != nil {
 			return shim.Error(err.Error())
 		}
 	} else {
 		for _, asset := range swap.Assets {
-			if err = bc.IndustrialBalanceAdd(asset.Group, types.AddrFromBytes(swap.Owner), new(big.Int).SetBytes(asset.Amount), MultiSwapReason); err != nil {
+			if err = bc.TokenBalanceAddWithTicker(types.AddrFromBytes(swap.Owner), new(big.Int).SetBytes(asset.Amount), asset.Group, "reverse multi-swap done"); err != nil {
 				return shim.Error(err.Error())
 			}
 		}
@@ -130,6 +129,27 @@ func multiSwapUserDone(bc BaseContractInterface, swapID string, key string) peer
 	if err = bc.GetStub().SetEvent(MultiSwapKeyEvent, []byte(e)); err != nil {
 		return shim.Error(err.Error())
 	}
+
+	// This code implements a callback which notifies that MultiSwap was made.
+	// This callback handles direct (move tokens to other channel) or
+	// reverse (move tokens from other channel back) MultiSwaps.
+	// If you want to catch that events you need implement
+	// method `OnMultiSwapDoneEvent` in chaincode.
+	// This code is for chaincode PFT, for handling user bar tokens balance changes.
+	if f, ok := bc.(interface {
+		OnMultiSwapDoneEvent(
+			token string,
+			owner *types.Address,
+			assets []*proto.Asset,
+		)
+	}); ok {
+		f.OnMultiSwapDoneEvent(
+			swap.Token,
+			types.AddrFromBytes(swap.Owner),
+			swap.Assets,
+		)
+	}
+
 	return shim.Success(nil)
 }
 
@@ -166,7 +186,7 @@ func (bc *BaseContract) TxMultiSwapBegin(sender *types.Sender, token string, mul
 		Owner:   sender.Address().Bytes(),
 		Assets:  assets,
 		Token:   token,
-		From:    bc.id,
+		From:    bc.config.Symbol,
 		To:      contractTo,
 		Hash:    hash,
 		Timeout: ts.Seconds + userSideTimeout,
@@ -175,20 +195,19 @@ func (bc *BaseContract) TxMultiSwapBegin(sender *types.Sender, token string, mul
 	switch {
 	case swap.Token == swap.From:
 		for _, asset := range swap.Assets {
-			if err = bc.tokenBalanceSub(types.AddrFromBytes(swap.Owner), new(big.Int).SetBytes(asset.Amount), asset.Group); err != nil {
+			if err = bc.TokenBalanceSubWithTicker(types.AddrFromBytes(swap.Owner), new(big.Int).SetBytes(asset.Amount), asset.Group, "multi-swap begin"); err != nil {
 				return "", err
 			}
 		}
 	case swap.Token == swap.To:
-		if err = bc.AllowedIndustrialBalanceSub(types.AddrFromBytes(swap.Owner), swap.Assets, MultiSwapReason); err != nil {
+		if err = bc.AllowedIndustrialBalanceSub(types.AddrFromBytes(swap.Owner), swap.Assets, "reverse multi-swap begin"); err != nil {
 			return "", err
 		}
 	default:
 		return "", errors.New(ErrIncorrectSwap)
 	}
 
-	_, err = MultiSwapSave(bc.GetStub(), bc.GetStub().GetTxID(), &swap)
-	if err != nil {
+	if err = MultiSwapSave(bc.GetStub(), bc.GetStub().GetTxID(), &swap); err != nil {
 		return "", err
 	}
 
@@ -205,9 +224,10 @@ func (bc *BaseContract) TxMultiSwapCancel(sender *types.Sender, swapID string) e
 		return err
 	}
 	if !bytes.Equal(swap.Creator, sender.Address().Bytes()) {
-		return fmt.Errorf("unauthorized, swap creator %s not eq sender %s",
+		return fmt.Errorf("unauthorized, multiswap creator %s not eq sender %s",
 			string(swap.Creator), sender.Address().String())
 	}
+
 	ts, err := bc.GetStub().GetTxTimestamp()
 	if err != nil {
 		return err
@@ -215,20 +235,21 @@ func (bc *BaseContract) TxMultiSwapCancel(sender *types.Sender, swapID string) e
 	if swap.Timeout > ts.Seconds {
 		return errors.New("wait for timeout to end")
 	}
+
 	switch {
 	case bytes.Equal(swap.Creator, swap.Owner) && swap.Token == swap.From:
 		for _, asset := range swap.Assets {
-			if err = bc.tokenBalanceAdd(types.AddrFromBytes(swap.Owner), new(big.Int).SetBytes(asset.Amount), asset.Group); err != nil {
+			if err = bc.TokenBalanceAddWithTicker(types.AddrFromBytes(swap.Owner), new(big.Int).SetBytes(asset.Amount), asset.Group, "multi-swap cancel"); err != nil {
 				return err
 			}
 		}
 	case bytes.Equal(swap.Creator, swap.Owner) && swap.Token == swap.To:
-		if err = bc.AllowedIndustrialBalanceAdd(types.AddrFromBytes(swap.Owner), swap.Assets, MultiSwapReason); err != nil {
+		if err = bc.AllowedIndustrialBalanceAdd(types.AddrFromBytes(swap.Owner), swap.Assets, "reverse multi-swap cancel"); err != nil {
 			return err
 		}
 	case bytes.Equal(swap.Creator, []byte("0000")) && swap.Token == swap.To:
 		for _, asset := range swap.Assets {
-			if err = GivenBalanceAdd(bc.GetStub(), swap.From, new(big.Int).SetBytes(asset.Amount)); err != nil {
+			if err = balance.Add(bc.GetStub(), balance.BalanceTypeGiven, swap.From, "", new(mathbig.Int).SetBytes(asset.Amount)); err != nil {
 				return err
 			}
 		}
@@ -248,7 +269,7 @@ func MultiSwapLoad(stub shim.ChaincodeStubInterface, swapID string) (*proto.Mult
 		return nil, err
 	}
 	if data == nil {
-		return nil, errors.New("swap doesn't exist")
+		return nil, errors.New("multiswap doesn't exist")
 	}
 	var swap proto.MultiSwap
 	if err = pb.Unmarshal(data, &swap); err != nil {
@@ -258,16 +279,16 @@ func MultiSwapLoad(stub shim.ChaincodeStubInterface, swapID string) (*proto.Mult
 }
 
 // MultiSwapSave - saves multiswap to the ledger
-func MultiSwapSave(stub shim.ChaincodeStubInterface, swapID string, swap *proto.MultiSwap) ([]byte, error) {
+func MultiSwapSave(stub shim.ChaincodeStubInterface, swapID string, swap *proto.MultiSwap) error {
 	key, err := stub.CreateCompositeKey(MultiSwapCompositeType, []string{swapID})
 	if err != nil {
-		return nil, err
+		return err
 	}
 	data, err := pb.Marshal(swap)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return data, stub.PutState(key, data)
+	return stub.PutState(key, data)
 }
 
 // MultiSwapDel - deletes multiswap from the ledger

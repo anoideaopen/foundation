@@ -4,6 +4,8 @@ go 1.18
 
 require (
 	github.com/btcsuite/btcutil v1.0.2
+	github.com/ddulesov/gogost v1.0.0
+	github.com/envoyproxy/protoc-gen-validate v0.9.1
 	github.com/golang/protobuf v1.5.2
 	github.com/google/uuid v1.3.0
 	github.com/hyperledger/fabric-chaincode-go v0.0.0-20230228194215-b84622ba6a7a

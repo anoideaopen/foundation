@@ -3,22 +3,86 @@ package unit
 import (
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/anoideaopen/foundation/core"
 	"github.com/anoideaopen/foundation/core/types"
+	"github.com/anoideaopen/foundation/core/types/big"
 	"github.com/anoideaopen/foundation/mock"
 	"github.com/anoideaopen/foundation/proto"
+	"github.com/anoideaopen/foundation/test/unit/fixtures_test"
 	"github.com/anoideaopen/foundation/token"
 	pb "github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/sha3"
 )
 
+// OnMultiSwapDoneEvent is a multi-swap done callback.
+func (ct CustomToken) OnMultiSwapDoneEvent(
+	token string,
+	owner *types.Address,
+	assets []*proto.Asset,
+) {
+	type asset struct {
+		group  string
+		amount string
+	}
+
+	var al []asset
+	for _, a := range assets {
+		amount := new(big.Int)
+		amount.SetBytes(a.Amount)
+		al = append(al, asset{
+			group:  a.Group,
+			amount: amount.String(),
+		})
+	}
+
+	fmt.Printf(
+		"OnMultiSwapDoneEvent(): symbol: %s, token: %s, owner: %s, assets: %v\n",
+		ct.ContractConfig().Symbol,
+		token,
+		owner.String(),
+		al,
+	)
+
+	_ = ct.incrMultiSwapCallCount()
+}
+
+// incrMultiSwapCallCount increments OnMultiSwapDoneEvent function call counter.
+// Counter stored in chaincode state.
+func (ct CustomToken) incrMultiSwapCallCount() error {
+	calledBytes, _ := ct.GetStub().GetState(miltiswapDoneEventCounter)
+	var fcc FnCallCount
+	_ = json.Unmarshal(calledBytes, &fcc)
+
+	fcc.Count++
+
+	calledBytes, _ = json.Marshal(fcc)
+	_ = ct.GetStub().PutState(miltiswapDoneEventCounter, calledBytes)
+
+	return nil
+}
+
+// QueryMultiSwapDoneEventCallCount fetches OnMultiSwapDoneEvent call counter value.
+// Counter stored in chaincode state.
+func (ct CustomToken) QueryMultiSwapDoneEventCallCount() (int, error) {
+	calledBytes, _ := ct.GetStub().GetState(miltiswapDoneEventCounter)
+	var fcc FnCallCount
+	_ = json.Unmarshal(calledBytes, &fcc)
+
+	return fcc.Count, nil
+}
+
 // TestAtomicMultiSwapMoveToken moves BA token from ba channel to another channel
 func TestAtomicMultiSwapMoveToken(t *testing.T) { //nolint:gocognit
+	t.Parallel()
+
 	const (
 		tokenBA           = "BA"
 		baCC              = "BA"
@@ -28,26 +92,22 @@ func TestAtomicMultiSwapMoveToken(t *testing.T) { //nolint:gocognit
 		AllowedBalanceBA1 = tokenBA + "_" + BA1
 		AllowedBalanceBA2 = tokenBA + "_" + BA2
 	)
-	m := mock.NewLedger(t)
-	issuer := m.NewWallet()
-	feeSetter := m.NewWallet()
-	feeAddressSetter := m.NewWallet()
-	owner := m.NewWallet()
-	user1 := m.NewWallet()
+	ledger := mock.NewLedger(t)
+	issuer := ledger.NewWallet()
+	owner := ledger.NewWallet()
+	user1 := ledger.NewWallet()
 
-	ba := token.BaseToken{
-		Name:     baCC,
-		Symbol:   baCC,
-		Decimals: 8,
-	}
-	m.NewChainCode(baCC, &ba, &core.ContractOptions{}, nil, issuer.Address(), feeSetter.Address(), feeAddressSetter.Address())
+	ba := &token.BaseToken{}
+	baConfig := makeBaseTokenConfig("BA Token", baCC, 8,
+		issuer.Address(), "", "", "")
+	initMsg := ledger.NewCC(baCC, ba, baConfig)
+	require.Empty(t, initMsg)
 
-	otf := token.BaseToken{
-		Name:     otfCC,
-		Symbol:   otfCC,
-		Decimals: 8,
-	}
-	m.NewChainCode(otfCC, &otf, nil, nil, owner.Address())
+	otf := &CustomToken{}
+	otfConfig := makeBaseTokenConfig("OTF Token", otfCC, 8,
+		owner.Address(), "", "", "")
+	initMsg = ledger.NewCC(otfCC, otf, otfConfig)
+	require.Empty(t, initMsg)
 
 	user1.AddTokenBalance(baCC, BA1, 1)
 	user1.AddTokenBalance(baCC, BA2, 1)
@@ -154,7 +214,7 @@ func TestAtomicMultiSwapMoveToken(t *testing.T) { //nolint:gocognit
 	user1.AllowedBalanceShouldBe(otfCC, BA1, 0)
 	user1.AllowedBalanceShouldBe(otfCC, BA2, 0)
 
-	m.WaitMultiSwapAnswer(otfCC, txID, time.Second*5)
+	ledger.WaitMultiSwapAnswer(otfCC, txID, time.Second*5)
 
 	swapID := user1.Invoke(otfCC, "multiSwapGet", txID)
 	assert.NotNil(t, swapID)
@@ -218,10 +278,18 @@ func TestAtomicMultiSwapMoveToken(t *testing.T) { //nolint:gocognit
 		}
 	}
 	user1.CheckGivenBalanceShouldBe(baCC, otfCC, 2)
+
+	// check MultiSwap callback is called exactly 1 time
+	fnCountData := user1.Invoke(otfCC, "multiSwapDoneEventCallCount")
+	swapDoneFnCount, err := strconv.Atoi(fnCountData)
+	require.NoError(t, err)
+	require.Equal(t, 1, swapDoneFnCount)
 }
 
 // TestAtomicMultiSwapMoveTokenBack moves allowed tokens from external channel to token channel
 func TestAtomicMultiSwapMoveTokenBack(t *testing.T) {
+	t.Parallel()
+
 	const (
 		tokenBA           = "BA"
 		baCC              = "BA"
@@ -232,26 +300,22 @@ func TestAtomicMultiSwapMoveTokenBack(t *testing.T) {
 		AllowedBalanceBA2 = tokenBA + "_" + BA2
 	)
 
-	m := mock.NewLedger(t)
-	issuer := m.NewWallet()
-	feeSetter := m.NewWallet()
-	feeAddressSetter := m.NewWallet()
-	owner := m.NewWallet()
-	user1 := m.NewWallet()
+	ledger := mock.NewLedger(t)
+	issuer := ledger.NewWallet()
+	owner := ledger.NewWallet()
+	user1 := ledger.NewWallet()
 
-	ba := token.BaseToken{
-		Name:     strings.ToLower(baCC),
-		Symbol:   baCC,
-		Decimals: 8,
-	}
-	m.NewChainCode(baCC, &ba, &core.ContractOptions{}, nil, issuer.Address(), feeSetter.Address(), feeAddressSetter.Address())
+	ba := &token.BaseToken{}
+	baConfig := makeBaseTokenConfig("BA Token", baCC, 8,
+		issuer.Address(), "", "", "")
+	initMsg := ledger.NewCC(baCC, ba, baConfig)
+	require.Empty(t, initMsg)
 
-	otf := token.BaseToken{
-		Name:     strings.ToLower(otfCC),
-		Symbol:   otfCC,
-		Decimals: 8,
-	}
-	m.NewChainCode(otfCC, &otf, nil, nil, owner.Address())
+	otf := &CustomToken{}
+	otfConfig := makeBaseTokenConfig("OTF Token", otfCC, 8,
+		owner.Address(), "", "", "")
+	initMsg = ledger.NewCC(otfCC, otf, otfConfig)
+	require.Empty(t, initMsg)
 
 	user1.AddGivenBalance(baCC, otfCC, 2)
 	user1.CheckGivenBalanceShouldBe(baCC, otfCC, 2)
@@ -318,7 +382,7 @@ func TestAtomicMultiSwapMoveTokenBack(t *testing.T) {
 	user1.AllowedBalanceShouldBe(otfCC, BA1, 0)
 	user1.AllowedBalanceShouldBe(otfCC, BA2, 0)
 
-	m.WaitMultiSwapAnswer(baCC, txID, time.Second*5)
+	ledger.WaitMultiSwapAnswer(baCC, txID, time.Second*5)
 
 	swapID := user1.Invoke(baCC, "multiSwapGet", txID)
 	assert.NotNil(t, swapID)
@@ -353,35 +417,47 @@ func TestAtomicMultiSwapMoveTokenBack(t *testing.T) {
 }
 
 func TestAtomicMultiSwapDisableMultiSwaps(t *testing.T) {
-	const (
-		baCC = "BA"
-	)
+	t.Parallel()
 
-	m := mock.NewLedger(t)
-	issuer := m.NewWallet()
-	feeSetter := m.NewWallet()
-	feeAddressSetter := m.NewWallet()
-	user1 := m.NewWallet()
+	const baCC = "BA"
 
-	ba := token.BaseToken{
-		Name:     baCC,
-		Symbol:   baCC,
-		Decimals: 8,
+	ledger := mock.NewLedger(t)
+	issuer := ledger.NewWallet()
+	user1 := ledger.NewWallet()
+
+	cfg := &proto.Config{
+		Contract: &proto.ContractConfig{
+			Symbol:   baCC,
+			Options:  &proto.ChaincodeOptions{DisableMultiSwaps: true},
+			RobotSKI: fixtures_test.RobotHashedCert,
+			Admin:    &proto.Wallet{Address: fixtures_test.AdminAddr},
+		},
+		Token: &proto.TokenConfig{
+			Name:     "BA Token",
+			Decimals: 8,
+			Issuer:   &proto.Wallet{Address: issuer.Address()},
+		},
 	}
-	m.NewChainCode(baCC, &ba, &core.ContractOptions{DisableMultiSwaps: true}, nil, issuer.Address(), feeSetter.Address(), feeAddressSetter.Address())
+	cfgBytes, err := json.Marshal(cfg)
+	require.NoError(t, err)
 
-	err := user1.RawSignedInvokeWithErrorReturned(baCC, "multiSwapBegin", "", "")
-	assert.EqualError(t, err, "method not found: 'multiSwapBegin'")
+	initMsg := ledger.NewCC(baCC, &token.BaseToken{}, string(cfgBytes))
+	require.Empty(t, initMsg)
+
+	err = user1.RawSignedInvokeWithErrorReturned(baCC, "multiSwapBegin", "", "")
+	require.ErrorContains(t, err, "method 'multiSwapBegin' not found")
 	err = user1.RawSignedInvokeWithErrorReturned(baCC, "multiSwapCancel", "", "")
-	assert.EqualError(t, err, "method not found: 'multiSwapCancel'")
+	require.ErrorContains(t, err, "method 'multiSwapCancel' not found")
 	err = user1.RawSignedInvokeWithErrorReturned(baCC, "multiSwapGet", "", "")
-	assert.EqualError(t, err, "method not found: 'multiSwapGet'")
+	require.ErrorContains(t, err, "method 'multiSwapGet' not found")
 	err = user1.RawSignedInvokeWithErrorReturned(baCC, "multiSwapDone", "", "")
-	assert.EqualError(t, err, "multiswaps disabled")
+	require.ErrorContains(t, err, core.ErrMultiSwapDisabled.Error())
 }
 
 // TestAtomicMultiSwapToThirdChannel checks swap/multi swap with third channel is not available
 func TestAtomicMultiSwapToThirdChannel(t *testing.T) {
+	t.Parallel()
+
 	const (
 		tokenBA           = "BA"
 		ba02CC            = "BA02"
@@ -392,16 +468,14 @@ func TestAtomicMultiSwapToThirdChannel(t *testing.T) {
 		AllowedBalanceBA2 = tokenBA + "_" + BA2
 	)
 
-	m := mock.NewLedger(t)
-	owner := m.NewWallet()
-	user1 := m.NewWallet()
+	ledger := mock.NewLedger(t)
+	owner := ledger.NewWallet()
+	user1 := ledger.NewWallet()
 
-	otf := token.BaseToken{
-		Name:     strings.ToLower(otfCC),
-		Symbol:   otfCC,
-		Decimals: 8,
-	}
-	m.NewChainCode(otfCC, &otf, nil, nil, owner.Address())
+	otf := &CustomToken{}
+	otfConfig := makeBaseTokenConfig(strings.ToLower(otfCC), otfCC, 8,
+		owner.Address(), "", "", "")
+	ledger.NewCC(otfCC, otf, otfConfig)
 
 	swapKey := "123"
 	hashed := sha3.Sum256([]byte(swapKey))

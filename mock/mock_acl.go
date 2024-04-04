@@ -208,7 +208,7 @@ func (ma *mockACL) removeRight(stub shim.ChaincodeStubInterface, channel, cc, ro
 	return nil
 }
 
-func (ma mockACL) getRight(stub shim.ChaincodeStubInterface, channel, cc, role, addr, operation string) (bool, error) {
+func (ma *mockACL) getRight(stub shim.ChaincodeStubInterface, channel, cc, role, addr, operation string) (bool, error) {
 	key, err := stub.CreateCompositeKey(rightKey, []string{channel, cc, role, operation})
 	if err != nil {
 		return false, err

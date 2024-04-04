@@ -10,6 +10,7 @@ package stub
 
 import (
 	"container/list"
+	"encoding/base64"
 	"encoding/pem"
 	"fmt"
 	"strings"
@@ -28,7 +29,14 @@ import (
 )
 
 // Logger for the shim package.
-var mockLogger = logging.MustGetLogger("mock")
+var mockLogger *logging.Logger
+
+func init() {
+	// set logger to 'error' level, debug is very noisy.
+	const module = "mock"
+	mockLogger = logging.MustGetLogger(module)
+	logging.SetLevel(logging.ERROR, module)
+}
 
 // ErrFuncNotImplemented is returned when a function is not implemented
 const ErrFuncNotImplemented = "function %s is not implemented"
@@ -53,6 +61,23 @@ type Stub struct {
 	ChaincodeEventsChannel chan *pb.ChaincodeEvent      // channel to store ChaincodeEvents
 	Decorations            map[string][]byte
 	creator                []byte
+}
+
+// NewMockStub - Constructor to config the internal State map
+func NewMockStub(name string, cc shim.Chaincode) *Stub {
+	mockLogger.Debug("Stub(", name, cc, ")")
+	s := new(Stub)
+	s.Name = name
+	s.cc = cc
+	s.State = make(map[string][]byte)
+	s.PvtState = make(map[string]map[string][]byte)
+	s.EndorsementPolicies = make(map[string]map[string][]byte)
+	s.Invokables = make(map[string]*Stub)
+	s.Keys = list.New()
+	s.ChaincodeEventsChannel = make(chan *pb.ChaincodeEvent, 100) //nolint:gomnd    // define large capacity for non-blocking setEvent calls.
+	s.Decorations = make(map[string][]byte)
+
+	return s
 }
 
 // GetTxID returns the transaction ID for the current chaincode invocation request.
@@ -128,6 +153,9 @@ func (stub *Stub) MockPeerChaincodeWithChannel(invokableChaincodeName string, ot
 func (stub *Stub) MockInit(uuid string, args [][]byte) pb.Response {
 	stub.args = args
 	stub.MockTransactionStart(uuid)
+	if stub.cc == nil {
+		panic(errors.New("can't init stub (shim.Chaincode) when stub.cc is nil"))
+	}
 	res := stub.cc.Init(stub)
 	stub.MockTransactionEnd(uuid)
 	return res
@@ -137,6 +165,9 @@ func (stub *Stub) MockInit(uuid string, args [][]byte) pb.Response {
 func (stub *Stub) MockInvoke(uuid string, args [][]byte) pb.Response {
 	stub.args = args
 	stub.MockTransactionStart(uuid)
+	if stub.cc == nil {
+		panic(errors.New("can't invoke stub (shim.Chaincode) when stub.cc is nil"))
+	}
 	res := stub.cc.Invoke(stub)
 	stub.MockTransactionEnd(uuid)
 	return res
@@ -152,6 +183,9 @@ func (stub *Stub) MockInvokeWithSignedProposal(uuid string, args [][]byte, sp *p
 	stub.args = args
 	stub.MockTransactionStart(uuid)
 	stub.signedProposal = sp
+	if stub.cc == nil {
+		panic(errors.New("can't invoke stub (shim.Chaincode) when stub.cc is nil"))
+	}
 	res := stub.cc.Invoke(stub)
 	stub.MockTransactionEnd(uuid)
 	return res
@@ -488,19 +522,27 @@ func (stub *Stub) SetCreator(creator []byte) {
 
 // SetCreatorCert sets creator cert
 func (stub *Stub) SetCreatorCert(creatorMSP string, creatorCert []byte) error {
+	creator, err := BuildCreator(creatorMSP, creatorCert)
+	if err != nil {
+		return err
+	}
+	stub.creator = creator
+	return nil
+}
+
+func BuildCreator(creatorMSP string, creatorCert []byte) ([]byte, error) {
 	pemblock := &pem.Block{Type: "CERTIFICATE", Bytes: creatorCert}
 	pemBytes := pem.EncodeToMemory(pemblock)
 	if pemBytes == nil {
-		return errors.New("encoding of identity failed")
+		return nil, errors.New("encoding of identity failed")
 	}
 
 	creator := &msp.SerializedIdentity{Mspid: creatorMSP, IdBytes: pemBytes}
 	marshaledIdentity, err := proto.Marshal(creator)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	stub.creator = marshaledIdentity
-	return nil
+	return marshaledIdentity, nil
 }
 
 // GetCreator returns creator.
@@ -581,23 +623,6 @@ func (stub *Stub) GetPrivateDataValidationParameter(collection, key string) ([]b
 	}
 
 	return m[key], nil
-}
-
-// NewMockStub - Constructor to initialize the internal State map
-func NewMockStub(name string, cc shim.Chaincode) *Stub {
-	mockLogger.Debug("Stub(", name, cc, ")")
-	s := new(Stub)
-	s.Name = name
-	s.cc = cc
-	s.State = make(map[string][]byte)
-	s.PvtState = make(map[string]map[string][]byte)
-	s.EndorsementPolicies = make(map[string]map[string][]byte)
-	s.Invokables = make(map[string]*Stub)
-	s.Keys = list.New()
-	s.ChaincodeEventsChannel = make(chan *pb.ChaincodeEvent, 100) //nolint:gomnd    // define large capacity for non-blocking setEvent calls.
-	s.Decorations = make(map[string][]byte)
-
-	return s
 }
 
 /*****************************
@@ -859,10 +884,32 @@ func validateCompositeKeyAttribute(str string) error {
 	return nil
 }
 
-// CreateUtcTimestamp returns a google/protobuf/Timestamp in UTC
+// CreateUtcTimestamp returns a Google/protobuf/Timestamp in UTC
 func createUtcTimestamp() *timestamp.Timestamp {
 	now := time.Now().UTC()
 	secs := now.Unix()
 	nanos := int32(now.UnixNano() - (secs * 1000000000)) //nolint:gomnd
 	return &(timestamp.Timestamp{Seconds: secs, Nanos: nanos})
+}
+
+// SetAdminCreatorCert sets admin certificate as creator certificate.
+func (stub *Stub) SetAdminCreatorCert(msp string) error {
+	// assume adminCert has valid base64 encoded certificate
+	cert, _ := base64.StdEncoding.DecodeString(adminCert)
+	if err := stub.SetCreatorCert(msp, cert); err != nil {
+		return fmt.Errorf("setting creator: %w", err)
+	}
+
+	return nil
+}
+
+// SetDefaultCreatorCert sets default (not admin) certificate as creator certificate.
+func (stub *Stub) SetDefaultCreatorCert(msp string) error {
+	// assume adminCert has valid base64 encoded certificate
+	cert, _ := base64.StdEncoding.DecodeString(defaultCert)
+	if err := stub.SetCreatorCert(msp, cert); err != nil {
+		return fmt.Errorf("setting creator: %w", err)
+	}
+
+	return nil
 }

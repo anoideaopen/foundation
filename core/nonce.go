@@ -14,53 +14,56 @@ import (
 	"github.com/hyperledger/fabric-chaincode-go/shim"
 )
 
+const StateKeyNonce byte = 42 // hex: 2a
+
 const (
 	doublingMemoryCoef    = 2
 	lenTimeInMilliseconds = 13
+	// defaultNonceTTL is time in seconds for nonce. If attempting to execute a transaction in a batch
+	// that is older than the maximum nonce (at the current moment) by more than NonceTTL,
+	// we will not execute it and return an error.
+	defaultNonceTTL = 50
 )
 
-func checkNonce(nonceTTL uint, prefix StateKey) NonceCheckFn {
-	return func(stub shim.ChaincodeStubInterface, sender *types.Sender, nonce uint64) error {
-		noncePrefix := hex.EncodeToString([]byte{byte(prefix)})
-		nonceKey, err := stub.CreateCompositeKey(noncePrefix, []string{sender.Address().String()})
-		if err != nil {
-			return err
-		}
-		data, err := stub.GetState(nonceKey)
-		if err != nil {
-			return err
-		}
-
-		lastNonce := new(pb.Nonce)
-		if len(data) > 0 {
-			if err = proto.Unmarshal(data, lastNonce); err != nil {
-				logger := Logger()
-				logger.Warningf("error unmarshal nonce, maybe old nonce. error: %v", err)
-				// let's just say it's an old nonse
-				lastNonce.Nonce = []uint64{new(big.Int).SetBytes(data).Uint64()}
-			}
-		}
-
-		mayBeOtherSorting := false
-		if prefix == StateKeyPassedNonce {
-			mayBeOtherSorting = true
-		}
-
-		lastNonce.Nonce, err = setNonce(nonce, lastNonce.Nonce, nonceTTL, mayBeOtherSorting)
-		if err != nil {
-			return err
-		}
-
-		data, err = proto.Marshal(lastNonce)
-		if err != nil {
-			return err
-		}
-
-		return stub.PutState(nonceKey, data)
+func checkNonce(
+	stub shim.ChaincodeStubInterface,
+	sender *types.Sender,
+	nonce uint64,
+) error {
+	noncePrefix := hex.EncodeToString([]byte{StateKeyNonce})
+	nonceKey, err := stub.CreateCompositeKey(noncePrefix, []string{sender.Address().String()})
+	if err != nil {
+		return err
 	}
+	data, err := stub.GetState(nonceKey)
+	if err != nil {
+		return err
+	}
+
+	lastNonce := new(pb.Nonce)
+	if len(data) > 0 {
+		if err = proto.Unmarshal(data, lastNonce); err != nil {
+			logger := Logger()
+			logger.Warningf("error unmarshal nonce, maybe old nonce. error: %v", err)
+			// let's just say it's an old nonse
+			lastNonce.Nonce = []uint64{new(big.Int).SetBytes(data).Uint64()}
+		}
+	}
+
+	lastNonce.Nonce, err = setNonce(nonce, lastNonce.Nonce, defaultNonceTTL)
+	if err != nil {
+		return err
+	}
+
+	data, err = proto.Marshal(lastNonce)
+	if err != nil {
+		return err
+	}
+
+	return stub.PutState(nonceKey, data)
 }
 
-func setNonce(nonce uint64, lastNonce []uint64, nonceTTL uint, mayBeOtherSorting bool) ([]uint64, error) {
+func setNonce(nonce uint64, lastNonce []uint64, nonceTTL uint) ([]uint64, error) {
 	if len(strconv.FormatUint(nonce, 10)) != lenTimeInMilliseconds {
 		return lastNonce, fmt.Errorf("incorrect nonce format")
 	}
@@ -71,20 +74,7 @@ func setNonce(nonce uint64, lastNonce []uint64, nonceTTL uint, mayBeOtherSorting
 
 	l := len(lastNonce)
 
-	if mayBeOtherSorting && l > 1 && lastNonce[0] > lastNonce[l-1] {
-		// for US you initially need to reverse the slice
-		sort.Slice(lastNonce, func(i, j int) bool { return lastNonce[i] <= lastNonce[j] })
-	}
-
 	last := lastNonce[l-1]
-
-	if nonceTTL == 0 {
-		// old check
-		if nonce <= last {
-			return lastNonce, fmt.Errorf("incorrect nonce, current %d", last)
-		}
-		return []uint64{nonce}, nil
-	}
 
 	ttl := time.Second * time.Duration(nonceTTL)
 

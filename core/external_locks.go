@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/anoideaopen/foundation/core/balance"
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/core/types/big"
 	"github.com/anoideaopen/foundation/proto"
@@ -31,7 +32,9 @@ var (
 	// ErrAlredyExist - error on alredy exist
 	ErrAlredyExist = errors.New("lock alredy exist")
 	// ErrInsufficientFunds - error on insufficient funds
-	ErrInsufficientFunds = errors.New("insufficient funds to process")
+	ErrInsufficientFunds    = errors.New("insufficient funds to process")
+	ErrAdminNotSet          = errors.New("admin is not set in contract config")
+	ErrUnauthorisedNotAdmin = errors.New("unauthorised, sender is not an admin")
 )
 
 const (
@@ -47,7 +50,7 @@ const (
 
 // TxLockTokenBalance - blocks tokens on the user's token balance
 // method is called by the chaincode admin, the input is BalanceLockRequest
-func (bc *BaseContract) TxLockTokenBalance( //nolint:funlen
+func (bc *BaseContract) TxLockTokenBalance(
 	sender *types.Sender,
 	req *proto.BalanceLockRequest,
 ) error {
@@ -92,7 +95,7 @@ func (bc *BaseContract) TxLockTokenBalance( //nolint:funlen
 		Payload:       req.Payload,
 	}
 
-	prefix := hex.EncodeToString([]byte{byte(StateKeyExternalLockedToken)})
+	prefix := hex.EncodeToString([]byte{byte(balance.BalanceTypeTokenExternalLocked)})
 	key, err := bc.stub.CreateCompositeKey(prefix, []string{balanceLock.Id})
 	if err != nil {
 		return fmt.Errorf("create key: %w", err)
@@ -172,7 +175,7 @@ func (bc *BaseContract) TxUnlockTokenBalance( //nolint:funlen
 	// state record with balance lock details
 	balanceLock.CurrentAmount = new(big.Int).Sub(cur, amount).String()
 
-	prefix := hex.EncodeToString([]byte{byte(StateKeyExternalLockedToken)})
+	prefix := hex.EncodeToString([]byte{byte(balance.BalanceTypeTokenExternalLocked)})
 	key, err := bc.stub.CreateCompositeKey(prefix, []string{balanceLock.Id})
 	if err != nil {
 		return fmt.Errorf("create key: %w", err)
@@ -205,6 +208,7 @@ func (bc *BaseContract) TxUnlockTokenBalance( //nolint:funlen
 	if isDelete {
 		return bc.stub.DelState(key)
 	}
+
 	return bc.stub.PutState(key, data)
 }
 
@@ -217,7 +221,7 @@ func (bc *BaseContract) QueryGetLockedTokenBalance(
 
 // TxLockAllowedBalance - blocks tokens on the user's allowedbalance
 // method calls the chaincode admin, the input is a BalanceLockRequest
-func (bc *BaseContract) TxLockAllowedBalance( //nolint:funlen
+func (bc *BaseContract) TxLockAllowedBalance(
 	sender *types.Sender,
 	req *proto.BalanceLockRequest,
 ) error {
@@ -262,7 +266,7 @@ func (bc *BaseContract) TxLockAllowedBalance( //nolint:funlen
 		Payload:       req.Payload,
 	}
 
-	prefix := hex.EncodeToString([]byte{byte(StateKeyExternalLockedAllowed)})
+	prefix := hex.EncodeToString([]byte{byte(balance.BalanceTypeAllowedExternalLocked)})
 	key, err := bc.stub.CreateCompositeKey(prefix, []string{balanceLock.Id})
 	if err != nil {
 		return fmt.Errorf("create key: %w", err)
@@ -342,7 +346,7 @@ func (bc *BaseContract) TxUnlockAllowedBalance( //nolint:funlen
 	// state record with balance lock details
 	balanceLock.CurrentAmount = new(big.Int).Sub(cur, amount).String()
 
-	prefix := hex.EncodeToString([]byte{byte(StateKeyExternalLockedAllowed)})
+	prefix := hex.EncodeToString([]byte{byte(balance.BalanceTypeAllowedExternalLocked)})
 	key, err := bc.stub.CreateCompositeKey(prefix, []string{balanceLock.Id})
 	if err != nil {
 		return fmt.Errorf("create key: %w", err)
@@ -389,7 +393,7 @@ func (bc *BaseContract) getLockedTokenBalance(lockID string) (*proto.TokenBalanc
 	if lockID == "" {
 		return nil, ErrEmptyLockID
 	}
-	prefix := hex.EncodeToString([]byte{byte(StateKeyExternalLockedToken)})
+	prefix := hex.EncodeToString([]byte{byte(balance.BalanceTypeTokenExternalLocked)})
 	key, err := bc.stub.CreateCompositeKey(prefix, []string{lockID})
 	if err != nil {
 		return nil, fmt.Errorf("create key: %w", err)
@@ -416,7 +420,7 @@ func (bc *BaseContract) getLockedAllowedBalance(lockID string) (*proto.AllowedBa
 	if lockID == "" {
 		return nil, ErrEmptyLockID
 	}
-	prefix := hex.EncodeToString([]byte{byte(StateKeyExternalLockedAllowed)})
+	prefix := hex.EncodeToString([]byte{byte(balance.BalanceTypeAllowedExternalLocked)})
 	key, err := bc.stub.CreateCompositeKey(prefix, []string{lockID})
 	if err != nil {
 		return nil, fmt.Errorf("create key: %w", err)
@@ -444,18 +448,16 @@ func (bc *BaseContract) verifyLockedArgs(
 	req *proto.BalanceLockRequest,
 ) error {
 	// Sender verification
-	l := bc.GetInitArgsLen()
-	if l < 1 {
-		return ErrPlatformAdminOnly
+	if !bc.config.IsAdminSet() {
+		return ErrAdminNotSet
 	}
 
-	admin, err := types.AddrFromBase58Check(bc.GetInitArg(argPositionAdmin))
-	if err != nil {
-		return err
-	}
-
-	if !sender.Equal(admin) {
-		return ErrPlatformAdminOnly
+	if admin, err := types.AddrFromBase58Check(bc.config.Admin.Address); err == nil {
+		if !sender.Equal(admin) {
+			return ErrUnauthorisedNotAdmin
+		}
+	} else {
+		return fmt.Errorf("creating admin address: %w", err)
 	}
 
 	// Request verification

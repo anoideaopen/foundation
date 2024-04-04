@@ -4,12 +4,12 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/anoideaopen/foundation/core"
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/core/types/big"
 	"github.com/anoideaopen/foundation/mock"
 	"github.com/anoideaopen/foundation/token"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -46,18 +46,13 @@ func (tt *TestToken) TxEmissionAdd(sender *types.Sender, address *types.Address,
 func TestGetEmptyNonce(t *testing.T) {
 	ledgerMock := mock.NewLedger(t)
 	owner := ledgerMock.NewWallet()
-	feeAddressSetter := ledgerMock.NewWallet()
-	feeSetter := ledgerMock.NewWallet()
 
-	tt := &TestToken{
-		token.BaseToken{
-			Name:     testTokenName,
-			Symbol:   testTokenSymbol,
-			Decimals: 8,
-		},
-	}
+	tt := &TestToken{}
+	config := makeBaseTokenConfig(testTokenName, testTokenSymbol, 8,
+		owner.Address(), "", "", "")
 
-	ledgerMock.NewChainCode(testTokenCCName, tt, &core.ContractOptions{}, nil, owner.Address(), feeSetter.Address(), feeAddressSetter.Address())
+	initMsg := ledgerMock.NewCC(testTokenCCName, tt, config)
+	require.Empty(t, initMsg)
 
 	t.Run("Get nonce with new wallet", func(t *testing.T) {
 		nonce := owner.Invoke(testTokenCCName, testGetNonceFnName, owner.Address())
@@ -67,19 +62,14 @@ func TestGetEmptyNonce(t *testing.T) {
 
 // TestGetNonce - Checking that the nonce after some operation is not null
 func TestGetNonce(t *testing.T) {
-	ledgerMock := mock.NewLedger(t)
-	owner := ledgerMock.NewWallet()
-	feeAddressSetter := ledgerMock.NewWallet()
-	feeSetter := ledgerMock.NewWallet()
+	ledger := mock.NewLedger(t)
+	owner := ledger.NewWallet()
 
-	tt := &TestToken{
-		token.BaseToken{
-			Name:     testTokenName,
-			Symbol:   testTokenSymbol,
-			Decimals: 8,
-		},
-	}
-	ledgerMock.NewChainCode(testTokenCCName, tt, &core.ContractOptions{}, nil, owner.Address(), feeSetter.Address(), feeAddressSetter.Address())
+	tt := &TestToken{}
+	config := makeBaseTokenConfig(testTokenName, testTokenSymbol, 8,
+		owner.Address(), "", "", "")
+	initMsg := ledger.NewCC(testTokenCCName, tt, config)
+	require.Empty(t, initMsg)
 
 	owner.SignedInvoke(testTokenCCName, "emissionAdd", owner.Address(), "1000")
 	owner.BalanceShouldBe(testTokenCCName, 1000)
@@ -92,18 +82,15 @@ func TestGetNonce(t *testing.T) {
 
 // TestInit - Checking that init with right mspId working
 func TestInit(t *testing.T) {
-	ledgerMock := mock.NewLedger(t)
+	ledger := mock.NewLedger(t)
+	issuer := ledger.NewWallet()
 
-	tt := &TestToken{
-		token.BaseToken{
-			Name:     testTokenName,
-			Symbol:   testTokenSymbol,
-			Decimals: 8,
-		},
-	}
+	tt := &TestToken{}
+	config := makeBaseTokenConfig(testTokenName, testTokenSymbol, 8,
+		issuer.Address(), "", "", "")
 
 	t.Run("Init new chaincode", func(t *testing.T) {
-		message := ledgerMock.NewChainCode(testTokenCCName, tt, &core.ContractOptions{}, nil)
+		message := ledger.NewCC(testTokenCCName, tt, config)
 		assert.Empty(t, message)
 	})
 }
@@ -112,17 +99,13 @@ func TestInit(t *testing.T) {
 func TestTxHealthCheck(t *testing.T) {
 	ledgerMock := mock.NewLedger(t)
 	owner := ledgerMock.NewWallet()
-	feeAddressSetter := ledgerMock.NewWallet()
-	feeSetter := ledgerMock.NewWallet()
 
-	tt := &TestToken{
-		token.BaseToken{
-			Name:     testTokenName,
-			Symbol:   testTokenSymbol,
-			Decimals: 8,
-		},
-	}
-	ledgerMock.NewChainCode(testTokenCCName, tt, &core.ContractOptions{}, nil, owner.Address(), feeSetter.Address(), feeAddressSetter.Address())
+	tt := &TestToken{}
+	config := makeBaseTokenConfig(testTokenName, testTokenSymbol, 8,
+		owner.Address(), "", "", "")
+
+	initMsg := ledgerMock.NewCC(testTokenCCName, tt, config)
+	require.Empty(t, initMsg)
 
 	t.Run("Healthcheck checking", func(t *testing.T) {
 		txID := owner.SignedInvoke(testTokenCCName, "healthCheck")

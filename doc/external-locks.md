@@ -1,17 +1,17 @@
 # External Locks
 
 ## Table of Contents
-- [External Locks](#-external-locks)
-  - [Table of Contents](#-table-of-contents)
-  - [General Information](#-general-information)
-  - [Description of Functions](#-description-of-functions)
-    - [lockTokenBalance](#-locktokenbalance)
-    - [unlockTokenBalance](#-unlocktokenbalance)
-    - [getLockedTokenBalance](#-getlockedtokenbalance)
-    - [lockAllowedBalance](#-lockallowedbalance)
-    - [unlockAllowedBalance](#-unlockallowedbalance)
-    - [getLockedAllowedBalance](#-getlockedallowedbalance)
-  - [Errors](#-errors)
+- [External Locks](#external-locks)
+  - [Table of Contents](#table-of-contents)
+  - [General Information](#general-information)
+  - [Description of Functions](#description-of-functions)
+    - [lockTokenBalance](#locktokenbalance)
+    - [unlockTokenBalance](#unlocktokenbalance)
+    - [getLockedTokenBalance](#getlockedtokenbalance)
+    - [lockAllowedBalance](#lockallowedbalance)
+    - [unlockAllowedBalance](#unlockallowedbalance)
+    - [getLockedAllowedBalance](#getlockedallowedbalance)
+  - [Errors](#errors)
 
 ## General Information
 

@@ -143,7 +143,7 @@ curl -X 'POST' \
 - QuerySrcPartFile
 ```shell
 curl -X 'POST' \
-  'http: //127.0.0.1:9001/query' \
+  'http://127.0.0.1:9001/query' \
   -H 'accept: */*' \
   -H 'Content-Type: application/json' \
   -d '{
@@ -157,7 +157,7 @@ curl -X 'POST' \
 - QuerySystemEnv
 ```shell
 curl -X 'POST' \
-  'http: //127.0.0.1:9001/query' \
+  'http://127.0.0.1:9001/query' \
   -H 'accept: */*' \
   -H 'Content-Type: application/json' \
   -d '{

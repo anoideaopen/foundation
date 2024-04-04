@@ -3,13 +3,13 @@
 Description of embedding source code in chaincode.
 
 ## Table of Contents
-- [EMBED](#-embed)
-  - [Table of Contents](#-table-of-contents)
-    - [Prepare Chaincode for Embed](#-prepare-chaincode-for-embed)
-      - [Correct Chaincode](#-correct-chaincode)
-      - [Incorrect Chaincode](#-incorrect-chaincode)
-    - [Embed Chaincode](#-embed-chaincode)
-  - [Links](#-links)
+- [EMBED](#embed)
+  - [Table of Contents](#table-of-contents)
+    - [Prepare Chaincode for Embed](#prepare-chaincode-for-embed)
+      - [Correct Chaincode](#correct-chaincode)
+      - [Incorrect Chaincode](#incorrect-chaincode)
+    - [Embed Chaincode](#embed-chaincode)
+  - [Links](#links)
 
 ### Prepare Chaincode for Embed
 

@@ -14,18 +14,17 @@ import (
 	"github.com/hyperledger/fabric-chaincode-go/shim"
 )
 
+// AddressLength is expected bytes len for business entity Address
+const AddressLength = 32
+
 // Address might be more complicated structure
 // contains fields like isIndustrial bool or isMultisig bool
-
-const addressLength = 32
-
-// Address is a wrapper for address
 type Address pb.Address
 
 // AddrFromBytes creates address from bytes
 func AddrFromBytes(in []byte) *Address {
 	addr := &Address{}
-	addrBytes := make([]byte, addressLength)
+	addrBytes := make([]byte, AddressLength)
 	copy(addrBytes, in[:32])
 	addr.Address = addrBytes
 	return addr
@@ -35,12 +34,14 @@ func AddrFromBytes(in []byte) *Address {
 func AddrFromBase58Check(in string) (*Address, error) {
 	value, ver, err := base58.CheckDecode(in)
 	if err != nil {
-		return &Address{}, err
+		return &Address{}, fmt.Errorf("decoding base58 '%s' failed, err: %w", in, err)
 	}
+
 	addr := &Address{}
-	addrBytes := make([]byte, addressLength)
+	addrBytes := make([]byte, AddressLength)
 	copy(addrBytes, append([]byte{ver}, value...)[:32])
 	addr.Address = addrBytes
+
 	return addr, nil
 }
 
@@ -182,5 +183,5 @@ func (n MultiSwapAssets) ConvertToCall(_ shim.ChaincodeStubInterface, in string)
 
 // IsValidAddressLen checks if address length is valid
 func IsValidAddressLen(val []byte) bool {
-	return len(val) == addressLength
+	return len(val) == AddressLength
 }

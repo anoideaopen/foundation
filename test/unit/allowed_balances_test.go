@@ -2,14 +2,16 @@ package unit
 
 import (
 	"encoding/hex"
+	"fmt"
 	"testing"
 	"time"
 
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/core/types/big"
 	"github.com/anoideaopen/foundation/mock"
-	"github.com/anoideaopen/foundation/token"
+	"github.com/anoideaopen/foundation/test/unit/fixtures_test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -45,33 +47,46 @@ func (tt *TestToken) QueryAllowedBalanceGetAll(address *types.Address) (map[stri
 }
 
 func TestQuery(t *testing.T) {
-	ledgerMock := mock.NewLedger(t)
-	owner := ledgerMock.NewWallet()
-	cc := &TestToken{
-		token.BaseToken{
-			Symbol: "CC",
-		},
-	}
-	ledgerMock.NewChainCode("cc", cc, nil, nil, owner.Address())
+	ledger := mock.NewLedger(t)
+	owner := ledger.NewWallet()
+	issuer := ledger.NewWallet()
 
-	vt := &TestToken{
-		token.BaseToken{
-			Symbol: "VT",
-		},
-	}
-	ledgerMock.NewChainCode("vt", vt, nil, nil, owner.Address())
+	ccConfig := makeBaseTokenConfig("CC Token", "CC", 8,
+		issuer.Address(), "", "", "")
+	initMsg := ledger.NewCC("cc", &TestToken{}, ccConfig)
+	require.Empty(t, initMsg)
 
-	nt := &TestToken{
-		token.BaseToken{
-			Symbol: "NT",
-		},
-	}
-	ledgerMock.NewChainCode("nt", nt, nil, nil, owner.Address())
+	vtConfig := makeBaseTokenConfig("VT Token", "VT", 8,
+		issuer.Address(), "", "", "")
+	initMsg = ledger.NewCC("vt", &TestToken{}, vtConfig)
+	require.Empty(t, initMsg)
 
-	user1 := ledgerMock.NewWallet()
+	nt := &TestToken{}
+	configNT := fmt.Sprintf(
+		`
+{
+	"symbol": "%s",
+	"robotSKI":"%s",
+	"admin":{"address":"%s"},
+	"token":{
+		"name":"%s",
+		"decimals":%d,
+		"issuer":{"address":"%s"}
+	}
+}`,
+		"NT",
+		fixtures_test.RobotHashedCert,
+		issuer.Address(),
+		"NT Token",
+		8,
+		issuer.Address(),
+	)
+	ledger.NewCC("nt", nt, configNT)
+
+	user1 := ledger.NewWallet()
 	user1.AddBalance("cc", 1000)
 
-	user2 := ledgerMock.NewWallet()
+	user2 := ledger.NewWallet()
 
 	swapKey := "123"
 	hashed := sha3.Sum256([]byte(swapKey))
@@ -79,7 +94,7 @@ func TestQuery(t *testing.T) {
 
 	txID := user1.SignedInvoke("cc", "swapBegin", "CC", "VT", "450", swapHash)
 	user1.BalanceShouldBe("cc", 550)
-	ledgerMock.WaitSwapAnswer("vt", txID, time.Second*5)
+	ledger.WaitSwapAnswer("vt", txID, time.Second*5)
 	user1.Invoke("vt", "swapDone", txID, swapKey)
 	user1.AllowedBalanceShouldBe("vt", "CC", 450)
 
@@ -117,7 +132,7 @@ func TestQuery(t *testing.T) {
 
 	txID2 := user1.SignedInvoke("cc", "swapBegin", "CC", "VT", "150", swapHash)
 	user1.BalanceShouldBe("cc", 400)
-	ledgerMock.WaitSwapAnswer("vt", txID2, time.Second*5)
+	ledger.WaitSwapAnswer("vt", txID2, time.Second*5)
 	user1.Invoke("vt", "swapDone", txID2, swapKey)
 
 	t.Run("Allowed balances get all", func(t *testing.T) {

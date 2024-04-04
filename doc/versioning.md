@@ -4,17 +4,17 @@ Description of the versioning process of Foundation.
 
 ## Table of Contents
 
-- [Versioning](#-versioning)
-  - [Table of Contents](#-table-of-contents)
-  - [Description](#-description)
-  - [Versioning Process](#-versioning-process)
-      - [Patch](#-patch)
-      - [Minor](#-minor)
-      - [Major](#-major)
-        - [ACL](#-acl)
-  - [Components Dependent on the Foundation](#-components-dependent-on-the-foundation)
-  - [Backport and LTS](#-backport-and-lts)
-  - [Links](#-links)
+- [Versioning](#versioning)
+  - [Table of Contents](#table-of-contents)
+  - [Description](#description)
+  - [Versioning Process](#versioning-process)
+      - [Patch](#patch)
+      - [Minor](#minor)
+      - [Major](#major)
+        - [ACL](#acl)
+  - [Components Dependent on the Foundation](#components-dependent-on-the-foundation)
+  - [Backport and LTS](#backport-and-lts)
+  - [Links](#links)
 
 ## Description
 

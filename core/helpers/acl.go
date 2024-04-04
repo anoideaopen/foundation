@@ -22,7 +22,7 @@ const (
 // AddAddrIfChanged looks to ACL for pb.Address saved for specific pubkeys
 // and checks addr changed or not (does have pb.Address SignedTx field or not)
 // if the address has changed in the ACL, we also fix it in the token channel
-func AddAddrIfChanged(stub shim.ChaincodeStubInterface, addrMsgFromACL *pb.SignedAddress) error { //nolint:funlen,gocognit
+func AddAddrIfChanged(stub shim.ChaincodeStubInterface, addrMsgFromACL *pb.SignedAddress) error { //nolint:gocognit
 	// check if it multisig, and it's pubkeys changed or not
 	if addrMsgFromACL.Address.IsMultisig { //nolint:nestif
 		changeTx, err := shim.CreateCompositeKey(

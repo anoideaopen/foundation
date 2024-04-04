@@ -5,11 +5,9 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/anoideaopen/foundation/core"
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/core/types/big"
 	"github.com/anoideaopen/foundation/mock"
-	"github.com/anoideaopen/foundation/token"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -51,23 +49,19 @@ func (tt *TestToken) TxIndustrialBalanceBurnLocked(_ *types.Sender, token string
 
 // TestIndustrialBalanceAdd - Checking that industrial balance can be added
 func TestIndustrialBalanceAdd(t *testing.T) {
+	t.Parallel()
+
 	ledgerMock := mock.NewLedger(t)
 	owner := ledgerMock.NewWallet()
-	feeAddressSetter := ledgerMock.NewWallet()
-	feeSetter := ledgerMock.NewWallet()
-	user := ledgerMock.NewWallet()
 
 	balanceAddAmount := "123"
 
-	tt := &TestToken{
-		token.BaseToken{
-			Name:     testTokenWithGroup,
-			Symbol:   testTokenSymbol,
-			Decimals: 8,
-		},
-	}
+	tt := &TestToken{}
+	ttConfig := makeBaseTokenConfig(testTokenWithGroup, testTokenSymbol, 8,
+		owner.Address(), "", "", "")
+	ledgerMock.NewCC(testTokenWithGroup, tt, ttConfig)
 
-	ledgerMock.NewChainCode(testTokenWithGroup, tt, &core.ContractOptions{}, nil, owner.Address(), feeSetter.Address(), feeAddressSetter.Address())
+	user := ledgerMock.NewWallet()
 
 	t.Run("Industrial balance add", func(t *testing.T) {
 		owner.SignedInvoke(testTokenWithGroup, "industrialBalanceAdd", testTokenWithGroup, user.Address(), balanceAddAmount, "add balance")
@@ -83,27 +77,29 @@ func TestIndustrialBalanceAdd(t *testing.T) {
 
 // TestIndustrialBalanceSub - Checking that industrial balance sub is working
 func TestIndustrialBalanceSub(t *testing.T) {
+	t.Parallel()
+
 	ledgerMock := mock.NewLedger(t)
 	owner := ledgerMock.NewWallet()
-	feeAddressSetter := ledgerMock.NewWallet()
-	feeSetter := ledgerMock.NewWallet()
 	user := ledgerMock.NewWallet()
 
 	balanceAddAmount := "123"
 	subAmount := "23"
 	balanceAfterSubExpected := "100"
 
-	tt := &TestToken{
-		token.BaseToken{
-			Name:     testTokenWithGroup,
-			Symbol:   testTokenSymbol,
-			Decimals: 8,
-		},
-	}
+	tt := &TestToken{}
+	ttConfig := makeBaseTokenConfig(testTokenWithGroup, testTokenSymbol, 8,
+		owner.Address(), "", "", "")
+	ledgerMock.NewCC(testTokenWithGroup, tt, ttConfig)
 
-	ledgerMock.NewChainCode(testTokenWithGroup, tt, &core.ContractOptions{}, nil, owner.Address(), feeSetter.Address(), feeAddressSetter.Address())
-
-	owner.SignedInvoke(testTokenWithGroup, "industrialBalanceAdd", testTokenWithGroup, user.Address(), balanceAddAmount, "add balance for "+balanceAddAmount)
+	owner.SignedInvoke(
+		testTokenWithGroup,
+		"industrialBalanceAdd",
+		testTokenWithGroup,
+		user.Address(),
+		balanceAddAmount,
+		"add balance for "+balanceAddAmount,
+	)
 	owner.Invoke(testTokenWithGroup, "industrialBalanceGet", user.Address())
 
 	t.Run("Industrial balance sub", func(t *testing.T) {
@@ -119,28 +115,23 @@ func TestIndustrialBalanceSub(t *testing.T) {
 
 // TestIndustrialBalanceTransfer - Checking that industrial balance transfer is working
 func TestIndustrialBalanceTransfer(t *testing.T) {
+	t.Parallel()
+
 	ledgerMock := mock.NewLedger(t)
 	owner := ledgerMock.NewWallet()
-	feeAddressSetter := ledgerMock.NewWallet()
-	feeSetter := ledgerMock.NewWallet()
 
 	balanceAddAmount := "123"
 	transferAmount := "122"
 	balanceAfterTransferUser1Expected := "1"
 	balanceAfterTransferUser2Expected := "122"
 
-	tt := &TestToken{
-		token.BaseToken{
-			Name:     testTokenWithGroup,
-			Symbol:   testTokenSymbol,
-			Decimals: 8,
-		},
-	}
+	tt := &TestToken{}
+	ttConfig := makeBaseTokenConfig(testTokenWithGroup, testTokenSymbol, 8,
+		owner.Address(), "", "", "")
+	ledgerMock.NewCC(testTokenWithGroup, tt, ttConfig)
 
 	user1 := ledgerMock.NewWallet()
 	user2 := ledgerMock.NewWallet()
-
-	ledgerMock.NewChainCode(testTokenWithGroup, tt, &core.ContractOptions{}, nil, owner.Address(), feeSetter.Address(), feeAddressSetter.Address())
 
 	owner.SignedInvoke(testTokenWithGroup, "industrialBalanceAdd", testTokenWithGroup, user1.Address(), balanceAddAmount, "add balance for "+balanceAddAmount)
 	owner.Invoke(testTokenWithGroup, "industrialBalanceGet", user1.Address())
@@ -166,24 +157,29 @@ func TestIndustrialBalanceTransfer(t *testing.T) {
 
 // TestIndustrialBalanceLockAndGetLocked - Checking that industrial balance can be locked
 func TestIndustrialBalanceLockAndGetLocked(t *testing.T) {
+	t.Parallel()
+
 	ledgerMock := mock.NewLedger(t)
 	owner := ledgerMock.NewWallet()
 
 	balanceAddAmount := "1000"
 	lockAmount := "500"
 
-	tt := &TestToken{
-		token.BaseToken{
-			Name:     testTokenWithGroup,
-			Symbol:   testTokenSymbol,
-			Decimals: 8,
-		},
-	}
+	tt := &TestToken{}
+	ttConfig := makeBaseTokenConfig(testTokenWithGroup, testTokenSymbol, 8,
+		owner.Address(), "", "", "")
+	ledgerMock.NewCC(testTokenWithGroup, tt, ttConfig)
 
 	user1 := ledgerMock.NewWallet()
 
-	ledgerMock.NewChainCode(testTokenWithGroup, tt, &core.ContractOptions{}, nil, owner.Address())
-	owner.SignedInvoke(testTokenWithGroup, "industrialBalanceAdd", testTokenWithGroup, user1.Address(), balanceAddAmount, "add industrial balance for "+balanceAddAmount)
+	owner.SignedInvoke(
+		testTokenWithGroup,
+		"industrialBalanceAdd",
+		testTokenWithGroup,
+		user1.Address(),
+		balanceAddAmount,
+		"add industrial balance for "+balanceAddAmount,
+	)
 
 	balanceResponse := owner.Invoke(testTokenWithGroup, "industrialBalanceGet", user1.Address())
 	balance, err := GetIndustrialBalanceFromResponseByGroup(balanceResponse, testGroup)
@@ -213,24 +209,29 @@ func TestIndustrialBalanceLockAndGetLocked(t *testing.T) {
 
 // TestIndustrialBalanceUnLock - Checking that industrial balance can be unlocked
 func TestIndustrialBalanceUnLock(t *testing.T) {
+	t.Parallel()
+
 	ledgerMock := mock.NewLedger(t)
 	owner := ledgerMock.NewWallet()
 
 	balanceAddAmount := "1000"
 	lockAmount := "500"
 
-	tt := &TestToken{
-		token.BaseToken{
-			Name:     testTokenWithGroup,
-			Symbol:   testTokenSymbol,
-			Decimals: 8,
-		},
-	}
+	tt := &TestToken{}
+	ttConfig := makeBaseTokenConfig(testTokenWithGroup, testTokenSymbol, 8,
+		owner.Address(), "", "", "")
+	ledgerMock.NewCC(testTokenWithGroup, tt, ttConfig)
 
 	user1 := ledgerMock.NewWallet()
 
-	ledgerMock.NewChainCode(testTokenWithGroup, tt, &core.ContractOptions{}, nil, owner.Address())
-	owner.SignedInvoke(testTokenWithGroup, "industrialBalanceAdd", testTokenWithGroup, user1.Address(), balanceAddAmount, "add industrial balance for "+balanceAddAmount)
+	owner.SignedInvoke(
+		testTokenWithGroup,
+		"industrialBalanceAdd",
+		testTokenWithGroup,
+		user1.Address(),
+		balanceAddAmount,
+		"add industrial balance for "+balanceAddAmount,
+	)
 
 	balanceResponse := owner.Invoke(testTokenWithGroup, "industrialBalanceGet", user1.Address())
 	balance, err := GetIndustrialBalanceFromResponseByGroup(balanceResponse, testGroup)
@@ -266,8 +267,10 @@ func TestIndustrialBalanceUnLock(t *testing.T) {
 	})
 }
 
-// TestIndustrialBalanceTransferLocked - Checking that locked industrial balance can be transfrred
+// TestIndustrialBalanceTransferLocked - Checking that locked industrial balance can be transferred
 func TestIndustrialBalanceTransferLocked(t *testing.T) {
+	t.Parallel()
+
 	ledgerMock := mock.NewLedger(t)
 	owner := ledgerMock.NewWallet()
 
@@ -275,19 +278,22 @@ func TestIndustrialBalanceTransferLocked(t *testing.T) {
 	lockAmount := "500"
 	transferAmount := "300"
 
-	tt := &TestToken{
-		token.BaseToken{
-			Name:     testTokenWithGroup,
-			Symbol:   testTokenSymbol,
-			Decimals: 8,
-		},
-	}
+	tt := &TestToken{}
+	ttConfig := makeBaseTokenConfig(testTokenWithGroup, testTokenSymbol, 8,
+		owner.Address(), "", "", "")
+	ledgerMock.NewCC(testTokenWithGroup, tt, ttConfig)
 
 	user1 := ledgerMock.NewWallet()
 	user2 := ledgerMock.NewWallet()
 
-	ledgerMock.NewChainCode(testTokenWithGroup, tt, &core.ContractOptions{}, nil, owner.Address())
-	owner.SignedInvoke(testTokenWithGroup, "industrialBalanceAdd", testTokenWithGroup, user1.Address(), balanceAddAmount, "add industrial balance for "+balanceAddAmount)
+	owner.SignedInvoke(
+		testTokenWithGroup,
+		"industrialBalanceAdd",
+		testTokenWithGroup,
+		user1.Address(),
+		balanceAddAmount,
+		"add industrial balance for "+balanceAddAmount,
+	)
 
 	balanceResponse := owner.Invoke(testTokenWithGroup, "industrialBalanceGet", user1.Address())
 	balance, err := GetIndustrialBalanceFromResponseByGroup(balanceResponse, testGroup)
@@ -332,23 +338,21 @@ func TestIndustrialBalanceTransferLocked(t *testing.T) {
 
 // TestIndustrialBalanceBurnLocked - Checking that locked industrial balance can be burned
 func TestIndustrialBalanceBurnLocked(t *testing.T) {
+	t.Parallel()
+
 	ledgerMock := mock.NewLedger(t)
 	owner := ledgerMock.NewWallet()
 
 	balanceAddAmount := "1000"
 	lockAmount := "500"
 
-	tt := &TestToken{
-		token.BaseToken{
-			Name:     testTokenWithGroup,
-			Symbol:   testTokenSymbol,
-			Decimals: 8,
-		},
-	}
+	tt := &TestToken{}
+	ttConfig := makeBaseTokenConfig(testTokenWithGroup, testTokenSymbol, 8,
+		owner.Address(), "", "", "")
+	ledgerMock.NewCC(testTokenWithGroup, tt, ttConfig)
 
 	user1 := ledgerMock.NewWallet()
 
-	ledgerMock.NewChainCode(testTokenWithGroup, tt, &core.ContractOptions{}, nil, owner.Address())
 	owner.SignedInvoke(testTokenWithGroup, "industrialBalanceAdd", testTokenWithGroup, user1.Address(), balanceAddAmount, "add industrial balance for "+balanceAddAmount)
 
 	balanceResponse := owner.Invoke(testTokenWithGroup, "industrialBalanceGet", user1.Address())

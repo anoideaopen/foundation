@@ -3,6 +3,7 @@ package core
 import (
 	"embed"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"runtime/debug"
 	"sort"
@@ -18,20 +19,15 @@ import (
 
 // BaseContract is a base contract for all contracts
 type BaseContract struct {
-	id          string
 	stub        shim.ChaincodeStubInterface
-	methods     []string
-	platformSKI []byte
-	initArgs    []string
-	noncePrefix StateKey
+	noncePrefix byte
 	srcFs       *embed.FS
+	config      *pb.ContractConfig
 }
 
-func (bc *BaseContract) baseContractInit(cc BaseContractInterface) { //nolint:unused
-	bc.id = cc.GetID()
-}
+var _ BaseContractInterface = &BaseContract{}
 
-func (bc *BaseContract) setSrcFs(srcFs *embed.FS) { //nolint:unused
+func (bc *BaseContract) setSrcFs(srcFs *embed.FS) {
 	bc.srcFs = srcFs
 }
 
@@ -41,49 +37,29 @@ func (bc *BaseContract) GetStub() shim.ChaincodeStubInterface {
 }
 
 // GetMethods returns list of methods
-func (bc *BaseContract) GetMethods() []string {
-	return bc.methods
-}
-
-func (bc *BaseContract) addMethod(mm string) { //nolint:unused
-	bc.methods = append(bc.methods, mm)
-	sort.Strings(bc.methods)
-}
-
-func (bc *BaseContract) setStubAndInitArgs( //nolint:unused
-	stub shim.ChaincodeStubInterface,
-	platformSKI []byte,
-	args []string,
-	noncePrefix StateKey,
-) {
-	bc.stub = stub
-	bc.platformSKI = platformSKI
-	bc.initArgs = args
-	bc.noncePrefix = noncePrefix
-}
-
-// GetPlatformSKI returns platformSKI
-func (bc *BaseContract) GetPlatformSKI() []byte {
-	return bc.platformSKI
-}
-
-// GetInitArg returns init arg by index
-func (bc *BaseContract) GetInitArg(idx int) string {
-	if len(bc.initArgs) > 0 && idx < len(bc.initArgs) {
-		return bc.initArgs[idx]
+func (bc *BaseContract) GetMethods(bci BaseContractInterface) []string {
+	contractMethods, err := parseContractMethods(bci)
+	if err != nil {
+		panic(err)
 	}
 
-	return ""
+	methods := make([]string, 0, len(contractMethods))
+	for name := range contractMethods {
+		methods = append(methods, name)
+	}
+
+	sort.Strings(methods)
+
+	return methods
 }
 
-// GetInitArgsLen returns init args len
-func (bc *BaseContract) GetInitArgsLen() int {
-	return len(bc.initArgs)
+func (bc *BaseContract) setStub(stub shim.ChaincodeStubInterface) {
+	bc.stub = stub
+	bc.noncePrefix = StateKeyNonce
 }
 
-// QueryGetNonce returns nonce
 func (bc *BaseContract) QueryGetNonce(owner *types.Address) (string, error) {
-	prefix := hex.EncodeToString([]byte{byte(bc.noncePrefix)})
+	prefix := hex.EncodeToString([]byte{bc.noncePrefix})
 	key, err := bc.stub.CreateCompositeKey(prefix, []string{owner.String()})
 	if err != nil {
 		return "", err
@@ -226,16 +202,44 @@ func (bc *BaseContract) TxHealthCheck(_ *types.Sender) error {
 	return nil
 }
 
-// BaseContractInterface is a base contract interface for all contracts
+func (bc *BaseContract) GetID() string {
+	return bc.config.Symbol
+}
+
+func (bc *BaseContract) ValidateConfig(config []byte) error {
+	var cfg pb.Config
+	if err := json.Unmarshal(config, &cfg); err != nil {
+		return fmt.Errorf("unmarshalling base config data failed: %w", err)
+	}
+
+	if cfg.Contract == nil {
+		return fmt.Errorf("validating contract config: contract config is not set or broken")
+	}
+
+	if err := cfg.Contract.ValidateAll(); err != nil {
+		return fmt.Errorf("validating contract config: %w", err)
+	}
+
+	return nil
+}
+
+func (bc *BaseContract) ApplyContractConfig(config *pb.ContractConfig) error {
+	bc.config = config
+
+	return nil
+}
+
+func (bc *BaseContract) ContractConfig() *pb.ContractConfig {
+	return bc.config
+}
+
 type BaseContractInterface interface { //nolint:interfacebloat
 	// WARNING!
 	// Private interface methods can only be implemented in this package.
 	// Bad practice. Can only be used to embed the necessary structure
 	// and no more. Needs refactoring in the future.
 
-	addMethod(string)
-	baseContractInit(BaseContractInterface)
-	setStubAndInitArgs(stub shim.ChaincodeStubInterface, platformSKI []byte, args []string, noncePrefix StateKey)
+	setStub(stub shim.ChaincodeStubInterface)
 	setSrcFs(*embed.FS)
 	tokenBalanceAdd(address *types.Address, amount *big.Int, token string) error
 
@@ -251,6 +255,9 @@ type BaseContractInterface interface { //nolint:interfacebloat
 	TokenBalanceAdd(address *types.Address, amount *big.Int, reason string) error
 	TokenBalanceSub(address *types.Address, amount *big.Int, reason string) error
 
+	TokenBalanceAddWithTicker(address *types.Address, amount *big.Int, ticker string, reason string) error
+	TokenBalanceSubWithTicker(address *types.Address, amount *big.Int, ticker string, reason string) error
+
 	AllowedBalanceGet(token string, address *types.Address) (*big.Int, error)
 	AllowedBalanceAdd(token string, address *types.Address, amount *big.Int, reason string) error
 	AllowedBalanceSub(token string, address *types.Address, amount *big.Int, reason string) error
@@ -265,4 +272,12 @@ type BaseContractInterface interface { //nolint:interfacebloat
 	AllowedIndustrialBalanceAdd(address *types.Address, industrialAssets []*pb.Asset, reason string) error
 	AllowedIndustrialBalanceSub(address *types.Address, industrialAssets []*pb.Asset, reason string) error
 	AllowedIndustrialBalanceTransfer(from *types.Address, to *types.Address, industrialAssets []*pb.Asset, reason string) error
+
+	ContractConfigurable
+}
+
+type ContractConfigurable interface {
+	ValidateConfig(config []byte) error
+	ApplyContractConfig(config *pb.ContractConfig) error
+	ContractConfig() *pb.ContractConfig
 }
