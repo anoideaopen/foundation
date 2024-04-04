@@ -15,9 +15,6 @@ import (
 	"golang.org/x/crypto/sha3"
 )
 
-// implemented through query requests, an error comes through tx
-// relate github.com/anoideaopen/foundation/-/issues/44 https://github.com/anoideaopen/foundation/-/issues/45
-
 func (tt *TestToken) QueryAllowedBalanceAdd(token string, address *types.Address, amount *big.Int, reason string) error {
 	return tt.AllowedBalanceAdd(token, address, amount, reason)
 }
