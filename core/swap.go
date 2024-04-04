@@ -6,9 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	mathbig "math/big"
 	"runtime/debug"
 	"strings"
 
+	"github.com/anoideaopen/foundation/core/balance"
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/core/types/big"
 	"github.com/anoideaopen/foundation/proto"
@@ -49,14 +51,14 @@ func swapAnswer(stub *batchStub, swap *proto.Swap) (r *proto.SwapResponse) {
 	case swap.TokenSymbol() == swap.From:
 		// nothing to do
 	case swap.TokenSymbol() == swap.To:
-		if err = GivenBalanceSub(txStub, swap.From, new(big.Int).SetBytes(swap.Amount)); err != nil {
+		if err = balance.Sub(txStub, balance.BalanceTypeGiven, swap.From, "", new(mathbig.Int).SetBytes(swap.Amount)); err != nil {
 			return &proto.SwapResponse{Id: swap.Id, Error: &proto.ResponseError{Error: err.Error()}}
 		}
 	default:
 		return &proto.SwapResponse{Id: swap.Id, Error: &proto.ResponseError{Error: ErrIncorrectSwap}}
 	}
 
-	if _, err = SwapSave(txStub, hex.EncodeToString(swap.Id), swap); err != nil {
+	if err = SwapSave(txStub, hex.EncodeToString(swap.Id), swap); err != nil {
 		return &proto.SwapResponse{Id: swap.Id, Error: &proto.ResponseError{Error: err.Error()}}
 	}
 	writes, _ := txStub.Commit()
@@ -82,7 +84,7 @@ func swapRobotDone(stub *batchStub, swapID []byte, key string) (r *proto.SwapRes
 	}
 
 	if s.TokenSymbol() == s.From {
-		if err = GivenBalanceAdd(txStub, s.To, new(big.Int).SetBytes(s.Amount)); err != nil {
+		if err = balance.Add(txStub, balance.BalanceTypeGiven, s.To, "", new(mathbig.Int).SetBytes(s.Amount)); err != nil {
 			return &proto.SwapResponse{Id: swapID, Error: &proto.ResponseError{Error: err.Error()}}
 		}
 	}
@@ -93,8 +95,8 @@ func swapRobotDone(stub *batchStub, swapID []byte, key string) (r *proto.SwapRes
 	return &proto.SwapResponse{Id: swapID, Writes: writes}
 }
 
-func swapUserDone(bc BaseContractInterface, swapID string, key string) peer.Response {
-	s, err := SwapLoad(bc.GetStub(), swapID)
+func swapUserDone(bci BaseContractInterface, swapID string, key string) peer.Response {
+	s, err := SwapLoad(bci.GetStub(), swapID)
 	if err != nil {
 		return shim.Error(err.Error())
 	}
@@ -107,21 +109,43 @@ func swapUserDone(bc BaseContractInterface, swapID string, key string) peer.Resp
 		return shim.Error(ErrIncorrectSwap)
 	}
 	if s.TokenSymbol() == s.From {
-		if err = bc.AllowedBalanceAdd(s.Token, types.AddrFromBytes(s.Owner), new(big.Int).SetBytes(s.Amount), "swap"); err != nil {
+		if err = bci.AllowedBalanceAdd(s.Token, types.AddrFromBytes(s.Owner), new(big.Int).SetBytes(s.Amount), "swap done"); err != nil {
 			return shim.Error(err.Error())
 		}
 	} else {
-		if err = bc.tokenBalanceAdd(types.AddrFromBytes(s.Owner), new(big.Int).SetBytes(s.Amount), s.Token); err != nil {
+		if err = bci.tokenBalanceAdd(types.AddrFromBytes(s.Owner), new(big.Int).SetBytes(s.Amount), s.Token); err != nil {
 			return shim.Error(err.Error())
 		}
 	}
-	if err = SwapDel(bc.GetStub(), swapID); err != nil {
+
+	if err = SwapDel(bci.GetStub(), swapID); err != nil {
 		return shim.Error(err.Error())
 	}
 	e := strings.Join([]string{s.From, swapID, key}, "\t")
-	if err = bc.GetStub().SetEvent("key", []byte(e)); err != nil {
+	if err = bci.GetStub().SetEvent("key", []byte(e)); err != nil {
 		return shim.Error(err.Error())
 	}
+
+	// This code implements a callback which notifies that Swap was made.
+	// This callback handles direct (move tokens to other channel) or
+	// reverse (move tokens from other channel back) Swaps.
+	// If you want to catch that events you need implement
+	// method `OnSwapDoneEvent` in chaincode.
+	// This code is for chaincode PFT, for handling user bar tokens balance changes.
+	if f, ok := bci.(interface {
+		OnSwapDoneEvent(
+			token string,
+			owner *types.Address,
+			amount *big.Int,
+		)
+	}); ok {
+		f.OnSwapDoneEvent(
+			s.Token,
+			types.AddrFromBytes(s.Owner),
+			new(big.Int).SetBytes(s.Amount),
+		)
+	}
+
 	return shim.Success(nil)
 }
 
@@ -135,7 +159,13 @@ func (bc *BaseContract) QuerySwapGet(swapID string) (*proto.Swap, error) {
 }
 
 // TxSwapBegin creates swap
-func (bc *BaseContract) TxSwapBegin(sender *types.Sender, token string, contractTo string, amount *big.Int, hash types.Hex) (string, error) {
+func (bc *BaseContract) TxSwapBegin(
+	sender *types.Sender,
+	token string,
+	contractTo string,
+	amount *big.Int,
+	hash types.Hex,
+) (string, error) {
 	id, err := hex.DecodeString(bc.GetStub().GetTxID())
 	if err != nil {
 		return "", err
@@ -150,7 +180,7 @@ func (bc *BaseContract) TxSwapBegin(sender *types.Sender, token string, contract
 		Owner:   sender.Address().Bytes(),
 		Token:   token,
 		Amount:  amount.Bytes(),
-		From:    bc.id,
+		From:    bc.config.Symbol,
 		To:      contractTo,
 		Hash:    hash,
 		Timeout: ts.Seconds + userSideTimeout,
@@ -158,19 +188,18 @@ func (bc *BaseContract) TxSwapBegin(sender *types.Sender, token string, contract
 
 	switch {
 	case s.TokenSymbol() == s.From:
-		if err = bc.tokenBalanceSub(types.AddrFromBytes(s.Owner), amount, s.Token); err != nil {
+		if err = bc.TokenBalanceSubWithTicker(types.AddrFromBytes(s.Owner), amount, s.Token, "swap begin"); err != nil {
 			return "", err
 		}
 	case s.TokenSymbol() == s.To:
-		if err = bc.AllowedBalanceSub(s.Token, types.AddrFromBytes(s.Owner), amount, "swap"); err != nil {
+		if err = bc.AllowedBalanceSub(s.Token, types.AddrFromBytes(s.Owner), amount, "reverse swap begin"); err != nil {
 			return "", err
 		}
 	default:
 		return "", errors.New(ErrIncorrectSwap)
 	}
 
-	_, err = SwapSave(bc.GetStub(), bc.GetStub().GetTxID(), &s)
-	if err != nil {
+	if err = SwapSave(bc.GetStub(), bc.GetStub().GetTxID(), &s); err != nil {
 		return "", err
 	}
 
@@ -203,17 +232,18 @@ func (bc *BaseContract) TxSwapCancel(_ *types.Sender, swapID string) error { // 
 	// if s.Timeout > ts.Seconds {
 	// return errors.New("wait for timeout to end")
 	// }
+
 	switch {
 	case bytes.Equal(s.Creator, s.Owner) && s.TokenSymbol() == s.From:
-		if err = bc.tokenBalanceAdd(types.AddrFromBytes(s.Owner), new(big.Int).SetBytes(s.Amount), s.Token); err != nil {
+		if err = bc.TokenBalanceAddWithTicker(types.AddrFromBytes(s.Owner), new(big.Int).SetBytes(s.Amount), s.Token, "swap cancel"); err != nil {
 			return err
 		}
 	case bytes.Equal(s.Creator, s.Owner) && s.TokenSymbol() == s.To:
-		if err = bc.AllowedBalanceAdd(s.Token, types.AddrFromBytes(s.Owner), new(big.Int).SetBytes(s.Amount), "swap"); err != nil {
+		if err = bc.AllowedBalanceAdd(s.Token, types.AddrFromBytes(s.Owner), new(big.Int).SetBytes(s.Amount), "reverse swap cancel"); err != nil {
 			return err
 		}
 	case bytes.Equal(s.Creator, []byte("0000")) && s.TokenSymbol() == s.To:
-		if err = GivenBalanceAdd(bc.GetStub(), s.From, new(big.Int).SetBytes(s.Amount)); err != nil {
+		if err = balance.Add(bc.GetStub(), balance.BalanceTypeGiven, s.From, "", new(mathbig.Int).SetBytes(s.Amount)); err != nil {
 			return err
 		}
 	}
@@ -241,16 +271,16 @@ func SwapLoad(stub shim.ChaincodeStubInterface, swapID string) (*proto.Swap, err
 }
 
 // SwapSave saves swap
-func SwapSave(stub shim.ChaincodeStubInterface, swapID string, s *proto.Swap) ([]byte, error) {
+func SwapSave(stub shim.ChaincodeStubInterface, swapID string, s *proto.Swap) error {
 	key, err := stub.CreateCompositeKey("swaps", []string{swapID})
 	if err != nil {
-		return nil, err
+		return err
 	}
 	data, err := pb.Marshal(s)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return data, stub.PutState(key, data)
+	return stub.PutState(key, data)
 }
 
 // SwapDel deletes swap

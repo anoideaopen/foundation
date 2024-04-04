@@ -2,18 +2,16 @@ package core
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 	"unicode/utf8"
 
+	"github.com/anoideaopen/foundation/core/balance"
 	"github.com/anoideaopen/foundation/core/cctransfer"
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/core/types/big"
 	pb "github.com/anoideaopen/foundation/proto"
 	"github.com/golang/protobuf/proto" //nolint:staticcheck
-)
-
-const (
-	argPositionAdmin = 0 // Usually for all tokens, this is where the Admin key is
 )
 
 type typeOperation int
@@ -26,6 +24,18 @@ const (
 	// CancelFrom - cancellation in the From
 	CancelFrom
 )
+
+func (t typeOperation) String() string {
+	switch t {
+	case CreateFrom:
+		return "CreateFrom"
+	case CreateTo:
+		return "CreateTo"
+	case CancelFrom:
+		return "CancelFrom"
+	}
+	return ""
+}
 
 // TxChannelTransferByCustomer - transaction initiating transfer between channels.
 // The owner of tokens signs. Tokens are transferred to themselveselves.
@@ -52,24 +62,23 @@ func (bc *BaseContract) TxChannelTransferByAdmin(
 	amount *big.Int,
 ) (string, error) {
 	// Checks
-	l := bc.GetInitArgsLen()
-	if l < 1 {
-		return "", cctransfer.ErrNotFoundAdminKey
+	if !bc.config.IsAdminSet() {
+		return "", cctransfer.ErrAdminNotSet
 	}
 
-	admin, err := types.AddrFromBase58Check(bc.GetInitArg(argPositionAdmin))
-	if err != nil {
-		panic(err)
-	}
-
-	if !sender.Equal(admin) {
-		return "", cctransfer.ErrNotFoundAdminKey
+	if admin, err := types.AddrFromBase58Check(bc.config.Admin.Address); err == nil {
+		if !sender.Equal(admin) {
+			return "", cctransfer.ErrUnauthorisedNotAdmin
+		}
+	} else {
+		return "", fmt.Errorf("creating admin address: %w", err)
 	}
 
 	if sender.Equal(idUser) {
 		return "", cctransfer.ErrInvalidIDUser
 	}
 
+	// transfer business logic
 	return bc.createCCTransferFrom(idTransfer, to, idUser, token, amount)
 }
 
@@ -80,13 +89,13 @@ func (bc *BaseContract) createCCTransferFrom(
 	token string,
 	amount *big.Int,
 ) (string, error) {
-	if strings.EqualFold(bc.id, to) {
+	if strings.EqualFold(bc.config.Symbol, to) {
 		return "", cctransfer.ErrInvalidChannel
 	}
 
 	t := tokenSymbol(token)
 
-	if !strings.EqualFold(bc.id, t) && !strings.EqualFold(to, t) {
+	if !strings.EqualFold(bc.config.Symbol, t) && !strings.EqualFold(to, t) {
 		return "", cctransfer.ErrInvalidToken
 	}
 
@@ -105,12 +114,12 @@ func (bc *BaseContract) createCCTransferFrom(
 
 	tr := &pb.CCTransfer{
 		Id:               idTransfer,
-		From:             bc.id,
+		From:             bc.config.Symbol,
 		To:               to,
 		Token:            token,
 		User:             idUser.Bytes(),
 		Amount:           amount.Bytes(),
-		ForwardDirection: strings.EqualFold(bc.id, t),
+		ForwardDirection: strings.EqualFold(bc.config.Symbol, t),
 		TimeAsNanos:      ts.AsTime().UnixNano(),
 	}
 
@@ -153,7 +162,7 @@ func (bc *BaseContract) TxCreateCCTransferTo(dataIn string) (string, error) {
 		return "", cctransfer.ErrIDTransferExist
 	}
 
-	if !strings.EqualFold(bc.id, tr.From) && !strings.EqualFold(bc.id, tr.To) {
+	if !strings.EqualFold(bc.config.Symbol, tr.From) && !strings.EqualFold(bc.config.Symbol, tr.To) {
 		return "", cctransfer.ErrInvalidChannel
 	}
 
@@ -324,7 +333,7 @@ func (bc *BaseContract) QueryChannelTransfersFrom(pageSize int64, bookmark strin
 	return trs, nil
 }
 
-func (bc *BaseContract) ccTransferChangeBalance( //nolint:funlen,gocognit
+func (bc *BaseContract) ccTransferChangeBalance( //nolint:gocognit
 	t typeOperation,
 	forwardDirection bool,
 	user *types.Address,
@@ -334,6 +343,8 @@ func (bc *BaseContract) ccTransferChangeBalance( //nolint:funlen,gocognit
 	token string,
 ) error {
 	var err error
+
+	reason := fmt.Sprintf("ch-transfer: %s, forwardDirection: %v", t, forwardDirection)
 
 	// ForwardDirection (Transfer direction) - is an additional variable made for convenience
 	// to avoid calculating it every time. It is calculated once when filling the structure
@@ -347,40 +358,41 @@ func (bc *BaseContract) ccTransferChangeBalance( //nolint:funlen,gocognit
 	switch t {
 	case CreateFrom:
 		if forwardDirection {
-			if err = bc.tokenBalanceSub(user, amount, token); err != nil {
+			if err = bc.TokenBalanceSubWithTicker(user, amount, token, reason); err != nil {
 				return err
 			}
-			if err = GivenBalanceAdd(bc.GetStub(), to, amount); err != nil {
+
+			if err = balance.Add(bc.GetStub(), balance.BalanceTypeGiven, to, "", &amount.Int); err != nil {
 				return err
 			}
 		} else {
-			if err = bc.AllowedBalanceSub(token, user, amount, "ch-transfer"); err != nil {
+			if err = bc.AllowedBalanceSub(token, user, amount, reason); err != nil {
 				return err
 			}
 		}
 	case CreateTo:
 		if forwardDirection {
-			if err = bc.AllowedBalanceAdd(token, user, amount, "ch-transfer"); err != nil {
+			if err = bc.AllowedBalanceAdd(token, user, amount, reason); err != nil {
 				return err
 			}
 		} else {
-			if err = bc.tokenBalanceAdd(user, amount, token); err != nil {
+			if err = bc.TokenBalanceAddWithTicker(user, amount, token, reason); err != nil {
 				return err
 			}
-			if err = GivenBalanceSub(bc.GetStub(), from, amount); err != nil {
+			if err = balance.Sub(bc.GetStub(), balance.BalanceTypeGiven, from, "", &amount.Int); err != nil {
 				return err
 			}
 		}
 	case CancelFrom:
 		if forwardDirection {
-			if err = bc.tokenBalanceAdd(user, amount, token); err != nil {
+			if err = bc.TokenBalanceAddWithTicker(user, amount, token, reason); err != nil {
 				return err
 			}
-			if err = GivenBalanceSub(bc.GetStub(), to, amount); err != nil {
+			if err = balance.Sub(bc.GetStub(), balance.BalanceTypeGiven, to, "", &amount.Int); err != nil {
 				return err
 			}
 		} else {
-			if err = bc.AllowedBalanceAdd(token, user, amount, "cancel ch-transfer"); err != nil {
+			if err = bc.AllowedBalanceAdd(token, user, amount, reason); err != nil {
 				return err
 			}
 		}

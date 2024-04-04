@@ -3,8 +3,6 @@ package mock
 import (
 	"bytes"
 	"crypto/rand"
-	"embed"
-	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -20,9 +18,11 @@ import (
 	"github.com/anoideaopen/foundation/core"
 	"github.com/anoideaopen/foundation/core/cctransfer"
 	"github.com/anoideaopen/foundation/core/types/big"
+	"github.com/anoideaopen/foundation/internal/config"
 	"github.com/anoideaopen/foundation/mock/stub"
 	"github.com/anoideaopen/foundation/proto"
 	"github.com/btcsuite/btcutil/base58"
+	"github.com/ddulesov/gogost/gost3410"
 	pb "github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/google/uuid"
 	"github.com/hyperledger/fabric-protos-go/peer"
@@ -32,35 +32,6 @@ import (
 	"golang.org/x/crypto/sha3"
 )
 
-const defaultCert = `MIICSjCCAfGgAwIBAgIRAKeZTS2c/qkXBN0Vkh+0WYQwCgYIKoZIzj0EAwIwgYcx
-CzAJBgNVBAYTAlVTMRMwEQYDVQQIEwpDYWxpZm9ybmlhMRYwFAYDVQQHEw1TYW4g
-RnJhbmNpc2NvMSMwIQYDVQQKExphdG9teXplLnVhdC5kbHQuYXRvbXl6ZS5jaDEm
-MCQGA1UEAxMdY2EuYXRvbXl6ZS51YXQuZGx0LmF0b215emUuY2gwHhcNMjAxMDEz
-MDg1NjAwWhcNMzAxMDExMDg1NjAwWjB3MQswCQYDVQQGEwJVUzETMBEGA1UECBMK
-Q2FsaWZvcm5pYTEWMBQGA1UEBxMNU2FuIEZyYW5jaXNjbzEPMA0GA1UECxMGY2xp
-ZW50MSowKAYDVQQDDCFVc2VyMTBAYXRvbXl6ZS51YXQuZGx0LmF0b215emUuY2gw
-WTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAAR3V6z/nVq66HBDxFFN3/3rUaJLvHgW
-FzoKaA/qZQyV919gdKr82LDy8N2kAYpAcP7dMyxMmmGOPbo53locYWIyo00wSzAO
-BgNVHQ8BAf8EBAMCB4AwDAYDVR0TAQH/BAIwADArBgNVHSMEJDAigCBSv0ueZaB3
-qWu/AwOtbOjaLd68woAqAklfKKhfu10K+DAKBggqhkjOPQQDAgNHADBEAiBFB6RK
-O7huI84Dy3fXeA324ezuqpJJkfQOJWkbHjL+pQIgFKIqBJrDl37uXNd3eRGJTL+o
-21ZL8pGXH8h0nHjOF9M=`
-
-const adminCert = `MIICSDCCAe6gAwIBAgIQAJwYy5PJAYSC1i0UgVN5bjAKBggqhkjOPQQDAjCBhzEL
-MAkGA1UEBhMCVVMxEzARBgNVBAgTCkNhbGlmb3JuaWExFjAUBgNVBAcTDVNhbiBG
-cmFuY2lzY28xIzAhBgNVBAoTGmF0b215emUudWF0LmRsdC5hdG9teXplLmNoMSYw
-JAYDVQQDEx1jYS5hdG9teXplLnVhdC5kbHQuYXRvbXl6ZS5jaDAeFw0yMDEwMTMw
-ODU2MDBaFw0zMDEwMTEwODU2MDBaMHUxCzAJBgNVBAYTAlVTMRMwEQYDVQQIEwpD
-YWxpZm9ybmlhMRYwFAYDVQQHEw1TYW4gRnJhbmNpc2NvMQ4wDAYDVQQLEwVhZG1p
-bjEpMCcGA1UEAwwgQWRtaW5AYXRvbXl6ZS51YXQuZGx0LmF0b215emUuY2gwWTAT
-BgcqhkjOPQIBBggqhkjOPQMBBwNCAAQGQX9IhgjCtd3mYZ9DUszmUgvubepVMPD5
-FlwjCglB2SiWuE2rT/T5tHJsU/Y9ZXFtOOpy/g9tQ/0wxDWwpkbro00wSzAOBgNV
-HQ8BAf8EBAMCB4AwDAYDVR0TAQH/BAIwADArBgNVHSMEJDAigCBSv0ueZaB3qWu/
-AwOtbOjaLd68woAqAklfKKhfu10K+DAKBggqhkjOPQQDAgNIADBFAiEAoKRQLe4U
-FfAAwQs3RCWpevOPq+J8T4KEsYvswKjzfJYCIAs2kOmN/AsVUF63unXJY0k9ktfD
-fAaqNRaboY1Yg1iQ`
-
-// Ledger is a mock ledger for testing purposes
 type Ledger struct {
 	t                   *testing.T
 	stubs               map[string]*stub.Stub
@@ -95,10 +66,11 @@ func NewLedger(t *testing.T, options ...string) *Ledger {
 	aclStub := stub.NewMockStub("acl", new(mockACL))
 	assert.Equal(t, int32(http.StatusOK), aclStub.MockInit(hex.EncodeToString([]byte("acl")), nil).Status)
 
-	prefix := "batchTransactions"
+	prefix := config.BatchPrefix
 	if len(options) != 0 && options[0] != "" {
 		prefix = options[0]
 	}
+
 	return &Ledger{
 		t:                   t,
 		stubs:               map[string]*stub.Stub{"acl": aclStub},
@@ -123,25 +95,71 @@ type TxResponse struct {
 	Accounting []*proto.AccountingRecord `json:"accounting"`
 }
 
-const batchRobotCertHash = "380499dcb3d3ee374ccfd74cbdcbe03a1cd5ae66b282e5673dcb13cbe290965b"
-
-// NewChainCode creates new chaincode
-func (ledger *Ledger) NewChainCode(name string, bci core.BaseContractInterface, options *core.ContractOptions, fs *embed.FS, initArgs ...string) string {
+// NewCCArgsArr
+// Deprecated: added only for backward compatibility.
+func (ledger *Ledger) NewCCArgsArr(
+	name string,
+	bci core.BaseContractInterface,
+	initArgs []string,
+	opts ...core.ChaincodeOption,
+) string {
 	_, exists := ledger.stubs[name]
-	assert.False(ledger.t, exists)
-	cc, err := core.NewCC(bci, options, core.WithSrcFS(fs))
+	assert.False(
+		ledger.t,
+		exists,
+		fmt.Sprintf("stub with name '%s' has already exist in ledger mock; "+
+			"try to use other chaincode name.", name),
+	)
+
+	cc, err := core.NewCC(bci, opts...)
 	assert.NoError(ledger.t, err)
 	ledger.stubs[name] = stub.NewMockStub(name, cc)
 	ledger.stubs[name].ChannelID = name
+
 	ledger.stubs[name].MockPeerChaincode("acl/acl", ledger.stubs["acl"])
-	args := [][]byte{[]byte(""), []byte(batchRobotCertHash)}
-	for _, arg := range initArgs {
-		args = append(args, []byte(arg))
-	}
-	cert, err := base64.StdEncoding.DecodeString(adminCert)
+
+	err = ledger.stubs[name].SetAdminCreatorCert("atomyzeMSP")
 	assert.NoError(ledger.t, err)
-	_ = ledger.stubs[name].SetCreatorCert("platformMSP", cert)
+
+	args := make([][]byte, 0, len(initArgs))
+	for _, ia := range initArgs {
+		args = append(args, []byte(ia))
+	}
+
 	res := ledger.stubs[name].MockInit(txIDGen(), args)
+	message := res.Message
+	if message != "" {
+		return message
+	}
+
+	ledger.keyEvents[name] = make(chan *peer.ChaincodeEvent, 1)
+	return ""
+}
+
+func (ledger *Ledger) NewCC(
+	name string,
+	bci core.BaseContractInterface,
+	config string,
+	opts ...core.ChaincodeOption,
+) string {
+	_, exists := ledger.stubs[name]
+	assert.False(
+		ledger.t,
+		exists,
+		fmt.Sprintf("stub with name '%s' has already exist in ledger mock; "+
+			"try to use other chaincode name.", name),
+	)
+
+	cc, err := core.NewCC(bci, opts...)
+	assert.NoError(ledger.t, err)
+	ledger.stubs[name] = stub.NewMockStub(name, cc)
+	ledger.stubs[name].ChannelID = name
+
+	ledger.stubs[name].MockPeerChaincode("acl/acl", ledger.stubs["acl"])
+
+	err = ledger.stubs[name].SetAdminCreatorCert("atomyzeMSP")
+	assert.NoError(ledger.t, err)
+	res := ledger.stubs[name].MockInit(txIDGen(), [][]byte{[]byte(config)})
 	message := res.Message
 	if message != "" {
 		return message
@@ -219,8 +237,30 @@ func (ledger *Ledger) WaitChTransferTo(name string, id string, timeout time.Dura
 func (ledger *Ledger) NewWallet() *Wallet {
 	pKey, sKey, err := ed25519.GenerateKey(rand.Reader)
 	assert.NoError(ledger.t, err)
-	hash := sha3.Sum256(pKey)
-	return &Wallet{ledger: ledger, sKey: sKey, pKey: pKey, addr: base58.CheckEncode(hash[1:], hash[0])}
+
+	sKeyGOST, err := gost3410.GenPrivateKey(
+		gost3410.CurveIdGostR34102001CryptoProXchAParamSet(),
+		gost3410.Mode2001,
+		rand.Reader,
+	)
+	assert.NoError(ledger.t, err)
+
+	pKeyGOST, err := sKeyGOST.PublicKey()
+	assert.NoError(ledger.t, err)
+
+	var (
+		hash     = sha3.Sum256(pKey)
+		hashGOST = sha3.Sum256(pKeyGOST.Raw())
+	)
+	return &Wallet{
+		ledger:   ledger,
+		sKey:     sKey,
+		pKey:     pKey,
+		sKeyGOST: sKeyGOST,
+		pKeyGOST: pKeyGOST,
+		addr:     base58.CheckEncode(hash[1:], hash[0]),
+		addrGOST: base58.CheckEncode(hashGOST[1:], hashGOST[0]),
+	}
 }
 
 // NewMultisigWallet creates new multisig wallet
@@ -274,46 +314,26 @@ func (ledger *Ledger) NewWalletFromHexKey(key string) *Wallet {
 }
 
 func (ledger *Ledger) doInvoke(ch string, txID string, fn string, args ...string) string {
-	if err := ledger.verifyIncoming(ch, fn); err != nil {
-		assert.NoError(ledger.t, err)
-		return ""
-	}
-	vArgs := make([][]byte, len(args)+1)
-	vArgs[0] = []byte(fn)
-	for i, x := range args {
-		vArgs[i+1] = []byte(x)
-	}
-
-	creator, err := ledger.stubs[ch].GetCreator()
+	resp, err := ledger.doInvokeWithPeerResponse(ch, txID, fn, args...)
 	assert.NoError(ledger.t, err)
-
-	if len(creator) == 0 {
-		cert, err := base64.StdEncoding.DecodeString(defaultCert)
-		assert.NoError(ledger.t, err)
-		_ = ledger.stubs[ch].SetCreatorCert("platformMSP", cert)
-	}
-
-	input, err := pb.Marshal(&peer.ChaincodeInvocationSpec{
-		ChaincodeSpec: &peer.ChaincodeSpec{
-			ChaincodeId: &peer.ChaincodeID{Name: ch},
-			Input:       &peer.ChaincodeInput{Args: vArgs},
-		},
-	})
-	assert.NoError(ledger.t, err)
-	payload, err := pb.Marshal(&peer.ChaincodeProposalPayload{Input: input})
-	assert.NoError(ledger.t, err)
-	proposal, err := pb.Marshal(&peer.Proposal{Payload: payload})
-	assert.NoError(ledger.t, err)
-	result := ledger.stubs[ch].MockInvokeWithSignedProposal(txID, vArgs, &peer.SignedProposal{
-		ProposalBytes: proposal,
-	})
-	assert.Equal(ledger.t, int32(200), result.Status, result.Message) //nolint:gomnd
-	return string(result.Payload)
+	assert.Equal(ledger.t, int32(200), resp.Status, resp.Message) //nolint:gomnd
+	return string(resp.Payload)
 }
 
 func (ledger *Ledger) doInvokeWithErrorReturned(ch string, txID string, fn string, args ...string) error {
-	if err := ledger.verifyIncoming(ch, fn); err != nil {
+	resp, err := ledger.doInvokeWithPeerResponse(ch, txID, fn, args...)
+	if err != nil {
 		return err
+	}
+	if resp.Status != 200 { //nolint:gomnd
+		return errors.New(resp.Message)
+	}
+	return nil
+}
+
+func (ledger *Ledger) doInvokeWithPeerResponse(ch string, txID string, fn string, args ...string) (peer.Response, error) {
+	if err := ledger.verifyIncoming(ch, fn); err != nil {
+		return peer.Response{}, err
 	}
 	vArgs := make([][]byte, len(args)+1)
 	vArgs[0] = []byte(fn)
@@ -325,9 +345,7 @@ func (ledger *Ledger) doInvokeWithErrorReturned(ch string, txID string, fn strin
 	assert.NoError(ledger.t, err)
 
 	if len(creator) == 0 {
-		cert, err := base64.StdEncoding.DecodeString(defaultCert)
-		assert.NoError(ledger.t, err)
-		_ = ledger.stubs[ch].SetCreatorCert("platformMSP", cert)
+		_ = ledger.stubs[ch].SetDefaultCreatorCert("atomyzeMSP")
 	}
 
 	input, err := pb.Marshal(&peer.ChaincodeInvocationSpec{
@@ -344,10 +362,7 @@ func (ledger *Ledger) doInvokeWithErrorReturned(ch string, txID string, fn strin
 	result := ledger.stubs[ch].MockInvokeWithSignedProposal(txID, vArgs, &peer.SignedProposal{
 		ProposalBytes: proposal,
 	})
-	if result.Status != 200 { //nolint:gomnd
-		return errors.New(result.Message)
-	}
-	return nil
+	return result, nil
 }
 
 // Metadata struct

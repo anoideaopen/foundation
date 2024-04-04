@@ -3,7 +3,6 @@ package token
 import (
 	"testing"
 
-	"github.com/anoideaopen/foundation/core"
 	"github.com/anoideaopen/foundation/core/types/big"
 	ma "github.com/anoideaopen/foundation/mock"
 	"github.com/anoideaopen/foundation/proto"
@@ -280,41 +279,46 @@ func TestSetLimitsSetDealTypeToNumericParameter(t *testing.T) {
 
 // TestSetLimitsWrongNumberParameters - negative test with incorrect number of parameters
 func TestSetLimitsWrongNumberParameters(t *testing.T) {
-	mock := ma.NewLedger(t)
-	issuer := mock.NewWallet()
+	ledger := ma.NewLedger(t)
+	issuer := ledger.NewWallet()
+	feeSetter := ledger.NewWallet()
+	feeAddressSetter := ledger.NewWallet()
 
-	tt := &BaseToken{
-		Name:     "Test Token",
-		Symbol:   "TT",
-		Decimals: 8,
-	}
-
-	mock.NewChainCode("tt", tt, &core.ContractOptions{}, nil, issuer.Address())
+	tt := &BaseToken{}
+	config := makeBaseTokenConfig("Test Token", "TT", 8,
+		issuer.Address(), feeSetter.Address(), feeAddressSetter.Address())
+	ledger.NewCC("tt", tt, config)
 
 	issuer.SignedInvoke("tt", "setRate", "distribute", "", "1")
 
 	if err := issuer.RawSignedInvokeWithErrorReturned("tt", "setLimits", "distribute", "", "", "1", "10"); err != nil {
-		assert.Equal(t, "incorrect number of keys or signs", err.Error())
+		assert.Contains(t, err.Error(), "incorrect number of keys or signs")
 	}
 }
 
 // BaseTokenSetLimitsTest - base test for checking the SetLimitse API
 func BaseTokenSetLimitsTest(t *testing.T, ser *serieSetLimits) {
-	mock := ma.NewLedger(t)
-	issuer := mock.NewWallet()
-	var err error
+	ledger := ma.NewLedger(t)
+	issuer := ledger.NewWallet()
+	feeSetter := ledger.NewWallet()
+	feeAddressSetter := ledger.NewWallet()
 
-	tt := &BaseToken{
-		Name:     "Test Token",
-		Symbol:   "TT",
-		Decimals: 8,
-	}
+	tt := &BaseToken{}
+	config := makeBaseTokenConfig("Test Token", "TT", 8,
+		issuer.Address(), feeSetter.Address(), feeAddressSetter.Address())
+	ledger.NewCC("tt", tt, config)
 
-	mock.NewChainCode("tt", tt, &core.ContractOptions{}, nil, issuer.Address())
+	err := issuer.RawSignedInvokeWithErrorReturned("tt", "setRate", "distribute", "", "1")
+	assert.NoError(t, err)
 
-	issuer.SignedInvoke("tt", "setRate", "distribute", "", "1")
-
-	if err = issuer.RawSignedInvokeWithErrorReturned(ser.tokenName, "setLimits", ser.dealType, ser.currency, ser.minLimit, ser.maxLimit); err != nil {
+	if err := issuer.RawSignedInvokeWithErrorReturned(
+		ser.tokenName,
+		"setLimits",
+		ser.dealType,
+		ser.currency,
+		ser.minLimit,
+		ser.maxLimit,
+	); err != nil {
 		assert.Equal(t, ser.errorMsg, err.Error())
 	} else {
 		assert.NoError(t, err)

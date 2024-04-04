@@ -2,6 +2,7 @@ package core
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"testing"
 	"time"
@@ -9,9 +10,13 @@ import (
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/mock/stub"
 	"github.com/anoideaopen/foundation/proto"
+	"github.com/anoideaopen/foundation/test/unit/fixtures_test"
 	"github.com/golang/protobuf/ptypes/timestamp"
+	"github.com/google/uuid"
+	"github.com/hyperledger/fabric-chaincode-go/shim"
 	"github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	pb "google.golang.org/protobuf/proto"
 )
 
@@ -79,10 +84,27 @@ func TestSaveToBatchWithWrongArgs(t *testing.T) {
 	}
 
 	wrongArgs := []string{"arg0", "arg1"}
-	chainCode, errChainCode := NewCC(&testBatchContract{}, nil)
+	chainCode, errChainCode := NewCC(&testBatchContract{})
 	assert.NoError(t, errChainCode)
 
 	mockStub := stub.NewMockStub(testChaincodeName, chainCode)
+
+	config := fmt.Sprintf(
+		`
+{
+	"contract": {
+		"robotSKI":"%s",
+		"symbol": "CC"
+	}
+}`,
+		fixtures_test.RobotHashedCert,
+	)
+
+	idBytes := [16]byte(uuid.New())
+	mockStub.MockInit(hex.EncodeToString(idBytes[:]), [][]byte{[]byte(config)})
+
+	err := applyConfig(&chainCode.contract, mockStub, []byte(config))
+	assert.NoError(t, err)
 
 	mockStub.TxID = testEncodedTxID
 	mockStub.MockTransactionStart(testEncodedTxID)
@@ -91,7 +113,20 @@ func TestSaveToBatchWithWrongArgs(t *testing.T) {
 	batchTimestamp, err := mockStub.GetTxTimestamp()
 	assert.NoError(t, err)
 
-	errSave := chainCode.saveToBatch(mockStub, s.FnName, sender, wrongArgs, uint64(batchTimestamp.Seconds))
+	chainCode.methods, err = parseContractMethods(chainCode.contract)
+	assert.NoError(t, err)
+
+	fn, err := chainCode.methods.Method(s.FnName)
+	assert.NoError(t, err)
+
+	errSave := chainCode.saveToBatch(
+		mockStub,
+		s.FnName,
+		fn,
+		sender,
+		wrongArgs,
+		uint64(batchTimestamp.Seconds),
+	)
 	assert.ErrorContains(t, errSave, "incorrect number of arguments, found 2 but expected more than 5")
 }
 
@@ -105,10 +140,27 @@ func TestSaveToBatchWithSignedArgs(t *testing.T) {
 		timestamp: createUtcTimestamp(),
 	}
 
-	chainCode, errChainCode := NewCC(&testBatchContract{}, nil)
+	chainCode, errChainCode := NewCC(&testBatchContract{})
 	assert.NoError(t, errChainCode)
 
 	mockStub := stub.NewMockStub(testChaincodeName, chainCode)
+
+	config := fmt.Sprintf(
+		`
+{
+	"contract": {
+		"robotSKI":"%s",
+		"symbol": "CC"
+	}
+}`,
+		fixtures_test.RobotHashedCert,
+	)
+
+	idBytes := [16]byte(uuid.New())
+	mockStub.MockInit(hex.EncodeToString(idBytes[:]), [][]byte{[]byte(config)})
+
+	err := applyConfig(&chainCode.contract, mockStub, []byte(config))
+	assert.NoError(t, err)
 
 	mockStub.TxID = testEncodedTxID
 	mockStub.MockTransactionStart(testEncodedTxID)
@@ -117,7 +169,20 @@ func TestSaveToBatchWithSignedArgs(t *testing.T) {
 	batchTimestamp, err := mockStub.GetTxTimestamp()
 	assert.NoError(t, err)
 
-	err = chainCode.saveToBatch(mockStub, s.FnName, sender, argsForTestFnWithSignedTwoArgs, uint64(batchTimestamp.Seconds))
+	chainCode.methods, err = parseContractMethods(chainCode.contract)
+	assert.NoError(t, err)
+
+	fn, err := chainCode.methods.Method(s.FnName)
+	assert.NoError(t, err)
+
+	err = chainCode.saveToBatch(
+		mockStub,
+		s.FnName,
+		fn,
+		sender,
+		argsForTestFnWithSignedTwoArgs,
+		uint64(batchTimestamp.Seconds),
+	)
 	assert.NoError(t, err)
 }
 
@@ -133,10 +198,27 @@ func TestSaveToBatchWithWrongSignedArgs(t *testing.T) {
 	}
 
 	wrongArgs := []string{"arg0", "arg1"}
-	chainCode, errChainCode := NewCC(&testBatchContract{}, nil)
+	chainCode, errChainCode := NewCC(&testBatchContract{})
 	assert.NoError(t, errChainCode)
 
 	mockStub := stub.NewMockStub(testChaincodeName, chainCode)
+
+	config := fmt.Sprintf(
+		`
+{
+	"contract": {
+		"robotSKI":"%s",
+		"symbol": "CC"
+	}
+}`,
+		fixtures_test.RobotHashedCert,
+	)
+
+	idBytes := [16]byte(uuid.New())
+	mockStub.MockInit(hex.EncodeToString(idBytes[:]), [][]byte{[]byte(config)})
+
+	err := applyConfig(&chainCode.contract, mockStub, []byte(config))
+	assert.NoError(t, err)
 
 	mockStub.TxID = testEncodedTxID
 	mockStub.MockTransactionStart(testEncodedTxID)
@@ -145,8 +227,22 @@ func TestSaveToBatchWithWrongSignedArgs(t *testing.T) {
 	batchTimestamp, err := mockStub.GetTxTimestamp()
 	assert.NoError(t, err)
 
-	err = chainCode.saveToBatch(mockStub, s.FnName, sender, wrongArgs, uint64(batchTimestamp.Seconds))
-	assert.EqualError(t, err, "validate arguments. strconv.ParseInt: parsing \"arg0\": invalid syntax")
+	chainCode.methods, err = parseContractMethods(chainCode.contract)
+	assert.NoError(t, err)
+
+	fn, err := chainCode.methods.Method(s.FnName)
+	assert.NoError(t, err)
+
+	err = chainCode.saveToBatch(
+		mockStub,
+		s.FnName,
+		fn,
+		sender,
+		wrongArgs,
+		uint64(batchTimestamp.Seconds),
+	)
+	assert.EqualError(t, err, "validate arguments. failed to convert arg value 'arg0' "+
+		"to type '<int64 Value>' on index '0': strconv.ParseInt: parsing \"arg0\": invalid syntax")
 }
 
 // TestSaveAndLoadToBatchWithWrongFnParameter - negative test with wrong Fn Name in saveToBatch
@@ -160,20 +256,36 @@ func TestSaveToBatchWrongFnName(t *testing.T) {
 		timestamp: createUtcTimestamp(),
 	}
 
-	chainCode, errChainCode := NewCC(&testBatchContract{}, nil)
+	chainCode, errChainCode := NewCC(&testBatchContract{})
 	assert.NoError(t, errChainCode)
 
-	mockStub := stub.NewMockStub(testChaincodeName, chainCode)
+	ms := stub.NewMockStub(testChaincodeName, chainCode)
 
-	mockStub.TxID = testEncodedTxID
-	mockStub.MockTransactionStart(testEncodedTxID)
-	mockStub.TxTimestamp = s.timestamp
+	ms.TxID = testEncodedTxID
+	ms.MockTransactionStart(testEncodedTxID)
+	ms.TxTimestamp = s.timestamp
 
-	batchTimestamp, err := mockStub.GetTxTimestamp()
+	_, err := ms.GetTxTimestamp()
 	assert.NoError(t, err)
 
-	errSave := chainCode.saveToBatch(mockStub, s.FnName, sender, argsForTestFnWithFive, uint64(batchTimestamp.Seconds))
-	assert.ErrorContains(t, errSave, "method 'unknownFunctionName' not found")
+	cfg := &proto.Config{
+		Contract: &proto.ContractConfig{
+			Symbol:   "CC",
+			RobotSKI: fixtures_test.RobotHashedCert,
+			Admin:    fixtures_test.Admin,
+		},
+	}
+	cfgBytes, _ := json.Marshal(cfg)
+
+	err = applyConfig(&chainCode.contract, ms, cfgBytes)
+	assert.NoError(t, err)
+
+	chainCode.methods, err = parseContractMethods(chainCode.contract)
+	assert.NoError(t, err)
+
+	fn, err := chainCode.methods.Method(s.FnName)
+	assert.ErrorContains(t, err, "method 'unknownFunctionName' not found")
+	assert.Nil(t, fn)
 }
 
 // TestSaveAndLoadToBatchWithWrongID - negative test with wrong ID for loadToBatch
@@ -192,24 +304,57 @@ func TestSaveAndLoadToBatchWithWrongID(t *testing.T) {
 
 // SaveAndLoadToBatchTest - basic test to check Args in saveToBatch and loadFromBatch
 func SaveAndLoadToBatchTest(t *testing.T, ser *serieBatches, args []string) {
-	chainCode, errChainCode := NewCC(&testBatchContract{}, nil)
+	chainCode, errChainCode := NewCC(&testBatchContract{})
 	assert.NoError(t, errChainCode)
 
-	mockStub := stub.NewMockStub(testChaincodeName, chainCode)
+	ms := stub.NewMockStub(testChaincodeName, chainCode)
 
-	mockStub.TxID = testEncodedTxID
-	mockStub.MockTransactionStart(testEncodedTxID)
-	if ser.timestamp != nil {
-		mockStub.TxTimestamp = ser.timestamp
+	cfg := &proto.Config{
+		Contract: &proto.ContractConfig{
+			Symbol:   "CC",
+			RobotSKI: fixtures_test.RobotHashedCert,
+			Admin:    fixtures_test.Admin,
+		},
 	}
+	cfgBytes, _ := json.Marshal(cfg)
 
-	batchTimestamp, err := mockStub.GetTxTimestamp()
+	err := ms.SetAdminCreatorCert("atomyzeMSP")
 	assert.NoError(t, err)
 
-	errSave := chainCode.saveToBatch(mockStub, ser.FnName, sender, args, uint64(batchTimestamp.Seconds))
+	idBytes := [16]byte(uuid.New())
+	rsp := ms.MockInit(hex.EncodeToString(idBytes[:]), [][]byte{cfgBytes})
+	require.Equal(t, int32(shim.OK), rsp.GetStatus(), rsp.GetMessage())
+
+	err = applyConfig(&chainCode.contract, ms, cfgBytes)
+	assert.NoError(t, err)
+
+	ms.TxID = testEncodedTxID
+	ms.MockTransactionStart(testEncodedTxID)
+	if ser.timestamp != nil {
+		ms.TxTimestamp = ser.timestamp
+	}
+
+	batchTimestamp, err := ms.GetTxTimestamp()
+	assert.NoError(t, err)
+
+	chainCode.methods, err = parseContractMethods(chainCode.contract)
+	assert.NoError(t, err)
+
+	fn, err := chainCode.methods.Method(ser.FnName)
+	assert.NoError(t, err)
+
+	errSave := chainCode.saveToBatch(
+		ms,
+		ser.FnName,
+		fn,
+		sender,
+		args,
+		uint64(batchTimestamp.Seconds),
+	)
 	assert.NoError(t, errSave)
-	mockStub.MockTransactionEnd(testEncodedTxID)
-	state, err := mockStub.GetState(fmt.Sprintf("\u0000batchTransactions\u0000%s\u0000", testEncodedTxID))
+	ms.MockTransactionEnd(testEncodedTxID)
+
+	state, err := ms.GetState(fmt.Sprintf("\u0000batchTransactions\u0000%s\u0000", testEncodedTxID))
 	assert.NotNil(t, state)
 	assert.NoError(t, err)
 
@@ -219,7 +364,7 @@ func SaveAndLoadToBatchTest(t *testing.T, ser *serieBatches, args []string) {
 
 	assert.Equal(t, pending.Args, args)
 
-	pending, _, err = chainCode.loadFromBatch(mockStub, ser.testID, batchTimestamp.Seconds)
+	pending, _, err = chainCode.loadFromBatch(ms, ser.testID)
 	if err != nil {
 		assert.Equal(t, ser.errorMsg, err.Error())
 	} else {
@@ -283,21 +428,55 @@ func TestBatchExecuteWithWrongParams(t *testing.T) {
 
 // BatchExecuteTest - basic test for SaveBatch, LoadBatch and batchExecute
 func BatchExecuteTest(t *testing.T, ser *serieBatcheExecute, args []string) peer.Response {
-	chainCode, err := NewCC(&testBatchContract{}, nil)
+	chainCode, err := NewCC(&testBatchContract{})
 	assert.NoError(t, err)
 
-	mockStub := stub.NewMockStub(testChaincodeName, chainCode)
+	ms := stub.NewMockStub(testChaincodeName, chainCode)
 
-	mockStub.TxID = testEncodedTxID
-	mockStub.MockTransactionStart(testEncodedTxID)
+	cfg := &proto.Config{
+		Contract: &proto.ContractConfig{
+			Symbol:   "TT",
+			RobotSKI: fixtures_test.RobotHashedCert,
+			Admin:    &proto.Wallet{Address: fixtures_test.AdminAddr},
+		},
+	}
+	cfgBytes, _ := json.Marshal(cfg)
 
-	batchTimestamp, err := mockStub.GetTxTimestamp()
+	err = ms.SetAdminCreatorCert("atomyzeMSP")
+	require.NoError(t, err)
+
+	idBytes := [16]byte(uuid.New())
+	rsp := ms.MockInit(hex.EncodeToString(idBytes[:]), [][]byte{cfgBytes})
+	assert.Equal(t, int32(shim.OK), rsp.GetStatus())
+
+	err = applyConfig(&chainCode.contract, ms, cfgBytes)
 	assert.NoError(t, err)
 
-	err = chainCode.saveToBatch(mockStub, testFnWithFiveArgsMethod, nil, args, uint64(batchTimestamp.Seconds))
+	ms.TxID = testEncodedTxID
+	ms.MockTransactionStart(testEncodedTxID)
+
+	batchTimestamp, err := ms.GetTxTimestamp()
 	assert.NoError(t, err)
-	mockStub.MockTransactionEnd(testEncodedTxID)
-	state, err := mockStub.GetState(fmt.Sprintf("\u0000batchTransactions\u0000%s\u0000", testEncodedTxID))
+
+	methods, err := parseContractMethods(chainCode.contract)
+	assert.NoError(t, err)
+	chainCode.methods = methods
+	assert.NoError(t, err)
+
+	method, err := chainCode.methods.Method(testFnWithFiveArgsMethod)
+	assert.NoError(t, err)
+
+	err = chainCode.saveToBatch(
+		ms,
+		testFnWithFiveArgsMethod,
+		method,
+		nil,
+		args,
+		uint64(batchTimestamp.Seconds),
+	)
+	assert.NoError(t, err)
+	ms.MockTransactionEnd(testEncodedTxID)
+	state, err := ms.GetState(fmt.Sprintf("\u0000batchTransactions\u0000%s\u0000", testEncodedTxID))
 	assert.NotNil(t, state)
 	assert.NoError(t, err)
 
@@ -312,98 +491,73 @@ func BatchExecuteTest(t *testing.T, ser *serieBatcheExecute, args []string) peer
 	dataIn, err := pb.Marshal(&proto.Batch{TxIDs: [][]byte{ser.testIDBytes}})
 	assert.NoError(t, err)
 
-	return chainCode.batchExecute(mockStub, string(dataIn), nil, nil)
+	return chainCode.batchExecute(ms, string(dataIn), nil)
 }
 
-// TestBatchedTxExecute - positive test for batchedTxExecute
+// TestBatchedTxExecute tests positive test for batchedTxExecute
 func TestBatchedTxExecute(t *testing.T) {
-	chainCode, err := NewCC(&testBatchContract{}, nil)
+	chainCode, err := NewCC(&testBatchContract{})
 	assert.NoError(t, err)
 
-	mockStub := stub.NewMockStub(testChaincodeName, chainCode)
+	ms := stub.NewMockStub(testChaincodeName, chainCode)
+	require.NotNil(t, ms)
 
-	mockStub.TxID = testEncodedTxID
+	err = ms.SetAdminCreatorCert("atomyzeMSP")
+	require.NoError(t, err)
 
-	btchStub := newBatchStub(mockStub)
+	cfg := &proto.Config{
+		Contract: &proto.ContractConfig{
+			Symbol:   "CC",
+			Options:  &proto.ChaincodeOptions{},
+			RobotSKI: fixtures_test.RobotHashedCert,
+			Admin:    &proto.Wallet{Address: fixtures_test.AdminAddr},
+		},
+	}
 
-	mockStub.MockTransactionStart(testEncodedTxID)
+	cfgBytes, _ := json.Marshal(cfg)
 
-	batchTimestamp, err := mockStub.GetTxTimestamp()
+	idBytes := [16]byte(uuid.New())
+	rsp := ms.MockInit(hex.EncodeToString(idBytes[:]), [][]byte{cfgBytes})
+	require.Equal(t, int32(shim.OK), rsp.GetStatus())
+
+	err = applyConfig(&chainCode.contract, ms, cfgBytes)
 	assert.NoError(t, err)
 
-	err = chainCode.saveToBatch(mockStub, testFnWithFiveArgsMethod, nil, argsForTestFnWithFive, uint64(batchTimestamp.Seconds))
-	assert.NoError(t, err)
-	mockStub.MockTransactionEnd(testEncodedTxID)
+	chainCode.methods, err = parseContractMethods(chainCode.contract)
+	require.NoError(t, err)
 
-	resp, event := chainCode.batchedTxExecute(btchStub, txIDBytes, batchTimestamp.Seconds, nil, nil)
+	ms.TxID = testEncodedTxID
+
+	btchStub := newBatchStub(ms)
+
+	ms.MockTransactionStart(testEncodedTxID)
+
+	batchTimestamp, err := ms.GetTxTimestamp()
+	assert.NoError(t, err)
+
+	chainCode.methods, err = parseContractMethods(chainCode.contract)
+	assert.NoError(t, err)
+
+	fn, err := chainCode.methods.Method(testFnWithFiveArgsMethod)
+	assert.NoError(t, err)
+
+	err = chainCode.saveToBatch(ms, testFnWithFiveArgsMethod, fn, nil,
+		argsForTestFnWithFive, uint64(batchTimestamp.Seconds))
+	assert.NoError(t, err)
+	ms.MockTransactionEnd(testEncodedTxID)
+
+	resp, event := chainCode.batchedTxExecute(
+		btchStub,
+		txIDBytes,
+		nil,
+	)
 	assert.NotNil(t, resp)
 	assert.NotNil(t, event)
 	assert.Nil(t, resp.Error)
 	assert.Nil(t, event.Error)
 }
 
-// TestOkTxExecuteWithTTL - positive test for batchedTxExecute whit ttl
-func TestOkTxExecuteWithTTL(t *testing.T) {
-	chainCode, err := NewCC(&testBatchContract{}, &ContractOptions{
-		TxTTL: 5,
-	})
-	assert.NoError(t, err)
-
-	mockStub := stub.NewMockStub(testChaincodeName, chainCode)
-	mockStub.TxID = testEncodedTxID
-	btchStub := newBatchStub(mockStub)
-	mockStub.MockTransactionStart(testEncodedTxID)
-
-	batchTimestamp, err := mockStub.GetTxTimestamp()
-	assert.NoError(t, err)
-
-	err = chainCode.saveToBatch(mockStub, testFnWithFiveArgsMethod, nil, argsForTestFnWithFive, uint64(batchTimestamp.Seconds))
-	assert.NoError(t, err)
-	mockStub.MockTransactionEnd(testEncodedTxID)
-
-	resp, event := chainCode.batchedTxExecute(btchStub, txIDBytes, batchTimestamp.Seconds, nil, nil)
-	assert.NotNil(t, resp)
-	assert.NotNil(t, event)
-	assert.Nil(t, resp.Error)
-	assert.Nil(t, event.Error)
-
-	assert.Equal(t, resp.Id, txIDBytes)
-	assert.Equal(t, resp.Method, testFnWithFiveArgsMethod)
-	assert.Equal(t, event.Id, txIDBytes)
-	assert.Equal(t, event.Method, testFnWithFiveArgsMethod)
-}
-
-// TestFalseTxExecuteWithTTL - negative test for batchedTxExecute whit ttl
-func TestFailTxExecuteWithTTL(t *testing.T) {
-	chainCode, err := NewCC(&testBatchContract{}, &ContractOptions{
-		TxTTL: 5,
-	})
-	assert.NoError(t, err)
-
-	mockStub := stub.NewMockStub(testChaincodeName, chainCode)
-	mockStub.TxID = testEncodedTxID
-	btchStub := newBatchStub(mockStub)
-	mockStub.MockTransactionStart(testEncodedTxID)
-
-	batchTimestamp, err := mockStub.GetTxTimestamp()
-	assert.NoError(t, err)
-
-	err = chainCode.saveToBatch(mockStub, testFnWithFiveArgsMethod, nil, argsForTestFnWithFive, uint64(batchTimestamp.Seconds))
-	assert.NoError(t, err)
-	mockStub.MockTransactionEnd(testEncodedTxID)
-
-	resp, event := chainCode.batchedTxExecute(btchStub, txIDBytes, batchTimestamp.Seconds+6, nil, nil)
-	assert.NotNil(t, resp)
-	assert.NotNil(t, event)
-	assert.NotNil(t, resp.Error)
-	assert.NotNil(t, event.Error)
-	assert.Equal(t, resp.Id, txIDBytes)
-	assert.Equal(t, event.Id, txIDBytes)
-	assert.Contains(t, resp.Error.Error, "function and args loading error: transaction expired")
-	assert.Contains(t, event.Error.Error, "function and args loading error: transaction expired")
-}
-
-// CreateUtcTimestamp returns a google/protobuf/Timestamp in UTC
+// CreateUtcTimestamp returns a Google/protobuf/Timestamp in UTC
 func createUtcTimestamp() *timestamp.Timestamp {
 	now := time.Now().UTC()
 	secs := now.Unix()

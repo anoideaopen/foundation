@@ -1,7 +1,9 @@
 package token
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
 
 	"github.com/anoideaopen/foundation/core"
 	"github.com/anoideaopen/foundation/core/types"
@@ -10,36 +12,38 @@ import (
 	pb "github.com/golang/protobuf/proto" //nolint:staticcheck
 )
 
-const (
-	// FeeSetterArgPos is the position of the fee setter in the init args
-	FeeSetterArgPos = 1
-	// FeeAddressSetterArgPos is the position of the fee address setter in the init args
-	FeeAddressSetterArgPos = 2
-	metadataKey            = "tokenMetadata"
-)
+const metadataKey = "tokenMetadata"
 
 // Tokener is the interface for tokens
 type Tokener interface {
 	core.BaseContractInterface
+	core.TokenConfigurable
+
 	EmissionAdd(*big.Int) error
 	EmissionSub(*big.Int) error
 	GetRateAndLimits(string, string) (*proto.TokenRate, bool, error)
 }
 
-// BaseToken is the base token
+var (
+	_ Tokener                    = &BaseToken{}
+	_ core.BaseContractInterface = &BaseToken{}
+)
+
+// BaseToken represents a chaincode with configurable token-attributes.
+// Implements core.BaseContractInterface by embedding core.BaseContract.
 type BaseToken struct {
 	core.BaseContract
-	Name            string
-	Symbol          string
-	Decimals        uint
-	UnderlyingAsset string
 
+	// stores token-specific attributes.
+	tokenConfig *proto.TokenConfig
+
+	// stores emission amount, fees and rates.
 	config *proto.Token
 }
 
 // Issuer returns the issuer of the token
 func (bt *BaseToken) Issuer() *types.Address {
-	addr, err := types.AddrFromBase58Check(bt.GetInitArg(0))
+	addr, err := types.AddrFromBase58Check(bt.tokenConfig.Issuer.Address)
 	if err != nil {
 		panic(err)
 	}
@@ -48,16 +52,25 @@ func (bt *BaseToken) Issuer() *types.Address {
 
 // FeeSetter returns the fee setter of the token
 func (bt *BaseToken) FeeSetter() *types.Address {
-	addr, err := types.AddrFromBase58Check(bt.GetInitArg(FeeSetterArgPos))
-	if err != nil {
-		panic(err)
+	if bt.TokenConfig().FeeSetter == nil || bt.TokenConfig().FeeSetter.Address == "" {
+		panic("feeSetter is not set or empty")
 	}
+
+	addr, err := types.AddrFromBase58Check(bt.TokenConfig().FeeSetter.Address)
+	if err != nil {
+		panic(fmt.Sprintf("parsing address: %s", err))
+	}
+
 	return addr
 }
 
 // FeeAddressSetter returns the fee address setter of the token
 func (bt *BaseToken) FeeAddressSetter() *types.Address {
-	addr, err := types.AddrFromBase58Check(bt.GetInitArg(FeeAddressSetterArgPos))
+	if bt.TokenConfig().FeeAddressSetter == nil || bt.tokenConfig.FeeAddressSetter.Address == "" {
+		panic("feeAddressSetter is not set or empty")
+	}
+
+	addr, err := types.AddrFromBase58Check(bt.tokenConfig.FeeAddressSetter.Address)
 	if err != nil {
 		panic(err)
 	}
@@ -66,7 +79,7 @@ func (bt *BaseToken) FeeAddressSetter() *types.Address {
 
 // GetID returns the ID of the token
 func (bt *BaseToken) GetID() string {
-	return bt.Symbol
+	return bt.TokenConfig().Name
 }
 
 func (bt *BaseToken) loadConfigUnlessLoaded() error {
@@ -123,16 +136,19 @@ func (bt *BaseToken) setFee(currency string, fee *big.Int, floor *big.Int, cap *
 	if err := bt.loadConfigUnlessLoaded(); err != nil {
 		return err
 	}
+
 	if bt.config.Fee == nil {
 		bt.config.Fee = &proto.TokenFee{}
 	}
-	if currency == bt.Symbol {
+
+	if currency == bt.ContractConfig().Symbol {
 		bt.config.Fee.Currency = currency
 		bt.config.Fee.Fee = fee.Bytes()
 		bt.config.Fee.Floor = floor.Bytes()
 		bt.config.Fee.Cap = cap.Bytes()
 		return bt.saveConfig()
 	}
+
 	for _, rate := range bt.config.Rates {
 		if rate.Currency == currency {
 			bt.config.Fee.Currency = currency
@@ -142,6 +158,7 @@ func (bt *BaseToken) setFee(currency string, fee *big.Int, floor *big.Int, cap *
 			return bt.saveConfig()
 		}
 	}
+
 	return errors.New("unknown currency")
 }
 
@@ -156,4 +173,30 @@ func (bt *BaseToken) GetRateAndLimits(dealType string, currency string) (*proto.
 		}
 	}
 	return &proto.TokenRate{}, false, nil
+}
+
+func (bt *BaseToken) ValidateTokenConfig(config []byte) error {
+	fullCfg := struct {
+		proto.TokenConfig `json:"token"`
+	}{}
+
+	if err := json.Unmarshal(config, &fullCfg); err != nil {
+		return fmt.Errorf("unmarshalling token config data failed: %w", err)
+	}
+
+	return fullCfg.Validate()
+}
+
+func (bt *BaseToken) ApplyTokenConfig(config *proto.TokenConfig) error {
+	bt.tokenConfig = config
+
+	return nil
+}
+
+func (bt *BaseToken) TokenConfig() *proto.TokenConfig {
+	if bt.tokenConfig == nil {
+		panic("token config is not set")
+	}
+
+	return bt.tokenConfig
 }

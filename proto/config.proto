@@ -1,0 +1,71 @@
+syntax = "proto3";
+
+package proto;
+
+import "validate/validate.proto";
+
+option go_package = "./;proto";
+
+// Config stores all chaincode configuration parameters.
+message Config {
+  ContractConfig contract = 1 [(validate.rules).message = {required: true, skip: false}];
+  TokenConfig token = 2;
+}
+
+// ContractConfig is a configuration for platform base contract.
+message ContractConfig {
+  // symbol is a contract identifier, usually called token ticker.
+  string symbol = 1 [(validate.rules).string.pattern = "^[A-Z]+[A-Z0-9]+(-[A-Z0-9]+)?$"];
+
+  // ChaincodeOptions stores contract options.
+  ChaincodeOptions options = 2;
+
+  // robotSKI is the platform robot public key SKI in hex format.
+  string robotSKI = 3 [(validate.rules).string.pattern = "^[0-9a-f]+$"];
+
+  // admin is a address of user who can import manipulations with contract.
+  Wallet admin = 4;
+}
+
+// ChaincodeOptions stores possible chaincode configuration options.
+message ChaincodeOptions {
+  // disabled_functions stores list of disabled chaincode methods.
+  // This methods can't be called.
+  repeated string disabled_functions = 1;
+
+  // disable_swaps determines whether swap operations can be performed.
+  bool disable_swaps = 2;
+
+  // disable_multi_swaps determines whether multi-swap operations can be performed.
+  bool disable_multi_swaps = 3;
+}
+
+// Wallet stores user specific data.
+message Wallet {
+  // address is a user public key in base58check format.
+  string address = 1 [(validate.rules).string.pattern = "^[1-9A-HJ-NP-Za-km-z]+$"];
+}
+
+// TokenConfig is a configuration for base token.
+message TokenConfig {
+  // name is a token name.
+  string name = 1;
+
+  // decimals is a token's dimension.
+  uint32 decimals = 2;
+
+  // underlying_asset is an asset that backs the token.
+  string underlying_asset = 3;
+
+  // issuer is the user which can emit tokens.
+  Wallet issuer = 4 [(validate.rules).message.required = true];
+
+  // fee_setter is the user which can set and change fees for operations.
+  Wallet fee_setter = 5;
+
+  // fee_address_setter is the user who can set the set address of the commissions manager.
+  Wallet fee_address_setter = 6;
+
+  // redeemer is the user who has permission to manage redemption process.
+  Wallet redeemer = 7;
+}

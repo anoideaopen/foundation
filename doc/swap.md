@@ -4,10 +4,10 @@ Description of the features of working with swaps in Foundation.
 
 ## Table of Contents
 
-- [SWAP](#-swap)
-  - [Table of Contents](#-table-of-contents)
-  - [Swap Cancel](#-swap-cancel)
-  - [Links](#-links)
+- [SWAP](#swap)
+  - [Table of Contents](#table-of-contents)
+  - [Swap Cancel](#swap-cancel)
+  - [Links](#links)
 
 ## Swap Cancel
 

@@ -196,12 +196,18 @@ message Address {
     bool isMultisig                   = 4;
 }
 
+message AdditionalKey {
+    string publicKeyBase58 = 1;
+    repeated string labels = 2;
+}
+
 message SignedAddress {
     Address address                   = 1;
     repeated string signedTx          = 2;
     SignaturePolicy signaturePolicy   = 5;
     string reason                     = 6;
     int32 reasonId                    = 7;
+    repeated AdditionalKey additionalKeys = 8;
 }
 
 message SignaturePolicy {

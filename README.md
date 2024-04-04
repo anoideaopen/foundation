@@ -5,12 +5,12 @@
 A basic library for creating platform chaincodes.
 
 ## Table of Contents
-- [Foundation](#-foundation)
-  - [Table of Contents](#-table-of-contents)
-  - [Description](#-description)
-  - [Topics](#-topics)
-  - [Links](#-links)
-  - [License](#-license)
+- [Foundation](#foundation)
+  - [Table of Contents](#table-of-contents)
+  - [Description](#description)
+  - [Topics](#topics)
+  - [Links](#links)
+  - [License](#license)
 
 ## Description
 
@@ -30,12 +30,14 @@ The library implements functionality for interacting with access control list (A
 ## Topics
 
 * [API](doc/api.md)
-* [Contract Options](doc/options.md)
+* [Chaincode configuration](doc/cc_cfg.md)
 * [Versioning](doc/versioning.md)
 * [QA](doc/qa.md)
 * [Embed Source](doc/embed.md)
 * [Swap](doc/swap.md)
 * [External Locks](doc/external-locks.md)
+* [Balance reverse index](doc/balance-indexing.md)
+* [Balance package](core/balance/balance-indexing.md)
 
 ## Links
 

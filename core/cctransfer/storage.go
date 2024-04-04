@@ -1,10 +1,13 @@
 package cctransfer
 
 import (
+	"fmt"
+
 	pb "github.com/anoideaopen/foundation/proto"
 	"github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/hyperledger/fabric-chaincode-go/shim"
 	"github.com/hyperledger/fabric-protos-go/ledger/queryresult"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 // LoadCCFromTransfer returns entry by id.
@@ -20,8 +23,10 @@ func LoadCCFromTransfer(stub shim.ChaincodeStubInterface, idArg string) (*pb.CCT
 		return nil, ErrNotFound
 	}
 
-	if err = proto.Unmarshal(data, cct); err != nil {
-		return nil, err
+	if err = protojson.Unmarshal(data, cct); err != nil {
+		if err = proto.Unmarshal(data, cct); err != nil {
+			return nil, fmt.Errorf("unmarshal: %w", err)
+		}
 	}
 	return cct, nil
 }
@@ -51,8 +56,10 @@ func LoadCCFromTransfers(
 		}
 
 		cct := new(pb.CCTransfer)
-		if err = proto.Unmarshal(kv.Value, cct); err != nil {
-			return nil, err
+		if err = protojson.Unmarshal(kv.Value, cct); err != nil {
+			if err = proto.Unmarshal(kv.Value, cct); err != nil {
+				return nil, fmt.Errorf("unmarshal: %w", err)
+			}
 		}
 
 		ccts.Ccts = append(ccts.Ccts, cct)
@@ -75,7 +82,7 @@ func SaveCCFromTransfer(stub shim.ChaincodeStubInterface, cct *pb.CCTransfer) er
 		return ErrEmptyIDTransfer
 	}
 
-	data, err := proto.Marshal(cct)
+	data, err := protojson.MarshalOptions{EmitUnpopulated: true}.Marshal(cct)
 	if err != nil {
 		return err
 	}
@@ -102,8 +109,10 @@ func LoadCCToTransfer(stub shim.ChaincodeStubInterface, idArg string) (*pb.CCTra
 		return nil, ErrNotFound
 	}
 
-	if err = proto.Unmarshal(data, cct); err != nil {
-		return nil, err
+	if err = protojson.Unmarshal(data, cct); err != nil {
+		if err = proto.Unmarshal(data, cct); err != nil {
+			return nil, fmt.Errorf("unmarshal: %w", err)
+		}
 	}
 	return cct, nil
 }
@@ -118,7 +127,7 @@ func SaveCCToTransfer(stub shim.ChaincodeStubInterface, cct *pb.CCTransfer) erro
 		return ErrEmptyIDTransfer
 	}
 
-	data, err := proto.Marshal(cct)
+	data, err := protojson.MarshalOptions{EmitUnpopulated: true}.Marshal(cct)
 	if err != nil {
 		return err
 	}

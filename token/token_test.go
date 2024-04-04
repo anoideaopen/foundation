@@ -7,7 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/anoideaopen/foundation/core"
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/core/types/big"
 	"github.com/anoideaopen/foundation/mock"
@@ -15,7 +14,6 @@ import (
 )
 
 const (
-	testTokenName   = "Testing Token"
 	testTokenSymbol = "TT"
 	testTokenCCName = "tt"
 
@@ -104,21 +102,15 @@ func (tt *TestToken) TxEmissionSub(sender *types.Sender, address *types.Address,
 
 // TestBaseTokenRoles - Checking the base token roles
 func TestBaseTokenRoles(t *testing.T) {
-	ledgerMock := mock.NewLedger(t)
-	issuer := ledgerMock.NewWallet()
-	feeAddressSetter := ledgerMock.NewWallet()
-	feeSetter := ledgerMock.NewWallet()
+	ledger := mock.NewLedger(t)
+	issuer := ledger.NewWallet()
+	feeSetter := ledger.NewWallet()
+	feeAddressSetter := ledger.NewWallet()
 
-	tt := &TestToken{
-		BaseToken{
-			Name:     testTokenName,
-			Symbol:   testTokenSymbol,
-			Decimals: 8,
-		},
-	}
-
-	ledgerMock.NewChainCode(testTokenCCName, tt, &core.ContractOptions{}, nil, issuer.Address(), feeSetter.Address(),
-		feeAddressSetter.Address())
+	tt := &TestToken{}
+	config := makeBaseTokenConfig(testTokenCCName, testTokenSymbol, 8,
+		issuer.Address(), feeSetter.Address(), feeAddressSetter.Address())
+	ledger.NewCC("tt", tt, config)
 
 	t.Run("Issuer address check", func(t *testing.T) {
 		actualIssuerAddr := issuer.Invoke(testTokenCCName, testTokenGetIssuerFnName)
@@ -141,77 +133,63 @@ func TestBaseTokenRoles(t *testing.T) {
 
 // TestEmitToken - Checking that emission is working
 func TestEmitToken(t *testing.T) {
-	ledgerMock := mock.NewLedger(t)
+	ledger := mock.NewLedger(t)
+	issuer := ledger.NewWallet()
+	feeSetter := ledger.NewWallet()
+	feeAddressSetter := ledger.NewWallet()
+	user := ledger.NewWallet()
 
-	owner := ledgerMock.NewWallet()
-	feeAddressSetter := ledgerMock.NewWallet()
-	feeSetter := ledgerMock.NewWallet()
-
-	tt := &TestToken{
-		BaseToken{
-			Name:     testTokenName,
-			Symbol:   testTokenSymbol,
-			Decimals: 8,
-		},
-	}
-
-	ledgerMock.NewChainCode(testTokenCCName, tt, &core.ContractOptions{}, nil, owner.Address(), feeSetter.Address(), feeAddressSetter.Address())
-
-	user := ledgerMock.NewWallet()
+	tt := &TestToken{}
+	config := makeBaseTokenConfig(testTokenCCName, testTokenSymbol, 8,
+		issuer.Address(), feeSetter.Address(), feeAddressSetter.Address())
+	ledger.NewCC("tt", tt, config)
 
 	t.Run("Test emitSub token", func(t *testing.T) {
-		owner.SignedInvoke(testTokenCCName, testEmissionAddFnName, user.Address(), fmt.Sprint(testEmitAmount))
+		issuer.SignedInvoke(
+			testTokenCCName,
+			testEmissionAddFnName,
+			user.Address(),
+			fmt.Sprint(testEmitAmount),
+		)
 		user.BalanceShouldBe(testTokenCCName, testEmitAmount)
 	})
 }
 
 // TestEmissionSub - Checking that emission sub is working
 func TestEmissionSub(t *testing.T) {
-	ledgerMock := mock.NewLedger(t)
+	ledger := mock.NewLedger(t)
+	issuer := ledger.NewWallet()
+	feeSetter := ledger.NewWallet()
+	feeAddressSetter := ledger.NewWallet()
 
-	owner := ledgerMock.NewWallet()
-	feeAddressSetter := ledgerMock.NewWallet()
-	feeSetter := ledgerMock.NewWallet()
+	tt := &TestToken{}
+	config := makeBaseTokenConfig(testTokenCCName, testTokenSymbol, 8,
+		issuer.Address(), feeSetter.Address(), feeAddressSetter.Address())
+	ledger.NewCC("tt", tt, config)
 
-	tt := &TestToken{
-		BaseToken{
-			Name:     testTokenName,
-			Symbol:   testTokenSymbol,
-			Decimals: 8,
-		},
-	}
+	user := ledger.NewWallet()
 
-	ledgerMock.NewChainCode(testTokenCCName, tt, &core.ContractOptions{}, nil, owner.Address(), feeSetter.Address(), feeAddressSetter.Address())
-
-	user := ledgerMock.NewWallet()
-
-	owner.SignedInvoke(testTokenCCName, testEmissionAddFnName, user.Address(), fmt.Sprint(testEmitAmount))
+	issuer.SignedInvoke(testTokenCCName, testEmissionAddFnName, user.Address(), fmt.Sprint(testEmitAmount))
 	user.BalanceShouldBe(testTokenCCName, testEmitAmount)
 
 	t.Run("Test emitSub token", func(t *testing.T) {
-		owner.SignedInvoke(testTokenCCName, testEmissionSubFnName, user.Address(), fmt.Sprint(testEmitSubAmount))
+		issuer.SignedInvoke(testTokenCCName, testEmissionSubFnName, user.Address(), fmt.Sprint(testEmitSubAmount))
 		user.BalanceShouldBe(testTokenCCName, testEmitAmount-testEmitSubAmount)
 	})
 }
 
 // TestEmissionSub - Checking that setting fee is working
 func TestSetFee(t *testing.T) {
-	ledgerMock := mock.NewLedger(t)
+	ledger := mock.NewLedger(t)
+	issuer := ledger.NewWallet()
+	feeSetter := ledger.NewWallet()
+	feeAddressSetter := ledger.NewWallet()
+	feeAggregator := ledger.NewWallet()
 
-	owner := ledgerMock.NewWallet()
-	feeAddressSetter := ledgerMock.NewWallet()
-	feeSetter := ledgerMock.NewWallet()
-	feeAggregator := ledgerMock.NewWallet()
-
-	tt := &TestToken{
-		BaseToken{
-			Name:     testTokenName,
-			Symbol:   testTokenSymbol,
-			Decimals: 8,
-		},
-	}
-
-	ledgerMock.NewChainCode(testTokenCCName, tt, &core.ContractOptions{}, nil, owner.Address(), feeSetter.Address(), feeAddressSetter.Address())
+	tt := &TestToken{}
+	config := makeBaseTokenConfig(testTokenCCName, testTokenSymbol, 8,
+		issuer.Address(), feeSetter.Address(), feeAddressSetter.Address())
+	ledger.NewCC("tt", tt, config)
 
 	t.Run("Test emit token", func(t *testing.T) {
 		feeAddressSetter.SignedInvoke(testTokenCCName, testSetFeeAddressFnName, feeAggregator.Address())

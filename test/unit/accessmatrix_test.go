@@ -3,12 +3,12 @@ package unit
 import (
 	"testing"
 
-	"github.com/anoideaopen/foundation/core"
 	"github.com/anoideaopen/foundation/core/acl"
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/mock"
 	"github.com/anoideaopen/foundation/token"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type IssuerCheckerToken struct {
@@ -36,26 +36,16 @@ func (ict *IssuerCheckerToken) QueryGetRight(ccname string, address *types.Addre
 }
 
 func TestRights(t *testing.T) {
+	t.Parallel()
+
 	ledgerMock := mock.NewLedger(t)
 	issuer := ledgerMock.NewWallet()
-	feeSetter := ledgerMock.NewWallet()
 
-	ict := &IssuerCheckerToken{
-		token.BaseToken{
-			Name:     testTokenName,
-			Symbol:   testTokenSymbol,
-			Decimals: 8,
-		},
-	}
+	config := makeBaseTokenConfig("NT Token", "NT", 8,
+		issuer.Address(), "", "", "")
 
-	ledgerMock.NewChainCode(
-		testTokenCCName,
-		ict,
-		&core.ContractOptions{},
-		nil,
-		issuer.Address(),
-		feeSetter.Address(),
-	)
+	initMsg := ledgerMock.NewCC(testTokenCCName, &IssuerCheckerToken{}, config)
+	require.Empty(t, initMsg)
 
 	const (
 		createOp = "createEmissionApp"

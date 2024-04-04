@@ -1,0 +1,30 @@
+Certificate:
+    Data:
+        Version: 3 (0x2)
+        Serial Number:
+            60:cc:e7:27:14:12:30:19:2d:09:b3:50:59:ae:1e:a7:dc:e3:28:2e
+        Signature Algorithm: GOST R 34.10-2012 with GOST R 34.11-2012 (256 bit)
+        Issuer: C = RU, ST = Moscow, L = Moscow, O = Example, OU = IT, CN = example.com
+        Validity
+            Not Before: Jan 22 10:38:39 2024 GMT
+            Not After : Jan 21 10:38:39 2025 GMT
+        Subject: C = RU, ST = Moscow, L = Moscow, O = Example, OU = IT, CN = example.com
+        Subject Public Key Info:
+            Public Key Algorithm: GOST R 34.10-2012 with 256 bit modulus
+                Public key:
+                   X:563B0C68CA0B23297F8031CFE31959F392D8EF519F19597BC39FA6E64A8B38A9
+                   Y:E85BDECD06C1D088CCE79CB1135DD5763613D2E7AAB02C7F7DA74CC717858944
+                Parameter set: id-GostR3410-2001-CryptoPro-A-ParamSet
+        X509v3 extensions:
+            X509v3 Basic Constraints: 
+                CA:TRUE
+            X509v3 Key Usage: 
+                Digital Signature, Non Repudiation, Key Encipherment
+            X509v3 Subject Key Identifier: 
+                A8:F0:96:5B:F1:05:95:92:D1:38:6C:F3:27:65:98:93:52:B2:C4:44
+    Signature Algorithm: GOST R 34.10-2012 with GOST R 34.11-2012 (256 bit)
+    Signature Value:
+        1b:6d:60:a8:fe:2e:5f:64:85:d3:ac:72:2c:ce:fe:be:cc:1f:
+        ae:f3:72:49:a5:9f:31:3a:8d:13:86:79:4d:17:e0:e2:da:79:
+        9d:9c:62:f4:4e:a9:5f:0e:0a:6e:fb:3a:0e:02:8f:69:ab:dc:
+        97:2d:c1:3b:19:ab:3c:83:eb:58

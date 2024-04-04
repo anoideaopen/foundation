@@ -4,13 +4,16 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"sort"
+	"strings"
 	"unicode"
 
 	"github.com/anoideaopen/foundation/core/types"
 )
 
-// ErrMethodAlreadyDefined is an error message
-const ErrMethodAlreadyDefined = "pure method has already been defined"
+var ErrMethodAlreadyDefined = errors.New("pure method has already defined")
+
+var funcPrefixes = []string{txPrefix, queryPrefix, noBatchPrefix}
 
 // In is a struct for input parameters
 type In struct {
@@ -27,64 +30,6 @@ type Fn struct {
 	needsAuth bool
 	in        []In
 	out       bool
-}
-
-// ParseContract parses contract
-func ParseContract(in BaseContractInterface, options *ContractOptions) (map[string]*Fn, error) {
-	out := make(map[string]*Fn)
-	t := reflect.TypeOf(in)
-	for i := 0; i < t.NumMethod(); i++ {
-		method := t.Method(i)
-		nb := false
-		query := false
-		if options != nil && contains(options.DisabledFunctions, method.Name) {
-			continue
-		}
-		if options != nil && options.DisableSwaps && (method.Name == "QuerySwapGet" ||
-			method.Name == "TxSwapBegin" || method.Name == "TxSwapCancel") {
-			continue
-		}
-		if options != nil && options.DisableMultiSwaps && (method.Name == "QueryMultiSwapGet" ||
-			method.Name == "TxMultiSwapBegin" || method.Name == "TxMultiSwapCancel") {
-			continue
-		}
-
-		switch {
-		case len(method.Name) > 4 && method.Name[0:4] == "NBTx":
-			nb = true
-			method.Name = method.Name[4:]
-		case len(method.Name) > 5 && method.Name[0:5] == "Query":
-			query = true
-			nb = true
-			method.Name = method.Name[5:]
-		case len(method.Name) > 2 && method.Name[0:2] == "Tx":
-			method.Name = method.Name[2:]
-		default:
-			continue
-		}
-
-		name := ToLowerFirstLetter(method.Name)
-
-		if _, ok := out[name]; ok {
-			return nil, errors.New(ErrMethodAlreadyDefined + ": " + name)
-		}
-
-		out[name] = &Fn{
-			fn:      method.Func,
-			noBatch: nb,
-			query:   query,
-		}
-		if err := out[name].getInputs(method); err != nil {
-			return nil, err
-		}
-		var err error
-		out[name].out, err = checkOut(method)
-		if err != nil {
-			return nil, err
-		}
-		in.addMethod(name)
-	}
-	return out, nil
 }
 
 func (f *Fn) getInputs(method reflect.Method) error {
@@ -148,8 +93,7 @@ func checkOut(method reflect.Method) (bool, error) {
 	return false, errors.New("unknown output types " + method.Name)
 }
 
-// ToLowerFirstLetter converts first letter to lower case
-func ToLowerFirstLetter(in string) string {
+func toLowerFirstLetter(in string) string {
 	return string(unicode.ToLower(rune(in[0]))) + in[1:]
 }
 
@@ -160,4 +104,118 @@ func contains(s []string, e string) bool {
 		}
 	}
 	return false
+}
+
+// validateContractMethods checks contract has duplicated method names with funcPrefixes.
+func validateContractMethods(bci BaseContractInterface) error {
+	t := reflect.TypeOf(bci)
+	methods := make([]string, len(funcPrefixes))
+	for methodIdx := 0; methodIdx < t.NumMethod(); methodIdx++ {
+		mn := t.Method(methodIdx).Name
+
+		for _, prefix := range funcPrefixes {
+			if !strings.HasPrefix(mn, prefix) {
+				continue
+			}
+
+			noPrefixFn := strings.TrimLeft(mn, prefix)
+
+			// We need to figure out if it's worth looking for duplicates with private methods.
+			methods = append(methods, mn)
+			for _, p := range funcPrefixes {
+				if p == prefix {
+					continue
+				}
+
+				method := strings.Join([]string{p, noPrefixFn}, "")
+				if _, found := t.MethodByName(method); found {
+					methods = append(methods, method)
+					sort.Strings(methods)
+				}
+			}
+
+			if len(methods) > 1 {
+				return fmt.Errorf(
+					"failed, %w, method: '%s', cc methods: %v",
+					ErrMethodAlreadyDefined,
+					toLowerFirstLetter(noPrefixFn),
+					methods,
+				)
+			}
+		}
+
+		methods = methods[:0]
+	}
+
+	return nil
+}
+
+func parseContractMethods(in BaseContractInterface) (ContractMethods, error) {
+	cfgOptions := in.ContractConfig().GetOptions()
+
+	out := make(map[string]*Fn)
+	t := reflect.TypeOf(in)
+	for i := 0; i < t.NumMethod(); i++ {
+		method := t.Method(i)
+		nb := false
+		query := false
+		if contains(cfgOptions.DisabledFunctions, method.Name) {
+			continue
+		}
+		if cfgOptions.DisableSwaps && (method.Name == "QuerySwapGet" ||
+			method.Name == "TxSwapBegin" || method.Name == "TxSwapCancel") {
+			continue
+		}
+		if cfgOptions.DisableMultiSwaps && (method.Name == "QueryMultiSwapGet" ||
+			method.Name == "TxMultiSwapBegin" || method.Name == "TxMultiSwapCancel") {
+			continue
+		}
+
+		switch {
+		case len(method.Name) > 4 && method.Name[0:4] == noBatchPrefix:
+			nb = true
+			method.Name = method.Name[4:]
+		case len(method.Name) > 5 && method.Name[0:5] == queryPrefix:
+			query = true
+			nb = true
+			method.Name = method.Name[5:]
+		case len(method.Name) > 2 && method.Name[0:2] == txPrefix:
+			method.Name = method.Name[2:]
+		default:
+			continue
+		}
+
+		name := toLowerFirstLetter(method.Name)
+
+		if _, ok := out[name]; ok {
+			return nil, fmt.Errorf("%w, method: %s", ErrMethodAlreadyDefined, name)
+		}
+
+		out[name] = &Fn{
+			fn:      method.Func,
+			noBatch: nb,
+			query:   query,
+		}
+		if err := out[name].getInputs(method); err != nil {
+			return nil, err
+		}
+		var err error
+		out[name].out, err = checkOut(method)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return out, nil
+}
+
+type ContractMethods map[string]*Fn
+
+func (cm *ContractMethods) Method(name string) (*Fn, error) {
+	method, exists := (*cm)[name]
+	if !exists {
+		return nil, fmt.Errorf("method '%s' not found", name)
+	}
+
+	return method, nil
 }

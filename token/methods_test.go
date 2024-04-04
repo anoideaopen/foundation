@@ -4,22 +4,23 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/anoideaopen/foundation/core"
 	ma "github.com/anoideaopen/foundation/mock"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestBaseTokenSetLimits(t *testing.T) {
-	mock := ma.NewLedger(t)
-	issuer := mock.NewWallet()
+	t.Parallel()
 
-	tt := &BaseToken{
-		Name:     "Test Token",
-		Symbol:   "TT",
-		Decimals: 8,
-	}
+	ledger := ma.NewLedger(t)
+	issuer := ledger.NewWallet()
+	feeSetter := ledger.NewWallet()
+	feeAddressSetter := ledger.NewWallet()
 
-	mock.NewChainCode("tt", tt, &core.ContractOptions{}, nil, issuer.Address())
+	tt := &BaseToken{}
+	config := makeBaseTokenConfig("Test Token", "TT", 8,
+		issuer.Address(), feeSetter.Address(), feeAddressSetter.Address())
+	ledger.NewCC("tt", tt, config)
 
 	issuer.SignedInvoke("tt", "setRate", "distribute", "", "1")
 
@@ -40,17 +41,18 @@ func TestBaseTokenSetLimits(t *testing.T) {
 }
 
 func TestIndustrialTokenSetRate(t *testing.T) {
-	mock := ma.NewLedger(t)
-	issuer := mock.NewWallet()
-	outsider := mock.NewWallet()
+	t.Parallel()
 
-	tt := &BaseToken{
-		Name:     "Test Token",
-		Symbol:   "TT",
-		Decimals: 8,
-	}
+	ledger := ma.NewLedger(t)
+	issuer := ledger.NewWallet()
+	feeSetter := ledger.NewWallet()
+	feeAddressSetter := ledger.NewWallet()
+	outsider := ledger.NewWallet()
 
-	mock.NewChainCode("tt", tt, &core.ContractOptions{}, nil, issuer.Address())
+	tt := &BaseToken{}
+	config := makeBaseTokenConfig("Test Token", "TT", 8,
+		issuer.Address(), feeSetter.Address(), feeAddressSetter.Address())
+	ledger.NewCC("tt", tt, config)
 
 	if err := outsider.RawSignedInvokeWithErrorReturned("tt", "setRate", "distribute", "", "1"); err != nil {
 		assert.Equal(t, "unauthorized", err.Error())
@@ -81,4 +83,35 @@ func TestIndustrialTokenSetRate(t *testing.T) {
 
 	rates = md.Rates
 	assert.Len(t, rates, 0)
+}
+
+func TestMetadataMethods(t *testing.T) {
+	ledger := ma.NewLedger(t)
+	issuer := ledger.NewWallet()
+
+	tt := &BaseToken{}
+	config := makeBaseTokenConfig("Test Token", "TT", 8,
+		issuer.Address(), "", "")
+	initMsg := ledger.NewCC("tt", tt, config)
+	require.Empty(t, initMsg)
+
+	user1 := ledger.NewWallet()
+	rsp := user1.Invoke("tt", "metadata")
+
+	var meta Metadata
+	err := json.Unmarshal([]byte(rsp), &meta)
+	require.NoError(t, err)
+
+	var tokenMethods = []string{"addDocs", "allowedBalanceOf", "allowedIndustrialBalanceTransfer",
+		"balanceOf", "buildInfo", "buyBack", "buyToken", "cancelCCTransferFrom",
+		"channelTransferByAdmin", "channelTransferByCustomer", "channelTransferFrom",
+		"channelTransferTo", "channelTransfersFrom", "commitCCTransferFrom", "coreChaincodeIDName",
+		"createCCTransferTo", "deleteCCTransferFrom", "deleteCCTransferTo", "deleteDoc",
+		"deleteRate", "documentsList", "getFeeTransfer", "getLockedAllowedBalance",
+		"getLockedTokenBalance", "getNonce", "groupBalanceOf", "healthCheck", "lockAllowedBalance",
+		"lockTokenBalance", "metadata", "multiSwapBegin", "multiSwapCancel", "multiSwapGet",
+		"nameOfFiles", "predictFee", "setFee", "setFeeAddress", "setLimits", "setRate",
+		"srcFile", "srcPartFile", "swapBegin", "swapCancel", "swapGet", "systemEnv", "transfer",
+		"unlockAllowedBalance", "unlockTokenBalance"}
+	require.ElementsMatch(t, tokenMethods, meta.Methods)
 }

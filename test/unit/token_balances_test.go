@@ -3,12 +3,11 @@ package unit
 import (
 	"testing"
 
-	"github.com/anoideaopen/foundation/core"
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/core/types/big"
 	"github.com/anoideaopen/foundation/mock"
-	"github.com/anoideaopen/foundation/token"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func (tt *TestToken) TxTokenBalanceLock(_ *types.Sender, address *types.Address, amount *big.Int) error {
@@ -33,25 +32,23 @@ func (tt *TestToken) TxTokenBalanceBurnLocked(_ *types.Sender, address *types.Ad
 
 // TestTokenBalanceLockAndGetLocked - Checking that token balance can be locked
 func TestTokenBalanceLockAndGetLocked(t *testing.T) {
-	ledgerMock := mock.NewLedger(t)
-	owner := ledgerMock.NewWallet()
+	t.Parallel()
 
-	tt := &TestToken{
-		token.BaseToken{
-			Name:     testTokenName,
-			Symbol:   testTokenSymbol,
-			Decimals: 8,
-		},
-	}
+	lm := mock.NewLedger(t)
+	issuer := lm.NewWallet()
 
-	user1 := ledgerMock.NewWallet()
+	config := makeBaseTokenConfig("tt", "TT", 8,
+		issuer.Address(), "", "", "")
+	initMsg := lm.NewCC("tt", &TestToken{}, config)
+	require.Empty(t, initMsg)
 
-	ledgerMock.NewChainCode(testTokenCCName, tt, &core.ContractOptions{}, nil, owner.Address())
-	owner.SignedInvoke(testTokenCCName, "emissionAdd", user1.Address(), "1000")
+	user1 := lm.NewWallet()
+	err := issuer.RawSignedInvokeWithErrorReturned("tt", "emissionAdd", user1.Address(), "1000")
+	require.NoError(t, err)
 
 	t.Run("Token balance get test", func(t *testing.T) {
-		owner.SignedInvoke(testTokenCCName, "tokenBalanceLock", user1.Address(), "500")
-		user1.BalanceShouldBe(testTokenCCName, 500)
+		issuer.SignedInvoke("tt", "tokenBalanceLock", user1.Address(), "500")
+		user1.BalanceShouldBe("tt", 500)
 		lockedBalance := user1.Invoke(testTokenCCName, "tokenBalanceGetLocked", user1.Address())
 		assert.Equal(t, lockedBalance, "\"500\"")
 	})
@@ -59,22 +56,20 @@ func TestTokenBalanceLockAndGetLocked(t *testing.T) {
 
 // TestTokenBalanceUnlock - Checking that token balance can be unlocked
 func TestTokenBalanceUnlock(t *testing.T) {
-	ledgerMock := mock.NewLedger(t)
-	owner := ledgerMock.NewWallet()
+	t.Parallel()
 
-	tt := &TestToken{
-		token.BaseToken{
-			Name:     testTokenName,
-			Symbol:   testTokenSymbol,
-			Decimals: 8,
-		},
-	}
+	ledger := mock.NewLedger(t)
+	owner := ledger.NewWallet()
 
-	user1 := ledgerMock.NewWallet()
+	config := makeBaseTokenConfig(testTokenName, testTokenSymbol, 8,
+		owner.Address(), "", "", "")
+	initMsg := ledger.NewCC(testTokenCCName, &TestToken{}, config)
+	require.Empty(t, initMsg)
 
-	ledgerMock.NewChainCode(testTokenCCName, tt, &core.ContractOptions{}, nil, owner.Address())
+	user1 := ledger.NewWallet()
 	owner.SignedInvoke(testTokenCCName, "emissionAdd", user1.Address(), "1000")
 	owner.SignedInvoke(testTokenCCName, "tokenBalanceLock", user1.Address(), "500")
+
 	user1.BalanceShouldBe(testTokenCCName, 500)
 	lockedBalance := user1.Invoke(testTokenCCName, "tokenBalanceGetLocked", user1.Address())
 	assert.Equal(t, lockedBalance, "\"500\"")
@@ -89,21 +84,19 @@ func TestTokenBalanceUnlock(t *testing.T) {
 
 // TestTokenBalanceTransferLocked - Checking that locked token balance can be transferred
 func TestTokenBalanceTransferLocked(t *testing.T) {
-	ledgerMock := mock.NewLedger(t)
-	owner := ledgerMock.NewWallet()
+	t.Parallel()
 
-	tt := &TestToken{
-		token.BaseToken{
-			Name:     testTokenName,
-			Symbol:   testTokenSymbol,
-			Decimals: 8,
-		},
-	}
+	ledger := mock.NewLedger(t)
+	owner := ledger.NewWallet()
 
-	user1 := ledgerMock.NewWallet()
-	user2 := ledgerMock.NewWallet()
+	tt := &TestToken{}
+	ttConfig := makeBaseTokenConfig(testTokenName, testTokenSymbol, 8,
+		owner.Address(), "", "", "")
+	ledger.NewCC(testTokenCCName, tt, ttConfig)
 
-	ledgerMock.NewChainCode(testTokenCCName, tt, &core.ContractOptions{}, nil, owner.Address())
+	user1 := ledger.NewWallet()
+	user2 := ledger.NewWallet()
+
 	owner.SignedInvoke(testTokenCCName, "emissionAdd", user1.Address(), "1000")
 	owner.SignedInvoke(testTokenCCName, "tokenBalanceLock", user1.Address(), "500")
 	user1.BalanceShouldBe(testTokenCCName, 500)
@@ -120,20 +113,18 @@ func TestTokenBalanceTransferLocked(t *testing.T) {
 
 // TestTokenBalanceBurnLocked - Checking that locked token balance can be burned
 func TestTokenBalanceBurnLocked(t *testing.T) {
-	ledgerMock := mock.NewLedger(t)
-	owner := ledgerMock.NewWallet()
+	t.Parallel()
 
-	tt := &TestToken{
-		token.BaseToken{
-			Name:     testTokenName,
-			Symbol:   testTokenSymbol,
-			Decimals: 8,
-		},
-	}
+	ledger := mock.NewLedger(t)
+	owner := ledger.NewWallet()
 
-	user1 := ledgerMock.NewWallet()
+	tt := &TestToken{}
+	ttConfig := makeBaseTokenConfig(testTokenName, testTokenSymbol, 8,
+		owner.Address(), "", "", "")
+	ledger.NewCC(testTokenCCName, tt, ttConfig)
 
-	ledgerMock.NewChainCode(testTokenCCName, tt, &core.ContractOptions{}, nil, owner.Address())
+	user1 := ledger.NewWallet()
+
 	owner.SignedInvoke(testTokenCCName, "emissionAdd", user1.Address(), "1000")
 	owner.SignedInvoke(testTokenCCName, "tokenBalanceLock", user1.Address(), "500")
 	user1.BalanceShouldBe(testTokenCCName, 500)

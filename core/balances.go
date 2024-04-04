@@ -1,267 +1,405 @@
 package core
 
 import (
-	"encoding/hex"
-	"errors"
 	"fmt"
 	"strings"
 
+	"github.com/anoideaopen/foundation/core/balance"
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/core/types/big"
 	pb "github.com/anoideaopen/foundation/proto"
-	"github.com/hyperledger/fabric-chaincode-go/shim"
 )
 
-// StateKey is a type for state keys
-type StateKey byte
-
-// StateKey constants
-const (
-	StateKeyNonce StateKey = iota + 42 // This prefix is used for US
-	StateKeyTokenBalance
-	StateKeyAllowedBalance
-	StateKeyGivenBalance
-	StateKeyLockedTokenBalance
-	StateKeyLockedAllowedBalance
-	StateKeyPassedNonce // This prefix is used for nones at the US
-	StateKeyExternalLockedToken
-	StateKeyExternalLockedAllowed
-)
-
-func balanceGet(stub shim.ChaincodeStubInterface, tokenType StateKey, addr *types.Address, path ...string) (string, *big.Int, error) {
-	prefix := hex.EncodeToString([]byte{byte(tokenType)})
-	key, err := stub.CreateCompositeKey(prefix, append([]string{addr.String()}, path...))
-	if err != nil {
-		return key, nil, err
-	}
-	data, err := stub.GetState(key)
-	if err != nil {
-		return key, nil, err
-	}
-	return key, new(big.Int).SetBytes(data), nil
-}
-
-func balanceSub(stub shim.ChaincodeStubInterface, tokenType StateKey, addr *types.Address, amount *big.Int, path ...string) error {
-	if amount.Cmp(big.NewInt(0)) < 0 {
-		return errors.New("amount should be positive")
-	}
-	key, balance, err := balanceGet(stub, tokenType, addr, path...)
-	if err != nil {
-		return err
-	}
-	if balance.Cmp(amount) < 0 {
-		return errors.New("insufficient funds to process")
-	}
-	return stub.PutState(key, new(big.Int).Sub(balance, amount).Bytes())
-}
-
-func balanceAdd(stub shim.ChaincodeStubInterface, tokenType StateKey, addr *types.Address, amount *big.Int, path ...string) error {
-	if amount.Cmp(big.NewInt(0)) < 0 {
-		return errors.New("amount should be positive")
-	}
-	key, balance, err := balanceGet(stub, tokenType, addr, path...)
-	if err != nil {
-		return err
-	}
-	return stub.PutState(key, new(big.Int).Add(balance, amount).Bytes())
-}
-
-func balanceTransfer(stub shim.ChaincodeStubInterface, tokenType StateKey, from *types.Address, to *types.Address, amount *big.Int, path ...string) error {
-	if err := balanceSub(stub, tokenType, from, amount, path...); err != nil {
-		return err
-	}
-	return balanceAdd(stub, tokenType, to, amount, path...)
-}
-
-func (bc *BaseContract) tokenBalanceSub(address *types.Address, amount *big.Int, token string) error {
+func (bc *BaseContract) tokenBalanceSub( //nolint:unused
+	address *types.Address,
+	amount *big.Int,
+	token string,
+) error {
 	parts := strings.Split(token, "_")
+
+	tokenName := ""
 	if len(parts) > 1 {
-		return balanceSub(bc.stub, StateKeyTokenBalance, address, amount, parts[len(parts)-1])
+		tokenName = parts[len(parts)-1]
 	}
-	return balanceSub(bc.stub, StateKeyTokenBalance, address, amount)
+
+	return balance.Sub(bc.stub, balance.BalanceTypeToken, address.String(), tokenName, &amount.Int)
 }
 
-func (bc *BaseContract) tokenBalanceAdd(address *types.Address, amount *big.Int, token string) error {
+func (bc *BaseContract) tokenBalanceAdd(
+	address *types.Address,
+	amount *big.Int,
+	token string,
+) error {
 	parts := strings.Split(token, "_")
+
+	tokenName := ""
 	if len(parts) > 1 {
-		return balanceAdd(bc.stub, StateKeyTokenBalance, address, amount, parts[len(parts)-1])
+		tokenName = parts[len(parts)-1]
 	}
-	return balanceAdd(bc.stub, StateKeyTokenBalance, address, amount)
+
+	return balance.Add(bc.stub, balance.BalanceTypeToken, address.String(), tokenName, &amount.Int)
 }
 
-func balanceList(stub shim.ChaincodeStubInterface, tokenType StateKey, address *types.Address) (map[string]string, error) {
-	prefix := hex.EncodeToString([]byte{byte(tokenType)})
-	iter, err := stub.GetStateByPartialCompositeKey(prefix, []string{address.String()})
+func (bc *BaseContract) IndustrialBalanceGet(address *types.Address) (map[string]string, error) {
+	tokens, err := balance.ListBalancesByAddress(
+		bc.stub,
+		balance.BalanceTypeToken,
+		address.String(),
+	)
 	if err != nil {
 		return nil, err
 	}
 
-	defer func() {
-		_ = iter.Close()
-	}()
-
-	res := make(map[string]string)
-	for iter.HasNext() {
-		kv, err := iter.Next()
-		if err != nil {
-			return nil, err
-		}
-		_, keyParts, err := stub.SplitCompositeKey(kv.Key)
-		if err != nil {
-			return nil, err
-		}
-		if len(keyParts) < 2 { //nolint:gomnd
-			return nil, fmt.Errorf("incorrect composite key %s (two-part key expected)", kv.Key)
-		}
-		res[keyParts[1]] = new(big.Int).SetBytes(kv.Value).String()
-	}
-	return res, nil
+	return tokensToMap(tokens), nil
 }
 
-// IndustrialBalanceGet returns industrial balance for given address
-func (bc *BaseContract) IndustrialBalanceGet(address *types.Address) (map[string]string, error) {
-	return balanceList(bc.stub, StateKeyTokenBalance, address)
-}
-
-// IndustrialBalanceTransfer transfers industrial balance from one address to another
-func (bc *BaseContract) IndustrialBalanceTransfer(token string, from *types.Address, to *types.Address, amount *big.Int, reason string) error {
+func (bc *BaseContract) IndustrialBalanceTransfer(
+	token string,
+	from *types.Address,
+	to *types.Address,
+	amount *big.Int,
+	reason string,
+) error {
 	parts := strings.Split(token, "_")
 	token = parts[len(parts)-1]
 	if stub, ok := bc.GetStub().(*BatchTxStub); ok {
-		stub.AddAccountingRecord(bc.id+"_"+token, from, to, amount, reason)
+		stub.AddAccountingRecord(bc.config.Symbol+"_"+token, from, to, amount, reason)
 	}
-	return balanceTransfer(bc.stub, StateKeyTokenBalance, from, to, amount, token)
+
+	return balance.Move(
+		bc.stub,
+		balance.BalanceTypeToken,
+		from.String(),
+		balance.BalanceTypeToken,
+		to.String(),
+		token,
+		&amount.Int,
+	)
 }
 
-// IndustrialBalanceAdd adds industrial balance to given address
-func (bc *BaseContract) IndustrialBalanceAdd(token string, address *types.Address, amount *big.Int, reason string) error {
+func (bc *BaseContract) IndustrialBalanceAdd(
+	token string,
+	address *types.Address,
+	amount *big.Int,
+	reason string,
+) error {
 	parts := strings.Split(token, "_")
 	token = parts[len(parts)-1]
 	if stub, ok := bc.GetStub().(*BatchTxStub); ok {
-		stub.AddAccountingRecord(bc.id+"_"+token, &types.Address{}, address, amount, reason)
+		stub.AddAccountingRecord(
+			bc.config.Symbol+"_"+token,
+			&types.Address{},
+			address,
+			amount,
+			reason,
+		)
 	}
-	return balanceAdd(bc.stub, StateKeyTokenBalance, address, amount, token)
+
+	return balance.Add(bc.stub, balance.BalanceTypeToken, address.String(), token, &amount.Int)
 }
 
-// IndustrialBalanceSub subtracts industrial balance from given address
-func (bc *BaseContract) IndustrialBalanceSub(token string, address *types.Address, amount *big.Int, reason string) error {
+func (bc *BaseContract) IndustrialBalanceSub(
+	token string,
+	address *types.Address,
+	amount *big.Int,
+	reason string,
+) error {
 	parts := strings.Split(token, "_")
 	token = parts[len(parts)-1]
 	if stub, ok := bc.GetStub().(*BatchTxStub); ok {
-		stub.AddAccountingRecord(bc.id+"_"+token, address, &types.Address{}, amount, reason)
+		stub.AddAccountingRecord(
+			bc.config.Symbol+"_"+token,
+			address,
+			&types.Address{},
+			amount,
+			reason,
+		)
 	}
-	return balanceSub(bc.stub, StateKeyTokenBalance, address, amount, token)
+
+	return balance.Sub(bc.stub, balance.BalanceTypeToken, address.String(), token, &amount.Int)
 }
 
-// TokenBalanceTransfer transfers token balance from one address to another
-func (bc *BaseContract) TokenBalanceTransfer(from *types.Address, to *types.Address, amount *big.Int, reason string) error {
+func (bc *BaseContract) TokenBalanceTransfer(
+	from *types.Address,
+	to *types.Address,
+	amount *big.Int,
+	reason string,
+) error {
 	if stub, ok := bc.GetStub().(*BatchTxStub); ok {
-		stub.AddAccountingRecord(bc.id, from, to, amount, reason)
+		stub.AddAccountingRecord(bc.config.Symbol, from, to, amount, reason)
 	}
-	return balanceTransfer(bc.stub, StateKeyTokenBalance, from, to, amount)
+
+	return balance.Move(
+		bc.stub,
+		balance.BalanceTypeToken,
+		from.String(),
+		balance.BalanceTypeToken,
+		to.String(),
+		"",
+		&amount.Int,
+	)
 }
 
-// AllowedBalanceTransfer transfers allowed balance from one address to another
-func (bc *BaseContract) AllowedBalanceTransfer(token string, from *types.Address, to *types.Address, amount *big.Int, reason string) error {
+func (bc *BaseContract) AllowedBalanceTransfer(
+	token string,
+	from *types.Address,
+	to *types.Address,
+	amount *big.Int,
+	reason string,
+) error {
 	if stub, ok := bc.GetStub().(*BatchTxStub); ok {
 		stub.AddAccountingRecord(token, from, to, amount, reason)
 	}
-	return balanceTransfer(bc.stub, StateKeyAllowedBalance, from, to, amount, token)
+
+	return balance.Move(
+		bc.stub,
+		balance.BalanceTypeAllowed,
+		from.String(),
+		balance.BalanceTypeAllowed,
+		to.String(),
+		token,
+		&amount.Int,
+	)
 }
 
-// TokenBalanceGet returns token balance for given address
 func (bc *BaseContract) TokenBalanceGet(address *types.Address) (*big.Int, error) {
-	_, balance, err := balanceGet(bc.stub, StateKeyTokenBalance, address)
-	return balance, err
+	balance, err := balance.Get(bc.stub, balance.BalanceTypeToken, address.String(), "")
+
+	return new(big.Int).SetBytes(balance.Bytes()), err
 }
 
-// TokenBalanceAdd adds token balance to given address
-func (bc *BaseContract) TokenBalanceAdd(address *types.Address, amount *big.Int, reason string) error {
+func (bc *BaseContract) TokenBalanceAdd(
+	address *types.Address,
+	amount *big.Int,
+	reason string,
+) error {
 	if stub, ok := bc.GetStub().(*BatchTxStub); ok {
-		stub.AddAccountingRecord(bc.id, &types.Address{}, address, amount, reason)
+		stub.AddAccountingRecord(bc.config.Symbol, &types.Address{}, address, amount, reason)
 	}
-	return balanceAdd(bc.stub, StateKeyTokenBalance, address, amount)
+
+	return balance.Add(bc.stub, balance.BalanceTypeToken, address.String(), "", &amount.Int)
 }
 
-// TokenBalanceSub subtracts token balance from given address
-func (bc *BaseContract) TokenBalanceSub(address *types.Address, amount *big.Int, reason string) error {
+// TokenBalanceAddWithTicker adds a specified amount of tokens to an account's balance
+// while recording the transaction in the ledger.
+//
+// Parameters:
+// - address: The address of the account to add tokens to.
+// - amount: The amount of tokens to add.
+// - ticker: The token ticker symbol, e.g., OTF, FIAT, CURUSD, FRA_<barID>, BA_<barID>.
+// - reason: The reason for adding tokens.
+//
+// Returns:
+// - An error if the operation fails.
+func (bc *BaseContract) TokenBalanceAddWithTicker(
+	address *types.Address,
+	amount *big.Int,
+	ticker string,
+	reason string,
+) error {
 	if stub, ok := bc.GetStub().(*BatchTxStub); ok {
-		stub.AddAccountingRecord(bc.id, address, &types.Address{}, amount, reason)
+		stub.AddAccountingRecord(bc.config.Symbol, address, &types.Address{}, amount, reason)
 	}
-	return balanceSub(bc.stub, StateKeyTokenBalance, address, amount)
+
+	parts := strings.Split(ticker, "_")
+	lastPart := parts[len(parts)-1]
+
+	// If ticker consists of multiple parts separated by '_', it indicates
+	// internal subdivision into groups, bars, etc, so the balance should be accounted
+	// separately for each subdivision.
+	if len(parts) > 1 {
+		if err := balance.Add(bc.stub, balance.BalanceTypeToken, address.String(), lastPart, &amount.Int); err != nil {
+			return fmt.Errorf("failed to add token balance: %s", err.Error())
+		}
+	} else {
+		if err := balance.Add(bc.stub, balance.BalanceTypeToken, address.String(), "", &amount.Int); err != nil {
+			return fmt.Errorf("failed to add token balance: %s", err.Error())
+		}
+	}
+
+	return nil
 }
 
-// TokenBalanceGetLocked returns locked token balance for given address
+func (bc *BaseContract) TokenBalanceSub(
+	address *types.Address,
+	amount *big.Int,
+	reason string,
+) error {
+	if stub, ok := bc.GetStub().(*BatchTxStub); ok {
+		stub.AddAccountingRecord(bc.config.Symbol, address, &types.Address{}, amount, reason)
+	}
+
+	return balance.Sub(bc.stub, balance.BalanceTypeToken, address.String(), "", &amount.Int)
+}
+
+// TokenBalanceSubWithTicker subtracts a specified amount of tokens from an account's balance
+// with accounting for different tickers. It records the transaction in the ledger.
+//
+// Parameters:
+// - address: The address of the account to subtract tokens from.
+// - amount: The amount of tokens to subtract.
+// - ticker: The token ticker symbol, e.g., OTF, FIAT, CURUSD, FRA_<barID>, BA_<barID>.
+// - reason: The reason for subtracting tokens.
+//
+// Returns:
+// - An error if the operation fails.
+func (bc *BaseContract) TokenBalanceSubWithTicker(
+	address *types.Address,
+	amount *big.Int,
+	ticker string,
+	reason string,
+) error {
+	if stub, ok := bc.GetStub().(*BatchTxStub); ok {
+		stub.AddAccountingRecord(bc.config.Symbol, address, &types.Address{}, amount, reason)
+	}
+
+	parts := strings.Split(ticker, "_")
+	lastPart := parts[len(parts)-1]
+
+	// If ticker consists of multiple parts separated by '_', it indicates
+	// internal subdivision of tokens, so the balance should be accounted
+	// separately for each subdivision.
+	if len(parts) > 1 {
+		if err := balance.Sub(bc.stub, balance.BalanceTypeToken, address.String(), lastPart, &amount.Int); err != nil {
+			return fmt.Errorf("failed to subtract token balance: %s", err.Error())
+		}
+	} else {
+		if err := balance.Sub(bc.stub, balance.BalanceTypeToken, address.String(), "", &amount.Int); err != nil {
+			return fmt.Errorf("failed to subtract token balance: %s", err.Error())
+		}
+	}
+
+	return nil
+}
+
 func (bc *BaseContract) TokenBalanceGetLocked(address *types.Address) (*big.Int, error) {
-	_, balance, err := balanceGet(bc.stub, StateKeyLockedTokenBalance, address)
-	return balance, err
+	balance, err := balance.Get(bc.stub, balance.BalanceTypeTokenLocked, address.String(), "")
+
+	return new(big.Int).SetBytes(balance.Bytes()), err
 }
 
-// TokenBalanceLock locks token balance for given address
 func (bc *BaseContract) TokenBalanceLock(address *types.Address, amount *big.Int) error {
-	if err := balanceSub(bc.stub, StateKeyTokenBalance, address, amount); err != nil {
-		return err
-	}
-	return balanceAdd(bc.stub, StateKeyLockedTokenBalance, address, amount)
+	return balance.Move(
+		bc.stub,
+		balance.BalanceTypeToken,
+		address.String(),
+		balance.BalanceTypeTokenLocked,
+		address.String(),
+		"",
+		&amount.Int,
+	)
 }
 
-// TokenBalanceUnlock unlocks token balance for given address
 func (bc *BaseContract) TokenBalanceUnlock(address *types.Address, amount *big.Int) error {
-	if err := balanceSub(bc.stub, StateKeyLockedTokenBalance, address, amount); err != nil {
-		return err
-	}
-	return balanceAdd(bc.stub, StateKeyTokenBalance, address, amount)
+	return balance.Move(
+		bc.stub,
+		balance.BalanceTypeTokenLocked,
+		address.String(),
+		balance.BalanceTypeToken,
+		address.String(),
+		"",
+		&amount.Int,
+	)
 }
 
-// TokenBalanceTransferLocked transfers locked token balance from one address to another
-func (bc *BaseContract) TokenBalanceTransferLocked(from *types.Address, to *types.Address, amount *big.Int, reason string) error {
+func (bc *BaseContract) TokenBalanceTransferLocked(
+	from *types.Address,
+	to *types.Address,
+	amount *big.Int,
+	reason string,
+) error {
 	if stub, ok := bc.GetStub().(*BatchTxStub); ok {
-		stub.AddAccountingRecord(bc.id, from, to, amount, reason)
+		stub.AddAccountingRecord(bc.config.Symbol, from, to, amount, reason)
 	}
-	if err := balanceSub(bc.stub, StateKeyLockedTokenBalance, from, amount); err != nil {
-		return err
-	}
-	return balanceAdd(bc.stub, StateKeyTokenBalance, to, amount)
+
+	return balance.Move(
+		bc.stub,
+		balance.BalanceTypeTokenLocked,
+		from.String(),
+		balance.BalanceTypeToken,
+		to.String(),
+		"",
+		&amount.Int,
+	)
 }
 
-// TokenBalanceBurnLocked burns locked token balance for given address
-func (bc *BaseContract) TokenBalanceBurnLocked(address *types.Address, amount *big.Int, reason string) error {
+func (bc *BaseContract) TokenBalanceBurnLocked(
+	address *types.Address,
+	amount *big.Int,
+	reason string,
+) error {
 	if stub, ok := bc.GetStub().(*BatchTxStub); ok {
-		stub.AddAccountingRecord(bc.id, address, &types.Address{}, amount, reason)
+		stub.AddAccountingRecord(bc.config.Symbol, address, &types.Address{}, amount, reason)
 	}
-	return balanceSub(bc.stub, StateKeyLockedTokenBalance, address, amount)
+
+	return balance.Sub(
+		bc.stub,
+		balance.BalanceTypeTokenLocked,
+		address.String(),
+		"",
+		&amount.Int,
+	)
 }
 
-// AllowedBalanceGet returns allowed balance for given address
 func (bc *BaseContract) AllowedBalanceGet(token string, address *types.Address) (*big.Int, error) {
-	_, balance, err := balanceGet(bc.stub, StateKeyAllowedBalance, address, token)
-	return balance, err
+	balance, err := balance.Get(bc.stub, balance.BalanceTypeAllowed, address.String(), token)
+
+	return new(big.Int).SetBytes(balance.Bytes()), err
 }
 
-// AllowedBalanceAdd adds allowed balance to given address
-func (bc *BaseContract) AllowedBalanceAdd(token string, address *types.Address, amount *big.Int, reason string) error {
+func (bc *BaseContract) AllowedBalanceAdd(
+	token string,
+	address *types.Address,
+	amount *big.Int,
+	reason string,
+) error {
 	if stub, ok := bc.GetStub().(*BatchTxStub); ok {
 		stub.AddAccountingRecord(token, &types.Address{}, address, amount, reason)
 	}
-	return balanceAdd(bc.stub, StateKeyAllowedBalance, address, amount, token)
+
+	return balance.Add(bc.stub, balance.BalanceTypeAllowed, address.String(), token, &amount.Int)
 }
 
-// AllowedBalanceSub subtracts allowed balance from given address
-func (bc *BaseContract) AllowedBalanceSub(token string, address *types.Address, amount *big.Int, reason string) error {
+func (bc *BaseContract) AllowedBalanceSub(
+	token string,
+	address *types.Address,
+	amount *big.Int,
+	reason string,
+) error {
 	if stub, ok := bc.GetStub().(*BatchTxStub); ok {
 		stub.AddAccountingRecord(token, address, &types.Address{}, amount, reason)
 	}
-	return balanceSub(bc.stub, StateKeyAllowedBalance, address, amount, token)
+
+	return balance.Sub(
+		bc.stub,
+		balance.BalanceTypeAllowed,
+		address.String(),
+		token,
+		&amount.Int,
+	)
 }
 
-// AllowedIndustrialBalanceTransfer transfers allowed balance from one address to another
-func (bc *BaseContract) AllowedIndustrialBalanceTransfer(from *types.Address, to *types.Address, industrialAssets []*pb.Asset, reason string) error {
+func (bc *BaseContract) AllowedIndustrialBalanceTransfer(
+	from *types.Address,
+	to *types.Address,
+	industrialAssets []*pb.Asset,
+	reason string,
+) error {
 	for _, industrialAsset := range industrialAssets {
 		amount := new(big.Int).SetBytes(industrialAsset.Amount)
 		if stub, ok := bc.GetStub().(*BatchTxStub); ok {
 			stub.AddAccountingRecord(industrialAsset.Group, from, to, amount, reason)
 		}
-		if err := balanceTransfer(bc.stub, StateKeyAllowedBalance, from, to, amount, industrialAsset.Group); err != nil {
+
+		if err := balance.Move(
+			bc.stub,
+			balance.BalanceTypeAllowed,
+			from.String(),
+			balance.BalanceTypeAllowed,
+			to.String(),
+			industrialAsset.Group,
+			&amount.Int,
+		); err != nil {
 			return err
 		}
 	}
@@ -269,14 +407,30 @@ func (bc *BaseContract) AllowedIndustrialBalanceTransfer(from *types.Address, to
 	return nil
 }
 
-// AllowedIndustrialBalanceAdd adds allowed balance to given address
-func (bc *BaseContract) AllowedIndustrialBalanceAdd(address *types.Address, industrialAssets []*pb.Asset, reason string) error {
+func (bc *BaseContract) AllowedIndustrialBalanceAdd(
+	address *types.Address,
+	industrialAssets []*pb.Asset,
+	reason string,
+) error {
 	for _, industrialAsset := range industrialAssets {
 		amount := new(big.Int).SetBytes(industrialAsset.Amount)
 		if stub, ok := bc.GetStub().(*BatchTxStub); ok {
-			stub.AddAccountingRecord(industrialAsset.Group, &types.Address{}, address, amount, reason)
+			stub.AddAccountingRecord(
+				industrialAsset.Group,
+				&types.Address{},
+				address,
+				amount,
+				reason,
+			)
 		}
-		if err := balanceAdd(bc.stub, StateKeyAllowedBalance, address, amount, industrialAsset.Group); err != nil {
+
+		if err := balance.Add(
+			bc.stub,
+			balance.BalanceTypeAllowed,
+			address.String(),
+			industrialAsset.Group,
+			&amount.Int,
+		); err != nil {
 			return err
 		}
 	}
@@ -284,14 +438,24 @@ func (bc *BaseContract) AllowedIndustrialBalanceAdd(address *types.Address, indu
 	return nil
 }
 
-// AllowedIndustrialBalanceSub subtracts allowed balance from given address
-func (bc *BaseContract) AllowedIndustrialBalanceSub(address *types.Address, industrialAssets []*pb.Asset, reason string) error {
+func (bc *BaseContract) AllowedIndustrialBalanceSub(
+	address *types.Address,
+	industrialAssets []*pb.Asset,
+	reason string,
+) error {
 	for _, asset := range industrialAssets {
 		amount := new(big.Int).SetBytes(asset.Amount)
 		if stub, ok := bc.GetStub().(*BatchTxStub); ok {
 			stub.AddAccountingRecord(asset.Group, address, &types.Address{}, amount, reason)
 		}
-		if err := balanceSub(bc.stub, StateKeyAllowedBalance, address, amount, asset.Group); err != nil {
+
+		if err := balance.Sub(
+			bc.stub,
+			balance.BalanceTypeAllowed,
+			address.String(),
+			asset.Group,
+			&amount.Int,
+		); err != nil {
 			return err
 		}
 	}
@@ -299,125 +463,201 @@ func (bc *BaseContract) AllowedIndustrialBalanceSub(address *types.Address, indu
 	return nil
 }
 
-// AllowedBalanceLock locks allowed balance for given address
-func (bc *BaseContract) AllowedBalanceLock(token string, address *types.Address, amount *big.Int) error {
-	if err := balanceSub(bc.stub, StateKeyAllowedBalance, address, amount, token); err != nil {
-		return err
-	}
-	return balanceAdd(bc.stub, StateKeyLockedAllowedBalance, address, amount, token)
+func (bc *BaseContract) AllowedBalanceLock(
+	token string,
+	address *types.Address,
+	amount *big.Int,
+) error {
+	return balance.Move(
+		bc.stub,
+		balance.BalanceTypeAllowed,
+		address.String(),
+		balance.BalanceTypeAllowedLocked,
+		address.String(),
+		token,
+		&amount.Int,
+	)
 }
 
-// AllowedBalanceUnLock unlocks allowed balance for given address
-func (bc *BaseContract) AllowedBalanceUnLock(token string, address *types.Address, amount *big.Int) error {
-	if err := balanceSub(bc.stub, StateKeyLockedAllowedBalance, address, amount, token); err != nil {
-		return err
-	}
-	return balanceAdd(bc.stub, StateKeyAllowedBalance, address, amount, token)
+func (bc *BaseContract) AllowedBalanceUnLock(
+	token string,
+	address *types.Address,
+	amount *big.Int,
+) error {
+	return balance.Move(
+		bc.stub,
+		balance.BalanceTypeAllowedLocked,
+		address.String(),
+		balance.BalanceTypeAllowed,
+		address.String(),
+		token,
+		&amount.Int,
+	)
 }
 
-// AllowedBalanceTransferLocked transfers locked allowed balance from one address to another
-func (bc *BaseContract) AllowedBalanceTransferLocked(token string, from *types.Address, to *types.Address, amount *big.Int, reason string) error {
+func (bc *BaseContract) AllowedBalanceTransferLocked(
+	token string,
+	from *types.Address,
+	to *types.Address,
+	amount *big.Int,
+	reason string,
+) error {
 	if stub, ok := bc.GetStub().(*BatchTxStub); ok {
 		stub.AddAccountingRecord(token, from, to, amount, reason)
 	}
-	if err := balanceSub(bc.stub, StateKeyLockedAllowedBalance, from, amount, token); err != nil {
-		return err
-	}
-	return balanceAdd(bc.stub, StateKeyAllowedBalance, to, amount, token)
+
+	return balance.Move(
+		bc.stub,
+		balance.BalanceTypeAllowedLocked,
+		from.String(),
+		balance.BalanceTypeAllowed,
+		to.String(),
+		token,
+		&amount.Int,
+	)
 }
 
-// AllowedBalanceBurnLocked burns locked allowed balance for given address
-func (bc *BaseContract) AllowedBalanceBurnLocked(token string, address *types.Address, amount *big.Int, reason string) error {
+func (bc *BaseContract) AllowedBalanceBurnLocked(
+	token string,
+	address *types.Address,
+	amount *big.Int,
+	reason string,
+) error {
 	if stub, ok := bc.GetStub().(*BatchTxStub); ok {
 		stub.AddAccountingRecord(token, address, &types.Address{}, amount, reason)
 	}
-	return balanceSub(bc.stub, StateKeyLockedAllowedBalance, address, amount, token)
+
+	return balance.Sub(
+		bc.stub,
+		balance.BalanceTypeAllowedLocked,
+		address.String(),
+		token,
+		&amount.Int,
+	)
 }
 
-// IndustrialBalanceGetLocked returns locked industrial balance for given address
-func (bc *BaseContract) IndustrialBalanceGetLocked(address *types.Address) (map[string]string, error) {
-	return balanceList(bc.stub, StateKeyLockedTokenBalance, address)
+func (bc *BaseContract) IndustrialBalanceGetLocked(
+	address *types.Address,
+) (map[string]string, error) {
+	tokens, err := balance.ListBalancesByAddress(
+		bc.stub,
+		balance.BalanceTypeTokenLocked,
+		address.String(),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return tokensToMap(tokens), nil
 }
 
-// IndustrialBalanceLock locks industrial balance for given address
-func (bc *BaseContract) IndustrialBalanceLock(token string, address *types.Address, amount *big.Int) error {
+func (bc *BaseContract) IndustrialBalanceLock(
+	token string,
+	address *types.Address,
+	amount *big.Int,
+) error {
 	parts := strings.Split(token, "_")
 	token = parts[len(parts)-1]
-	if err := balanceSub(bc.stub, StateKeyTokenBalance, address, amount, token); err != nil {
-		return err
-	}
-	return balanceAdd(bc.stub, StateKeyLockedTokenBalance, address, amount, token)
+
+	return balance.Move(
+		bc.stub,
+		balance.BalanceTypeToken,
+		address.String(),
+		balance.BalanceTypeTokenLocked,
+		address.String(),
+		token,
+		&amount.Int,
+	)
 }
 
-// IndustrialBalanceUnLock unlocks industrial balance for given address
-func (bc *BaseContract) IndustrialBalanceUnLock(token string, address *types.Address, amount *big.Int) error {
+func (bc *BaseContract) IndustrialBalanceUnLock(
+	token string,
+	address *types.Address,
+	amount *big.Int,
+) error {
 	parts := strings.Split(token, "_")
 	token = parts[len(parts)-1]
-	if err := balanceSub(bc.stub, StateKeyLockedTokenBalance, address, amount, token); err != nil {
-		return err
-	}
-	return balanceAdd(bc.stub, StateKeyTokenBalance, address, amount, token)
+
+	return balance.Move(
+		bc.stub,
+		balance.BalanceTypeTokenLocked,
+		address.String(),
+		balance.BalanceTypeToken,
+		address.String(),
+		token,
+		&amount.Int,
+	)
 }
 
-// IndustrialBalanceTransferLocked transfers locked industrial balance from one address to another
-func (bc *BaseContract) IndustrialBalanceTransferLocked(token string, from *types.Address, to *types.Address, amount *big.Int, reason string) error {
+func (bc *BaseContract) IndustrialBalanceTransferLocked(
+	token string,
+	from *types.Address,
+	to *types.Address,
+	amount *big.Int,
+	reason string,
+) error {
 	parts := strings.Split(token, "_")
 	token = parts[len(parts)-1]
 	if stub, ok := bc.GetStub().(*BatchTxStub); ok {
-		stub.AddAccountingRecord(bc.id+"_"+token, from, to, amount, reason)
+		stub.AddAccountingRecord(bc.config.Symbol+"_"+token, from, to, amount, reason)
 	}
 
-	if err := balanceSub(bc.stub, StateKeyLockedTokenBalance, from, amount, token); err != nil {
-		return err
-	}
-	return balanceAdd(bc.stub, StateKeyTokenBalance, to, amount, token)
+	return balance.Move(
+		bc.stub,
+		balance.BalanceTypeTokenLocked,
+		from.String(),
+		balance.BalanceTypeToken,
+		to.String(),
+		token,
+		&amount.Int,
+	)
 }
 
-// IndustrialBalanceBurnLocked burns locked industrial balance for given address
-func (bc *BaseContract) IndustrialBalanceBurnLocked(token string, address *types.Address, amount *big.Int, reason string) error {
+func (bc *BaseContract) IndustrialBalanceBurnLocked(
+	token string,
+	address *types.Address,
+	amount *big.Int,
+	reason string,
+) error {
 	parts := strings.Split(token, "_")
 	token = parts[len(parts)-1]
 	if stub, ok := bc.GetStub().(*BatchTxStub); ok {
-		stub.AddAccountingRecord(bc.id+"_"+token, address, &types.Address{}, amount, reason)
+		stub.AddAccountingRecord(
+			bc.config.Symbol+"_"+token,
+			address,
+			&types.Address{},
+			amount,
+			reason,
+		)
 	}
-	return balanceSub(bc.stub, StateKeyLockedTokenBalance, address, amount, token)
+
+	return balance.Sub(
+		bc.stub,
+		balance.BalanceTypeTokenLocked,
+		address.String(),
+		token,
+		&amount.Int,
+	)
 }
 
-// AllowedBalanceGetAll returns all allowed balances for given address
-func (bc *BaseContract) AllowedBalanceGetAll(addr *types.Address) (map[string]string, error) {
-	return balanceList(bc.stub, StateKeyAllowedBalance, addr)
+func (bc *BaseContract) AllowedBalanceGetAll(address *types.Address) (map[string]string, error) {
+	tokens, err := balance.ListBalancesByAddress(
+		bc.stub,
+		balance.BalanceTypeAllowed,
+		address.String(),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return tokensToMap(tokens), nil
 }
 
-func givenBalanceGet(stub shim.ChaincodeStubInterface, contract string) (string, *big.Int, error) {
-	prefix := hex.EncodeToString([]byte{byte(StateKeyGivenBalance)})
-	key, err := stub.CreateCompositeKey(prefix, []string{contract})
-	if err != nil {
-		return key, nil, err
+func tokensToMap(tokens []balance.TokenBalance) map[string]string {
+	balances := make(map[string]string)
+	for _, item := range tokens {
+		balances[item.Token] = item.Balance.String()
 	}
-	data, err := stub.GetState(key)
-	if err != nil {
-		return key, nil, err
-	}
-	return key, new(big.Int).SetBytes(data), nil
-}
 
-// GivenBalanceAdd adds given balance to given contract
-func GivenBalanceAdd(stub shim.ChaincodeStubInterface, contract string, amount *big.Int) error {
-	key, balance, err := givenBalanceGet(stub, contract)
-	if err != nil {
-		return err
-	}
-	return stub.PutState(key, new(big.Int).Add(balance, amount).Bytes())
-}
-
-// GivenBalanceSub subtracts given balance from given contract
-func GivenBalanceSub(stub shim.ChaincodeStubInterface, contract string, amount *big.Int) error {
-	key, balance, err := givenBalanceGet(stub, contract)
-	if err != nil {
-		return err
-	}
-	if balance.Cmp(amount) < 0 {
-		return errors.New("insufficient funds to process")
-	}
-	return stub.PutState(key, new(big.Int).Sub(balance, amount).Bytes())
+	return balances
 }

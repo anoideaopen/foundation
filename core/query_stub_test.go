@@ -15,28 +15,28 @@ func TestQueryStub(t *testing.T) {
 	assert.NoError(t, err)
 	stub.MockTransactionEnd("txID")
 
-	queryStub := newQueryStub(stub)
+	qs := newQueryStub(stub)
 
 	t.Run("GetState [positive]", func(t *testing.T) {
-		val, _ := queryStub.GetState("key")
+		val, _ := qs.GetState("key")
 		assert.Equal(t, "value", string(val))
 	})
 
 	t.Run("PutState [negative]", func(t *testing.T) {
 		t.Skip()
-		err := queryStub.PutState("key", []byte(""))
-		assert.Errorf(t, err, ErrMethodNotImplemented)
+		err := qs.PutState("key", []byte(""))
+		assert.EqualError(t, err, ErrMethodNotImplemented)
 	})
 
 	t.Run("DelState [negative]", func(t *testing.T) {
 		t.Skip()
-		err := queryStub.DelState("key")
+		err := qs.DelState("key")
 		assert.Errorf(t, err, ErrMethodNotImplemented)
 	})
 
 	t.Run("SetStateValidationParameter [negative]", func(t *testing.T) {
 		t.Skip()
-		err := queryStub.SetStateValidationParameter("key", []byte("new"))
+		err := qs.SetStateValidationParameter("key", []byte("new"))
 		assert.Errorf(t, err, ErrMethodNotImplemented)
 	})
 
@@ -45,31 +45,31 @@ func TestQueryStub(t *testing.T) {
 
 	t.Run("PutPrivateData [negative]", func(t *testing.T) {
 		t.Skip()
-		err = queryStub.PutPrivateData("collection", "key", []byte("value2"))
+		err = qs.PutPrivateData("collection", "key", []byte("value2"))
 		assert.Errorf(t, err, ErrMethodNotImplemented)
 	})
 
 	t.Run("DelPrivateData [negative]", func(t *testing.T) {
 		t.Skip()
-		err = queryStub.DelPrivateData("collection", "key")
+		err = qs.DelPrivateData("collection", "key")
 		assert.Errorf(t, err, ErrMethodNotImplemented)
 	})
 
 	t.Run("PurgePrivateData [negative]", func(t *testing.T) {
 		t.Skip()
-		err := queryStub.PurgePrivateData("collection", "key")
+		err := qs.PurgePrivateData("collection", "key")
 		assert.Errorf(t, err, ErrMethodNotImplemented)
 	})
 
 	t.Run("SetPrivateDataValidationParameter [negative]", func(t *testing.T) {
 		t.Skip()
-		err := queryStub.SetPrivateDataValidationParameter("collection", "key", []byte("new"))
+		err := qs.SetPrivateDataValidationParameter("collection", "key", []byte("new"))
 		assert.Errorf(t, err, ErrMethodNotImplemented)
 	})
 
 	t.Run("SetEvent [negative]", func(t *testing.T) {
 		t.Skip()
-		err := queryStub.SetEvent("event", []byte("payload"))
+		err := qs.SetEvent("event", []byte("payload"))
 		assert.Errorf(t, err, ErrMethodNotImplemented)
 	})
 }

@@ -3,7 +3,6 @@ package token
 import (
 	"testing"
 
-	"github.com/anoideaopen/foundation/core"
 	"github.com/anoideaopen/foundation/core/types/big"
 	ma "github.com/anoideaopen/foundation/mock"
 	"github.com/anoideaopen/foundation/proto"
@@ -222,17 +221,16 @@ func TestSetRateSetCurrencyToNumericParameter(t *testing.T) {
 
 // TestSetRateWrongAuthorized - negative test with invalid issuer
 func TestSetRateWrongAuthorized(t *testing.T) {
-	mock := ma.NewLedger(t)
-	issuer := mock.NewWallet()
-	outsider := mock.NewWallet()
+	ledger := ma.NewLedger(t)
+	issuer := ledger.NewWallet()
+	feeSetter := ledger.NewWallet()
+	feeAddressSetter := ledger.NewWallet()
+	outsider := ledger.NewWallet()
 
-	tt := &BaseToken{
-		Name:     "Test Token",
-		Symbol:   "TT",
-		Decimals: 8,
-	}
-
-	mock.NewChainCode("tt", tt, &core.ContractOptions{}, nil, issuer.Address())
+	tt := &BaseToken{}
+	config := makeBaseTokenConfig("Test Token", "TT", 8,
+		issuer.Address(), feeSetter.Address(), feeAddressSetter.Address())
+	ledger.NewCC("tt", tt, config)
 
 	if err := outsider.RawSignedInvokeWithErrorReturned("tt", "setRate", "distribute", "", "1"); err != nil {
 		assert.Equal(t, "unauthorized", err.Error())
@@ -241,37 +239,40 @@ func TestSetRateWrongAuthorized(t *testing.T) {
 
 // TestSetRateWrongNumberParameters - negative test with incorrect number of parameters
 func TestSetRateWrongNumberParameters(t *testing.T) {
-	mock := ma.NewLedger(t)
-	issuer := mock.NewWallet()
+	ledger := ma.NewLedger(t)
+	issuer := ledger.NewWallet()
+	feeSetter := ledger.NewWallet()
+	feeAddressSetter := ledger.NewWallet()
 
-	tt := &BaseToken{
-		Name:     "Test Token",
-		Symbol:   "TT",
-		Decimals: 8,
-	}
-
-	mock.NewChainCode("tt", tt, &core.ContractOptions{}, nil, issuer.Address())
+	tt := &BaseToken{}
+	config := makeBaseTokenConfig("Test Token", "TT", 8,
+		issuer.Address(), feeSetter.Address(), feeAddressSetter.Address())
+	ledger.NewCC("tt", tt, config)
 
 	if err := issuer.RawSignedInvokeWithErrorReturned("tt", "setRate", "distribute", "", "", ""); err != nil {
-		assert.Equal(t, "incorrect number of keys or signs", err.Error())
+		assert.Contains(t, err.Error(), "incorrect number of keys or signs")
 	}
 }
 
 // BaseTokenSetRateTest - base test for checking the SetRate API
 func BaseTokenSetRateTest(t *testing.T, ser *serieSetRate) {
-	mock := ma.NewLedger(t)
-	issuer := mock.NewWallet()
-	var err error
+	ledger := ma.NewLedger(t)
+	issuer := ledger.NewWallet()
+	feeSetter := ledger.NewWallet()
+	feeAddressSetter := ledger.NewWallet()
 
-	tt := &BaseToken{
-		Name:     "Test Token",
-		Symbol:   "TT",
-		Decimals: 8,
-	}
+	tt := &BaseToken{}
+	config := makeBaseTokenConfig("Test Token", "TT", 8,
+		issuer.Address(), feeSetter.Address(), feeAddressSetter.Address())
+	ledger.NewCC("tt", tt, config)
 
-	mock.NewChainCode("tt", tt, &core.ContractOptions{}, nil, issuer.Address())
-
-	if err = issuer.RawSignedInvokeWithErrorReturned(ser.tokenName, "setRate", ser.dealType, ser.currency, ser.rate); err != nil {
+	if err := issuer.RawSignedInvokeWithErrorReturned(
+		ser.tokenName,
+		"setRate",
+		ser.dealType,
+		ser.currency,
+		ser.rate,
+	); err != nil {
 		assert.Equal(t, ser.errorMsg, err.Error())
 	} else {
 		assert.NoError(t, err)

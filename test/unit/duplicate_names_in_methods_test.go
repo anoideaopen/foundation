@@ -1,51 +1,86 @@
 package unit
 
 import (
-	"strings"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
 	"testing"
 
 	"github.com/anoideaopen/foundation/core"
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/core/types/big"
+	"github.com/anoideaopen/foundation/mock/stub"
+	pb "github.com/anoideaopen/foundation/proto"
+	"github.com/anoideaopen/foundation/test/unit/fixtures_test"
 	"github.com/anoideaopen/foundation/token"
+	"github.com/google/uuid"
+	"github.com/hyperledger/fabric-chaincode-go/shim"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestDuplicateNames(t *testing.T) {
-	chName := "dn"
+	chName := "DN"
 
-	t.Run("variant 1", func(t *testing.T) {
-		dn := &DuplicateNamesT1{
-			token.BaseToken{
-				Symbol: strings.ToUpper(chName),
-			},
-		}
+	cfg := &pb.Config{
+		Contract: &pb.ContractConfig{
+			Symbol:   chName,
+			RobotSKI: fixtures_test.RobotHashedCert,
+			Admin:    fixtures_test.Admin,
+		},
+		Token: &pb.TokenConfig{
+			Name:     chName + " Token",
+			Decimals: 8,
+			Issuer:   fixtures_test.Admin,
+		},
+	}
 
-		_, err := core.NewCC(dn, nil)
-		assert.ErrorContains(t, err, core.ErrMethodAlreadyDefined)
-	})
+	cfgBytes, _ := json.Marshal(cfg)
 
-	t.Run("variant 2", func(t *testing.T) {
-		dn := &DuplicateNamesT2{
-			token.BaseToken{
-				Symbol: strings.ToUpper(chName),
-			},
-		}
+	tt := []struct {
+		name string
+		bci  core.BaseContractInterface
+		err  error
+	}{
+		{
+			name: "no duplicated functions",
+			bci:  &token.BaseToken{},
+			err:  nil,
+		},
+		{
+			name: "variant #1",
+			bci:  &DuplicateNamesT1{},
+			err:  fmt.Errorf("%w, method: '%s'", core.ErrMethodAlreadyDefined, "allowedBalanceAdd"),
+		},
+		{
+			name: "variant #2",
+			bci:  &DuplicateNamesT2{},
+			err:  fmt.Errorf("%w, method: '%s'", core.ErrMethodAlreadyDefined, "allowedBalanceAdd"),
+		},
+		{
+			name: "variant #3",
+			bci:  &DuplicateNamesT3{},
+			err:  fmt.Errorf("%w, method: '%s'", core.ErrMethodAlreadyDefined, "allowedBalanceAdd"),
+		},
+	}
 
-		_, err := core.NewCC(dn, nil)
-		assert.ErrorContains(t, err, core.ErrMethodAlreadyDefined)
-	})
+	t.Parallel()
+	for _, test := range tt {
+		t.Run(test.name, func(t *testing.T) {
+			cc, _ := core.NewCC(test.bci)
+			ms := stub.NewMockStub(chName, cc)
 
-	t.Run("variant 3", func(t *testing.T) {
-		dn := &DuplicateNamesT3{
-			token.BaseToken{
-				Symbol: strings.ToUpper(chName),
-			},
-		}
+			_ = ms.SetAdminCreatorCert("atomyzeMSP")
 
-		_, err := core.NewCC(dn, nil)
-		assert.ErrorContains(t, err, core.ErrMethodAlreadyDefined)
-	})
+			idBytes := [16]byte(uuid.New())
+			rsp := ms.MockInit(hex.EncodeToString(idBytes[:]), [][]byte{cfgBytes})
+			if test.err == nil {
+				assert.Empty(t, rsp.GetMessage())
+			} else {
+				assert.Equal(t, int32(shim.ERROR), rsp.GetStatus())
+				assert.Contains(t, rsp.GetMessage(), test.err.Error())
+			}
+		})
+	}
 }
 
 // Tokens with some duplicate names in methods

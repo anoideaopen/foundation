@@ -4,22 +4,26 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/anoideaopen/foundation/core/balance"
+
 	"github.com/anoideaopen/foundation/core"
 	"github.com/anoideaopen/foundation/mock"
 	"github.com/anoideaopen/foundation/proto"
-	"github.com/anoideaopen/foundation/token"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestExternalLockUnlock(t *testing.T) {
-	m := mock.NewLedger(t)
-	owner := m.NewWallet()
-	cc := token.BaseToken{
-		Symbol: "CC",
-	}
-	m.NewChainCode("cc", &cc, &core.ContractOptions{NonceTTL: 50}, nil, owner.Address())
+	ledger := mock.NewLedger(t)
+	owner := ledger.NewWallet()
 
-	user1 := m.NewWallet()
+	ccConfig := makeBaseTokenConfig("CC Token", "CC", 8,
+		owner.Address(), "", "", owner.Address())
+
+	initMsg := ledger.NewCC("cc", &CustomToken{}, ccConfig)
+	require.Empty(t, initMsg)
+
+	user1 := ledger.NewWallet()
 	user1.AddBalance("cc", 1000)
 	user1.AddAllowedBalance("cc", "vt", 1000)
 
@@ -106,14 +110,15 @@ func TestExternalLockUnlock(t *testing.T) {
 }
 
 func TestNotAdminFailedLockUnlock(t *testing.T) {
-	m := mock.NewLedger(t)
-	owner := m.NewWallet()
-	cc := token.BaseToken{
-		Symbol: "CC",
-	}
-	m.NewChainCode("cc", &cc, &core.ContractOptions{NonceTTL: 50}, nil, owner.Address())
+	ledger := mock.NewLedger(t)
+	owner := ledger.NewWallet()
 
-	user1 := m.NewWallet()
+	ccConfig := makeBaseTokenConfig("CC Token", "CC", 8,
+		owner.Address(), "", "", owner.Address())
+	initMsg := ledger.NewCC("cc", &CustomToken{}, ccConfig)
+	require.Empty(t, initMsg)
+
+	user1 := ledger.NewWallet()
 	user1.AddBalance("cc", 1000)
 	user1.AddAllowedBalance("cc", "vt", 1000)
 
@@ -142,25 +147,26 @@ func TestNotAdminFailedLockUnlock(t *testing.T) {
 	assert.NoError(t, err)
 
 	err = user1.RawSignedInvokeWithErrorReturned("cc", "lockTokenBalance", string(data1))
-	assert.EqualError(t, err, core.ErrPlatformAdminOnly.Error())
+	assert.EqualError(t, err, core.ErrUnauthorisedNotAdmin.Error())
 	err = user1.RawSignedInvokeWithErrorReturned("cc", "lockAllowedBalance", string(data2))
-	assert.EqualError(t, err, core.ErrPlatformAdminOnly.Error())
+	assert.EqualError(t, err, core.ErrUnauthorisedNotAdmin.Error())
 
 	err = user1.RawSignedInvokeWithErrorReturned("cc", "unlockTokenBalance", string(data1))
-	assert.EqualError(t, err, core.ErrPlatformAdminOnly.Error())
+	assert.EqualError(t, err, core.ErrUnauthorisedNotAdmin.Error())
 	err = user1.RawSignedInvokeWithErrorReturned("cc", "unlockAllowedBalance", string(data2))
-	assert.EqualError(t, err, core.ErrPlatformAdminOnly.Error())
+	assert.EqualError(t, err, core.ErrUnauthorisedNotAdmin.Error())
 }
 
 func TestFailedMoreLockThenBalance(t *testing.T) {
-	m := mock.NewLedger(t)
-	owner := m.NewWallet()
-	cc := token.BaseToken{
-		Symbol: "CC",
-	}
-	m.NewChainCode("cc", &cc, &core.ContractOptions{NonceTTL: 50}, nil, owner.Address())
+	ledger := mock.NewLedger(t)
+	owner := ledger.NewWallet()
 
-	user1 := m.NewWallet()
+	ccConfig := makeBaseTokenConfig("CC Token", "CC", 8,
+		owner.Address(), "", "", owner.Address())
+	initMsg := ledger.NewCC("cc", &CustomToken{}, ccConfig)
+	require.Empty(t, initMsg)
+
+	user1 := ledger.NewWallet()
 	user1.AddBalance("cc", 1000)
 	user1.AddAllowedBalance("cc", "vt", 1000)
 
@@ -189,20 +195,21 @@ func TestFailedMoreLockThenBalance(t *testing.T) {
 	assert.NoError(t, err)
 
 	err = owner.RawSignedInvokeWithErrorReturned("cc", "lockTokenBalance", string(data1))
-	assert.EqualError(t, err, core.ErrInsufficientFunds.Error())
+	assert.EqualError(t, err, balance.ErrInsufficientBalance.Error())
 	err = owner.RawSignedInvokeWithErrorReturned("cc", "lockAllowedBalance", string(data2))
-	assert.EqualError(t, err, core.ErrInsufficientFunds.Error())
+	assert.EqualError(t, err, balance.ErrInsufficientBalance.Error())
 }
 
 func TestFailedCreateTwiceLock(t *testing.T) {
-	m := mock.NewLedger(t)
-	owner := m.NewWallet()
-	cc := token.BaseToken{
-		Symbol: "CC",
-	}
-	m.NewChainCode("cc", &cc, &core.ContractOptions{NonceTTL: 50}, nil, owner.Address())
+	ledger := mock.NewLedger(t)
+	owner := ledger.NewWallet()
 
-	user1 := m.NewWallet()
+	ccConfig := makeBaseTokenConfig("CC Token", "CC", 8,
+		owner.Address(), "", "", owner.Address())
+	initMsg := ledger.NewCC("cc", &CustomToken{}, ccConfig)
+	require.Empty(t, initMsg)
+
+	user1 := ledger.NewWallet()
 	user1.AddBalance("cc", 1000)
 	user1.AddAllowedBalance("cc", "vt", 1000)
 
@@ -249,14 +256,15 @@ func TestFailedCreateTwiceLock(t *testing.T) {
 }
 
 func TestFailedUnlock(t *testing.T) {
-	m := mock.NewLedger(t)
-	owner := m.NewWallet()
-	cc := token.BaseToken{
-		Symbol: "CC",
-	}
-	m.NewChainCode("cc", &cc, &core.ContractOptions{NonceTTL: 50}, nil, owner.Address())
+	ledger := mock.NewLedger(t)
+	owner := ledger.NewWallet()
 
-	user1 := m.NewWallet()
+	ccConfig := makeBaseTokenConfig("CC Token", "CC", 8,
+		owner.Address(), "", "", owner.Address())
+	initMsg := ledger.NewCC("cc", &CustomToken{}, ccConfig)
+	require.Empty(t, initMsg)
+
+	user1 := ledger.NewWallet()
 	user1.AddBalance("cc", 1000)
 	user1.AddAllowedBalance("cc", "vt", 1000)
 
@@ -311,7 +319,7 @@ func TestFailedUnlock(t *testing.T) {
 	assert.NoError(t, err)
 
 	err = owner.RawSignedInvokeWithErrorReturned("cc", "unlockTokenBalance", string(data1))
-	assert.EqualError(t, err, "amount should be positive")
+	assert.EqualError(t, err, "amount must be non-negative")
 	err = owner.RawSignedInvokeWithErrorReturned("cc", "unlockAllowedBalance", string(data2))
-	assert.EqualError(t, err, "amount should be positive")
+	assert.EqualError(t, err, "amount must be non-negative")
 }
