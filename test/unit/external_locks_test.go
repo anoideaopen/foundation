@@ -250,9 +250,9 @@ func TestFailedCreateTwiceLock(t *testing.T) {
 	assert.NoError(t, err)
 
 	err = owner.RawSignedInvokeWithErrorReturned("cc", "lockTokenBalance", string(data1))
-	assert.EqualError(t, err, core.ErrAlredyExist.Error())
+	assert.EqualError(t, err, core.ErrAlreadyExist.Error())
 	err = owner.RawSignedInvokeWithErrorReturned("cc", "lockAllowedBalance", string(data2))
-	assert.EqualError(t, err, core.ErrAlredyExist.Error())
+	assert.EqualError(t, err, core.ErrAlreadyExist.Error())
 }
 
 func TestFailedUnlock(t *testing.T) {

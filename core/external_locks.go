@@ -29,8 +29,8 @@ var (
 	ErrAmountRequired = errors.New("amount required")
 	// ErrTokenTickerRequired - error on token ticker required
 	ErrTokenTickerRequired = errors.New("token ticker required")
-	// ErrAlredyExist - error on alredy exist
-	ErrAlredyExist = errors.New("lock alredy exist")
+	// ErrAlreadyExist - error on already exist
+	ErrAlreadyExist = errors.New("lock already exist")
 	// ErrInsufficientFunds - error on insufficient funds
 	ErrInsufficientFunds    = errors.New("insufficient funds to process")
 	ErrAdminNotSet          = errors.New("admin is not set in contract config")
@@ -66,7 +66,7 @@ func (bc *BaseContract) TxLockTokenBalance(
 	// Check what's already there
 	_, err = bc.getLockedTokenBalance(req.Id)
 	if err == nil {
-		return ErrAlredyExist
+		return ErrAlreadyExist
 	}
 
 	address, err := types.AddrFromBase58Check(req.Address)
@@ -237,7 +237,7 @@ func (bc *BaseContract) TxLockAllowedBalance(
 	// Check what's already there
 	_, err = bc.getLockedAllowedBalance(req.Id)
 	if err == nil {
-		return ErrAlredyExist
+		return ErrAlreadyExist
 	}
 
 	address, err := types.AddrFromBase58Check(req.Address)
