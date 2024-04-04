@@ -1,6 +1,7 @@
 # Foundation
 
-[![Go](https://github.com/anoideaopen/foundation/actions/workflows/go.yml/badge.svg?branch=main)](https://github.com/anoideaopen/foundation/actions/workflows/go.yml)
+[![Go Verify Build](https://github.com/anoideaopen/foundation/actions/workflows/go.yml/badge.svg?branch=main)](https://github.com/anoideaopen/foundation/actions/workflows/go.yml)
+[![Security vulnerability scan](https://github.com/anoideaopen/foundation/actions/workflows/vulnerability-scan.yml/badge.svg?branch=main)](https://github.com/anoideaopen/foundation/actions/workflows/vulnerability-scan.yml)
 
 A basic library for creating platform chaincodes.
 
