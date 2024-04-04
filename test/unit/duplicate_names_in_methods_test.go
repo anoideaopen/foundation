@@ -69,7 +69,7 @@ func TestDuplicateNames(t *testing.T) {
 			cc, _ := core.NewCC(test.bci)
 			ms := stub.NewMockStub(chName, cc)
 
-			_ = ms.SetAdminCreatorCert("atomyzeMSP")
+			_ = ms.SetAdminCreatorCert("platformMSP")
 
 			idBytes := [16]byte(uuid.New())
 			rsp := ms.MockInit(hex.EncodeToString(idBytes[:]), [][]byte{cfgBytes})

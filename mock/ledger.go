@@ -118,7 +118,7 @@ func (ledger *Ledger) NewCCArgsArr(
 
 	ledger.stubs[name].MockPeerChaincode("acl/acl", ledger.stubs["acl"])
 
-	err = ledger.stubs[name].SetAdminCreatorCert("atomyzeMSP")
+	err = ledger.stubs[name].SetAdminCreatorCert("platformMSP")
 	assert.NoError(ledger.t, err)
 
 	args := make([][]byte, 0, len(initArgs))
@@ -157,7 +157,7 @@ func (ledger *Ledger) NewCC(
 
 	ledger.stubs[name].MockPeerChaincode("acl/acl", ledger.stubs["acl"])
 
-	err = ledger.stubs[name].SetAdminCreatorCert("atomyzeMSP")
+	err = ledger.stubs[name].SetAdminCreatorCert("platformMSP")
 	assert.NoError(ledger.t, err)
 	res := ledger.stubs[name].MockInit(txIDGen(), [][]byte{[]byte(config)})
 	message := res.Message
@@ -345,7 +345,7 @@ func (ledger *Ledger) doInvokeWithPeerResponse(ch string, txID string, fn string
 	assert.NoError(ledger.t, err)
 
 	if len(creator) == 0 {
-		_ = ledger.stubs[ch].SetDefaultCreatorCert("atomyzeMSP")
+		_ = ledger.stubs[ch].SetDefaultCreatorCert("platformMSP")
 	}
 
 	input, err := pb.Marshal(&peer.ChaincodeInvocationSpec{
