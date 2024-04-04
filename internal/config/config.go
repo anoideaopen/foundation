@@ -147,7 +147,7 @@ func ParseArgsArr(channel string, args []string) ([]byte, error) { //nolint:funl
 		Token:    &proto.TokenConfig{},
 	}
 
-	_ = args[0] // AtomyzeSKI (backend) - deprecated
+	_ = args[0] // PlatformSKI (backend) - deprecated
 	robotSKI := args[1]
 	cfg.Contract.RobotSKI = robotSKI
 

@@ -318,7 +318,7 @@ func SaveAndLoadToBatchTest(t *testing.T, ser *serieBatches, args []string) {
 	}
 	cfgBytes, _ := json.Marshal(cfg)
 
-	err := ms.SetAdminCreatorCert("atomyzeMSP")
+	err := ms.SetAdminCreatorCert("platformMSP")
 	assert.NoError(t, err)
 
 	idBytes := [16]byte(uuid.New())
@@ -442,7 +442,7 @@ func BatchExecuteTest(t *testing.T, ser *serieBatcheExecute, args []string) peer
 	}
 	cfgBytes, _ := json.Marshal(cfg)
 
-	err = ms.SetAdminCreatorCert("atomyzeMSP")
+	err = ms.SetAdminCreatorCert("platformMSP")
 	require.NoError(t, err)
 
 	idBytes := [16]byte(uuid.New())
@@ -502,7 +502,7 @@ func TestBatchedTxExecute(t *testing.T) {
 	ms := stub.NewMockStub(testChaincodeName, chainCode)
 	require.NotNil(t, ms)
 
-	err = ms.SetAdminCreatorCert("atomyzeMSP")
+	err = ms.SetAdminCreatorCert("platformMSP")
 	require.NoError(t, err)
 
 	cfg := &proto.Config{
