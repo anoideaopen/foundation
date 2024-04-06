@@ -15,7 +15,7 @@ import (
 	"golang.org/x/crypto/sha3"
 )
 
-// CheckSign exists fo backward compatibility with atmz foundation v.0.8.2, https://gitlab.n-t.io/core/library/go/foundation/-/issues/87
+// CheckSign exists fo backward compatibility
 func CheckSign(
 	stub shim.ChaincodeStubInterface,
 	fn string,

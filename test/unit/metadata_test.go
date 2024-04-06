@@ -17,7 +17,7 @@ func TestMetadataMethods(t *testing.T) {
 
 	tt := &token.BaseToken{}
 	config := makeBaseTokenConfig("Test Token", "TT", 8,
-		issuer.Address(), "", "", "")
+		issuer.Address(), "", "", "", nil)
 	initMsg := ledger.NewCC("tt", tt, config)
 	require.Empty(t, initMsg)
 

@@ -53,7 +53,6 @@ func (ledger *Ledger) UpdateStubTxID(stubName string, newTxID string) {
 
 // NewLedger creates new ledger
 func NewLedger(t *testing.T, options ...string) *Ledger {
-	time.Local = time.UTC
 	lvl := logrus.ErrorLevel
 	var err error
 	if level, ok := os.LookupEnv("LOG"); ok {
@@ -313,14 +312,14 @@ func (ledger *Ledger) NewWalletFromHexKey(key string) *Wallet {
 	return &Wallet{ledger: ledger, sKey: sKey, pKey: pub, addr: base58.CheckEncode(hash[1:], hash[0])}
 }
 
-func (ledger *Ledger) doInvoke(ch string, txID string, fn string, args ...string) string {
+func (ledger *Ledger) doInvoke(ch, txID, fn string, args ...string) string {
 	resp, err := ledger.doInvokeWithPeerResponse(ch, txID, fn, args...)
 	assert.NoError(ledger.t, err)
 	assert.Equal(ledger.t, int32(200), resp.Status, resp.Message) //nolint:gomnd
 	return string(resp.Payload)
 }
 
-func (ledger *Ledger) doInvokeWithErrorReturned(ch string, txID string, fn string, args ...string) error {
+func (ledger *Ledger) doInvokeWithErrorReturned(ch, txID, fn string, args ...string) error {
 	resp, err := ledger.doInvokeWithPeerResponse(ch, txID, fn, args...)
 	if err != nil {
 		return err
@@ -331,7 +330,7 @@ func (ledger *Ledger) doInvokeWithErrorReturned(ch string, txID string, fn strin
 	return nil
 }
 
-func (ledger *Ledger) doInvokeWithPeerResponse(ch string, txID string, fn string, args ...string) (peer.Response, error) {
+func (ledger *Ledger) doInvokeWithPeerResponse(ch, txID, fn string, args ...string) (peer.Response, error) {
 	if err := ledger.verifyIncoming(ch, fn); err != nil {
 		return peer.Response{}, err
 	}

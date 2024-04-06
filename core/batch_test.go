@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/anoideaopen/foundation/core/telemetry"
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/mock/stub"
 	"github.com/anoideaopen/foundation/proto"
@@ -60,7 +61,7 @@ func (*testBatchContract) TxTestFnWithSignedTwoArgs(_ *types.Sender, _ int64, _ 
 	return nil
 }
 
-type serieBatcheExecute struct {
+type serieBatchExecute struct {
 	testIDBytes   []byte
 	paramsWrongON bool
 }
@@ -120,6 +121,7 @@ func TestSaveToBatchWithWrongArgs(t *testing.T) {
 	assert.NoError(t, err)
 
 	errSave := chainCode.saveToBatch(
+		telemetry.TraceContext{},
 		mockStub,
 		s.FnName,
 		fn,
@@ -176,6 +178,7 @@ func TestSaveToBatchWithSignedArgs(t *testing.T) {
 	assert.NoError(t, err)
 
 	err = chainCode.saveToBatch(
+		telemetry.TraceContext{},
 		mockStub,
 		s.FnName,
 		fn,
@@ -234,6 +237,7 @@ func TestSaveToBatchWithWrongSignedArgs(t *testing.T) {
 	assert.NoError(t, err)
 
 	err = chainCode.saveToBatch(
+		telemetry.TraceContext{},
 		mockStub,
 		s.FnName,
 		fn,
@@ -344,6 +348,7 @@ func SaveAndLoadToBatchTest(t *testing.T, ser *serieBatches, args []string) {
 	assert.NoError(t, err)
 
 	errSave := chainCode.saveToBatch(
+		telemetry.TraceContext{},
 		ms,
 		ser.FnName,
 		fn,
@@ -378,7 +383,7 @@ func SaveAndLoadToBatchTest(t *testing.T, ser *serieBatches, args []string) {
 func TestBatchExecuteWithRightParams(t *testing.T) {
 	t.Parallel()
 
-	s := &serieBatcheExecute{
+	s := &serieBatchExecute{
 		testIDBytes:   txIDBytes,
 		paramsWrongON: false,
 	}
@@ -405,7 +410,7 @@ func TestBatchExecuteWithWrongParams(t *testing.T) {
 	t.Parallel()
 
 	testIDBytes := []byte("wonder")
-	s := &serieBatcheExecute{
+	s := &serieBatchExecute{
 		testIDBytes:   testIDBytes,
 		paramsWrongON: true,
 	}
@@ -427,7 +432,7 @@ func TestBatchExecuteWithWrongParams(t *testing.T) {
 }
 
 // BatchExecuteTest - basic test for SaveBatch, LoadBatch and batchExecute
-func BatchExecuteTest(t *testing.T, ser *serieBatcheExecute, args []string) peer.Response {
+func BatchExecuteTest(t *testing.T, ser *serieBatchExecute, args []string) peer.Response {
 	chainCode, err := NewCC(&testBatchContract{})
 	assert.NoError(t, err)
 
@@ -467,6 +472,7 @@ func BatchExecuteTest(t *testing.T, ser *serieBatcheExecute, args []string) peer
 	assert.NoError(t, err)
 
 	err = chainCode.saveToBatch(
+		telemetry.TraceContext{},
 		ms,
 		testFnWithFiveArgsMethod,
 		method,
@@ -491,7 +497,7 @@ func BatchExecuteTest(t *testing.T, ser *serieBatcheExecute, args []string) peer
 	dataIn, err := pb.Marshal(&proto.Batch{TxIDs: [][]byte{ser.testIDBytes}})
 	assert.NoError(t, err)
 
-	return chainCode.batchExecute(ms, string(dataIn), nil)
+	return chainCode.batchExecute(telemetry.TraceContext{}, ms, string(dataIn), nil)
 }
 
 // TestBatchedTxExecute tests positive test for batchedTxExecute
@@ -541,12 +547,19 @@ func TestBatchedTxExecute(t *testing.T) {
 	fn, err := chainCode.methods.Method(testFnWithFiveArgsMethod)
 	assert.NoError(t, err)
 
-	err = chainCode.saveToBatch(ms, testFnWithFiveArgsMethod, fn, nil,
-		argsForTestFnWithFive, uint64(batchTimestamp.Seconds))
+	err = chainCode.saveToBatch(
+		telemetry.TraceContext{},
+		ms,
+		testFnWithFiveArgsMethod,
+		fn,
+		nil,
+		argsForTestFnWithFive,
+		uint64(batchTimestamp.Seconds))
 	assert.NoError(t, err)
 	ms.MockTransactionEnd(testEncodedTxID)
 
 	resp, event := chainCode.batchedTxExecute(
+		telemetry.TraceContext{},
 		btchStub,
 		txIDBytes,
 		nil,

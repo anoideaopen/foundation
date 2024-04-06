@@ -38,7 +38,7 @@ func TestTokenBalanceLockAndGetLocked(t *testing.T) {
 	issuer := lm.NewWallet()
 
 	config := makeBaseTokenConfig("tt", "TT", 8,
-		issuer.Address(), "", "", "")
+		issuer.Address(), "", "", "", nil)
 	initMsg := lm.NewCC("tt", &TestToken{}, config)
 	require.Empty(t, initMsg)
 
@@ -62,7 +62,7 @@ func TestTokenBalanceUnlock(t *testing.T) {
 	owner := ledger.NewWallet()
 
 	config := makeBaseTokenConfig(testTokenName, testTokenSymbol, 8,
-		owner.Address(), "", "", "")
+		owner.Address(), "", "", "", nil)
 	initMsg := ledger.NewCC(testTokenCCName, &TestToken{}, config)
 	require.Empty(t, initMsg)
 
@@ -91,7 +91,7 @@ func TestTokenBalanceTransferLocked(t *testing.T) {
 
 	tt := &TestToken{}
 	ttConfig := makeBaseTokenConfig(testTokenName, testTokenSymbol, 8,
-		owner.Address(), "", "", "")
+		owner.Address(), "", "", "", nil)
 	ledger.NewCC(testTokenCCName, tt, ttConfig)
 
 	user1 := ledger.NewWallet()
@@ -120,7 +120,7 @@ func TestTokenBalanceBurnLocked(t *testing.T) {
 
 	tt := &TestToken{}
 	ttConfig := makeBaseTokenConfig(testTokenName, testTokenSymbol, 8,
-		owner.Address(), "", "", "")
+		owner.Address(), "", "", "", nil)
 	ledger.NewCC(testTokenCCName, tt, ttConfig)
 
 	user1 := ledger.NewWallet()

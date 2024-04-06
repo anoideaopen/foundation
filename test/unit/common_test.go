@@ -29,6 +29,7 @@ func makeBaseTokenConfig(
 	feeSetter string,
 	feeAddressSetter string,
 	admin string,
+	tracingCollectorEndpoint *proto.CollectorEndpoint,
 ) string {
 	cfg := &proto.Config{
 		Contract: &proto.ContractConfig{
@@ -53,6 +54,8 @@ func makeBaseTokenConfig(
 	if admin != "" {
 		cfg.Contract.Admin = &proto.Wallet{Address: admin}
 	}
+
+	cfg.Contract.TracingCollectorEndpoint = tracingCollectorEndpoint
 
 	cfgBytes, _ := json.Marshal(cfg)
 

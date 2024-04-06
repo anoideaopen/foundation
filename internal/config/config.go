@@ -34,7 +34,7 @@ type State interface {
 	GetState(key string) ([]byte, error)
 
 	// PutState puts the specified `key` and `value` into the transaction's
-	// Write Set as a data-write proposal. PutState doesn't effect the ledger
+	// Write Set as a data-write proposal. PutState doesn't affect the ledger
 	// until the transaction is validated and successfully committed.
 	// Simple keys must not be an empty string and must not start with a
 	// null character (0x00) in order to avoid range query collisions with

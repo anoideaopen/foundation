@@ -33,7 +33,7 @@ type CustomToken struct {
 }
 
 // OnSwapDoneEvent is a swap done callback.
-func (ct CustomToken) OnSwapDoneEvent(
+func (ct *CustomToken) OnSwapDoneEvent(
 	token string,
 	owner *types.Address,
 	amount *big.Int,
@@ -51,7 +51,7 @@ func (ct CustomToken) OnSwapDoneEvent(
 
 // incSwapCallCount increments OnSwapDoneEvent function call counter.
 // Counter stored in chaincode state.
-func (ct CustomToken) incSwapCallCount() error {
+func (ct *CustomToken) incSwapCallCount() error {
 	calledBytes, _ := ct.GetStub().GetState(swapDoneEventCounter)
 	var fcc FnCallCount
 	_ = json.Unmarshal(calledBytes, &fcc)
@@ -66,7 +66,7 @@ func (ct CustomToken) incSwapCallCount() error {
 
 // QuerySwapDoneEventCallCount fetches OnSwapDoneEvent call counter value.
 // Counter stored in chaincode state.
-func (ct CustomToken) QuerySwapDoneEventCallCount() (int, error) {
+func (ct *CustomToken) QuerySwapDoneEventCallCount() (int, error) {
 	calledBytes, _ := ct.GetStub().GetState(swapDoneEventCounter)
 	var fcc FnCallCount
 	_ = json.Unmarshal(calledBytes, &fcc)
@@ -82,13 +82,13 @@ func TestAtomicSwap(t *testing.T) {
 
 	cc := CustomToken{}
 	ccConfig := makeBaseTokenConfig("CC Token", "CC", 8,
-		owner.Address(), "", "", "")
+		owner.Address(), "", "", "", nil)
 	initMsg := ledger.NewCC("cc", &cc, ccConfig)
 	require.Empty(t, initMsg)
 
 	vt := CustomToken{}
 	vtConfig := makeBaseTokenConfig("VT Token", "VT", 8,
-		owner.Address(), "", "", "")
+		owner.Address(), "", "", "", nil)
 	ledger.NewCC("vt", &vt, vtConfig)
 
 	user1 := ledger.NewWallet()
@@ -127,13 +127,13 @@ func TestAtomicSwapBack(t *testing.T) {
 
 	cc := CustomToken{}
 	ccConfig := makeBaseTokenConfig("CC Token", "CC", 8,
-		owner.Address(), "", "", "")
+		owner.Address(), "", "", "", nil)
 	initMsg := ledger.NewCC("cc", &cc, ccConfig)
 	require.Empty(t, initMsg)
 
 	vt := CustomToken{}
 	vtConfig := makeBaseTokenConfig("VT Token", "VT", 8,
-		owner.Address(), "", "", "")
+		owner.Address(), "", "", "", nil)
 	ledger.NewCC("vt", &vt, vtConfig)
 
 	user1 := ledger.NewWallet()

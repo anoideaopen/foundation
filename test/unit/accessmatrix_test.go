@@ -42,7 +42,7 @@ func TestRights(t *testing.T) {
 	issuer := ledgerMock.NewWallet()
 
 	config := makeBaseTokenConfig("NT Token", "NT", 8,
-		issuer.Address(), "", "", "")
+		issuer.Address(), "", "", "", nil)
 
 	initMsg := ledgerMock.NewCC(testTokenCCName, &IssuerCheckerToken{}, config)
 	require.Empty(t, initMsg)

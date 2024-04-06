@@ -4,9 +4,8 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/anoideaopen/foundation/core/balance"
-
 	"github.com/anoideaopen/foundation/core"
+	"github.com/anoideaopen/foundation/core/balance"
 	"github.com/anoideaopen/foundation/mock"
 	"github.com/anoideaopen/foundation/proto"
 	"github.com/stretchr/testify/assert"
@@ -18,7 +17,7 @@ func TestExternalLockUnlock(t *testing.T) {
 	owner := ledger.NewWallet()
 
 	ccConfig := makeBaseTokenConfig("CC Token", "CC", 8,
-		owner.Address(), "", "", owner.Address())
+		owner.Address(), "", "", owner.Address(), nil)
 
 	initMsg := ledger.NewCC("cc", &CustomToken{}, ccConfig)
 	require.Empty(t, initMsg)
@@ -114,7 +113,7 @@ func TestNotAdminFailedLockUnlock(t *testing.T) {
 	owner := ledger.NewWallet()
 
 	ccConfig := makeBaseTokenConfig("CC Token", "CC", 8,
-		owner.Address(), "", "", owner.Address())
+		owner.Address(), "", "", owner.Address(), nil)
 	initMsg := ledger.NewCC("cc", &CustomToken{}, ccConfig)
 	require.Empty(t, initMsg)
 
@@ -162,7 +161,7 @@ func TestFailedMoreLockThenBalance(t *testing.T) {
 	owner := ledger.NewWallet()
 
 	ccConfig := makeBaseTokenConfig("CC Token", "CC", 8,
-		owner.Address(), "", "", owner.Address())
+		owner.Address(), "", "", owner.Address(), nil)
 	initMsg := ledger.NewCC("cc", &CustomToken{}, ccConfig)
 	require.Empty(t, initMsg)
 
@@ -205,7 +204,7 @@ func TestFailedCreateTwiceLock(t *testing.T) {
 	owner := ledger.NewWallet()
 
 	ccConfig := makeBaseTokenConfig("CC Token", "CC", 8,
-		owner.Address(), "", "", owner.Address())
+		owner.Address(), "", "", owner.Address(), nil)
 	initMsg := ledger.NewCC("cc", &CustomToken{}, ccConfig)
 	require.Empty(t, initMsg)
 
@@ -260,7 +259,7 @@ func TestFailedUnlock(t *testing.T) {
 	owner := ledger.NewWallet()
 
 	ccConfig := makeBaseTokenConfig("CC Token", "CC", 8,
-		owner.Address(), "", "", owner.Address())
+		owner.Address(), "", "", owner.Address(), nil)
 	initMsg := ledger.NewCC("cc", &CustomToken{}, ccConfig)
 	require.Empty(t, initMsg)
 

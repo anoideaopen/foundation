@@ -149,8 +149,8 @@ func (w *Wallet) addBalance(stub *stub.Stub, amount *big.Int, balanceType balanc
 	key, err := stub.CreateCompositeKey(prefix, append([]string{w.Address()}, path...))
 	assert.NoError(w.ledger.t, err)
 	data := stub.State[key]
-	balance := new(big.Int).SetBytes(data)
-	newBalance := new(big.Int).Add(balance, amount)
+	bal := new(big.Int).SetBytes(data)
+	newBalance := new(big.Int).Add(bal, amount)
 	_ = stub.PutBalanceToState(key, newBalance)
 }
 
@@ -216,8 +216,8 @@ func (w *Wallet) IndustrialBalanceShouldBe(ch, group string, expected uint64) {
 	res := w.Invoke(ch, "industrialBalanceOf", w.Address())
 	assert.NoError(w.ledger.t, json.Unmarshal([]byte(res), &balances))
 
-	if balance, ok := balances[group]; ok {
-		assert.Equal(w.ledger.t, strconv.FormatUint(expected, 10), balance)
+	if bal, ok := balances[group]; ok {
+		assert.Equal(w.ledger.t, strconv.FormatUint(expected, 10), bal)
 		return
 	}
 	if expected == 0 {
@@ -232,8 +232,8 @@ func (w *Wallet) GroupBalanceShouldBe(ch, group string, expected uint64) {
 	res := w.Invoke(ch, "groupBalanceOf", w.Address())
 	assert.NoError(w.ledger.t, json.Unmarshal([]byte(res), &balances))
 
-	if balance, ok := balances[group]; ok {
-		assert.Equal(w.ledger.t, strconv.FormatUint(expected, 10), balance)
+	if bal, ok := balances[group]; ok {
+		assert.Equal(w.ledger.t, strconv.FormatUint(expected, 10), bal)
 		return
 	}
 	if expected == 0 {
@@ -243,34 +243,34 @@ func (w *Wallet) GroupBalanceShouldBe(ch, group string, expected uint64) {
 }
 
 // Invoke invokes a function on the ledger
-func (w *Wallet) Invoke(ch string, fn string, args ...string) string {
+func (w *Wallet) Invoke(ch, fn string, args ...string) string {
 	return w.ledger.doInvoke(ch, txIDGen(), fn, args...)
 }
 
 // InvokeReturnsTxID invokes a function on the ledger and returns the transaction ID
-func (w *Wallet) InvokeReturnsTxID(ch string, fn string, args ...string) string {
+func (w *Wallet) InvokeReturnsTxID(ch, fn string, args ...string) string {
 	txID := txIDGen()
 	w.ledger.doInvoke(ch, txID, fn, args...)
 	return txID
 }
 
 // InvokeWithError invokes a function on the ledger and returns an error
-func (w *Wallet) InvokeWithError(ch string, fn string, args ...string) error {
+func (w *Wallet) InvokeWithError(ch, fn string, args ...string) error {
 	return w.ledger.doInvokeWithErrorReturned(ch, txIDGen(), fn, args...)
 }
 
-func (w *Wallet) InvokeWithPeerResponse(ch string, fn string, args ...string) (peer.Response, error) {
+func (w *Wallet) InvokeWithPeerResponse(ch, fn string, args ...string) (peer.Response, error) {
 	return w.ledger.doInvokeWithPeerResponse(ch, txIDGen(), fn, args...)
 }
 
 // SignArgs signs the arguments
-func (w *Wallet) SignArgs(ch string, fn string, args ...string) []string {
+func (w *Wallet) SignArgs(ch, fn string, args ...string) []string {
 	resp, _ := w.sign(fn, ch, args...)
 	return resp
 }
 
 // BatchedInvoke invokes a function on the ledger
-func (w *Wallet) BatchedInvoke(ch string, fn string, args ...string) (string, TxResponse) {
+func (w *Wallet) BatchedInvoke(ch, fn string, args ...string) (string, TxResponse) {
 	if err := w.verifyIncoming(ch, fn); err != nil {
 		assert.NoError(w.ledger.t, err)
 		return "", TxResponse{}
@@ -317,7 +317,7 @@ func (w *Wallet) BatchedInvoke(ch string, fn string, args ...string) (string, Tx
 	return txID, TxResponse{}
 }
 
-func (w *Wallet) sign(fn string, ch string, args ...string) ([]string, string) {
+func (w *Wallet) sign(fn, ch string, args ...string) ([]string, string) {
 	// Artificial delay to update the nonce value.
 	time.Sleep(time.Millisecond * 5)
 
@@ -438,7 +438,7 @@ func (w *Wallet) Ledger() *Ledger {
 }
 
 // RawSignedMultiSwapInvoke invokes a function on the ledger
-func (w *Wallet) RawSignedMultiSwapInvoke(ch string, fn string, args ...string) (string, TxResponse, []*proto.Swap, []*proto.MultiSwap) {
+func (w *Wallet) RawSignedMultiSwapInvoke(ch, fn string, args ...string) (string, TxResponse, []*proto.Swap, []*proto.MultiSwap) {
 	if err := w.verifyIncoming(ch, fn); err != nil {
 		assert.NoError(w.ledger.t, err)
 		return "", TxResponse{}, nil, nil
@@ -490,7 +490,7 @@ func (w *Wallet) RawSignedMultiSwapInvoke(ch string, fn string, args ...string) 
 }
 
 // RawSignedInvokeWithErrorReturned invokes a function on the ledger
-func (w *Wallet) RawSignedInvokeWithErrorReturned(ch string, fn string, args ...string) error {
+func (w *Wallet) RawSignedInvokeWithErrorReturned(ch, fn string, args ...string) error {
 	if err := w.verifyIncoming(ch, fn); err != nil {
 		return err
 	}
@@ -550,7 +550,7 @@ func (w *Wallet) RawSignedInvokeWithErrorReturned(ch string, fn string, args ...
 }
 
 // RawChTransferInvoke invokes a function on the ledger
-func (w *Wallet) RawChTransferInvoke(ch string, fn string, args ...string) (string, TxResponse, error) {
+func (w *Wallet) RawChTransferInvoke(ch, fn string, args ...string) (string, TxResponse, error) {
 	if err := w.verifyIncoming(ch, fn); err != nil {
 		return "", TxResponse{}, err
 	}
@@ -682,8 +682,15 @@ func (w *Wallet) SignedMultiSwapsInvoke(ch string, fn string, args ...string) st
 	return txID
 }
 
-// OtfNbInvoke invokes a function on the ledger
+// OtfNbInvoke executes non-batched transactions
+//
+// Deprecated: use NbInvoke instead
 func (w *Wallet) OtfNbInvoke(ch string, fn string, args ...string) (string, string) {
+	return w.NbInvoke(ch, fn, args...)
+}
+
+// NbInvoke executes non-batched transactions
+func (w *Wallet) NbInvoke(ch string, fn string, args ...string) (string, string) {
 	if err := w.verifyIncoming(ch, fn); err != nil {
 		assert.NoError(w.ledger.t, err)
 		return "", ""

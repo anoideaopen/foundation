@@ -138,7 +138,7 @@ func TestEmitTransfer(t *testing.T) {
 
 	fiat := NewFiatTestToken(token.BaseToken{})
 	fiatConfig := makeBaseTokenConfig("fiat", "FIAT", 8,
-		owner.Address(), feeSetter.Address(), feeAddressSetter.Address(), "")
+		owner.Address(), feeSetter.Address(), feeAddressSetter.Address(), "", nil)
 	initMsg := ledger.NewCC("fiat", fiat, fiatConfig)
 	require.Empty(t, initMsg)
 
@@ -179,7 +179,7 @@ func TestMultisigEmitTransfer(t *testing.T) {
 
 	fiat := NewFiatTestToken(token.BaseToken{})
 	fiatConfig := makeBaseTokenConfig("fiat token", "FIAT", 8,
-		owner.Address(), "", "", "")
+		owner.Address(), "", "", "", nil)
 	ledger.NewCC("fiat", fiat, fiatConfig)
 
 	user1 := ledger.NewWallet()
@@ -197,7 +197,7 @@ func TestBuyLimit(t *testing.T) {
 
 	cc := NewMintableTestToken(token.BaseToken{})
 	ccConfig := makeBaseTokenConfig("currency coin token", "CC", 8,
-		owner.Address(), "", "", "")
+		owner.Address(), "", "", "", nil)
 	ledger.NewCC("cc", cc, ccConfig)
 
 	user1 := ledger.NewWallet()

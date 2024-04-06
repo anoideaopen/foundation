@@ -52,11 +52,13 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VER }}
+          cache: false
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v4
         with:
           version: v1.57
           args: --out-format=colored-line-number
+          skip-cache: true
 
   go-test-unit:
     needs:
