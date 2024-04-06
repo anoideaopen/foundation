@@ -23,8 +23,15 @@ message ContractConfig {
   // robotSKI is the platform robot public key SKI in hex format.
   string robotSKI = 3 [(validate.rules).string.pattern = "^[0-9a-f]+$"];
 
-  // admin is a address of user who can import manipulations with contract.
+  // admin is an address of user who can import manipulations with contract.
   Wallet admin = 4;
+
+  // tracingCollectorEndpoint - tracing collector endpoint host & port, e.g. "172.23.0.6:4318"
+  CollectorEndpoint tracingCollectorEndpoint = 5;
+}
+
+message CollectorEndpoint {
+  string endpoint = 1;
 }
 
 // ChaincodeOptions stores possible chaincode configuration options.

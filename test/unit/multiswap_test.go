@@ -23,7 +23,7 @@ import (
 )
 
 // OnMultiSwapDoneEvent is a multi-swap done callback.
-func (ct CustomToken) OnMultiSwapDoneEvent(
+func (ct *CustomToken) OnMultiSwapDoneEvent(
 	token string,
 	owner *types.Address,
 	assets []*proto.Asset,
@@ -56,7 +56,7 @@ func (ct CustomToken) OnMultiSwapDoneEvent(
 
 // incrMultiSwapCallCount increments OnMultiSwapDoneEvent function call counter.
 // Counter stored in chaincode state.
-func (ct CustomToken) incrMultiSwapCallCount() error {
+func (ct *CustomToken) incrMultiSwapCallCount() error {
 	calledBytes, _ := ct.GetStub().GetState(miltiswapDoneEventCounter)
 	var fcc FnCallCount
 	_ = json.Unmarshal(calledBytes, &fcc)
@@ -71,7 +71,7 @@ func (ct CustomToken) incrMultiSwapCallCount() error {
 
 // QueryMultiSwapDoneEventCallCount fetches OnMultiSwapDoneEvent call counter value.
 // Counter stored in chaincode state.
-func (ct CustomToken) QueryMultiSwapDoneEventCallCount() (int, error) {
+func (ct *CustomToken) QueryMultiSwapDoneEventCallCount() (int, error) {
 	calledBytes, _ := ct.GetStub().GetState(miltiswapDoneEventCounter)
 	var fcc FnCallCount
 	_ = json.Unmarshal(calledBytes, &fcc)
@@ -99,13 +99,13 @@ func TestAtomicMultiSwapMoveToken(t *testing.T) { //nolint:gocognit
 
 	ba := &token.BaseToken{}
 	baConfig := makeBaseTokenConfig("BA Token", baCC, 8,
-		issuer.Address(), "", "", "")
+		issuer.Address(), "", "", "", nil)
 	initMsg := ledger.NewCC(baCC, ba, baConfig)
 	require.Empty(t, initMsg)
 
 	otf := &CustomToken{}
 	otfConfig := makeBaseTokenConfig("OTF Token", otfCC, 8,
-		owner.Address(), "", "", "")
+		owner.Address(), "", "", "", nil)
 	initMsg = ledger.NewCC(otfCC, otf, otfConfig)
 	require.Empty(t, initMsg)
 
@@ -307,13 +307,13 @@ func TestAtomicMultiSwapMoveTokenBack(t *testing.T) {
 
 	ba := &token.BaseToken{}
 	baConfig := makeBaseTokenConfig("BA Token", baCC, 8,
-		issuer.Address(), "", "", "")
+		issuer.Address(), "", "", "", nil)
 	initMsg := ledger.NewCC(baCC, ba, baConfig)
 	require.Empty(t, initMsg)
 
 	otf := &CustomToken{}
 	otfConfig := makeBaseTokenConfig("OTF Token", otfCC, 8,
-		owner.Address(), "", "", "")
+		owner.Address(), "", "", "", nil)
 	initMsg = ledger.NewCC(otfCC, otf, otfConfig)
 	require.Empty(t, initMsg)
 
@@ -474,7 +474,7 @@ func TestAtomicMultiSwapToThirdChannel(t *testing.T) {
 
 	otf := &CustomToken{}
 	otfConfig := makeBaseTokenConfig(strings.ToLower(otfCC), otfCC, 8,
-		owner.Address(), "", "", "")
+		owner.Address(), "", "", "", nil)
 	ledger.NewCC(otfCC, otf, otfConfig)
 
 	swapKey := "123"

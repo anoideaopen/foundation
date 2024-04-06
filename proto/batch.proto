@@ -232,6 +232,13 @@ message pendingTx {
 //  bytes ______________ = 4; the field has been deleted, avoid reusing it 
     int64 timestamp      = 5;
     uint64 nonce         = 6;
+    repeated pair pairs  = 7; // key-value pairs for telemetry settings storage
+}
+
+// key-value pairs for telemetry settings storage
+message pair {
+    string key = 1;
+    string value = 2;
 }
 
 message CCTransfer{

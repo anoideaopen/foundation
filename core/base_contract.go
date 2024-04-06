@@ -9,20 +9,24 @@ import (
 	"sort"
 	"strconv"
 
+	"github.com/anoideaopen/foundation/core/telemetry"
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/core/types/big"
 	pb "github.com/anoideaopen/foundation/proto"
 	"github.com/anoideaopen/foundation/version"
 	"github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/hyperledger/fabric-chaincode-go/shim"
+	"go.opentelemetry.io/otel"
 )
 
 // BaseContract is a base contract for all contracts
 type BaseContract struct {
-	stub        shim.ChaincodeStubInterface
-	noncePrefix byte
-	srcFs       *embed.FS
-	config      *pb.ContractConfig
+	stub           shim.ChaincodeStubInterface
+	noncePrefix    byte
+	srcFs          *embed.FS
+	config         *pb.ContractConfig
+	traceCtx       telemetry.TraceContext
+	tracingHandler *telemetry.TracingHandler
 }
 
 var _ BaseContractInterface = &BaseContract{}
@@ -233,6 +237,50 @@ func (bc *BaseContract) ContractConfig() *pb.ContractConfig {
 	return bc.config
 }
 
+// NBTxHealthCheckNb - the same but not batched
+func (bc *BaseContract) NBTxHealthCheckNb(_ *types.Sender) error {
+	return nil
+}
+
+// setTraceContext sets context for telemetry. For call methods only
+func (bc *BaseContract) setTraceContext(traceCtx telemetry.TraceContext) {
+	bc.traceCtx = traceCtx
+}
+
+// GetTraceContext returns trace context. Using for call methods only
+func (bc *BaseContract) GetTraceContext() telemetry.TraceContext {
+	return bc.traceCtx
+}
+
+// setTracingHandler sets base contract tracingHandler
+func (bc *BaseContract) setTracingHandler(th *telemetry.TracingHandler) {
+	bc.tracingHandler = th
+}
+
+// TracingHandler returns base contract tracingHandler
+func (bc *BaseContract) TracingHandler() *telemetry.TracingHandler {
+	if bc.tracingHandler == nil {
+		bc.setupTracing()
+	}
+
+	return bc.tracingHandler
+}
+
+// setupTracing lazy telemetry tracing setup.
+func (bc *BaseContract) setupTracing() {
+	serviceName := "chaincode-" + bc.GetID()
+
+	telemetry.InstallTraceProvider(bc.ContractConfig().TracingCollectorEndpoint, serviceName)
+
+	th := &telemetry.TracingHandler{}
+	th.Tracer = otel.Tracer(serviceName)
+	th.Propagators = otel.GetTextMapPropagator()
+	th.TracingInit()
+
+	bc.setTracingHandler(th)
+}
+
+// BaseContractInterface represents BaseContract interface
 type BaseContractInterface interface { //nolint:interfacebloat
 	// WARNING!
 	// Private interface methods can only be implemented in this package.
@@ -272,6 +320,12 @@ type BaseContractInterface interface { //nolint:interfacebloat
 	AllowedIndustrialBalanceAdd(address *types.Address, industrialAssets []*pb.Asset, reason string) error
 	AllowedIndustrialBalanceSub(address *types.Address, industrialAssets []*pb.Asset, reason string) error
 	AllowedIndustrialBalanceTransfer(from *types.Address, to *types.Address, industrialAssets []*pb.Asset, reason string) error
+
+	setTraceContext(traceCtx telemetry.TraceContext)
+	GetTraceContext() telemetry.TraceContext
+
+	setTracingHandler(th *telemetry.TracingHandler)
+	TracingHandler() *telemetry.TracingHandler
 
 	ContractConfigurable
 }

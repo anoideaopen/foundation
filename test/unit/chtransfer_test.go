@@ -20,12 +20,12 @@ func TestByCustomerForwardSuccess(t *testing.T) {
 	owner := ledger.NewWallet()
 
 	ccConfig := makeBaseTokenConfig("CC Token", "CC", 8,
-		owner.Address(), "", "", "")
+		owner.Address(), "", "", "", nil)
 	initMsg := ledger.NewCC("cc", &token.BaseToken{}, ccConfig)
 	require.Empty(t, initMsg)
 
 	vtConfig := makeBaseTokenConfig("VT Token", "VT", 8,
-		owner.Address(), "", "", "")
+		owner.Address(), "", "", "", nil)
 	initMsg = ledger.NewCC("vt", &token.BaseToken{}, vtConfig)
 	require.Empty(t, initMsg)
 
@@ -71,13 +71,13 @@ func TestByAdminForwardSuccess(t *testing.T) {
 
 	cc := token.BaseToken{}
 	ccConfig := makeBaseTokenConfig("CC Token", "CC", 8,
-		owner.Address(), feeSetter.Address(), "", owner.Address())
+		owner.Address(), feeSetter.Address(), "", owner.Address(), nil)
 	initMsg := ledger.NewCC("cc", &cc, ccConfig)
 	require.Empty(t, initMsg)
 
 	vt := token.BaseToken{}
 	vtConfig := makeBaseTokenConfig("VT Token", "VT", 8,
-		owner.Address(), feeSetter.Address(), "", owner.Address())
+		owner.Address(), feeSetter.Address(), "", owner.Address(), nil)
 	initMsg = ledger.NewCC("vt", &vt, vtConfig)
 	require.Empty(t, initMsg)
 
@@ -124,13 +124,13 @@ func TestCancelForwardSuccess(t *testing.T) {
 	owner := ledger.NewWallet()
 
 	ccConfig := makeBaseTokenConfig("CC Token", "CC", 8,
-		owner.Address(), "", "", owner.Address())
+		owner.Address(), "", "", owner.Address(), nil)
 
 	initMsg := ledger.NewCC("cc", &token.BaseToken{}, ccConfig)
 	require.Empty(t, initMsg)
 
 	vtConfig := makeBaseTokenConfig("VT Token", "VT", 8,
-		owner.Address(), "", "", owner.Address())
+		owner.Address(), "", "", owner.Address(), nil)
 
 	initMsg = ledger.NewCC("vt", &token.BaseToken{}, vtConfig)
 	require.Empty(t, initMsg)
@@ -160,13 +160,13 @@ func TestByCustomerBackSuccess(t *testing.T) {
 	owner := ledger.NewWallet()
 
 	ccConfig := makeBaseTokenConfig("CC Token", "CC", 8,
-		owner.Address(), "", "", owner.Address())
+		owner.Address(), "", "", owner.Address(), nil)
 
 	initMsg := ledger.NewCC("cc", &token.BaseToken{}, ccConfig)
 	require.Empty(t, initMsg)
 
 	vtConfig := makeBaseTokenConfig("VT Token", "VT", 8,
-		owner.Address(), "", "", owner.Address())
+		owner.Address(), "", "", owner.Address(), nil)
 	initMsg = ledger.NewCC("vt", &token.BaseToken{}, vtConfig)
 	require.Empty(t, initMsg)
 
@@ -216,13 +216,13 @@ func TestByAdminBackSuccess(t *testing.T) {
 	owner := ledger.NewWallet()
 
 	ccConfig := makeBaseTokenConfig("CC Token", "CC", 8,
-		owner.Address(), "", "", owner.Address())
+		owner.Address(), "", "", owner.Address(), nil)
 
 	initMsg := ledger.NewCC("cc", &CustomToken{}, ccConfig)
 	require.Empty(t, initMsg)
 
 	vtConfig := makeBaseTokenConfig("VT Token", "VT", 8,
-		owner.Address(), "", "", owner.Address())
+		owner.Address(), "", "", owner.Address(), nil)
 
 	initMsg = ledger.NewCC("vt", &CustomToken{}, vtConfig)
 	require.Empty(t, initMsg)
@@ -272,13 +272,13 @@ func TestCancelBackSuccess(t *testing.T) {
 	feeSetter := ledger.NewWallet()
 
 	ccConfig := makeBaseTokenConfig("CC Token", "CC", 8,
-		owner.Address(), "", "", owner.Address())
+		owner.Address(), "", "", owner.Address(), nil)
 
 	initMsg := ledger.NewCC("cc", &token.BaseToken{}, ccConfig)
 	require.Empty(t, initMsg)
 
 	vtConfig := makeBaseTokenConfig("VT Token", "VT", 8,
-		owner.Address(), feeSetter.Address(), "", owner.Address())
+		owner.Address(), feeSetter.Address(), "", owner.Address(), nil)
 
 	initMsg = ledger.NewCC("vt", &token.BaseToken{}, vtConfig)
 	require.Empty(t, initMsg)
@@ -307,7 +307,7 @@ func TestQueryAllTransfersFrom(t *testing.T) {
 	owner := ledger.NewWallet()
 
 	ccConfig := makeBaseTokenConfig("CC Token", "CC", 8,
-		owner.Address(), "", "", owner.Address())
+		owner.Address(), "", "", owner.Address(), nil)
 
 	initMsg := ledger.NewCC("cc", &token.BaseToken{}, ccConfig)
 	require.Empty(t, initMsg)
@@ -357,13 +357,13 @@ func TestFailBeginTransfer(t *testing.T) {
 	owner := ledger.NewWallet()
 
 	ccConfig := makeBaseTokenConfig("CC Token", "CC", 8,
-		owner.Address(), "", "", owner.Address())
+		owner.Address(), "", "", owner.Address(), nil)
 
 	initMsg := ledger.NewCC("cc", &token.BaseToken{}, ccConfig)
 	require.Empty(t, initMsg)
 
 	vtConfig := makeBaseTokenConfig("VT Token", "VT", 8,
-		owner.Address(), "", "", owner.Address())
+		owner.Address(), "", "", owner.Address(), nil)
 
 	initMsg = ledger.NewCC("vt", &token.BaseToken{}, vtConfig)
 	require.Empty(t, initMsg)
@@ -415,13 +415,13 @@ func TestFailCreateTransferTo(t *testing.T) {
 	owner := ledger.NewWallet()
 
 	ccConfig := makeBaseTokenConfig("CC Token", "CC", 8,
-		owner.Address(), "", "", owner.Address())
+		owner.Address(), "", "", owner.Address(), nil)
 
 	initMsg := ledger.NewCC("cc", &token.BaseToken{}, ccConfig)
 	require.Empty(t, initMsg)
 
 	vtConfig := makeBaseTokenConfig("VT Token", "VT", 8,
-		owner.Address(), "", "", owner.Address())
+		owner.Address(), "", "", owner.Address(), nil)
 
 	initMsg = ledger.NewCC("vt", &token.BaseToken{}, vtConfig)
 	require.Empty(t, initMsg)
@@ -494,7 +494,7 @@ func TestFailCancelTransferFrom(t *testing.T) { //nolint:dupl
 	owner := ledger.NewWallet()
 
 	ccConfig := makeBaseTokenConfig("CC Token", "CC", 8,
-		owner.Address(), "", "", "")
+		owner.Address(), "", "", "", nil)
 
 	initMsg := ledger.NewCC("cc", &token.BaseToken{}, ccConfig)
 	require.Empty(t, initMsg)
@@ -525,7 +525,7 @@ func TestFailCommitTransferFrom(t *testing.T) { //nolint:dupl
 	owner := ledger.NewWallet()
 
 	ccConfig := makeBaseTokenConfig("CC Token", "CC", 8,
-		owner.Address(), "", "", "")
+		owner.Address(), "", "", "", nil)
 
 	initMsg := ledger.NewCC("cc", &token.BaseToken{}, ccConfig)
 	require.Empty(t, initMsg)
@@ -557,7 +557,7 @@ func TestFailDeleteTransferFrom(t *testing.T) {
 
 	cc := token.BaseToken{}
 	config := makeBaseTokenConfig("CC Token", "CC", 8,
-		issuer.Address(), "", "", "")
+		issuer.Address(), "", "", "", nil)
 	initMsg := ledger.NewCC("cc", &cc, config)
 	require.Empty(t, initMsg)
 
@@ -585,12 +585,12 @@ func TestFailDeleteTransferTo(t *testing.T) {
 	issuer := ledger.NewWallet()
 
 	ccConfig := makeBaseTokenConfig("CC Token", "CC", 8,
-		issuer.Address(), "", "", "")
+		issuer.Address(), "", "", "", nil)
 	initMsg := ledger.NewCC("cc", &token.BaseToken{}, ccConfig)
 	require.Empty(t, initMsg)
 
 	vtConfig := makeBaseTokenConfig("VT Token", "VT", 8,
-		issuer.Address(), "", "", "")
+		issuer.Address(), "", "", "", nil)
 	initMsg = ledger.NewCC("vt", &token.BaseToken{}, vtConfig)
 	require.Empty(t, initMsg)
 
@@ -609,7 +609,7 @@ func TestFailQueryAllTransfersFrom(t *testing.T) {
 
 	cc := token.BaseToken{}
 	config := makeBaseTokenConfig("CC Token", "CC", 8,
-		issuer.Address(), "", "", "")
+		issuer.Address(), "", "", "", nil)
 	initMsg := ledger.NewCC("cc", &cc, config)
 	require.Empty(t, initMsg)
 

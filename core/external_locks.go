@@ -32,7 +32,7 @@ var (
 	// ErrAlreadyExist - error on already exist
 	ErrAlreadyExist = errors.New("lock already exist")
 	// ErrInsufficientFunds - error on insufficient funds
-	ErrInsufficientFunds    = errors.New("insufficient funds to process")
+	ErrInsufficientFunds    = errors.New("insufficient balance")
 	ErrAdminNotSet          = errors.New("admin is not set in contract config")
 	ErrUnauthorisedNotAdmin = errors.New("unauthorised, sender is not an admin")
 )

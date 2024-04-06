@@ -28,6 +28,22 @@ type TestToken struct {
 	token.BaseToken
 }
 
+func (tt *TestToken) TxTestCall() error {
+	traceCtx := tt.GetTraceContext()
+	_, span := tt.TracingHandler().StartNewSpan(traceCtx, "TxTestCall()")
+	defer span.End()
+
+	return nil
+}
+
+func (tt *TestToken) TxFailedTestCall() error {
+	traceCtx := tt.GetTraceContext()
+	_, span := tt.TracingHandler().StartNewSpan(traceCtx, "TxTestCall()")
+	defer span.End()
+
+	return errors.New("ALARM")
+}
+
 func (tt *TestToken) TxEmissionAdd(sender *types.Sender, address *types.Address, amount *big.Int) error {
 	if !sender.Equal(tt.Issuer()) {
 		return errors.New("unauthorized")
@@ -49,7 +65,7 @@ func TestGetEmptyNonce(t *testing.T) {
 
 	tt := &TestToken{}
 	config := makeBaseTokenConfig(testTokenName, testTokenSymbol, 8,
-		owner.Address(), "", "", "")
+		owner.Address(), "", "", "", nil)
 
 	initMsg := ledgerMock.NewCC(testTokenCCName, tt, config)
 	require.Empty(t, initMsg)
@@ -67,7 +83,7 @@ func TestGetNonce(t *testing.T) {
 
 	tt := &TestToken{}
 	config := makeBaseTokenConfig(testTokenName, testTokenSymbol, 8,
-		owner.Address(), "", "", "")
+		owner.Address(), "", "", "", nil)
 	initMsg := ledger.NewCC(testTokenCCName, tt, config)
 	require.Empty(t, initMsg)
 
@@ -87,7 +103,7 @@ func TestInit(t *testing.T) {
 
 	tt := &TestToken{}
 	config := makeBaseTokenConfig(testTokenName, testTokenSymbol, 8,
-		issuer.Address(), "", "", "")
+		issuer.Address(), "", "", "", nil)
 
 	t.Run("Init new chaincode", func(t *testing.T) {
 		message := ledger.NewCC(testTokenCCName, tt, config)
@@ -102,7 +118,7 @@ func TestTxHealthCheck(t *testing.T) {
 
 	tt := &TestToken{}
 	config := makeBaseTokenConfig(testTokenName, testTokenSymbol, 8,
-		owner.Address(), "", "", "")
+		owner.Address(), "", "", "", nil)
 
 	initMsg := ledgerMock.NewCC(testTokenCCName, tt, config)
 	require.Empty(t, initMsg)

@@ -17,7 +17,7 @@ func TestGOSTSignatures(t *testing.T) {
 		fiat             = NewFiatTestToken(token.BaseToken{})
 	)
 	config := makeBaseTokenConfig("Test Token", "TT", 8,
-		owner.AddressGOST(), feeSetter.Address(), feeAddressSetter.Address(), "")
+		owner.AddressGOST(), feeSetter.Address(), feeAddressSetter.Address(), "", nil)
 
 	m.NewCC(
 		"fiat",

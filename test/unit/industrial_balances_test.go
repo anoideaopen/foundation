@@ -58,7 +58,7 @@ func TestIndustrialBalanceAdd(t *testing.T) {
 
 	tt := &TestToken{}
 	ttConfig := makeBaseTokenConfig(testTokenWithGroup, testTokenSymbol, 8,
-		owner.Address(), "", "", "")
+		owner.Address(), "", "", "", nil)
 	ledgerMock.NewCC(testTokenWithGroup, tt, ttConfig)
 
 	user := ledgerMock.NewWallet()
@@ -89,7 +89,7 @@ func TestIndustrialBalanceSub(t *testing.T) {
 
 	tt := &TestToken{}
 	ttConfig := makeBaseTokenConfig(testTokenWithGroup, testTokenSymbol, 8,
-		owner.Address(), "", "", "")
+		owner.Address(), "", "", "", nil)
 	ledgerMock.NewCC(testTokenWithGroup, tt, ttConfig)
 
 	owner.SignedInvoke(
@@ -127,7 +127,7 @@ func TestIndustrialBalanceTransfer(t *testing.T) {
 
 	tt := &TestToken{}
 	ttConfig := makeBaseTokenConfig(testTokenWithGroup, testTokenSymbol, 8,
-		owner.Address(), "", "", "")
+		owner.Address(), "", "", "", nil)
 	ledgerMock.NewCC(testTokenWithGroup, tt, ttConfig)
 
 	user1 := ledgerMock.NewWallet()
@@ -167,7 +167,7 @@ func TestIndustrialBalanceLockAndGetLocked(t *testing.T) {
 
 	tt := &TestToken{}
 	ttConfig := makeBaseTokenConfig(testTokenWithGroup, testTokenSymbol, 8,
-		owner.Address(), "", "", "")
+		owner.Address(), "", "", "", nil)
 	ledgerMock.NewCC(testTokenWithGroup, tt, ttConfig)
 
 	user1 := ledgerMock.NewWallet()
@@ -219,7 +219,7 @@ func TestIndustrialBalanceUnLock(t *testing.T) {
 
 	tt := &TestToken{}
 	ttConfig := makeBaseTokenConfig(testTokenWithGroup, testTokenSymbol, 8,
-		owner.Address(), "", "", "")
+		owner.Address(), "", "", "", nil)
 	ledgerMock.NewCC(testTokenWithGroup, tt, ttConfig)
 
 	user1 := ledgerMock.NewWallet()
@@ -280,7 +280,7 @@ func TestIndustrialBalanceTransferLocked(t *testing.T) {
 
 	tt := &TestToken{}
 	ttConfig := makeBaseTokenConfig(testTokenWithGroup, testTokenSymbol, 8,
-		owner.Address(), "", "", "")
+		owner.Address(), "", "", "", nil)
 	ledgerMock.NewCC(testTokenWithGroup, tt, ttConfig)
 
 	user1 := ledgerMock.NewWallet()
@@ -348,7 +348,7 @@ func TestIndustrialBalanceBurnLocked(t *testing.T) {
 
 	tt := &TestToken{}
 	ttConfig := makeBaseTokenConfig(testTokenWithGroup, testTokenSymbol, 8,
-		owner.Address(), "", "", "")
+		owner.Address(), "", "", "", nil)
 	ledgerMock.NewCC(testTokenWithGroup, tt, ttConfig)
 
 	user1 := ledgerMock.NewWallet()

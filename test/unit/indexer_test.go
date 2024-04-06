@@ -26,7 +26,7 @@ func TestIndexer(t *testing.T) {
 		tokenID    = blockchain + "_" + usdt
 	)
 	config := makeBaseTokenConfig("Test Token", "TT", 8,
-		owner.Address(), feeSetter.Address(), feeAddressSetter.Address(), "")
+		owner.Address(), feeSetter.Address(), feeAddressSetter.Address(), "", nil)
 
 	m.NewCC("fiat", fiat, config)
 

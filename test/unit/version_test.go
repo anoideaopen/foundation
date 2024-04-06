@@ -6,6 +6,7 @@ import (
 	"runtime/debug"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/anoideaopen/foundation/core"
 	ma "github.com/anoideaopen/foundation/mock"
@@ -24,7 +25,7 @@ func TestEmbedSrcFiles(t *testing.T) {
 
 	tt := &token.BaseToken{}
 	config := makeBaseTokenConfig(testTokenName, testTokenSymbol, 8,
-		issuer.Address(), "", "", "")
+		issuer.Address(), "", "", "", nil)
 	initMsg := ledger.NewCC("tt", tt, config, core.WithSrcFS(&f))
 	require.Empty(t, initMsg)
 
@@ -45,9 +46,13 @@ func TestEmbedSrcFiles(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(rawPartFile), &partFile))
 	require.Equal(t, "unit", partFile)
 
+	time.Sleep(10 * time.Second)
+
 	rawPartFile = issuer.Invoke("tt", "srcPartFile", "version_test.go", "-1", "12")
 	require.NoError(t, json.Unmarshal([]byte(rawPartFile), &partFile))
 	require.Equal(t, "unit", partFile[8:12])
+
+	time.Sleep(10 * time.Second)
 
 	rawPartFile = issuer.Invoke("tt", "srcPartFile", "version_test.go", "-1", lStr)
 	require.NoError(t, json.Unmarshal([]byte(rawPartFile), &partFile))
@@ -62,7 +67,7 @@ func TestEmbedSrcFilesWithoutFS(t *testing.T) {
 
 	tt := &token.BaseToken{}
 	config := makeBaseTokenConfig(testTokenName, testTokenSymbol, 8,
-		issuer.Address(), "", "", "")
+		issuer.Address(), "", "", "", nil)
 	ledger.NewCC("tt", tt, config)
 
 	err := issuer.InvokeWithError("tt", "nameOfFiles")
@@ -83,7 +88,7 @@ func TestBuildInfo(t *testing.T) {
 
 	tt := &token.BaseToken{}
 	config := makeBaseTokenConfig(testTokenName, testTokenSymbol, 8,
-		issuer.Address(), "", "", "")
+		issuer.Address(), "", "", "", nil)
 	initMsg := lm.NewCC("tt", tt, config)
 	require.Empty(t, initMsg)
 
@@ -104,7 +109,7 @@ func TestSysEnv(t *testing.T) {
 
 	tt := &token.BaseToken{}
 	config := makeBaseTokenConfig(testTokenName, testTokenSymbol, 8,
-		issuer.Address(), "", "", "")
+		issuer.Address(), "", "", "", nil)
 	initMsg := lm.NewCC("tt", tt, config)
 	require.Empty(t, initMsg)
 
@@ -126,7 +131,7 @@ func TestCoreChaincodeIdName(t *testing.T) {
 
 	tt := &token.BaseToken{}
 	config := makeBaseTokenConfig(testTokenName, testTokenSymbol, 8,
-		issuer.Address(), "", "", "")
+		issuer.Address(), "", "", "", nil)
 	initMsg := lm.NewCC("tt", tt, config)
 	require.Empty(t, initMsg)
 

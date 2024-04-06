@@ -49,12 +49,12 @@ func TestQuery(t *testing.T) {
 	issuer := ledger.NewWallet()
 
 	ccConfig := makeBaseTokenConfig("CC Token", "CC", 8,
-		issuer.Address(), "", "", "")
+		issuer.Address(), "", "", "", nil)
 	initMsg := ledger.NewCC("cc", &TestToken{}, ccConfig)
 	require.Empty(t, initMsg)
 
 	vtConfig := makeBaseTokenConfig("VT Token", "VT", 8,
-		issuer.Address(), "", "", "")
+		issuer.Address(), "", "", "", nil)
 	initMsg = ledger.NewCC("vt", &TestToken{}, vtConfig)
 	require.Empty(t, initMsg)
 
