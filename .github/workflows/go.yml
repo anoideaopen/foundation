@@ -102,3 +102,23 @@ jobs:
           config: ./.testcoverage.yml
           profile: coverage.out
           local-prefix: github.com/${{ github.repository }}
+
+  go-test-integration:
+    needs:
+      - golangci-lint
+    runs-on: 'ubuntu-20.04'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VER }}
+      - name: couchdb
+        run: docker pull couchdb:3.3.3
+      - name: fabric-ccenv
+        run: docker pull hyperledger/fabric-ccenv:latest
+      - name: fabric-baseos
+        run: docker pull hyperledger/fabric-baseos:latest
+      - name: integration test
+        working-directory: ./test/integration
+        run: |
+          go test -count 1 ./...
