@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package proto;
 
-option go_package = "./;proto";
+option go_package = "github.com/anoideaopen/foundation/proto";
 
 message BalanceLockRequest {
   string id = 1; // lock identifier (optional parameter, if not specified - TXID is used)

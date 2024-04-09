@@ -4,7 +4,7 @@ package proto;
 
 import "validate/validate.proto";
 
-option go_package = "./;proto";
+option go_package = "github.com/anoideaopen/foundation/proto";
 
 // Config stores all chaincode configuration parameters.
 message Config {

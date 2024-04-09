@@ -11,8 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-//go:generate protoc -I=. -I=../../proto/ --go_out=. --validate_out=lang=go:. ext_config.proto
-
 // TestConfigToken chaincode with extended TokenConfig fields
 type TestExtConfigToken struct {
 	core.BaseContract

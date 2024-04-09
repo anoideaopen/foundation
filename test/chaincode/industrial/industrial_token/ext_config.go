@@ -7,8 +7,6 @@ import (
 	"github.com/anoideaopen/foundation/core"
 )
 
-//go:generate protoc -I=. -I=../../../../proto/ --go_out=. --validate_out=lang=go:. ext_config.proto
-
 var _ core.ExternalConfigurable = &IndustrialToken{}
 
 func (it *IndustrialToken) ValidateExtConfig(cfgBytes []byte) error {
