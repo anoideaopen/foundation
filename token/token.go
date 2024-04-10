@@ -1,7 +1,6 @@
 package token
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -10,6 +9,7 @@ import (
 	"github.com/anoideaopen/foundation/core/types/big"
 	"github.com/anoideaopen/foundation/proto"
 	pb "github.com/golang/protobuf/proto" //nolint:staticcheck
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 const metadataKey = "tokenMetadata"
@@ -176,15 +176,13 @@ func (bt *BaseToken) GetRateAndLimits(dealType string, currency string) (*proto.
 }
 
 func (bt *BaseToken) ValidateTokenConfig(config []byte) error {
-	fullCfg := struct {
-		proto.TokenConfig `json:"token"`
-	}{}
+	var cfg proto.Config
 
-	if err := json.Unmarshal(config, &fullCfg); err != nil {
+	if err := protojson.Unmarshal(config, &cfg); err != nil {
 		return fmt.Errorf("unmarshalling token config data failed: %w", err)
 	}
 
-	return fullCfg.Validate()
+	return cfg.Validate()
 }
 
 func (bt *BaseToken) ApplyTokenConfig(config *proto.TokenConfig) error {

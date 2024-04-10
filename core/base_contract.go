@@ -3,7 +3,6 @@ package core
 import (
 	"embed"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"runtime/debug"
 	"sort"
@@ -17,6 +16,7 @@ import (
 	"github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/hyperledger/fabric-chaincode-go/shim"
 	"go.opentelemetry.io/otel"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 // BaseContract is a base contract for all contracts
@@ -212,7 +212,7 @@ func (bc *BaseContract) GetID() string {
 
 func (bc *BaseContract) ValidateConfig(config []byte) error {
 	var cfg pb.Config
-	if err := json.Unmarshal(config, &cfg); err != nil {
+	if err := protojson.Unmarshal(config, &cfg); err != nil {
 		return fmt.Errorf("unmarshalling base config data failed: %w", err)
 	}
 

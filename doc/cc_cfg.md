@@ -49,14 +49,17 @@ Example json configuration:
     "decimals": 8,
     "issuer": {"address": "2DSqUTYJnM6YgAQdAPJwQHcCwBE2bkS8BDhmjWjrLE89GZ6pva"}
   },
-  "coin_important_param": "some important information here",
-  "coin_max_count": 1000
+  "extConfig":{
+    "@type":"type.googleapis.com/sometoken.ExtConfig",
+    "coin_important_param": "some important information here",
+    "coin_max_count": 1000
+  }
 }
 ```
 
-If a keycode embeds `BaseContract`, it must have all mandatory parameters in `ContractConfig`.
+If a chaincode embeds `BaseContract`, it must have all mandatory parameters in `ContractConfig`.
 If a chaincode embeds `BaseToken`, it must have all mandatory parameters of `BaseToken` filled in addition to ContractConfig.
-If a keycode implements `core.ExternalConfigurable` interface, then it has configuration peculiarities, and it is necessary to look at the config inside this keycode.
+If a chaincode implements `core.ExternalConfigurable` interface, then it has configuration peculiarities, and it is necessary to look at the config inside this chaincode.
 
 #### Contract Configuration
 

@@ -20,6 +20,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/sha3"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 // OnMultiSwapDoneEvent is a multi-swap done callback.
@@ -438,7 +439,7 @@ func TestAtomicMultiSwapDisableMultiSwaps(t *testing.T) {
 			Issuer:   &proto.Wallet{Address: issuer.Address()},
 		},
 	}
-	cfgBytes, err := json.Marshal(cfg)
+	cfgBytes, err := protojson.Marshal(cfg)
 	require.NoError(t, err)
 
 	initMsg := ledger.NewCC(baCC, &token.BaseToken{}, string(cfgBytes))

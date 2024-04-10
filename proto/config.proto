@@ -3,6 +3,7 @@ syntax = "proto3";
 package proto;
 
 import "validate/validate.proto";
+import "google/protobuf/any.proto";
 
 option go_package = "github.com/anoideaopen/foundation/proto";
 
@@ -10,6 +11,7 @@ option go_package = "github.com/anoideaopen/foundation/proto";
 message Config {
   ContractConfig contract = 1 [(validate.rules).message = {required: true, skip: false}];
   TokenConfig token = 2;
+  google.protobuf.Any ext_config = 3;
 }
 
 // ContractConfig is a configuration for platform base contract.

@@ -2,7 +2,6 @@ package unit
 
 import (
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"testing"
 
@@ -16,6 +15,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/hyperledger/fabric-chaincode-go/shim"
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 func TestDuplicateNames(t *testing.T) {
@@ -34,7 +34,7 @@ func TestDuplicateNames(t *testing.T) {
 		},
 	}
 
-	cfgBytes, _ := json.Marshal(cfg)
+	cfgBytes, _ := protojson.Marshal(cfg)
 
 	tt := []struct {
 		name string
