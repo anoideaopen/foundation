@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/anoideaopen/foundation/core"
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/proto"
 	"github.com/btcsuite/btcutil/base58"
@@ -15,8 +16,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/crypto/sha3"
 )
-
-const batchExecute = "batchExecute"
 
 // Multisig is a mock for multisig wallet
 type Multisig struct {
@@ -85,12 +84,12 @@ func (w *Multisig) RawSignedInvoke(signCnt int, ch string, fn string, args ...st
 	cert, err := hex.DecodeString(batchRobotCert)
 	assert.NoError(w.ledger.t, err)
 	w.ledger.stubs[ch].SetCreator(cert)
-	res := w.Invoke(ch, batchExecute, string(data))
+	res := w.Invoke(ch, core.BatchExecute, string(data))
 	out := &proto.BatchResponse{}
 	assert.NoError(w.ledger.t, pb.Unmarshal([]byte(res), out))
 
 	e := <-w.ledger.stubs[ch].ChaincodeEventsChannel
-	if e.EventName == batchExecute {
+	if e.EventName == core.BatchExecute {
 		events := &proto.BatchEvent{}
 		assert.NoError(w.ledger.t, pb.Unmarshal(e.Payload, events))
 		for _, e := range events.Events {

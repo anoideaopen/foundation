@@ -172,9 +172,9 @@ func TestAtomicMultiSwapMoveToken(t *testing.T) { //nolint:gocognit
 		ch := swap.To
 		stub := w.Ledger().GetStub(ch)
 		stub.SetCreator(cert)
-		w.Invoke(ch, "batchExecute", string(data))
+		w.Invoke(ch, core.BatchExecute, string(data))
 		e := <-stub.ChaincodeEventsChannel
-		if e.EventName == "batchExecute" {
+		if e.EventName == core.BatchExecute {
 			events := &proto.BatchEvent{}
 			err = pb.Unmarshal(e.Payload, events)
 			if err != nil {
@@ -256,9 +256,9 @@ func TestAtomicMultiSwapMoveToken(t *testing.T) { //nolint:gocognit
 		ch := swap.From
 		stub := w.Ledger().GetStub(ch)
 		stub.SetCreator(cert)
-		w.Invoke(ch, "batchExecute", string(data))
+		w.Invoke(ch, core.BatchExecute, string(data))
 		e := <-stub.ChaincodeEventsChannel
-		if e.EventName == "batchExecute" {
+		if e.EventName == core.BatchExecute {
 			events := &proto.BatchEvent{}
 			err = pb.Unmarshal(e.Payload, events)
 			if err != nil {

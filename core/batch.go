@@ -147,7 +147,7 @@ func (cc *ChainCode) batchExecute(
 	dataIn string,
 	cfgBytes []byte,
 ) peer.Response {
-	traceCtx, span := cc.contract.TracingHandler().StartNewSpan(traceCtx, "batchExecute")
+	traceCtx, span := cc.contract.TracingHandler().StartNewSpan(traceCtx, BatchExecute)
 	defer span.End()
 
 	logger := Logger()
@@ -219,7 +219,7 @@ func (cc *ChainCode) batchExecute(
 
 		return shim.Error(err.Error())
 	}
-	if err = stub.SetEvent("batchExecute", eventData); err != nil {
+	if err = stub.SetEvent(BatchExecute, eventData); err != nil {
 		logger.Errorf("Couldn't set batch event %s: %s", batchID, err.Error())
 		span.SetStatus(codes.Error, "set batch event failed")
 
