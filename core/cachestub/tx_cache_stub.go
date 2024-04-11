@@ -10,17 +10,17 @@ import (
 
 type TxCacheStub struct {
 	*BatchCacheStub
-	txID       string
-	txCache    map[string]*proto.WriteElement
-	events     map[string][]byte
-	Accounting []*proto.AccountingRecord
+	txID         string
+	txWriteCache map[string]*proto.WriteElement
+	events       map[string][]byte
+	Accounting   []*proto.AccountingRecord
 }
 
 func (bs *BatchCacheStub) NewTxCacheStub(txID string) *TxCacheStub {
 	return &TxCacheStub{
 		BatchCacheStub: bs,
 		txID:           txID,
-		txCache:        make(map[string]*proto.WriteElement),
+		txWriteCache:   make(map[string]*proto.WriteElement),
 		events:         make(map[string][]byte),
 	}
 }
@@ -32,7 +32,7 @@ func (bts *TxCacheStub) GetTxID() string {
 
 // GetState returns state from TxCacheStub cache or, if absent, from batchState cache
 func (bts *TxCacheStub) GetState(key string) ([]byte, error) {
-	existsElement, ok := bts.txCache[key]
+	existsElement, ok := bts.txWriteCache[key]
 	if ok {
 		return existsElement.Value, nil
 	}
@@ -41,7 +41,7 @@ func (bts *TxCacheStub) GetState(key string) ([]byte, error) {
 
 // PutState puts state to the TxCacheStub's cache
 func (bts *TxCacheStub) PutState(key string, value []byte) error {
-	bts.txCache[key] = &proto.WriteElement{Value: value}
+	bts.txWriteCache[key] = &proto.WriteElement{Value: value}
 	return nil
 }
 
@@ -63,9 +63,9 @@ func (bts *TxCacheStub) AddAccountingRecord(token string, from *types.Address, t
 
 // Commit puts state from a TxCacheStub cache to the BatchCacheStub cache
 func (bts *TxCacheStub) Commit() ([]*proto.WriteElement, []*proto.Event) {
-	writeKeys := make([]string, 0, len(bts.txCache))
-	for k, v := range bts.txCache {
-		bts.batchCache[k] = v
+	writeKeys := make([]string, 0, len(bts.txWriteCache))
+	for k, v := range bts.txWriteCache {
+		bts.batchWriteCache[k] = v
 		writeKeys = append(writeKeys, k)
 	}
 	sort.Strings(writeKeys)
@@ -73,8 +73,8 @@ func (bts *TxCacheStub) Commit() ([]*proto.WriteElement, []*proto.Event) {
 	for _, k := range writeKeys {
 		writes = append(writes, &proto.WriteElement{
 			Key:       k,
-			Value:     bts.txCache[k].Value,
-			IsDeleted: bts.txCache[k].IsDeleted,
+			Value:     bts.txWriteCache[k].Value,
+			IsDeleted: bts.txWriteCache[k].IsDeleted,
 		})
 	}
 
@@ -95,6 +95,6 @@ func (bts *TxCacheStub) Commit() ([]*proto.WriteElement, []*proto.Event) {
 
 // DelState marks state in TxCacheStub as deleted
 func (bts *TxCacheStub) DelState(key string) error {
-	bts.txCache[key] = &proto.WriteElement{Key: key, IsDeleted: true}
+	bts.txWriteCache[key] = &proto.WriteElement{Key: key, IsDeleted: true}
 	return nil
 }
