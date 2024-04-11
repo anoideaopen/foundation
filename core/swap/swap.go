@@ -33,13 +33,13 @@ const (
 )
 
 // BaseContractInterface represents BaseContract interface
-type BaseContractInterface interface { //nolint:interfacebloat
+type BaseContractInterface interface {
 	GetStub() shim.ChaincodeStubInterface
 	AllowedBalanceAdd(token string, address *types.Address, amount *big.Int, reason string) error
 	TokenBalanceAdd(address *types.Address, amount *big.Int, reason string) error
 }
 
-func SwapAnswer(stub *cachestub.BatchCacheStub, swap *proto.Swap, robotSideTimeout int64) (r *proto.SwapResponse) {
+func Answer(stub *cachestub.BatchCacheStub, swap *proto.Swap, robotSideTimeout int64) (r *proto.SwapResponse) {
 	r = &proto.SwapResponse{Id: swap.Id, Error: &proto.ResponseError{Error: "panic swapAnswer"}}
 	defer func() {
 		if rc := recover(); rc != nil {
@@ -67,14 +67,14 @@ func SwapAnswer(stub *cachestub.BatchCacheStub, swap *proto.Swap, robotSideTimeo
 		return &proto.SwapResponse{Id: swap.Id, Error: &proto.ResponseError{Error: ErrIncorrectSwap}}
 	}
 
-	if err = SwapSave(txStub, hex.EncodeToString(swap.Id), swap); err != nil {
+	if err = Save(txStub, hex.EncodeToString(swap.Id), swap); err != nil {
 		return &proto.SwapResponse{Id: swap.Id, Error: &proto.ResponseError{Error: err.Error()}}
 	}
 	writes, _ := txStub.Commit()
 	return &proto.SwapResponse{Id: swap.Id, Writes: writes}
 }
 
-func SwapRobotDone(stub *cachestub.BatchCacheStub, swapID []byte, key string) (r *proto.SwapResponse) {
+func RobotDone(stub *cachestub.BatchCacheStub, swapID []byte, key string) (r *proto.SwapResponse) {
 	r = &proto.SwapResponse{Id: swapID, Error: &proto.ResponseError{Error: "panic swapRobotDone"}}
 	defer func() {
 		if rc := recover(); rc != nil {
@@ -83,7 +83,7 @@ func SwapRobotDone(stub *cachestub.BatchCacheStub, swapID []byte, key string) (r
 	}()
 
 	txStub := stub.NewTxCacheStub(hex.EncodeToString(swapID))
-	s, err := SwapLoad(txStub, hex.EncodeToString(swapID))
+	s, err := Load(txStub, hex.EncodeToString(swapID))
 	if err != nil {
 		return &proto.SwapResponse{Id: swapID, Error: &proto.ResponseError{Error: err.Error()}}
 	}
@@ -97,15 +97,15 @@ func SwapRobotDone(stub *cachestub.BatchCacheStub, swapID []byte, key string) (r
 			return &proto.SwapResponse{Id: swapID, Error: &proto.ResponseError{Error: err.Error()}}
 		}
 	}
-	if err = SwapDel(txStub, hex.EncodeToString(swapID)); err != nil {
+	if err = Delete(txStub, hex.EncodeToString(swapID)); err != nil {
 		return &proto.SwapResponse{Id: swapID, Error: &proto.ResponseError{Error: err.Error()}}
 	}
 	writes, _ := txStub.Commit()
 	return &proto.SwapResponse{Id: swapID, Writes: writes}
 }
 
-func SwapUserDone(bci BaseContractInterface, swapID string, key string) peer.Response {
-	s, err := SwapLoad(bci.GetStub(), swapID)
+func UserDone(bci BaseContractInterface, swapID string, key string) peer.Response {
+	s, err := Load(bci.GetStub(), swapID)
 	if err != nil {
 		return shim.Error(err.Error())
 	}
@@ -127,7 +127,7 @@ func SwapUserDone(bci BaseContractInterface, swapID string, key string) peer.Res
 		}
 	}
 
-	if err = SwapDel(bci.GetStub(), swapID); err != nil {
+	if err = Delete(bci.GetStub(), swapID); err != nil {
 		return shim.Error(err.Error())
 	}
 	e := strings.Join([]string{s.From, swapID, key}, "\t")
@@ -158,8 +158,8 @@ func SwapUserDone(bci BaseContractInterface, swapID string, key string) peer.Res
 	return shim.Success(nil)
 }
 
-// SwapLoad returns swap by id
-func SwapLoad(stub shim.ChaincodeStubInterface, swapID string) (*proto.Swap, error) {
+// Load returns swap by id
+func Load(stub shim.ChaincodeStubInterface, swapID string) (*proto.Swap, error) {
 	key, err := stub.CreateCompositeKey(SwapCompositeType, []string{swapID})
 	if err != nil {
 		return nil, err
@@ -178,8 +178,8 @@ func SwapLoad(stub shim.ChaincodeStubInterface, swapID string) (*proto.Swap, err
 	return &s, nil
 }
 
-// SwapSave saves swap
-func SwapSave(stub shim.ChaincodeStubInterface, swapID string, s *proto.Swap) error {
+// Save saves swap
+func Save(stub shim.ChaincodeStubInterface, swapID string, s *proto.Swap) error {
 	key, err := stub.CreateCompositeKey(SwapCompositeType, []string{swapID})
 	if err != nil {
 		return err
@@ -191,8 +191,8 @@ func SwapSave(stub shim.ChaincodeStubInterface, swapID string, s *proto.Swap) er
 	return stub.PutState(key, data)
 }
 
-// SwapDel deletes swap
-func SwapDel(stub shim.ChaincodeStubInterface, swapID string) error {
+// Delete deletes swap
+func Delete(stub shim.ChaincodeStubInterface, swapID string) error {
 	key, err := stub.CreateCompositeKey(SwapCompositeType, []string{swapID})
 	if err != nil {
 		return err

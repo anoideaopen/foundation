@@ -10,14 +10,41 @@ import (
 	"github.com/anoideaopen/foundation/core/balance"
 	"github.com/anoideaopen/foundation/core/cachestub"
 	"github.com/anoideaopen/foundation/core/multiswap"
+	"github.com/anoideaopen/foundation/core/telemetry"
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/core/types/big"
 	"github.com/anoideaopen/foundation/proto"
+	"github.com/hyperledger/fabric-chaincode-go/shim"
+	"github.com/hyperledger/fabric-protos-go/peer"
 )
+
+// multiSwapDoneHandler processes a request to mark multiple swaps as done.
+// If the ChainCode is configured to disable multi swaps, it will immediately return an error.
+//
+// It loads initial arguments and then proceeds to execute the multi-swap user done logic.
+//
+// Returns a shim.Success response if the multi-swap done logic executes successfully.
+// Otherwise, it returns a shim.Error response.
+func (cc *ChainCode) multiSwapDoneHandler(
+	traceCtx telemetry.TraceContext,
+	stub shim.ChaincodeStubInterface,
+	args []string,
+	cfgBytes []byte,
+) peer.Response {
+	if cc.contract.ContractConfig().Options.DisableMultiSwaps {
+		return shim.Error(fmt.Sprintf(
+			"handling multi-swap done failed, %s", ErrMultiSwapDisabled.Error(),
+		))
+	}
+
+	_, contract := copyContractWithConfig(traceCtx, cc.contract, stub, cfgBytes)
+
+	return multiswap.UserDone(contract, args[0], args[1])
+}
 
 // QueryMultiSwapGet - returns multiswap by id
 func (bc *BaseContract) QueryMultiSwapGet(swapID string) (*proto.MultiSwap, error) {
-	swap, err := multiswap.MultiSwapLoad(bc.GetStub(), swapID)
+	swap, err := multiswap.Load(bc.GetStub(), swapID)
 	if err != nil {
 		return nil, err
 	}
@@ -69,7 +96,7 @@ func (bc *BaseContract) TxMultiSwapBegin(sender *types.Sender, token string, mul
 		return "", errors.New(multiswap.ErrIncorrectMultiSwap)
 	}
 
-	if err = multiswap.MultiSwapSave(bc.GetStub(), bc.GetStub().GetTxID(), &swap); err != nil {
+	if err = multiswap.Save(bc.GetStub(), bc.GetStub().GetTxID(), &swap); err != nil {
 		return "", err
 	}
 
@@ -81,7 +108,7 @@ func (bc *BaseContract) TxMultiSwapBegin(sender *types.Sender, token string, mul
 
 // TxMultiSwapCancel - cancels multiswap
 func (bc *BaseContract) TxMultiSwapCancel(sender *types.Sender, swapID string) error {
-	swap, err := multiswap.MultiSwapLoad(bc.GetStub(), swapID)
+	swap, err := multiswap.Load(bc.GetStub(), swapID)
 	if err != nil {
 		return err
 	}
@@ -117,7 +144,7 @@ func (bc *BaseContract) TxMultiSwapCancel(sender *types.Sender, swapID string) e
 		}
 	}
 
-	return multiswap.MultiSwapDel(bc.GetStub(), swapID)
+	return multiswap.Delete(bc.GetStub(), swapID)
 }
 
 // QueryGroupBalanceOf - returns balance of the token for user address

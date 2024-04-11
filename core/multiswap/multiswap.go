@@ -33,13 +33,13 @@ const (
 )
 
 // BaseContractInterface represents BaseContract interface
-type BaseContractInterface interface { //nolint:interfacebloat
+type BaseContractInterface interface {
 	GetStub() shim.ChaincodeStubInterface
 	TokenBalanceAddWithTicker(address *types.Address, amount *big.Int, ticker string, reason string) error
 	AllowedIndustrialBalanceAdd(address *types.Address, industrialAssets []*proto.Asset, reason string) error
 }
 
-func MultiSwapAnswer(stub *cachestub.BatchCacheStub, swap *proto.MultiSwap, robotSideTimeout int64) (r *proto.SwapResponse) {
+func Answer(stub *cachestub.BatchCacheStub, swap *proto.MultiSwap, robotSideTimeout int64) (r *proto.SwapResponse) {
 	r = &proto.SwapResponse{Id: swap.Id, Error: &proto.ResponseError{Error: "panic multiSwapAnswer"}}
 	defer func() {
 		if rc := recover(); rc != nil {
@@ -69,14 +69,14 @@ func MultiSwapAnswer(stub *cachestub.BatchCacheStub, swap *proto.MultiSwap, robo
 		return &proto.SwapResponse{Id: swap.Id, Error: &proto.ResponseError{Error: ErrIncorrectMultiSwap}}
 	}
 
-	if err = MultiSwapSave(txStub, hex.EncodeToString(swap.Id), swap); err != nil {
+	if err = Save(txStub, hex.EncodeToString(swap.Id), swap); err != nil {
 		return &proto.SwapResponse{Id: swap.Id, Error: &proto.ResponseError{Error: err.Error()}}
 	}
 	writes, _ := txStub.Commit()
 	return &proto.SwapResponse{Id: swap.Id, Writes: writes}
 }
 
-func MultiSwapRobotDone(stub *cachestub.BatchCacheStub, swapID []byte, key string) (r *proto.SwapResponse) {
+func RobotDone(stub *cachestub.BatchCacheStub, swapID []byte, key string) (r *proto.SwapResponse) {
 	r = &proto.SwapResponse{Id: swapID, Error: &proto.ResponseError{Error: "panic multiSwapRobotDone"}}
 	defer func() {
 		if rc := recover(); rc != nil {
@@ -85,7 +85,7 @@ func MultiSwapRobotDone(stub *cachestub.BatchCacheStub, swapID []byte, key strin
 	}()
 
 	txStub := stub.NewTxCacheStub(hex.EncodeToString(swapID))
-	swap, err := MultiSwapLoad(txStub, hex.EncodeToString(swapID))
+	swap, err := Load(txStub, hex.EncodeToString(swapID))
 	if err != nil {
 		return &proto.SwapResponse{Id: swapID, Error: &proto.ResponseError{Error: err.Error()}}
 	}
@@ -102,15 +102,15 @@ func MultiSwapRobotDone(stub *cachestub.BatchCacheStub, swapID []byte, key strin
 		}
 	}
 
-	if err = MultiSwapDel(txStub, hex.EncodeToString(swapID)); err != nil {
+	if err = Delete(txStub, hex.EncodeToString(swapID)); err != nil {
 		return &proto.SwapResponse{Id: swapID, Error: &proto.ResponseError{Error: err.Error()}}
 	}
 	writes, _ := txStub.Commit()
 	return &proto.SwapResponse{Id: swapID, Writes: writes}
 }
 
-func MultiSwapUserDone(bc BaseContractInterface, swapID string, key string) peer.Response {
-	swap, err := MultiSwapLoad(bc.GetStub(), swapID)
+func UserDone(bc BaseContractInterface, swapID string, key string) peer.Response {
+	swap, err := Load(bc.GetStub(), swapID)
 	if err != nil {
 		return shim.Error(err.Error())
 	}
@@ -134,7 +134,7 @@ func MultiSwapUserDone(bc BaseContractInterface, swapID string, key string) peer
 		}
 	}
 
-	if err = MultiSwapDel(bc.GetStub(), swapID); err != nil {
+	if err = Delete(bc.GetStub(), swapID); err != nil {
 		return shim.Error(err.Error())
 	}
 	e := strings.Join([]string{swap.From, swapID, key}, "\t")
@@ -165,8 +165,8 @@ func MultiSwapUserDone(bc BaseContractInterface, swapID string, key string) peer
 	return shim.Success(nil)
 }
 
-// MultiSwapLoad - loads multiswap from the ledger
-func MultiSwapLoad(stub shim.ChaincodeStubInterface, swapID string) (*proto.MultiSwap, error) {
+// Load loads multiswap from the ledger
+func Load(stub shim.ChaincodeStubInterface, swapID string) (*proto.MultiSwap, error) {
 	key, err := stub.CreateCompositeKey(MultiSwapCompositeType, []string{swapID})
 	if err != nil {
 		return nil, err
@@ -185,8 +185,8 @@ func MultiSwapLoad(stub shim.ChaincodeStubInterface, swapID string) (*proto.Mult
 	return &swap, nil
 }
 
-// MultiSwapSave - saves multiswap to the ledger
-func MultiSwapSave(stub shim.ChaincodeStubInterface, swapID string, swap *proto.MultiSwap) error {
+// Save saves multiswap to the ledger
+func Save(stub shim.ChaincodeStubInterface, swapID string, swap *proto.MultiSwap) error {
 	key, err := stub.CreateCompositeKey(MultiSwapCompositeType, []string{swapID})
 	if err != nil {
 		return err
@@ -198,8 +198,8 @@ func MultiSwapSave(stub shim.ChaincodeStubInterface, swapID string, swap *proto.
 	return stub.PutState(key, data)
 }
 
-// MultiSwapDel - deletes multiswap from the ledger
-func MultiSwapDel(stub shim.ChaincodeStubInterface, swapID string) error {
+// Delete deletes multiswap from the ledger
+func Delete(stub shim.ChaincodeStubInterface, swapID string) error {
 	key, err := stub.CreateCompositeKey(MultiSwapCompositeType, []string{swapID})
 	if err != nil {
 		return err

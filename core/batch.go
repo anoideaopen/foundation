@@ -184,20 +184,20 @@ func (cc *ChainCode) batchExecute(
 	if !cc.contract.ContractConfig().Options.DisableSwaps {
 		span.AddEvent("handle swaps")
 		for _, s := range batch.Swaps {
-			response.SwapResponses = append(response.SwapResponses, swap.SwapAnswer(btchStub, s, robotSideTimeout))
+			response.SwapResponses = append(response.SwapResponses, swap.Answer(btchStub, s, robotSideTimeout))
 		}
 		for _, swapKey := range batch.Keys {
-			response.SwapKeyResponses = append(response.SwapKeyResponses, swap.SwapRobotDone(btchStub, swapKey.Id, swapKey.Key))
+			response.SwapKeyResponses = append(response.SwapKeyResponses, swap.RobotDone(btchStub, swapKey.Id, swapKey.Key))
 		}
 	}
 
 	if !cc.contract.ContractConfig().Options.DisableMultiSwaps {
 		span.AddEvent("handle multi-swaps")
 		for _, s := range batch.MultiSwaps {
-			response.SwapResponses = append(response.SwapResponses, multiswap.MultiSwapAnswer(btchStub, s, robotSideTimeout))
+			response.SwapResponses = append(response.SwapResponses, multiswap.Answer(btchStub, s, robotSideTimeout))
 		}
 		for _, swapKey := range batch.MultiSwapsKeys {
-			response.SwapKeyResponses = append(response.SwapKeyResponses, multiswap.MultiSwapRobotDone(btchStub, swapKey.Id, swapKey.Key))
+			response.SwapKeyResponses = append(response.SwapKeyResponses, multiswap.RobotDone(btchStub, swapKey.Id, swapKey.Key))
 		}
 	}
 

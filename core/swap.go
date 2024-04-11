@@ -4,23 +4,49 @@ import (
 	"bytes"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	mathbig "math/big"
 
 	"github.com/anoideaopen/foundation/core/balance"
 	"github.com/anoideaopen/foundation/core/cachestub"
 	"github.com/anoideaopen/foundation/core/swap"
+	"github.com/anoideaopen/foundation/core/telemetry"
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/core/types/big"
 	"github.com/anoideaopen/foundation/proto"
+	"github.com/hyperledger/fabric-chaincode-go/shim"
+	"github.com/hyperledger/fabric-protos-go/peer"
 )
 
 const (
 	userSideTimeout = 10800 // 3 hours
 )
 
+// swapDoneHandler processes a request to mark a swap as done.
+// If the ChainCode is configured to disable swaps, it will immediately return an error.
+//
+// It loads initial arguments and then proceeds to execute the swap user done logic.
+//
+// Returns a shim.Success response if the swap done logic executes successfully.
+// Otherwise, it returns a shim.Error response.
+func (cc *ChainCode) swapDoneHandler(
+	traceCtx telemetry.TraceContext,
+	stub shim.ChaincodeStubInterface,
+	args []string,
+	cfgBytes []byte,
+) peer.Response {
+	if cc.contract.ContractConfig().Options.DisableSwaps {
+		return shim.Error(fmt.Sprintf("handling swap done failed, %s", ErrSwapDisabled.Error()))
+	}
+
+	_, contract := copyContractWithConfig(traceCtx, cc.contract, stub, cfgBytes)
+
+	return swap.UserDone(contract, args[0], args[1])
+}
+
 // QuerySwapGet returns swap by id
 func (bc *BaseContract) QuerySwapGet(swapID string) (*proto.Swap, error) {
-	swap, err := swap.SwapLoad(bc.GetStub(), swapID)
+	swap, err := swap.Load(bc.GetStub(), swapID)
 	if err != nil {
 		return nil, err
 	}
@@ -68,7 +94,7 @@ func (bc *BaseContract) TxSwapBegin(
 		return "", errors.New(swap.ErrIncorrectSwap)
 	}
 
-	if err = swap.SwapSave(bc.GetStub(), bc.GetStub().GetTxID(), &s); err != nil {
+	if err = swap.Save(bc.GetStub(), bc.GetStub().GetTxID(), &s); err != nil {
 		return "", err
 	}
 
@@ -80,7 +106,7 @@ func (bc *BaseContract) TxSwapBegin(
 
 // TxSwapCancel cancels swap
 func (bc *BaseContract) TxSwapCancel(_ *types.Sender, swapID string) error { // sender
-	s, err := swap.SwapLoad(bc.GetStub(), swapID)
+	s, err := swap.Load(bc.GetStub(), swapID)
 	if err != nil {
 		return err
 	}
@@ -116,5 +142,5 @@ func (bc *BaseContract) TxSwapCancel(_ *types.Sender, swapID string) error { // 
 			return err
 		}
 	}
-	return swap.SwapDel(bc.GetStub(), swapID)
+	return swap.Delete(bc.GetStub(), swapID)
 }

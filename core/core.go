@@ -12,8 +12,6 @@ import (
 	"time"
 
 	"github.com/anoideaopen/foundation/core/balance"
-	"github.com/anoideaopen/foundation/core/multiswap"
-	"github.com/anoideaopen/foundation/core/swap"
 	"github.com/anoideaopen/foundation/core/telemetry"
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/hlfcreator"
@@ -682,52 +680,6 @@ func (cc *ChainCode) noBatchHandler(
 
 	span.SetStatus(codes.Ok, "")
 	return shim.Success(resp)
-}
-
-// multiSwapDoneHandler processes a request to mark multiple swaps as done.
-// If the ChainCode is configured to disable multi swaps, it will immediately return an error.
-//
-// It loads initial arguments and then proceeds to execute the multi-swap user done logic.
-//
-// Returns a shim.Success response if the multi-swap done logic executes successfully.
-// Otherwise, it returns a shim.Error response.
-func (cc *ChainCode) multiSwapDoneHandler(
-	traceCtx telemetry.TraceContext,
-	stub shim.ChaincodeStubInterface,
-	args []string,
-	cfgBytes []byte,
-) peer.Response {
-	if cc.contract.ContractConfig().Options.DisableMultiSwaps {
-		return shim.Error(fmt.Sprintf(
-			"handling multi-swap done failed, %s", ErrMultiSwapDisabled.Error(),
-		))
-	}
-
-	_, contract := copyContractWithConfig(traceCtx, cc.contract, stub, cfgBytes)
-
-	return multiswap.MultiSwapUserDone(contract, args[0], args[1])
-}
-
-// swapDoneHandler processes a request to mark a swap as done.
-// If the ChainCode is configured to disable swaps, it will immediately return an error.
-//
-// It loads initial arguments and then proceeds to execute the swap user done logic.
-//
-// Returns a shim.Success response if the swap done logic executes successfully.
-// Otherwise, it returns a shim.Error response.
-func (cc *ChainCode) swapDoneHandler(
-	traceCtx telemetry.TraceContext,
-	stub shim.ChaincodeStubInterface,
-	args []string,
-	cfgBytes []byte,
-) peer.Response {
-	if cc.contract.ContractConfig().Options.DisableSwaps {
-		return shim.Error(fmt.Sprintf("handling swap done failed, %s", ErrSwapDisabled.Error()))
-	}
-
-	_, contract := copyContractWithConfig(traceCtx, cc.contract, stub, cfgBytes)
-
-	return swap.SwapUserDone(contract, args[0], args[1])
 }
 
 // batchExecuteHandler is responsible for executing a batch of transactions.
