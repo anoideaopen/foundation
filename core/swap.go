@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/anoideaopen/foundation/core/balance"
+	"github.com/anoideaopen/foundation/core/cache_stub"
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/core/types/big"
 	"github.com/anoideaopen/foundation/proto"
@@ -30,7 +31,7 @@ const (
 	robotSideTimeout = 300   // 5 minutes
 )
 
-func swapAnswer(stub *batchStub, swap *proto.Swap) (r *proto.SwapResponse) {
+func swapAnswer(stub *cache_stub.BatchCacheStub, swap *proto.Swap) (r *proto.SwapResponse) {
 	r = &proto.SwapResponse{Id: swap.Id, Error: &proto.ResponseError{Error: "panic swapAnswer"}}
 	defer func() {
 		if rc := recover(); rc != nil {
@@ -42,7 +43,7 @@ func swapAnswer(stub *batchStub, swap *proto.Swap) (r *proto.SwapResponse) {
 	if err != nil {
 		return &proto.SwapResponse{Id: swap.Id, Error: &proto.ResponseError{Error: err.Error()}}
 	}
-	txStub := stub.newTxStub(hex.EncodeToString(swap.Id))
+	txStub := stub.NewTxCacheStub(hex.EncodeToString(swap.Id))
 
 	swap.Creator = []byte("0000")
 	swap.Timeout = ts.Seconds + robotSideTimeout
@@ -65,7 +66,7 @@ func swapAnswer(stub *batchStub, swap *proto.Swap) (r *proto.SwapResponse) {
 	return &proto.SwapResponse{Id: swap.Id, Writes: writes}
 }
 
-func swapRobotDone(stub *batchStub, swapID []byte, key string) (r *proto.SwapResponse) {
+func swapRobotDone(stub *cache_stub.BatchCacheStub, swapID []byte, key string) (r *proto.SwapResponse) {
 	r = &proto.SwapResponse{Id: swapID, Error: &proto.ResponseError{Error: "panic swapRobotDone"}}
 	defer func() {
 		if rc := recover(); rc != nil {
@@ -73,7 +74,7 @@ func swapRobotDone(stub *batchStub, swapID []byte, key string) (r *proto.SwapRes
 		}
 	}()
 
-	txStub := stub.newTxStub(hex.EncodeToString(swapID))
+	txStub := stub.NewTxCacheStub(hex.EncodeToString(swapID))
 	s, err := SwapLoad(txStub, hex.EncodeToString(swapID))
 	if err != nil {
 		return &proto.SwapResponse{Id: swapID, Error: &proto.ResponseError{Error: err.Error()}}
@@ -203,8 +204,8 @@ func (bc *BaseContract) TxSwapBegin(
 		return "", err
 	}
 
-	if btchTxStub, ok := bc.stub.(*BatchTxStub); ok {
-		btchTxStub.swaps = append(btchTxStub.swaps, &s)
+	if btchTxStub, ok := bc.stub.(*cache_stub.TxCacheStub); ok {
+		btchTxStub.Swaps = append(btchTxStub.Swaps, &s)
 	}
 	return bc.GetStub().GetTxID(), nil
 }

@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/anoideaopen/foundation/core/cache_stub"
 	"github.com/anoideaopen/foundation/core/telemetry"
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/mock/stub"
@@ -534,7 +535,7 @@ func TestBatchedTxExecute(t *testing.T) {
 
 	ms.TxID = testEncodedTxID
 
-	btchStub := newBatchStub(ms)
+	btchStub := cache_stub.NewBatchCacheStub(ms)
 
 	ms.MockTransactionStart(testEncodedTxID)
 

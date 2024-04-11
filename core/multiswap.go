@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/anoideaopen/foundation/core/balance"
+	"github.com/anoideaopen/foundation/core/cache_stub"
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/core/types/big"
 	"github.com/anoideaopen/foundation/proto"
@@ -27,7 +28,7 @@ const (
 	MultiSwapKeyEvent = "multi_swap_key"
 )
 
-func multiSwapAnswer(stub *batchStub, swap *proto.MultiSwap) (r *proto.SwapResponse) {
+func multiSwapAnswer(stub *cache_stub.BatchCacheStub, swap *proto.MultiSwap) (r *proto.SwapResponse) {
 	r = &proto.SwapResponse{Id: swap.Id, Error: &proto.ResponseError{Error: "panic multiSwapAnswer"}}
 	defer func() {
 		if rc := recover(); rc != nil {
@@ -39,7 +40,7 @@ func multiSwapAnswer(stub *batchStub, swap *proto.MultiSwap) (r *proto.SwapRespo
 	if err != nil {
 		return &proto.SwapResponse{Id: swap.Id, Error: &proto.ResponseError{Error: err.Error()}}
 	}
-	txStub := stub.newTxStub(hex.EncodeToString(swap.Id))
+	txStub := stub.NewTxCacheStub(hex.EncodeToString(swap.Id))
 
 	swap.Creator = []byte("0000")
 	swap.Timeout = ts.Seconds + robotSideTimeout
@@ -64,7 +65,7 @@ func multiSwapAnswer(stub *batchStub, swap *proto.MultiSwap) (r *proto.SwapRespo
 	return &proto.SwapResponse{Id: swap.Id, Writes: writes}
 }
 
-func multiSwapRobotDone(stub *batchStub, swapID []byte, key string) (r *proto.SwapResponse) {
+func multiSwapRobotDone(stub *cache_stub.BatchCacheStub, swapID []byte, key string) (r *proto.SwapResponse) {
 	r = &proto.SwapResponse{Id: swapID, Error: &proto.ResponseError{Error: "panic multiSwapRobotDone"}}
 	defer func() {
 		if rc := recover(); rc != nil {
@@ -72,7 +73,7 @@ func multiSwapRobotDone(stub *batchStub, swapID []byte, key string) (r *proto.Sw
 		}
 	}()
 
-	txStub := stub.newTxStub(hex.EncodeToString(swapID))
+	txStub := stub.NewTxCacheStub(hex.EncodeToString(swapID))
 	swap, err := MultiSwapLoad(txStub, hex.EncodeToString(swapID))
 	if err != nil {
 		return &proto.SwapResponse{Id: swapID, Error: &proto.ResponseError{Error: err.Error()}}
@@ -211,8 +212,8 @@ func (bc *BaseContract) TxMultiSwapBegin(sender *types.Sender, token string, mul
 		return "", err
 	}
 
-	if btchTxStub, ok := bc.stub.(*BatchTxStub); ok {
-		btchTxStub.multiSwaps = append(btchTxStub.multiSwaps, &swap)
+	if btchTxStub, ok := bc.stub.(*cache_stub.TxCacheStub); ok {
+		btchTxStub.MultiSwaps = append(btchTxStub.MultiSwaps, &swap)
 	}
 	return bc.GetStub().GetTxID(), nil
 }

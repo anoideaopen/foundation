@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/anoideaopen/foundation/core/cache_stub"
 	"github.com/anoideaopen/foundation/core/telemetry"
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/internal/config"
@@ -153,7 +154,7 @@ func (cc *ChainCode) batchExecute(
 	logger := Logger()
 	batchID := stub.GetTxID()
 	span.SetAttributes(attribute.String("batch_tx_id", batchID))
-	btchStub := newBatchStub(stub)
+	btchStub := cache_stub.NewBatchCacheStub(stub)
 	start := time.Now()
 	defer func() {
 		logger.Infof("batch %s elapsed time %d ms", batchID, time.Since(start).Milliseconds())
@@ -202,8 +203,8 @@ func (cc *ChainCode) batchExecute(
 		return shim.Error(err.Error())
 	}
 
-	response.CreatedSwaps = btchStub.swaps
-	response.CreatedMultiSwap = btchStub.multiSwaps
+	response.CreatedSwaps = btchStub.Swaps
+	response.CreatedMultiSwap = btchStub.MultiSwaps
 
 	data, err := pb.Marshal(&response)
 	if err != nil {
@@ -241,7 +242,7 @@ type TxResponse struct {
 
 func (cc *ChainCode) batchedTxExecute(
 	traceCtx telemetry.TraceContext,
-	stub *batchStub,
+	stub *cache_stub.BatchCacheStub,
 	binaryTxID []byte,
 	cfgBytes []byte,
 ) (r *proto.TxResponse, e *proto.BatchTxEvent) {
@@ -299,7 +300,7 @@ func (cc *ChainCode) batchedTxExecute(
 			}
 	}
 
-	txStub := stub.newTxStub(txID)
+	txStub := stub.NewTxCacheStub(txID)
 	method, err := cc.methods.Method(pending.Method)
 	if err != nil {
 		msg := fmt.Sprintf("parsing method '%s' in tx '%s': %s", pending.Method, txID, err.Error())
@@ -351,8 +352,8 @@ func (cc *ChainCode) batchedTxExecute(
 	span.AddEvent("commit")
 	writes, events := txStub.Commit()
 
-	sort.Slice(txStub.accounting, func(i, j int) bool {
-		return strings.Compare(txStub.accounting[i].String(), txStub.accounting[j].String()) < 0
+	sort.Slice(txStub.Accounting, func(i, j int) bool {
+		return strings.Compare(txStub.Accounting[i].String(), txStub.Accounting[j].String()) < 0
 	})
 
 	span.SetStatus(codes.Ok, "")
@@ -365,7 +366,7 @@ func (cc *ChainCode) batchedTxExecute(
 		&proto.BatchTxEvent{
 			Id:         binaryTxID,
 			Method:     pending.Method,
-			Accounting: txStub.accounting,
+			Accounting: txStub.Accounting,
 			Events:     events,
 			Result:     response,
 		}
