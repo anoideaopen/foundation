@@ -7,6 +7,7 @@ import (
 	"errors"
 	"strings"
 
+	"github.com/anoideaopen/foundation/core"
 	"github.com/anoideaopen/foundation/core/telemetry"
 	"github.com/anoideaopen/foundation/proto"
 	"github.com/btcsuite/btcutil/base58"
@@ -46,7 +47,7 @@ func (w *Wallet) SignedInvokeTraced(ctx context.Context, ch, fn string, args ...
 		cert, err := hex.DecodeString(batchRobotCert)
 		assert.NoError(w.ledger.t, err)
 		w.ledger.stubs[strings.ToLower(swap.To)].SetCreator(cert)
-		w.Invoke(strings.ToLower(swap.To), batchFn, string(data))
+		w.Invoke(strings.ToLower(swap.To), core.BatchExecute, string(data))
 	}
 
 	return txID
@@ -91,7 +92,7 @@ func (w *Wallet) RawSignedInvokeTracedWithErrorReturned(ctx context.Context, ch,
 		return err
 	}
 	w.ledger.stubs[ch].SetCreator(cert)
-	res := w.Invoke(ch, batchFn, string(data))
+	res := w.Invoke(ch, core.BatchExecute, string(data))
 	out := &proto.BatchResponse{}
 	err = pb.Unmarshal([]byte(res), out)
 	if err != nil {
@@ -99,7 +100,7 @@ func (w *Wallet) RawSignedInvokeTracedWithErrorReturned(ctx context.Context, ch,
 	}
 
 	e := <-w.ledger.stubs[ch].ChaincodeEventsChannel
-	if e.EventName == batchFn {
+	if e.EventName == core.BatchExecute {
 		events := &proto.BatchEvent{}
 		err = pb.Unmarshal(e.Payload, events)
 		if err != nil {
@@ -161,12 +162,12 @@ func (w *Wallet) RawSignedMultiSwapInvokeTraced(ctx context.Context, ch, fn stri
 	cert, err = hex.DecodeString(batchRobotCert)
 	assert.NoError(w.ledger.t, err)
 	w.ledger.stubs[ch].SetCreator(cert)
-	res := w.Invoke(ch, batchFn, string(data))
+	res := w.Invoke(ch, core.BatchExecute, string(data))
 	out := &proto.BatchResponse{}
 	assert.NoError(w.ledger.t, pb.Unmarshal([]byte(res), out))
 
 	e := <-w.ledger.stubs[ch].ChaincodeEventsChannel
-	if e.EventName == batchFn {
+	if e.EventName == core.BatchExecute {
 		events := &proto.BatchEvent{}
 		assert.NoError(w.ledger.t, pb.Unmarshal(e.Payload, events))
 		for _, ev := range events.Events {

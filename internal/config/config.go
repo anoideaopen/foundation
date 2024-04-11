@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/anoideaopen/foundation/proto"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 // keyConfig is a key for storing a configuration data in json format.
@@ -86,14 +87,14 @@ func LoadRawConfig(state State) ([]byte, error) {
 // ContractConfigFromBytes parses the provided byte slice containing JSON-encoded contract configuration
 // and returns a pointer to a proto.ContractConfig struct.
 //
-// The function uses json.Unmarshal to deserialize the JSON-encoded data into the *proto.ContractConfig struct.
+// The function uses protojson.Unmarshal to deserialize the JSON-encoded data into the *proto.ContractConfig struct.
 // If the unmarshalling process fails, an error is returned with additional information about the failure.
 //
 // If the deserialized ContractConfig struct has nil Options, a new proto.ChaincodeOptions is created and assigned.
 // If the BatchPrefix in Options is empty, it is set to the default BatchPrefix constant.
 func ContractConfigFromBytes(cfgBytes []byte) (*proto.ContractConfig, error) {
 	var cfg proto.Config
-	if err := json.Unmarshal(cfgBytes, &cfg); err != nil {
+	if err := protojson.Unmarshal(cfgBytes, &cfg); err != nil {
 		return nil, fmt.Errorf("unmarshalling failed: %w", err)
 	}
 
@@ -107,14 +108,14 @@ func ContractConfigFromBytes(cfgBytes []byte) (*proto.ContractConfig, error) {
 // TokenConfigFromBytes parses the provided byte slice containing JSON-encoded token configuration
 // and returns a pointer to a proto.TokenConfig struct.
 //
-// The function uses json.Unmarshal to deserialize the JSON-encoded data into a temporary struct
+// The function uses protojson.Unmarshal to deserialize the JSON-encoded data into a temporary struct
 // with a "token" field of type proto.TokenConfig. If the unmarshalling process fails, an error
 // is returned with additional information about the failure.
 //
 // The function returns a pointer to the deserialized proto.TokenConfig struct.
 func TokenConfigFromBytes(cfgBytes []byte) (*proto.TokenConfig, error) {
 	var cfg proto.Config
-	if err := json.Unmarshal(cfgBytes, &cfg); err != nil {
+	if err := protojson.Unmarshal(cfgBytes, &cfg); err != nil {
 		return nil, err
 	}
 
@@ -266,7 +267,7 @@ func ParseArgsArr(channel string, args []string) ([]byte, error) { //nolint:funl
 		)
 	}
 
-	cfgBytes, err := json.Marshal(cfg)
+	cfgBytes, err := protojson.Marshal(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("marshalling config: %w", err)
 	}

@@ -1,12 +1,12 @@
 package unit
 
 import (
-	"encoding/json"
 	"fmt"
 	"testing"
 
 	"github.com/anoideaopen/foundation/proto"
 	"github.com/anoideaopen/foundation/test/unit/fixtures_test"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 func step(t *testing.T, name string, skip bool, f func()) {
@@ -57,7 +57,7 @@ func makeBaseTokenConfig(
 
 	cfg.Contract.TracingCollectorEndpoint = tracingCollectorEndpoint
 
-	cfgBytes, _ := json.Marshal(cfg)
+	cfgBytes, _ := protojson.Marshal(cfg)
 
 	return string(cfgBytes)
 }

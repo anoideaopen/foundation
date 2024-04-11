@@ -17,6 +17,7 @@ import (
 	"github.com/anoideaopen/foundation/token"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/sha3"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 const (
@@ -186,7 +187,7 @@ func TestAtomicSwapDisableSwaps(t *testing.T) {
 		},
 	}
 
-	cfgBytes, err := json.Marshal(cfg)
+	cfgBytes, err := protojson.Marshal(cfg)
 	require.NoError(t, err)
 
 	initMsg := ledger.NewCC(baCC, ba, string(cfgBytes))

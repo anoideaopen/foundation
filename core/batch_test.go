@@ -2,7 +2,6 @@ package core
 
 import (
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"testing"
 	"time"
@@ -19,6 +18,7 @@ import (
 	"github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/encoding/protojson"
 	pb "google.golang.org/protobuf/proto"
 )
 
@@ -91,21 +91,18 @@ func TestSaveToBatchWithWrongArgs(t *testing.T) {
 
 	mockStub := stub.NewMockStub(testChaincodeName, chainCode)
 
-	config := fmt.Sprintf(
-		`
-{
-	"contract": {
-		"robotSKI":"%s",
-		"symbol": "CC"
+	cfgEtl := &proto.Config{
+		Contract: &proto.ContractConfig{
+			Symbol:   "CC",
+			RobotSKI: fixtures_test.RobotHashedCert,
+		},
 	}
-}`,
-		fixtures_test.RobotHashedCert,
-	)
+	config, _ := protojson.Marshal(cfgEtl)
 
 	idBytes := [16]byte(uuid.New())
-	mockStub.MockInit(hex.EncodeToString(idBytes[:]), [][]byte{[]byte(config)})
+	mockStub.MockInit(hex.EncodeToString(idBytes[:]), [][]byte{config})
 
-	err := applyConfig(&chainCode.contract, mockStub, []byte(config))
+	err := applyConfig(&chainCode.contract, mockStub, config)
 	assert.NoError(t, err)
 
 	mockStub.TxID = testEncodedTxID
@@ -148,21 +145,18 @@ func TestSaveToBatchWithSignedArgs(t *testing.T) {
 
 	mockStub := stub.NewMockStub(testChaincodeName, chainCode)
 
-	config := fmt.Sprintf(
-		`
-{
-	"contract": {
-		"robotSKI":"%s",
-		"symbol": "CC"
+	cfgEtl := &proto.Config{
+		Contract: &proto.ContractConfig{
+			Symbol:   "CC",
+			RobotSKI: fixtures_test.RobotHashedCert,
+		},
 	}
-}`,
-		fixtures_test.RobotHashedCert,
-	)
+	config, _ := protojson.Marshal(cfgEtl)
 
 	idBytes := [16]byte(uuid.New())
-	mockStub.MockInit(hex.EncodeToString(idBytes[:]), [][]byte{[]byte(config)})
+	mockStub.MockInit(hex.EncodeToString(idBytes[:]), [][]byte{config})
 
-	err := applyConfig(&chainCode.contract, mockStub, []byte(config))
+	err := applyConfig(&chainCode.contract, mockStub, config)
 	assert.NoError(t, err)
 
 	mockStub.TxID = testEncodedTxID
@@ -207,16 +201,13 @@ func TestSaveToBatchWithWrongSignedArgs(t *testing.T) {
 
 	mockStub := stub.NewMockStub(testChaincodeName, chainCode)
 
-	config := fmt.Sprintf(
-		`
-{
-	"contract": {
-		"robotSKI":"%s",
-		"symbol": "CC"
+	cfgEtl := &proto.Config{
+		Contract: &proto.ContractConfig{
+			Symbol:   "CC",
+			RobotSKI: fixtures_test.RobotHashedCert,
+		},
 	}
-}`,
-		fixtures_test.RobotHashedCert,
-	)
+	config, _ := protojson.Marshal(cfgEtl)
 
 	idBytes := [16]byte(uuid.New())
 	mockStub.MockInit(hex.EncodeToString(idBytes[:]), [][]byte{[]byte(config)})
@@ -280,7 +271,7 @@ func TestSaveToBatchWrongFnName(t *testing.T) {
 			Admin:    fixtures_test.Admin,
 		},
 	}
-	cfgBytes, _ := json.Marshal(cfg)
+	cfgBytes, _ := protojson.Marshal(cfg)
 
 	err = applyConfig(&chainCode.contract, ms, cfgBytes)
 	assert.NoError(t, err)
@@ -321,7 +312,7 @@ func SaveAndLoadToBatchTest(t *testing.T, ser *serieBatches, args []string) {
 			Admin:    fixtures_test.Admin,
 		},
 	}
-	cfgBytes, _ := json.Marshal(cfg)
+	cfgBytes, _ := protojson.Marshal(cfg)
 
 	err := ms.SetAdminCreatorCert("platformMSP")
 	assert.NoError(t, err)
@@ -446,7 +437,7 @@ func BatchExecuteTest(t *testing.T, ser *serieBatchExecute, args []string) peer.
 			Admin:    &proto.Wallet{Address: fixtures_test.AdminAddr},
 		},
 	}
-	cfgBytes, _ := json.Marshal(cfg)
+	cfgBytes, _ := protojson.Marshal(cfg)
 
 	err = ms.SetAdminCreatorCert("platformMSP")
 	require.NoError(t, err)
@@ -521,7 +512,7 @@ func TestBatchedTxExecute(t *testing.T) {
 		},
 	}
 
-	cfgBytes, _ := json.Marshal(cfg)
+	cfgBytes, _ := protojson.Marshal(cfg)
 
 	idBytes := [16]byte(uuid.New())
 	rsp := ms.MockInit(hex.EncodeToString(idBytes[:]), [][]byte{cfgBytes})

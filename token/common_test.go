@@ -1,10 +1,9 @@
 package token
 
 import (
-	"encoding/json"
-
 	pb "github.com/anoideaopen/foundation/proto"
 	"github.com/anoideaopen/foundation/test/unit/fixtures_test"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 func makeBaseTokenConfig(
@@ -48,7 +47,7 @@ func makeBaseTokenConfig(
 		},
 	}
 
-	cfgBytes, _ := json.Marshal(cfg)
+	cfgBytes, _ := protojson.Marshal(cfg)
 
 	return string(cfgBytes)
 }

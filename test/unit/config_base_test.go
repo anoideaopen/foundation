@@ -12,6 +12,7 @@ import (
 	"github.com/anoideaopen/foundation/test/unit/fixtures_test"
 	"github.com/anoideaopen/foundation/token"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 type ConfigData struct {
@@ -75,46 +76,37 @@ func TestInitWithCommonConfig(t *testing.T) {
 	user1 := ledgerMock.NewWallet()
 	issuer := ledgerMock.NewWallet()
 
-	ttName, ttSymbol, ttDecimals := "test token", "TT", uint(8)
+	ttName, ttSymbol, ttDecimals := "test token", "TT", uint32(8)
 
-	config := fmt.Sprintf(`
-{
-	"contract": {
-		"symbol": "%s",
-		"robotSKI": "%s",
-		"admin": {"address":"%s"},
-		"options": {
-			"disable_multi_swaps": true, 
-			"disable_swaps": false
-		}
-	},
-	"token":{
-		"name":"%s",
-		"decimals":%d,
-		"issuer":{"address":"%s"}
+	cfgEtl := &proto.Config{
+		Contract: &proto.ContractConfig{
+			Symbol: ttSymbol,
+			Options: &proto.ChaincodeOptions{
+				DisableMultiSwaps: true,
+			},
+			RobotSKI: fixtures_test.RobotHashedCert,
+			Admin:    &proto.Wallet{Address: issuer.Address()},
+		},
+		Token: &proto.TokenConfig{
+			Name:     ttName,
+			Decimals: ttDecimals,
+			Issuer:   &proto.Wallet{Address: issuer.Address()},
+		},
 	}
-}`,
-		ttSymbol,
-		fixtures_test.RobotHashedCert,
-		issuer.Address(),
-		ttName,
-		ttDecimals,
-		issuer.Address(),
-	)
+	config, _ := protojson.Marshal(cfgEtl)
 
 	step(t, "Init new chaincode", false, func() {
-		message := ledgerMock.NewCC("tt", &TestConfigToken{}, config)
+		message := ledgerMock.NewCC("tt", &TestConfigToken{}, string(config))
 		require.Empty(t, message)
 	})
 
-	var cfg *proto.Config
+	var cfg proto.Config
 	step(t, "Fetch config", false, func() {
 		data := user1.Invoke("tt", "config")
 		require.NotEmpty(t, data)
 
 		err := json.Unmarshal([]byte(data), &cfg)
 		require.NoError(t, err)
-		require.NotNil(t, cfg)
 	})
 
 	step(t, "Validate contract config", false, func() {
@@ -126,7 +118,7 @@ func TestInitWithCommonConfig(t *testing.T) {
 
 	step(t, "Validate token config", false, func() {
 		require.Equal(t, ttName, cfg.Token.Name)
-		require.Equal(t, ttDecimals, uint(cfg.Token.Decimals))
+		require.Equal(t, ttDecimals, cfg.Token.Decimals)
 		require.Equal(t, issuer.Address(), cfg.Token.Issuer.Address)
 	})
 }
@@ -138,35 +130,27 @@ func TestBaseTokenTx(t *testing.T) {
 	user1 := ledgerMock.NewWallet()
 	issuer := ledgerMock.NewWallet()
 
-	ttName, ttSymbol, ttDecimals := "test token", "TT", uint(8)
+	ttName, ttSymbol, ttDecimals := "test token", "TT", uint32(8)
 
-	config := fmt.Sprintf(`
-{
-	"contract": {
-		"symbol": "%s",
-		"robotSKI": "%s",
-		"admin": {"address":"%s"},
-		"options": {
-			"disable_multi_swaps": true, 
-			"disable_swaps": false
-		}
-	},
-	"token": {
-		"name": "%s",
-		"decimals": %d,
-		"issuer": {"address":"%s"}
+	cfgEtl := &proto.Config{
+		Contract: &proto.ContractConfig{
+			Symbol: ttSymbol,
+			Options: &proto.ChaincodeOptions{
+				DisableMultiSwaps: true,
+			},
+			RobotSKI: fixtures_test.RobotHashedCert,
+			Admin:    &proto.Wallet{Address: issuer.Address()},
+		},
+		Token: &proto.TokenConfig{
+			Name:     ttName,
+			Decimals: ttDecimals,
+			Issuer:   &proto.Wallet{Address: issuer.Address()},
+		},
 	}
-}`,
-		ttSymbol,
-		fixtures_test.RobotHashedCert,
-		issuer.Address(),
-		ttName,
-		ttDecimals,
-		issuer.Address(),
-	)
+	config, _ := protojson.Marshal(cfgEtl)
 
 	t.Run("Init new chaincode", func(t *testing.T) {
-		initMsg := ledgerMock.NewCC(testTokenCCName, &TestConfigToken{}, config)
+		initMsg := ledgerMock.NewCC(testTokenCCName, &TestConfigToken{}, string(config))
 		require.Empty(t, initMsg)
 	})
 
@@ -195,20 +179,16 @@ func TestDisabledFunctions(t *testing.T) {
 	user1 := ledgerMock.NewWallet()
 
 	tt1 := disabledFnContract{}
-	config1 := fmt.Sprintf(`
-{
-	"contract": {
-		"symbol": "%s",
-		"robotSKI": "%s",
-		"admin": {"address":"%s"}
+	cfgEtl := &proto.Config{
+		Contract: &proto.ContractConfig{
+			Symbol:   "TT1",
+			RobotSKI: fixtures_test.RobotHashedCert,
+			Admin:    &proto.Wallet{Address: fixtures_test.AdminAddr},
+		},
 	}
-}`,
-		"TT1",
-		fixtures_test.RobotHashedCert,
-		fixtures_test.AdminAddr,
-	)
+	config1, _ := protojson.Marshal(cfgEtl)
 	step(t, "Init new tt1 chaincode", false, func() {
-		message := ledgerMock.NewCC("tt1", &tt1, config1)
+		message := ledgerMock.NewCC("tt1", &tt1, string(config1))
 		require.Empty(t, message)
 	})
 
@@ -218,24 +198,20 @@ func TestDisabledFunctions(t *testing.T) {
 	})
 
 	tt2 := disabledFnContract{}
-	config2 := fmt.Sprintf(
-		`
-{
-	"contract": {
-		"robotSKI":"%s",
-		"symbol":"%s",
-		"admin":{"address":"%s"},
-		"options":{
-			"disabled_functions": ["TxTestFunction"]
-		}
+	cfgEtl = &proto.Config{
+		Contract: &proto.ContractConfig{
+			Symbol: "TT2",
+			Options: &proto.ChaincodeOptions{
+				DisabledFunctions: []string{"TxTestFunction"},
+			},
+			RobotSKI: fixtures_test.RobotHashedCert,
+			Admin:    &proto.Wallet{Address: fixtures_test.AdminAddr},
+		},
 	}
-}`,
-		fixtures_test.RobotHashedCert,
-		"TT2",
-		fixtures_test.AdminAddr,
-	)
+	config2, _ := protojson.Marshal(cfgEtl)
+
 	step(t, "Init new tt2 chaincode", false, func() {
-		message := ledgerMock.NewCC("tt2", &tt2, config2)
+		message := ledgerMock.NewCC("tt2", &tt2, string(config2))
 		require.Empty(t, message, message)
 	})
 

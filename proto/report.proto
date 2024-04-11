@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package proto;
 
-option go_package = "./;proto";
+option go_package = "github.com/anoideaopen/foundation/proto";
 
 message Report {
   bytes fee_public_key = 1;

@@ -20,6 +20,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/sha3"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 // OnMultiSwapDoneEvent is a multi-swap done callback.
@@ -172,9 +173,9 @@ func TestAtomicMultiSwapMoveToken(t *testing.T) { //nolint:gocognit
 		ch := swap.To
 		stub := w.Ledger().GetStub(ch)
 		stub.SetCreator(cert)
-		w.Invoke(ch, "batchExecute", string(data))
+		w.Invoke(ch, core.BatchExecute, string(data))
 		e := <-stub.ChaincodeEventsChannel
-		if e.EventName == "batchExecute" {
+		if e.EventName == core.BatchExecute {
 			events := &proto.BatchEvent{}
 			err = pb.Unmarshal(e.Payload, events)
 			if err != nil {
@@ -256,9 +257,9 @@ func TestAtomicMultiSwapMoveToken(t *testing.T) { //nolint:gocognit
 		ch := swap.From
 		stub := w.Ledger().GetStub(ch)
 		stub.SetCreator(cert)
-		w.Invoke(ch, "batchExecute", string(data))
+		w.Invoke(ch, core.BatchExecute, string(data))
 		e := <-stub.ChaincodeEventsChannel
-		if e.EventName == "batchExecute" {
+		if e.EventName == core.BatchExecute {
 			events := &proto.BatchEvent{}
 			err = pb.Unmarshal(e.Payload, events)
 			if err != nil {
@@ -438,7 +439,7 @@ func TestAtomicMultiSwapDisableMultiSwaps(t *testing.T) {
 			Issuer:   &proto.Wallet{Address: issuer.Address()},
 		},
 	}
-	cfgBytes, err := json.Marshal(cfg)
+	cfgBytes, err := protojson.Marshal(cfg)
 	require.NoError(t, err)
 
 	initMsg := ledger.NewCC(baCC, &token.BaseToken{}, string(cfgBytes))

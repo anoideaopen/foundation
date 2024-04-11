@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 func TestByCustomerForwardSuccess(t *testing.T) {
@@ -658,7 +659,7 @@ func TestFailForwardByAdmin(t *testing.T) {
 		},
 	}
 
-	cfgBytes, err := json.Marshal(&cfg)
+	cfgBytes, err := protojson.Marshal(&cfg)
 	require.NoError(t, err)
 
 	initMsg := ledger.NewCC("cc", &token.BaseToken{}, string(cfgBytes))
@@ -666,7 +667,7 @@ func TestFailForwardByAdmin(t *testing.T) {
 
 	// unset admin and overwrite config data
 	cfg.Contract.Admin = nil
-	cfgBytes, err = json.Marshal(&cfg)
+	cfgBytes, err = protojson.Marshal(&cfg)
 	require.NoError(t, err)
 	ledger.GetStub("cc").State["__config"] = cfgBytes
 

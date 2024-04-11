@@ -7,11 +7,12 @@ import (
 
 	"github.com/anoideaopen/foundation/core"
 	"github.com/anoideaopen/foundation/mock"
+	"github.com/anoideaopen/foundation/proto"
 	"github.com/anoideaopen/foundation/test/unit/fixtures_test"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/types/known/anypb"
 )
-
-//go:generate protoc -I=. -I=../../proto/ --go_out=. --validate_out=lang=go:. ext_config.proto
 
 // TestConfigToken chaincode with extended TokenConfig fields
 type TestExtConfigToken struct {
@@ -25,10 +26,19 @@ func (tect *TestExtConfigToken) GetID() string {
 }
 
 func (tect *TestExtConfigToken) ValidateExtConfig(config []byte) error {
-	var ec ExtConfig
+	var (
+		ec      ExtConfig
+		cfgFull proto.Config
+	)
 
-	if err := json.Unmarshal(config, &ec); err != nil {
-		return fmt.Errorf("unmarshalling ext config: %w", err)
+	if err := protojson.Unmarshal(config, &cfgFull); err != nil {
+		return fmt.Errorf("unmarshalling config: %w", err)
+	}
+
+	if cfgFull.ExtConfig.MessageIs(&ec) {
+		if err := cfgFull.ExtConfig.UnmarshalTo(&ec); err != nil {
+			return fmt.Errorf("unmarshalling ext config: %w", err)
+		}
 	}
 
 	if err := ec.Validate(); err != nil {
@@ -39,9 +49,19 @@ func (tect *TestExtConfigToken) ValidateExtConfig(config []byte) error {
 }
 
 func (tect *TestExtConfigToken) ApplyExtConfig(cfgBytes []byte) error {
-	var extConfig ExtConfig
-	if err := json.Unmarshal(cfgBytes, &extConfig); err != nil {
-		return err
+	var (
+		extConfig ExtConfig
+		cfgFull   proto.Config
+	)
+
+	if err := protojson.Unmarshal(cfgBytes, &cfgFull); err != nil {
+		return fmt.Errorf("unmarshalling config: %w", err)
+	}
+
+	if cfgFull.ExtConfig.MessageIs(&extConfig) {
+		if err := cfgFull.ExtConfig.UnmarshalTo(&extConfig); err != nil {
+			return fmt.Errorf("unmarshalling ext config: %w", err)
+		}
 	}
 
 	tect.Asset = extConfig.Asset
@@ -66,29 +86,24 @@ func TestInitWithExtConfig(t *testing.T) {
 
 	asset, amount := "SOME_ASSET", "42"
 
-	config := fmt.Sprintf(
-		`
-{
-	"contract": {
-		"symbol":"%s",
-		"robotSKI":"%s",
-		"admin":{"address":"%s"}
-	},
-	"asset":"%s",
-	"amount":"%s",
-	"issuer":{"address":"%s"}
-}`,
-		"EXTCC",
-		fixtures_test.RobotHashedCert,
-		issuer.Address(),
-		asset,
-		amount,
-		issuer.Address(),
-	)
+	extCfgEtl := &ExtConfig{
+		Asset:  asset,
+		Amount: amount,
+		Issuer: &proto.Wallet{Address: issuer.Address()},
+	}
+	cfgEtl := &proto.Config{
+		Contract: &proto.ContractConfig{
+			Symbol:   "EXTCC",
+			RobotSKI: fixtures_test.RobotHashedCert,
+			Admin:    &proto.Wallet{Address: issuer.Address()},
+		},
+	}
+	cfgEtl.ExtConfig, _ = anypb.New(extCfgEtl)
+	config, _ := protojson.Marshal(cfgEtl)
 
 	tt := TestExtConfigToken{}
 	step(t, "Init new chaincode", false, func() {
-		initMsg := ledgerMock.NewCC(testTokenCCName, &tt, config)
+		initMsg := ledgerMock.NewCC(testTokenCCName, &tt, string(config))
 		require.Empty(t, initMsg)
 	})
 

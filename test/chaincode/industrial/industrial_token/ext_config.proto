@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package industrialtoken;
+
+import "config.proto";
+import "validate/validate.proto";
+
+option go_package = "github.com/anoideaopen/foundation/test/chaincode/industrial/industrialtoken";
+
+message ExtConfig {
+  string name = 1 [(validate.rules).string.min_len = 1];
+  uint32 decimals = 2 [(validate.rules).uint32.gt = 0];
+  string underlying_asset = 3;
+  string delivery_form = 4;
+  string unit_of_measure = 5;
+  string tokens_for_unit = 6;
+  string payment_terms = 7;
+  string price = 8;
+
+  proto.Wallet issuer = 9 [(validate.rules).message.required = true];
+  proto.Wallet fee_setter = 10 [(validate.rules).message.required = true];
+  proto.Wallet fee_address_setter = 11 [(validate.rules).message.required = true];
+}

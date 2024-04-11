@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/anoideaopen/foundation/core"
 	"github.com/anoideaopen/foundation/core/balance"
 	"github.com/anoideaopen/foundation/core/gost"
 	"github.com/anoideaopen/foundation/core/types"
@@ -77,7 +78,6 @@ MOS4WBh87DbsJjI8gIuXPGXwoFXDQQhc2gz0AiAz9jt95z3MKnwj0dWPhjnzAGP8
 
 const (
 	shouldNotBeHereMsg = "shouldn't be here"
-	batchFn            = "batchExecute"
 )
 
 // Wallet is a wallet
@@ -286,12 +286,12 @@ func (w *Wallet) BatchedInvoke(ch, fn string, args ...string) (string, TxRespons
 	cert, err := hex.DecodeString(batchRobotCert)
 	assert.NoError(w.ledger.t, err)
 	w.ledger.stubs[ch].SetCreator(cert)
-	res := w.Invoke(ch, batchFn, string(data))
+	res := w.Invoke(ch, core.BatchExecute, string(data))
 	out := &proto.BatchResponse{}
 	assert.NoError(w.ledger.t, pb.Unmarshal([]byte(res), out))
 
 	e := <-w.ledger.stubs[ch].ChaincodeEventsChannel
-	if e.EventName == batchExecute {
+	if e.EventName == core.BatchExecute {
 		events := &proto.BatchEvent{}
 		assert.NoError(w.ledger.t, pb.Unmarshal(e.Payload, events))
 		for _, ev := range events.Events {
@@ -397,7 +397,7 @@ func (w *Wallet) DoBatch(ch string, txID ...string) BatchTxResponse {
 	cert, err := hex.DecodeString(batchRobotCert)
 	assert.NoError(w.ledger.t, err)
 	w.ledger.stubs[ch].SetCreator(cert)
-	res := w.Invoke(ch, batchFn, string(data))
+	res := w.Invoke(ch, core.BatchExecute, string(data))
 	out := &proto.BatchResponse{}
 	assert.NoError(w.ledger.t, pb.Unmarshal([]byte(res), out))
 
@@ -458,12 +458,12 @@ func (w *Wallet) RawSignedMultiSwapInvoke(ch, fn string, args ...string) (string
 	cert, err = hex.DecodeString(batchRobotCert)
 	assert.NoError(w.ledger.t, err)
 	w.ledger.stubs[ch].SetCreator(cert)
-	res := w.Invoke(ch, batchFn, string(data))
+	res := w.Invoke(ch, core.BatchExecute, string(data))
 	out := &proto.BatchResponse{}
 	assert.NoError(w.ledger.t, pb.Unmarshal([]byte(res), out))
 
 	e := <-w.ledger.stubs[ch].ChaincodeEventsChannel
-	if e.EventName == batchFn {
+	if e.EventName == core.BatchExecute {
 		events := &proto.BatchEvent{}
 		assert.NoError(w.ledger.t, pb.Unmarshal(e.Payload, events))
 		for _, ev := range events.Events {
@@ -518,7 +518,7 @@ func (w *Wallet) RawSignedInvokeWithErrorReturned(ch, fn string, args ...string)
 		return err
 	}
 	w.ledger.stubs[ch].SetCreator(cert)
-	res := w.Invoke(ch, batchFn, string(data))
+	res := w.Invoke(ch, core.BatchExecute, string(data))
 	out := &proto.BatchResponse{}
 	err = pb.Unmarshal([]byte(res), out)
 	if err != nil {
@@ -526,7 +526,7 @@ func (w *Wallet) RawSignedInvokeWithErrorReturned(ch, fn string, args ...string)
 	}
 
 	e := <-w.ledger.stubs[ch].ChaincodeEventsChannel
-	if e.EventName == batchFn {
+	if e.EventName == core.BatchExecute {
 		events := &proto.BatchEvent{}
 		err = pb.Unmarshal(e.Payload, events)
 		if err != nil {
@@ -587,7 +587,7 @@ func (w *Wallet) RawChTransferInvokeWithBatch(ch string, fn string, args ...stri
 		return "", TxResponse{}, err
 	}
 	w.ledger.stubs[ch].SetCreator(cert)
-	res := w.Invoke(ch, batchFn, string(data))
+	res := w.Invoke(ch, core.BatchExecute, string(data))
 	out := &proto.BatchResponse{}
 	err = pb.Unmarshal([]byte(res), out)
 	if err != nil {
@@ -595,7 +595,7 @@ func (w *Wallet) RawChTransferInvokeWithBatch(ch string, fn string, args ...stri
 	}
 
 	e := <-w.ledger.stubs[ch].ChaincodeEventsChannel
-	if e.EventName == batchFn {
+	if e.EventName == core.BatchExecute {
 		events := &proto.BatchEvent{}
 		err = pb.Unmarshal(e.Payload, events)
 		if err != nil {
@@ -647,7 +647,7 @@ func (w *Wallet) SignedInvoke(ch string, fn string, args ...string) string {
 		cert, err := hex.DecodeString(batchRobotCert)
 		assert.NoError(w.ledger.t, err)
 		w.ledger.stubs[strings.ToLower(swap.To)].SetCreator(cert)
-		w.Invoke(strings.ToLower(swap.To), batchFn, string(data))
+		w.Invoke(strings.ToLower(swap.To), core.BatchExecute, string(data))
 	}
 	return txID
 }
@@ -677,7 +677,7 @@ func (w *Wallet) SignedMultiSwapsInvoke(ch string, fn string, args ...string) st
 		cert, err := hex.DecodeString(batchRobotCert)
 		assert.NoError(w.ledger.t, err)
 		w.ledger.stubs[swap.To].SetCreator(cert)
-		w.Invoke(swap.To, batchFn, string(data))
+		w.Invoke(swap.To, core.BatchExecute, string(data))
 	}
 	return txID
 }

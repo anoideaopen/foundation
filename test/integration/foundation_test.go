@@ -5,18 +5,22 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
 
-	"github.com/hyperledger/fabric/integration/nwo/fabricconfig"
-
+	pb "github.com/anoideaopen/foundation/proto"
+	industrialtoken "github.com/anoideaopen/foundation/test/chaincode/industrial/industrial_token"
+	"github.com/anoideaopen/foundation/test/integration/cmn"
+	"github.com/btcsuite/btcutil/base58"
 	docker "github.com/fsouza/go-dockerclient"
 	"github.com/golang/protobuf/proto"
 	"github.com/hyperledger/fabric-protos-go/common"
 	"github.com/hyperledger/fabric/integration/channelparticipation"
 	"github.com/hyperledger/fabric/integration/nwo"
 	"github.com/hyperledger/fabric/integration/nwo/commands"
+	"github.com/hyperledger/fabric/integration/nwo/fabricconfig"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gbytes"
@@ -24,6 +28,10 @@ import (
 	"github.com/tedsuo/ifrit"
 	ginkgomon "github.com/tedsuo/ifrit/ginkgomon_v2"
 	"github.com/tedsuo/ifrit/grouper"
+	"golang.org/x/crypto/ed25519"
+	"golang.org/x/crypto/sha3"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/types/known/anypb"
 )
 
 var _ = Describe("Foundation Tests", func() {
@@ -67,7 +75,7 @@ var _ = Describe("Foundation Tests", func() {
 		os.RemoveAll(testDir)
 	})
 
-	Describe("foundation work", func() {
+	Describe("smartbft standart test", func() {
 		It("smartbft multiple nodes stop start all nodes", func() {
 			networkConfig := nwo.MultiNodeSmartBFT()
 			networkConfig.Channels = nil
@@ -152,6 +160,213 @@ var _ = Describe("Foundation Tests", func() {
 
 			By("invoking the chaincode, again")
 			invokeQuery(network, peer, network.Orderers[2], channel, 80)
+		})
+	})
+
+	Describe("foundation test", func() {
+		var (
+			channels       = []string{"acl", "cc", "fiat", "industrial"}
+			ordererRunners []*ginkgomon.Runner
+		)
+		BeforeEach(func() {
+			networkConfig := nwo.MultiNodeSmartBFT()
+			networkConfig.Channels = nil
+
+			pchs := make([]*nwo.PeerChannel, 0, cap(channels))
+			for _, ch := range channels {
+				pchs = append(pchs, &nwo.PeerChannel{
+					Name:   ch,
+					Anchor: true,
+				})
+			}
+			for _, peer := range networkConfig.Peers {
+				peer.Channels = pchs
+			}
+
+			network = nwo.New(networkConfig, testDir, client, StartPort(), components)
+			cwd, err := os.Getwd()
+			Expect(err).NotTo(HaveOccurred())
+			network.ExternalBuilders = append(network.ExternalBuilders,
+				fabricconfig.ExternalBuilder{
+					Path:                 filepath.Join(cwd, ".", "externalbuilders", "binary"),
+					Name:                 "binary",
+					PropagateEnvironment: []string{"GOPROXY"},
+				},
+			)
+
+			network.GenerateConfigTree()
+			network.Bootstrap()
+
+			for _, orderer := range network.Orderers {
+				runner := network.OrdererRunner(orderer)
+				runner.Command.Env = append(runner.Command.Env, "FABRIC_LOGGING_SPEC=orderer.consensus.smartbft=debug:grpc=debug")
+				ordererRunners = append(ordererRunners, runner)
+				proc := ifrit.Invoke(runner)
+				ordererProcesses = append(ordererProcesses, proc)
+				Eventually(proc.Ready(), network.EventuallyTimeout).Should(BeClosed())
+			}
+
+			peerGroupRunner, _ := peerGroupRunners(network)
+			peerProcesses = ifrit.Invoke(peerGroupRunner)
+			Eventually(peerProcesses.Ready(), network.EventuallyTimeout).Should(BeClosed())
+
+			By("Joining orderers to channels")
+			for _, channel := range channels {
+				joinChannel(network, channel)
+			}
+
+			By("Waiting for followers to see the leader")
+			Eventually(ordererRunners[1].Err(), network.EventuallyTimeout, time.Second).Should(gbytes.Say("Message from 1"))
+			Eventually(ordererRunners[2].Err(), network.EventuallyTimeout, time.Second).Should(gbytes.Say("Message from 1"))
+			Eventually(ordererRunners[3].Err(), network.EventuallyTimeout, time.Second).Should(gbytes.Say("Message from 1"))
+
+			By("Joining peers to channels")
+			for _, channel := range channels {
+				network.JoinChannel(channel, network.Orderers[0], network.PeersWithChannel(channel)...)
+			}
+		})
+
+		It("deploy acl cc fiat industrial and query", func() {
+			By("Deploying chaincode")
+			peer := network.Peer("Org1", "peer0")
+
+			pathToPrivateKeyBackend := network.PeerUserKey(peer, "User1")
+			skiBackend, err := cmn.ReadSKI(pathToPrivateKeyBackend)
+			Expect(err).NotTo(HaveOccurred())
+
+			pathToPrivateKeyRobot := network.PeerUserKey(peer, "User2")
+			skiRobot, err := cmn.ReadSKI(pathToPrivateKeyRobot)
+			Expect(err).NotTo(HaveOccurred())
+
+			validators, err := cmn.NewSecrets(1)
+			Expect(err).NotTo(HaveOccurred())
+			adminPriv := validators[0]
+			adminPub := adminPriv.Public().(ed25519.PublicKey)
+			adminHash := sha3.Sum256(adminPub)
+			adminAddr := base58.CheckEncode(adminHash[1:], adminHash[0])
+
+			By("Deploying chaincode acl")
+			ctorAcl := fmt.Sprintf(
+				`{"Args":["%s","%d","%s"]}`, skiBackend, 1,
+				base58.Encode(validators[0].Public().(ed25519.PublicKey)),
+			)
+			cmn.DeployChaincodeACL(network, components, ctorAcl, testDir)
+
+			By("querying the chaincode from acl")
+			sess, err := network.PeerUserSession(peer, "User1", commands.ChaincodeQuery{
+				ChannelID: "acl",
+				Name:      "acl",
+				Ctor:      `{"Args":["getAddresses", "10", ""]}`,
+			})
+			Expect(err).NotTo(HaveOccurred())
+			Eventually(sess, network.EventuallyTimeout).Should(gexec.Exit(0))
+			Eventually(sess, network.EventuallyTimeout).Should(gbytes.Say(`{"Addrs":null,"Bookmark":""}`))
+
+			By("Deploying chaincode cc")
+			cfgCC := &pb.Config{
+				Contract: &pb.ContractConfig{Symbol: "CC", RobotSKI: skiRobot,
+					Admin: &pb.Wallet{Address: adminAddr}},
+				Token: &pb.TokenConfig{Name: "Currency Coin", Decimals: 8,
+					UnderlyingAsset: "US Dollars", Issuer: &pb.Wallet{Address: adminAddr}},
+			}
+			cfgBytesCC, err := protojson.Marshal(cfgCC)
+			Expect(err).NotTo(HaveOccurred())
+			ctorCC := fmt.Sprintf(`{"Args":[%s]}`, strconv.Quote(string(cfgBytesCC)))
+			cmn.DeployChaincodeFoundation(network, "cc", components,
+				"github.com/anoideaopen/foundation/test/chaincode/cc", ctorCC, testDir)
+
+			By("querying the chaincode from cc")
+			sess, err = network.PeerUserSession(peer, "User1", commands.ChaincodeQuery{
+				ChannelID: "cc",
+				Name:      "cc",
+				Ctor:      `{"Args":["metadata"]}`,
+			})
+			Expect(err).NotTo(HaveOccurred())
+			Eventually(sess, network.EventuallyTimeout).Should(gexec.Exit(0))
+			Eventually(sess, network.EventuallyTimeout).Should(gbytes.Say(`{"name":"Currency Coin","symbol":"CC","decimals":8,"underlying_asset":"US Dollars"`))
+
+			By("Deploying chaincode fiat")
+			feeUsers, err := cmn.NewSecrets(2)
+			feeSetPriv := feeUsers[0]
+			feeSetPub := feeSetPriv.Public().(ed25519.PublicKey)
+			feeSetHash := sha3.Sum256(feeSetPub)
+			feeSetAddr := base58.CheckEncode(feeSetHash[1:], feeSetHash[0])
+			feeAdrPriv := feeUsers[1]
+			feeAdrPub := feeAdrPriv.Public().(ed25519.PublicKey)
+			feeAdrHash := sha3.Sum256(feeAdrPub)
+			feeAdrAddr := base58.CheckEncode(feeAdrHash[1:], feeAdrHash[0])
+			cfgFiat := &pb.Config{
+				Contract: &pb.ContractConfig{
+					Symbol:   "FIAT",
+					RobotSKI: skiRobot,
+					Admin:    &pb.Wallet{Address: adminAddr},
+					Options: &pb.ChaincodeOptions{
+						DisabledFunctions: []string{"TxBuyToken", "TxBuyBack"},
+					},
+				},
+				Token: &pb.TokenConfig{
+					Name:             "FIAT",
+					Decimals:         8,
+					UnderlyingAsset:  "US Dollars",
+					Issuer:           &pb.Wallet{Address: adminAddr},
+					FeeSetter:        &pb.Wallet{Address: feeSetAddr},
+					FeeAddressSetter: &pb.Wallet{Address: feeAdrAddr},
+				},
+			}
+			cfgBytesFiat, err := protojson.Marshal(cfgFiat)
+			Expect(err).NotTo(HaveOccurred())
+			ctorFiat := fmt.Sprintf(`{"Args":[%s]}`, strconv.Quote(string(cfgBytesFiat)))
+			cmn.DeployChaincodeFoundation(network, "fiat", components,
+				"github.com/anoideaopen/foundation/test/chaincode/fiat", ctorFiat, testDir)
+
+			By("querying the chaincode from fiat")
+			sess, err = network.PeerUserSession(peer, "User1", commands.ChaincodeQuery{
+				ChannelID: "fiat",
+				Name:      "fiat",
+				Ctor:      `{"Args":["metadata"]}`,
+			})
+			Expect(err).NotTo(HaveOccurred())
+			Eventually(sess, network.EventuallyTimeout).Should(gexec.Exit(0))
+			Eventually(sess, network.EventuallyTimeout).Should(gbytes.Say(`{"name":"FIAT","symbol":"FIAT","decimals":8,"underlying_asset":"US Dollars"`))
+
+			extCfg := industrialtoken.ExtConfig{
+				Name:             "Industrial token",
+				Decimals:         8,
+				UnderlyingAsset:  "TEST_UnderlyingAsset",
+				DeliveryForm:     "TEST_DeliveryForm",
+				UnitOfMeasure:    "TEST_IT",
+				TokensForUnit:    "1",
+				PaymentTerms:     "Non-prepaid",
+				Price:            "Floating",
+				Issuer:           &pb.Wallet{Address: adminAddr},
+				FeeSetter:        &pb.Wallet{Address: feeSetAddr},
+				FeeAddressSetter: &pb.Wallet{Address: feeAdrAddr},
+			}
+			cfgIndustrial := &pb.Config{
+				Contract: &pb.ContractConfig{
+					Symbol:   "INDUSTRIAL",
+					RobotSKI: skiRobot,
+					Admin:    &pb.Wallet{Address: adminAddr},
+				},
+			}
+			cfgIndustrial.ExtConfig, _ = anypb.New(&extCfg)
+
+			cfgBytesIndustrial, err := protojson.Marshal(cfgIndustrial)
+			Expect(err).NotTo(HaveOccurred())
+			ctorIndustrial := fmt.Sprintf(`{"Args":[%s]}`, strconv.Quote(string(cfgBytesIndustrial)))
+			By("Deploying chaincode industrial")
+			cmn.DeployChaincodeFoundation(network, "industrial", components,
+				"github.com/anoideaopen/foundation/test/chaincode/industrial", ctorIndustrial, testDir)
+
+			By("querying the chaincode from industrial")
+			sess, err = network.PeerUserSession(peer, "User1", commands.ChaincodeQuery{
+				ChannelID: "industrial",
+				Name:      "industrial",
+				Ctor:      `{"Args":["metadata"]}`,
+			})
+			Expect(err).NotTo(HaveOccurred())
+			Eventually(sess, network.EventuallyTimeout).Should(gexec.Exit(0))
+			Eventually(sess, network.EventuallyTimeout).Should(gbytes.Say(`{"name":"Industrial token","symbol":"INDUSTRIAL","decimals":8,"underlying_asset":"TEST_UnderlyingAsset"`))
 		})
 	})
 })
