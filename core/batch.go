@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/anoideaopen/foundation/core/cachestub"
+	"github.com/anoideaopen/foundation/core/multiswap"
+	"github.com/anoideaopen/foundation/core/swap"
 	"github.com/anoideaopen/foundation/core/telemetry"
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/internal/config"
@@ -20,6 +22,8 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/propagation"
 )
+
+const robotSideTimeout = 300 // 5 minutes
 
 func (cc *ChainCode) saveToBatch(
 	traceCtx telemetry.TraceContext,
@@ -179,21 +183,21 @@ func (cc *ChainCode) batchExecute(
 
 	if !cc.contract.ContractConfig().Options.DisableSwaps {
 		span.AddEvent("handle swaps")
-		for _, swap := range batch.Swaps {
-			response.SwapResponses = append(response.SwapResponses, swapAnswer(btchStub, swap))
+		for _, s := range batch.Swaps {
+			response.SwapResponses = append(response.SwapResponses, swap.SwapAnswer(btchStub, s, robotSideTimeout))
 		}
 		for _, swapKey := range batch.Keys {
-			response.SwapKeyResponses = append(response.SwapKeyResponses, swapRobotDone(btchStub, swapKey.Id, swapKey.Key))
+			response.SwapKeyResponses = append(response.SwapKeyResponses, swap.SwapRobotDone(btchStub, swapKey.Id, swapKey.Key))
 		}
 	}
 
 	if !cc.contract.ContractConfig().Options.DisableMultiSwaps {
 		span.AddEvent("handle multi-swaps")
-		for _, swap := range batch.MultiSwaps {
-			response.SwapResponses = append(response.SwapResponses, multiSwapAnswer(btchStub, swap))
+		for _, s := range batch.MultiSwaps {
+			response.SwapResponses = append(response.SwapResponses, multiswap.MultiSwapAnswer(btchStub, s, robotSideTimeout))
 		}
 		for _, swapKey := range batch.MultiSwapsKeys {
-			response.SwapKeyResponses = append(response.SwapKeyResponses, multiSwapRobotDone(btchStub, swapKey.Id, swapKey.Key))
+			response.SwapKeyResponses = append(response.SwapKeyResponses, multiswap.MultiSwapRobotDone(btchStub, swapKey.Id, swapKey.Key))
 		}
 	}
 

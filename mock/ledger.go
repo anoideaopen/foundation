@@ -17,6 +17,7 @@ import (
 
 	"github.com/anoideaopen/foundation/core"
 	"github.com/anoideaopen/foundation/core/cctransfer"
+	"github.com/anoideaopen/foundation/core/multiswap"
 	"github.com/anoideaopen/foundation/core/types/big"
 	"github.com/anoideaopen/foundation/internal/config"
 	"github.com/anoideaopen/foundation/mock/stub"
@@ -178,7 +179,7 @@ func (ledger *Ledger) WaitMultiSwapAnswer(name string, id string, timeout time.D
 	interval := time.Second / 2 //nolint:gomnd
 	ticker := time.NewTicker(interval)
 	count := timeout.Microseconds() / interval.Microseconds()
-	key, err := ledger.stubs[name].CreateCompositeKey(core.MultiSwapCompositeType, []string{id})
+	key, err := ledger.stubs[name].CreateCompositeKey(multiswap.MultiSwapCompositeType, []string{id})
 	assert.NoError(ledger.t, err)
 	for count > 0 {
 		count--

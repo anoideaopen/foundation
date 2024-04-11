@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"github.com/anoideaopen/foundation/core/balance"
+	"github.com/anoideaopen/foundation/core/multiswap"
+	"github.com/anoideaopen/foundation/core/swap"
 	"github.com/anoideaopen/foundation/core/telemetry"
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/hlfcreator"
@@ -703,7 +705,7 @@ func (cc *ChainCode) multiSwapDoneHandler(
 
 	_, contract := copyContractWithConfig(traceCtx, cc.contract, stub, cfgBytes)
 
-	return multiSwapUserDone(contract, args[0], args[1])
+	return multiswap.MultiSwapUserDone(contract, args[0], args[1])
 }
 
 // swapDoneHandler processes a request to mark a swap as done.
@@ -725,7 +727,7 @@ func (cc *ChainCode) swapDoneHandler(
 
 	_, contract := copyContractWithConfig(traceCtx, cc.contract, stub, cfgBytes)
 
-	return swapUserDone(contract, args[0], args[1])
+	return swap.SwapUserDone(contract, args[0], args[1])
 }
 
 // batchExecuteHandler is responsible for executing a batch of transactions.
