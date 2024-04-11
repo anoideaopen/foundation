@@ -242,7 +242,7 @@ type TxResponse struct {
 
 func (cc *ChainCode) batchedTxExecute(
 	traceCtx telemetry.TraceContext,
-	stub *cachestub.BatchWriteCache,
+	stub *cachestub.BatchCacheStub,
 	binaryTxID []byte,
 	cfgBytes []byte,
 ) (r *proto.TxResponse, e *proto.BatchTxEvent) {
