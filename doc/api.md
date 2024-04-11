@@ -1,4 +1,3 @@
-
 # API
 
 Description of API functions and examples of their usage
