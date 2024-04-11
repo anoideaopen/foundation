@@ -4,8 +4,8 @@ go 1.18
 
 require (
 	github.com/IBM/idemix v0.0.2-0.20231011101252-a4feda90f3f7
-	github.com/anoideaopen/acl v0.0.0-20240408094809-6c12e32b450f
-	github.com/anoideaopen/foundation v0.0.0-20240408064907-19c346547189
+	github.com/anoideaopen/acl v0.0.0-20240411072458-5618bcde7ec8
+	github.com/anoideaopen/foundation v0.0.0-20240411055802-53b67be060ea
 	github.com/btcsuite/btcutil v1.0.3-0.20201208143702-a53e38424cce
 	github.com/fsouza/go-dockerclient v1.10.0
 	github.com/golang/protobuf v1.5.3
