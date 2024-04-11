@@ -5,22 +5,22 @@ import (
 	"github.com/hyperledger/fabric-chaincode-go/shim"
 )
 
-type BatchCacheStub struct {
+type BatchWriteCache struct {
 	shim.ChaincodeStubInterface
 	batchCache map[string]*proto.WriteElement
 	Swaps      []*proto.Swap
 	MultiSwaps []*proto.MultiSwap
 }
 
-func NewBatchCacheStub(stub shim.ChaincodeStubInterface) *BatchCacheStub {
-	return &BatchCacheStub{
+func NewBatchCacheStub(stub shim.ChaincodeStubInterface) *BatchWriteCache {
+	return &BatchWriteCache{
 		ChaincodeStubInterface: stub,
 		batchCache:             make(map[string]*proto.WriteElement),
 	}
 }
 
-// GetState returns state from BatchCacheStub cache or, if absent, from chaincode state
-func (bs *BatchCacheStub) GetState(key string) ([]byte, error) {
+// GetState returns state from BatchWriteCache cache or, if absent, from chaincode state
+func (bs *BatchWriteCache) GetState(key string) ([]byte, error) {
 	existsElement, ok := bs.batchCache[key]
 	if ok {
 		return existsElement.Value, nil
@@ -28,14 +28,14 @@ func (bs *BatchCacheStub) GetState(key string) ([]byte, error) {
 	return bs.ChaincodeStubInterface.GetState(key)
 }
 
-// PutState puts state to a BatchCacheStub cache
-func (bs *BatchCacheStub) PutState(key string, value []byte) error {
+// PutState puts state to a BatchWriteCache cache
+func (bs *BatchWriteCache) PutState(key string, value []byte) error {
 	bs.batchCache[key] = &proto.WriteElement{Key: key, Value: value}
 	return nil
 }
 
-// Commit puts state from a BatchCacheStub cache to the chaincode state
-func (bs *BatchCacheStub) Commit() error {
+// Commit puts state from a BatchWriteCache cache to the chaincode state
+func (bs *BatchWriteCache) Commit() error {
 	for key, element := range bs.batchCache {
 		if element.IsDeleted {
 			if err := bs.ChaincodeStubInterface.DelState(key); err != nil {
@@ -50,8 +50,8 @@ func (bs *BatchCacheStub) Commit() error {
 	return nil
 }
 
-// DelState - marks state in BatchCacheStub cache as deleted
-func (bs *BatchCacheStub) DelState(key string) error {
+// DelState - marks state in BatchWriteCache cache as deleted
+func (bs *BatchWriteCache) DelState(key string) error {
 	bs.batchCache[key] = &proto.WriteElement{Key: key, IsDeleted: true}
 	return nil
 }

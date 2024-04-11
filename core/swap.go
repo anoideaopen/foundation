@@ -31,7 +31,7 @@ const (
 	robotSideTimeout = 300   // 5 minutes
 )
 
-func swapAnswer(stub *cachestub.BatchCacheStub, swap *proto.Swap) (r *proto.SwapResponse) {
+func swapAnswer(stub *cachestub.BatchWriteCache, swap *proto.Swap) (r *proto.SwapResponse) {
 	r = &proto.SwapResponse{Id: swap.Id, Error: &proto.ResponseError{Error: "panic swapAnswer"}}
 	defer func() {
 		if rc := recover(); rc != nil {
@@ -66,7 +66,7 @@ func swapAnswer(stub *cachestub.BatchCacheStub, swap *proto.Swap) (r *proto.Swap
 	return &proto.SwapResponse{Id: swap.Id, Writes: writes}
 }
 
-func swapRobotDone(stub *cachestub.BatchCacheStub, swapID []byte, key string) (r *proto.SwapResponse) {
+func swapRobotDone(stub *cachestub.BatchWriteCache, swapID []byte, key string) (r *proto.SwapResponse) {
 	r = &proto.SwapResponse{Id: swapID, Error: &proto.ResponseError{Error: "panic swapRobotDone"}}
 	defer func() {
 		if rc := recover(); rc != nil {
@@ -204,7 +204,7 @@ func (bc *BaseContract) TxSwapBegin(
 		return "", err
 	}
 
-	if btchTxStub, ok := bc.stub.(*cachestub.TxCacheStub); ok {
+	if btchTxStub, ok := bc.stub.(*cachestub.TxWriteCache); ok {
 		btchTxStub.Swaps = append(btchTxStub.Swaps, &s)
 	}
 	return bc.GetStub().GetTxID(), nil

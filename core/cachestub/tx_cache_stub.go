@@ -8,50 +8,50 @@ import (
 	"github.com/anoideaopen/foundation/proto"
 )
 
-type TxCacheStub struct {
-	*BatchCacheStub
+type TxWriteCache struct {
+	*BatchWriteCache
 	txID       string
 	txCache    map[string]*proto.WriteElement
 	events     map[string][]byte
 	Accounting []*proto.AccountingRecord
 }
 
-func (bs *BatchCacheStub) NewTxCacheStub(txID string) *TxCacheStub {
-	return &TxCacheStub{
-		BatchCacheStub: bs,
-		txID:           txID,
-		txCache:        make(map[string]*proto.WriteElement),
-		events:         make(map[string][]byte),
+func (bs *BatchWriteCache) NewTxCacheStub(txID string) *TxWriteCache {
+	return &TxWriteCache{
+		BatchWriteCache: bs,
+		txID:            txID,
+		txCache:         make(map[string]*proto.WriteElement),
+		events:          make(map[string][]byte),
 	}
 }
 
-// GetTxID returns TxCacheStub transaction ID
-func (bts *TxCacheStub) GetTxID() string {
+// GetTxID returns TxWriteCache transaction ID
+func (bts *TxWriteCache) GetTxID() string {
 	return bts.txID
 }
 
-// GetState returns state from TxCacheStub cache or, if absent, from batchState cache
-func (bts *TxCacheStub) GetState(key string) ([]byte, error) {
+// GetState returns state from TxWriteCache cache or, if absent, from batchState cache
+func (bts *TxWriteCache) GetState(key string) ([]byte, error) {
 	existsElement, ok := bts.txCache[key]
 	if ok {
 		return existsElement.Value, nil
 	}
-	return bts.BatchCacheStub.GetState(key)
+	return bts.BatchWriteCache.GetState(key)
 }
 
-// PutState puts state to the TxCacheStub's cache
-func (bts *TxCacheStub) PutState(key string, value []byte) error {
+// PutState puts state to the TxWriteCache's cache
+func (bts *TxWriteCache) PutState(key string, value []byte) error {
 	bts.txCache[key] = &proto.WriteElement{Value: value}
 	return nil
 }
 
-// SetEvent sets payload to a TxCacheStub events
-func (bts *TxCacheStub) SetEvent(name string, payload []byte) error {
+// SetEvent sets payload to a TxWriteCache events
+func (bts *TxWriteCache) SetEvent(name string, payload []byte) error {
 	bts.events[name] = payload
 	return nil
 }
 
-func (bts *TxCacheStub) AddAccountingRecord(token string, from *types.Address, to *types.Address, amount *big.Int, reason string) {
+func (bts *TxWriteCache) AddAccountingRecord(token string, from *types.Address, to *types.Address, amount *big.Int, reason string) {
 	bts.Accounting = append(bts.Accounting, &proto.AccountingRecord{
 		Token:     token,
 		Sender:    from.Bytes(),
@@ -61,8 +61,8 @@ func (bts *TxCacheStub) AddAccountingRecord(token string, from *types.Address, t
 	})
 }
 
-// Commit puts state from a TxCacheStub cache to the BatchCacheStub cache
-func (bts *TxCacheStub) Commit() ([]*proto.WriteElement, []*proto.Event) {
+// Commit puts state from a TxWriteCache cache to the BatchWriteCache cache
+func (bts *TxWriteCache) Commit() ([]*proto.WriteElement, []*proto.Event) {
 	writeKeys := make([]string, 0, len(bts.txCache))
 	for k, v := range bts.txCache {
 		bts.batchCache[k] = v
@@ -93,8 +93,8 @@ func (bts *TxCacheStub) Commit() ([]*proto.WriteElement, []*proto.Event) {
 	return writes, events
 }
 
-// DelState marks state in TxCacheStub as deleted
-func (bts *TxCacheStub) DelState(key string) error {
+// DelState marks state in TxWriteCache as deleted
+func (bts *TxWriteCache) DelState(key string) error {
 	bts.txCache[key] = &proto.WriteElement{Key: key, IsDeleted: true}
 	return nil
 }

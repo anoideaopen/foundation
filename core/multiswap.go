@@ -28,7 +28,7 @@ const (
 	MultiSwapKeyEvent = "multi_swap_key"
 )
 
-func multiSwapAnswer(stub *cachestub.BatchCacheStub, swap *proto.MultiSwap) (r *proto.SwapResponse) {
+func multiSwapAnswer(stub *cachestub.BatchWriteCache, swap *proto.MultiSwap) (r *proto.SwapResponse) {
 	r = &proto.SwapResponse{Id: swap.Id, Error: &proto.ResponseError{Error: "panic multiSwapAnswer"}}
 	defer func() {
 		if rc := recover(); rc != nil {
@@ -65,7 +65,7 @@ func multiSwapAnswer(stub *cachestub.BatchCacheStub, swap *proto.MultiSwap) (r *
 	return &proto.SwapResponse{Id: swap.Id, Writes: writes}
 }
 
-func multiSwapRobotDone(stub *cachestub.BatchCacheStub, swapID []byte, key string) (r *proto.SwapResponse) {
+func multiSwapRobotDone(stub *cachestub.BatchWriteCache, swapID []byte, key string) (r *proto.SwapResponse) {
 	r = &proto.SwapResponse{Id: swapID, Error: &proto.ResponseError{Error: "panic multiSwapRobotDone"}}
 	defer func() {
 		if rc := recover(); rc != nil {
@@ -212,7 +212,7 @@ func (bc *BaseContract) TxMultiSwapBegin(sender *types.Sender, token string, mul
 		return "", err
 	}
 
-	if btchTxStub, ok := bc.stub.(*cachestub.TxCacheStub); ok {
+	if btchTxStub, ok := bc.stub.(*cachestub.TxWriteCache); ok {
 		btchTxStub.MultiSwaps = append(btchTxStub.MultiSwaps, &swap)
 	}
 	return bc.GetStub().GetTxID(), nil
