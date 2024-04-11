@@ -1,9 +1,9 @@
-package cache_stub_test
+package cachestub_test
 
 import (
 	"testing"
 
-	"github.com/anoideaopen/foundation/core/cache_stub"
+	"github.com/anoideaopen/foundation/core/cachestub"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -13,7 +13,7 @@ func TestTxStub(t *testing.T) {
 	_ = stub.PutState("KEY2", []byte("key2_value_1"))
 	_ = stub.PutState("KEY3", []byte("key3_value_1"))
 
-	btchStub := cache_stub.NewBatchCacheStub(stub)
+	btchStub := cachestub.NewBatchCacheStub(stub)
 
 	// transaction 1 changes value of key1 and deletes key2
 	t.Run("tx1", func(t *testing.T) {

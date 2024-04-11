@@ -1,4 +1,4 @@
-package cache_stub_test
+package cachestub_test
 
 import "github.com/hyperledger/fabric-chaincode-go/shimtest"
 

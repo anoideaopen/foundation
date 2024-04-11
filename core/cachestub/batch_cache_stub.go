@@ -1,4 +1,4 @@
-package cache_stub
+package cachestub
 
 import (
 	"github.com/anoideaopen/foundation/proto"

@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	"github.com/anoideaopen/foundation/core/balance"
-	"github.com/anoideaopen/foundation/core/cache_stub"
+	"github.com/anoideaopen/foundation/core/cachestub"
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/core/types/big"
 	"github.com/anoideaopen/foundation/proto"
@@ -28,7 +28,7 @@ const (
 	MultiSwapKeyEvent = "multi_swap_key"
 )
 
-func multiSwapAnswer(stub *cache_stub.BatchCacheStub, swap *proto.MultiSwap) (r *proto.SwapResponse) {
+func multiSwapAnswer(stub *cachestub.BatchCacheStub, swap *proto.MultiSwap) (r *proto.SwapResponse) {
 	r = &proto.SwapResponse{Id: swap.Id, Error: &proto.ResponseError{Error: "panic multiSwapAnswer"}}
 	defer func() {
 		if rc := recover(); rc != nil {
@@ -65,7 +65,7 @@ func multiSwapAnswer(stub *cache_stub.BatchCacheStub, swap *proto.MultiSwap) (r 
 	return &proto.SwapResponse{Id: swap.Id, Writes: writes}
 }
 
-func multiSwapRobotDone(stub *cache_stub.BatchCacheStub, swapID []byte, key string) (r *proto.SwapResponse) {
+func multiSwapRobotDone(stub *cachestub.BatchCacheStub, swapID []byte, key string) (r *proto.SwapResponse) {
 	r = &proto.SwapResponse{Id: swapID, Error: &proto.ResponseError{Error: "panic multiSwapRobotDone"}}
 	defer func() {
 		if rc := recover(); rc != nil {
@@ -212,7 +212,7 @@ func (bc *BaseContract) TxMultiSwapBegin(sender *types.Sender, token string, mul
 		return "", err
 	}
 
-	if btchTxStub, ok := bc.stub.(*cache_stub.TxCacheStub); ok {
+	if btchTxStub, ok := bc.stub.(*cachestub.TxCacheStub); ok {
 		btchTxStub.MultiSwaps = append(btchTxStub.MultiSwaps, &swap)
 	}
 	return bc.GetStub().GetTxID(), nil

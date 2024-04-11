@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/anoideaopen/foundation/core/cache_stub"
+	"github.com/anoideaopen/foundation/core/cachestub"
 	"github.com/anoideaopen/foundation/core/telemetry"
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/internal/config"
@@ -154,7 +154,7 @@ func (cc *ChainCode) batchExecute(
 	logger := Logger()
 	batchID := stub.GetTxID()
 	span.SetAttributes(attribute.String("batch_tx_id", batchID))
-	btchStub := cache_stub.NewBatchCacheStub(stub)
+	btchStub := cachestub.NewBatchCacheStub(stub)
 	start := time.Now()
 	defer func() {
 		logger.Infof("batch %s elapsed time %d ms", batchID, time.Since(start).Milliseconds())
@@ -242,7 +242,7 @@ type TxResponse struct {
 
 func (cc *ChainCode) batchedTxExecute(
 	traceCtx telemetry.TraceContext,
-	stub *cache_stub.BatchCacheStub,
+	stub *cachestub.BatchCacheStub,
 	binaryTxID []byte,
 	cfgBytes []byte,
 ) (r *proto.TxResponse, e *proto.BatchTxEvent) {
