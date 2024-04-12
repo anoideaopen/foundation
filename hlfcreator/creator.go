@@ -90,6 +90,7 @@ func CreatorSKIAndHashedCert(creator []byte) (creatorSKI [32]byte, hashedCert [3
 	// 	return creatorSKI, hashedCert, fmt.Errorf("public key transition failed: %w", err)
 	// }
 	// creatorSKI = sha256.Sum256(ecdhPk.Bytes())
+
 	creatorSKI = sha256.Sum256(elliptic.Marshal(pk.Curve, pk.X, pk.Y))
 	hashedCert = sha3.Sum256(creator)
 
