@@ -21,7 +21,7 @@ func PackToTransientMap(traceCarrier propagation.MapCarrier) (map[string][]byte,
 	return transientMap, nil
 }
 
-// GetCarriersFromTransientMap getting carriers from transient map values by keys 'tracing' or 'peer_trace_id'
+// GetCarriersFromTransientMap getting carriers from transient map values by keys 'tracing' or 'tracing_peer'
 func GetCarriersFromTransientMap(transientMap map[string][]byte) (propagation.MapCarrier, propagation.MapCarrier, error) {
 	var traceCarrier propagation.MapCarrier
 	var tracePeerCarrier propagation.MapCarrier
@@ -40,7 +40,6 @@ func GetCarriersFromTransientMap(transientMap map[string][]byte) (propagation.Ma
 			}
 			tracePeerCarrier = mc
 		}
-
 	}
 
 	return traceCarrier, tracePeerCarrier, nil
