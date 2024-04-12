@@ -2,6 +2,7 @@ package telemetry
 
 import (
 	"encoding/json"
+
 	"go.opentelemetry.io/otel/propagation"
 )
 
