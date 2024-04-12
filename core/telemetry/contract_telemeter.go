@@ -54,14 +54,15 @@ func (th *TracingHandler) ContextFromStub(stub shim.ChaincodeStubInterface) Trac
 		return traceCtx
 	}
 
-	carrier, err := UnpackTransientMap(transientMap)
+	traceCarrier, tracePeerCarrier, err := GetCarriersFromTransientMap(transientMap)
 	if err != nil {
 		return traceCtx
 	}
 
-	traceCtx.ctx = th.Propagators.Extract(context.Background(), carrier)
-	traceCtx.remote = trace.SpanContextFromContext(traceCtx.ctx).IsRemote()
-	traceCtx.remoteCtx = traceCtx.ctx
+	traceCarrierContext := th.Propagators.Extract(context.Background(), traceCarrier)
+	traceCtx.ctx = th.Propagators.Extract(context.Background(), tracePeerCarrier)
+	traceCtx.remote = trace.SpanContextFromContext(traceCarrierContext).IsRemote()
+	traceCtx.remoteCtx = traceCarrierContext
 
 	return traceCtx
 }

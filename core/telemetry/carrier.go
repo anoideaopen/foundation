@@ -1,7 +1,13 @@
 package telemetry
 
 import (
+	"encoding/json"
 	"go.opentelemetry.io/otel/propagation"
+)
+
+const (
+	tracingKey     = "tracing"
+	peerTracingKey = "peer_trace_id"
 )
 
 // PackToTransientMap prepares carrier for using in transient map
@@ -23,4 +29,29 @@ func UnpackTransientMap(transientMap map[string][]byte) (propagation.MapCarrier,
 	}
 
 	return traceCarrier, nil
+}
+
+// GetCarriersFromTransientMap getting carriers from transient map values by keys 'tracing' or 'peer_trace_id'
+func GetCarriersFromTransientMap(transientMap map[string][]byte) (propagation.MapCarrier, propagation.MapCarrier, error) {
+	var traceCarrier propagation.MapCarrier
+	var tracePeerCarrier propagation.MapCarrier
+	for k, v := range transientMap {
+		if k == tracingKey {
+			mc := propagation.MapCarrier{}
+			if err := json.Unmarshal(v, &mc); err != nil {
+				return nil, nil, err
+			}
+			traceCarrier = mc
+		}
+		if k == peerTracingKey {
+			mc := propagation.MapCarrier{}
+			if err := json.Unmarshal(v, &mc); err != nil {
+				return nil, nil, err
+			}
+			tracePeerCarrier = mc
+		}
+
+	}
+
+	return traceCarrier, tracePeerCarrier, nil
 }
