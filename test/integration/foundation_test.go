@@ -1,6 +1,7 @@
 package integration
 
 import (
+	"crypto/ed25519"
 	"errors"
 	"fmt"
 	"os"
@@ -13,6 +14,7 @@ import (
 	pb "github.com/anoideaopen/foundation/proto"
 	industrialtoken "github.com/anoideaopen/foundation/test/chaincode/industrial/industrial_token"
 	"github.com/anoideaopen/foundation/test/integration/cmn"
+	"github.com/anoideaopen/foundation/test/integration/cmn/runner"
 	"github.com/btcsuite/btcutil/base58"
 	docker "github.com/fsouza/go-dockerclient"
 	"github.com/golang/protobuf/proto"
@@ -21,6 +23,7 @@ import (
 	"github.com/hyperledger/fabric/integration/nwo"
 	"github.com/hyperledger/fabric/integration/nwo/commands"
 	"github.com/hyperledger/fabric/integration/nwo/fabricconfig"
+	runnerFbk "github.com/hyperledger/fabric/integration/nwo/runner"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gbytes"
@@ -28,7 +31,6 @@ import (
 	"github.com/tedsuo/ifrit"
 	ginkgomon "github.com/tedsuo/ifrit/ginkgomon_v2"
 	"github.com/tedsuo/ifrit/grouper"
-	"golang.org/x/crypto/ed25519"
 	"golang.org/x/crypto/sha3"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/anypb"
@@ -49,7 +51,7 @@ var _ = Describe("Foundation Tests", func() {
 		ordererProcesses = nil
 		peerProcesses = nil
 		var err error
-		testDir, err = os.MkdirTemp("", "foundation-test")
+		testDir, err = os.MkdirTemp("", "foundation")
 		Expect(err).NotTo(HaveOccurred())
 
 		client, err = docker.NewClientFromEnv()
@@ -167,7 +169,22 @@ var _ = Describe("Foundation Tests", func() {
 		var (
 			channels       = []string{"acl", "cc", "fiat", "industrial"}
 			ordererRunners []*ginkgomon.Runner
+			redisProcess   ifrit.Process
+			redisDB        *runner.RedisDB
+			networkFound   *cmn.NetworkFoundation
 		)
+		BeforeEach(func() {
+			By("start redis")
+			redisDB = &runner.RedisDB{}
+			redisProcess = ifrit.Invoke(redisDB)
+			Eventually(redisProcess.Ready(), runnerFbk.DefaultStartTimeout).Should(BeClosed())
+			Consistently(redisProcess.Wait()).ShouldNot(Receive())
+		})
+		AfterEach(func() {
+			By("stop redis " + redisDB.Address())
+			redisProcess.Signal(syscall.SIGTERM)
+			Eventually(redisProcess.Wait(), time.Minute).Should(Receive())
+		})
 		BeforeEach(func() {
 			networkConfig := nwo.MultiNodeSmartBFT()
 			networkConfig.Channels = nil
@@ -194,8 +211,10 @@ var _ = Describe("Foundation Tests", func() {
 				},
 			)
 
-			network.GenerateConfigTree()
-			network.Bootstrap()
+			networkFound = cmn.New(network, channels)
+
+			networkFound.GenerateConfigTree()
+			networkFound.Bootstrap()
 
 			for _, orderer := range network.Orderers {
 				runner := network.OrdererRunner(orderer)
@@ -367,6 +386,12 @@ var _ = Describe("Foundation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Eventually(sess, network.EventuallyTimeout).Should(gexec.Exit(0))
 			Eventually(sess, network.EventuallyTimeout).Should(gbytes.Say(`{"name":"Industrial token","symbol":"INDUSTRIAL","decimals":8,"underlying_asset":"TEST_UnderlyingAsset"`))
+
+			By("start robot")
+			robotRunner := networkFound.RobotRunner()
+			robotRunner.Command.Env = append(robotRunner.Command.Env, "FABRIC_LOGGING_SPEC=orderer.consensus.smartbft=debug:grpc=debug")
+			robotProc := ifrit.Invoke(robotRunner)
+			Eventually(robotProc.Ready(), network.EventuallyTimeout).Should(BeClosed())
 		})
 	})
 })
@@ -375,9 +400,9 @@ func peerGroupRunners(n *nwo.Network) (ifrit.Runner, []*ginkgomon.Runner) {
 	var runners []*ginkgomon.Runner
 	members := grouper.Members{}
 	for _, p := range n.Peers {
-		runner := n.PeerRunner(p)
-		members = append(members, grouper.Member{Name: p.ID(), Runner: runner})
-		runners = append(runners, runner)
+		peerRunner := n.PeerRunner(p)
+		members = append(members, grouper.Member{Name: p.ID(), Runner: peerRunner})
+		runners = append(runners, peerRunner)
 	}
 	return grouper.NewParallel(syscall.SIGTERM, members), runners
 }
