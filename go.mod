@@ -44,4 +44,4 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-replace github.com/anoideaopen/foundation => github.com/jayjaytrn/foundation latest
+replace github.com/anoideaopen/foundation => github.com/jayjaytrn/foundation v0.0.0-20240412112353-43203cf4c492
