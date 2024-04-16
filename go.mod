@@ -1,4 +1,4 @@
-module github.com/anoideaopen/foundation
+module github.com/jayjaytrn/foundation
 
 go 1.18
 
