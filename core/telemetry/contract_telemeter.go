@@ -76,10 +76,10 @@ func (th *TracingHandler) ContextFromStub(stub shim.ChaincodeStubInterface) Trac
 			return traceCtx
 		}
 
-		traceCarrierContext := th.Propagators.Extract(context.Background(), carrier)
+		traceParentContext := th.Propagators.Extract(context.Background(), carrier)
 		traceCtx.ctx = th.Propagators.Extract(context.Background(), peerCarrier)
-		traceCtx.remote = trace.SpanContextFromContext(traceCarrierContext).IsRemote()
-		traceCtx.remoteCtx = traceCarrierContext
+		traceCtx.remote = trace.SpanContextFromContext(traceParentContext).IsRemote()
+		traceCtx.remoteCtx = traceParentContext
 		return traceCtx
 	}
 
