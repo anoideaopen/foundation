@@ -43,3 +43,5 @@ require (
 	google.golang.org/grpc v1.57.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+replace github.com/anoideaopen/foundation => github.com/jayjaytrn/foundation latest
