@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/anoideaopen/foundation/test/integration/cmn/runner"
 	"github.com/hyperledger/fabric/integration"
 	"github.com/hyperledger/fabric/integration/nwo"
 	. "github.com/onsi/ginkgo/v2"
@@ -21,6 +22,8 @@ var (
 )
 
 var _ = SynchronizedBeforeSuite(func() []byte {
+	nwo.RequiredImages = []string{nwo.CCEnvDefaultImage, runner.RedisDefaultImage}
+
 	buildServer = nwo.NewBuildServer()
 	buildServer.Serve()
 

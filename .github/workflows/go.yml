@@ -113,8 +113,8 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VER }}
-      - name: couchdb
-        run: docker pull couchdb:3.3.3
+      - name: redis
+        run: docker pull redis:7.2.4
       - name: fabric-ccenv
         run: docker pull hyperledger/fabric-ccenv:latest
       - name: fabric-baseos
