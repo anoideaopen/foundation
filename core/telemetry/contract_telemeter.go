@@ -51,6 +51,7 @@ func (th *TracingHandler) ContextFromStub(stub shim.ChaincodeStubInterface) Trac
 
 	// Getting decorators from the peer.
 	decorators := stub.GetDecorations()
+
 	// Unpacking decorators to carrier map.
 	peerCarrier, err := UnpackTransientMap(decorators)
 	if err != nil {
