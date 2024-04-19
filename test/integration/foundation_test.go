@@ -76,9 +76,7 @@ var _ = Describe("Foundation Tests", func() {
 			Eventually(ordererInstance.Wait(), network.EventuallyTimeout).Should(Receive())
 		}
 		err := os.RemoveAll(testDir)
-		if err != nil {
-			return
-		}
+		Expect(err).NotTo(HaveOccurred())
 	})
 
 	Describe("smartbft standart test", func() {
@@ -269,6 +267,7 @@ var _ = Describe("Foundation Tests", func() {
 			adminAddr := base58.CheckEncode(adminHash[1:], adminHash[0])
 
 			By("Deploying chaincode acl")
+			// ToDo - add config checking when ACL integration tests will be done
 			aclCfg := &aclpb.ACLConfig{
 				AdminSKIEncoded: skiBackend,
 				Validators:      []string{base58.Encode(validators[0].Public().(ed25519.PublicKey))},

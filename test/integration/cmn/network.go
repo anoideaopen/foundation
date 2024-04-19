@@ -64,7 +64,10 @@ func (n *NetworkFoundation) GenerateConfigTree() {
 func (n *NetworkFoundation) GenerateConnection(p *nwo.Peer, u string) {
 	config, err := os.Create(n.ConnectionPath(u))
 	Expect(err).NotTo(HaveOccurred())
-	defer config.Close()
+	defer func() {
+		err := config.Close()
+		Expect(err).NotTo(HaveOccurred())
+	}()
 
 	t, err := template.New("connection").Funcs(template.FuncMap{
 		"Peer": func() *nwo.Peer { return p },
@@ -83,7 +86,10 @@ func (n *NetworkFoundation) GenerateConnection(p *nwo.Peer, u string) {
 func (n *NetworkFoundation) GenerateRobotConfig(u string) {
 	config, err := os.Create(n.RobotPath())
 	Expect(err).NotTo(HaveOccurred())
-	defer config.Close()
+	defer func() {
+		err := config.Close()
+		Expect(err).NotTo(HaveOccurred())
+	}()
 
 	t, err := template.New("robot").Funcs(template.FuncMap{
 		"User": func() string { return u },

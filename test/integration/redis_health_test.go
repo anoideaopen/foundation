@@ -31,9 +31,7 @@ var _ = Describe("Health", func() {
 
 	AfterEach(func() {
 		err := os.RemoveAll(testDir)
-		if err != nil {
-			return
-		}
+		Expect(err).NotTo(HaveOccurred())
 	})
 
 	Describe("Redis health checks", func() {

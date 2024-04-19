@@ -108,7 +108,7 @@ func (r *RedisDB) Run(sigCh <-chan os.Signal, ready chan<- struct{}) error {
 	if err != nil {
 		return err
 	}
-	defer r.Stop()
+	defer func() { err = r.Stop() }()
 
 	container, err = r.Client.InspectContainerWithOptions(docker.InspectContainerOptions{ID: container.ID})
 	if err != nil {
