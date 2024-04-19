@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	aclpb "github.com/anoideaopen/acl/proto"
 	pb "github.com/anoideaopen/foundation/proto"
 	industrialtoken "github.com/anoideaopen/foundation/test/chaincode/industrial/industrial_token"
 	"github.com/anoideaopen/foundation/test/integration/cmn"
@@ -72,7 +73,10 @@ var _ = Describe("Foundation Tests", func() {
 			ordererInstance.Signal(syscall.SIGTERM)
 			Eventually(ordererInstance.Wait(), network.EventuallyTimeout).Should(Receive())
 		}
-		os.RemoveAll(testDir)
+		err := os.RemoveAll(testDir)
+		if err != nil {
+			return
+		}
 	})
 
 	Describe("smartbft standart test", func() {
@@ -246,11 +250,14 @@ var _ = Describe("Foundation Tests", func() {
 			adminAddr := base58.CheckEncode(adminHash[1:], adminHash[0])
 
 			By("Deploying chaincode acl")
-			ctorAcl := fmt.Sprintf(
-				`{"Args":["%s","%d","%s"]}`, skiBackend, 1,
-				base58.Encode(validators[0].Public().(ed25519.PublicKey)),
-			)
-			cmn.DeployChaincodeACL(network, components, ctorAcl, testDir)
+			aclCfg := &aclpb.ACLConfig{
+				AdminSKIEncoded: skiBackend,
+				Validators:      []string{base58.Encode(validators[0].Public().(ed25519.PublicKey))},
+			}
+			cfgBytesACL, err := protojson.Marshal(aclCfg)
+			Expect(err).NotTo(HaveOccurred())
+			ctorACL := fmt.Sprintf(`{"Args":[%s]}`, strconv.Quote(string(cfgBytesACL)))
+			cmn.DeployChaincodeACL(network, components, ctorACL, testDir)
 
 			By("querying the chaincode from acl")
 			sess, err := network.PeerUserSession(peer, "User1", commands.ChaincodeQuery{
