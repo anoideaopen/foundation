@@ -2,8 +2,6 @@ package telemetry
 
 import (
 	"context"
-	"strings"
-
 	"github.com/hyperledger/fabric-chaincode-go/shim"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
@@ -52,6 +50,12 @@ func (th *TracingHandler) ContextFromStub(stub shim.ChaincodeStubInterface) Trac
 		ctx: th.Propagators.Extract(context.Background(), propagation.MapCarrier{}),
 	}
 
+	peerTransientMap := stub.GetDecorations()
+	peerCarrier, err := UnpackTransientMap(peerTransientMap)
+	if err != nil {
+		return traceCtx
+	}
+
 	transientMap, err := stub.GetTransient()
 	if err != nil {
 		return traceCtx
@@ -62,31 +66,13 @@ func (th *TracingHandler) ContextFromStub(stub shim.ChaincodeStubInterface) Trac
 		return traceCtx
 	}
 
-	peerTransientMap := make(map[string][]byte)
-	for k, v := range transientMap {
-		if strings.HasPrefix(k, peerTransientMapPrefix) {
-			keyWithoutPrefix := strings.TrimPrefix(k, peerTransientMapPrefix)
-			peerTransientMap[keyWithoutPrefix] = v
-		}
-	}
-
-	if len(peerTransientMap) != 0 {
-		peerCarrier, err := UnpackTransientMap(peerTransientMap)
-		if err != nil {
-			return traceCtx
-		}
-
-		traceParentContext := th.Propagators.Extract(context.Background(), carrier)
-		traceCtx.ctx = th.Propagators.Extract(context.Background(), peerCarrier)
-		traceCtx.remote = trace.SpanContextFromContext(traceParentContext).IsRemote()
-		traceCtx.remoteCtx = traceParentContext
-		return traceCtx
-	}
-
 	traceCtx.ctx = th.Propagators.Extract(context.Background(), carrier)
 	traceCtx.remote = trace.SpanContextFromContext(traceCtx.ctx).IsRemote()
 	traceCtx.remoteCtx = traceCtx.ctx
 
+	if len(peerTransientMap) != 0 {
+		traceCtx.ctx = th.Propagators.Extract(context.Background(), peerCarrier)
+	}
 	return traceCtx
 }
 
