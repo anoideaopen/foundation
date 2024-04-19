@@ -7,8 +7,6 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-const peerTransientMapPrefix = "peer"
-
 type TraceContext struct {
 	ctx       context.Context
 	remote    bool
