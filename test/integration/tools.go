@@ -6,6 +6,7 @@ package tools
 import (
 	_ "github.com/IBM/idemix/tools/idemixgen"
 	_ "github.com/anoideaopen/acl"
+	_ "github.com/anoideaopen/robot"
 	_ "github.com/hyperledger/fabric/cmd/configtxgen"
 	_ "github.com/hyperledger/fabric/cmd/cryptogen"
 	_ "github.com/hyperledger/fabric/cmd/discover"
