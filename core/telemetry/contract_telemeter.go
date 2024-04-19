@@ -49,6 +49,14 @@ func (th *TracingHandler) ContextFromStub(stub shim.ChaincodeStubInterface) Trac
 		ctx: th.Propagators.Extract(context.Background(), propagation.MapCarrier{}),
 	}
 
+	// Getting decorators from the peer.
+	decorators := stub.GetDecorations()
+	// Unpacking decorators to carrier map.
+	peerCarrier, err := UnpackTransientMap(decorators)
+	if err != nil {
+		return traceCtx
+	}
+
 	transientMap, err := stub.GetTransient()
 	if err != nil {
 		return traceCtx
@@ -63,6 +71,16 @@ func (th *TracingHandler) ContextFromStub(stub shim.ChaincodeStubInterface) Trac
 	traceCtx.remote = trace.SpanContextFromContext(traceCtx.ctx).IsRemote()
 	traceCtx.remoteCtx = traceCtx.ctx
 
+	// If the carrier is not empty, it may indicate that a parent span context was received from the peer's decorator.
+	if len(peerCarrier) != 0 {
+		// The carrier from the peer's decorators may contain something other than trace parameters
+		// Therefore, we first check that the result of Extract is not an empty context
+		// and only in this case do we set it as the parent context.
+		ctx := th.Propagators.Extract(context.Background(), peerCarrier)
+		if ctx != context.Background() {
+			traceCtx.ctx = th.Propagators.Extract(context.Background(), peerCarrier)
+		}
+	}
 	return traceCtx
 }
 
