@@ -4,9 +4,9 @@ go 1.18
 
 require (
 	github.com/IBM/idemix v0.0.2-0.20231011101252-a4feda90f3f7
-	github.com/anoideaopen/acl v0.0.0-20240417160013-12180a111366
+	github.com/anoideaopen/acl v0.0.0-20240419220630-8074c4ac95e0
 	github.com/anoideaopen/foundation v0.0.0-20240412063944-9a91dc2600fa
-	github.com/anoideaopen/robot v0.0.0-20240418144027-49f59782e8cd
+	github.com/anoideaopen/robot v0.0.0-20240420000402-5a265b913100
 	github.com/btcsuite/btcutil v1.0.3-0.20201208143702-a53e38424cce
 	github.com/fsouza/go-dockerclient v1.10.0
 	github.com/go-redis/redis/v8 v8.11.4
@@ -15,7 +15,6 @@ require (
 	github.com/hyperledger/fabric-protos-go v0.3.2
 	github.com/onsi/ginkgo/v2 v2.13.2
 	github.com/onsi/gomega v1.31.0
-	github.com/pkg/errors v0.9.1
 	github.com/tedsuo/ifrit v0.0.0-20220120221754-dd274de71113
 	golang.org/x/crypto v0.22.0
 	google.golang.org/protobuf v1.33.0
@@ -117,6 +116,7 @@ require (
 	github.com/pelletier/go-toml v1.9.5 // indirect
 	github.com/pelletier/go-toml/v2 v2.0.1 // indirect
 	github.com/pierrec/lz4 v2.6.0+incompatible // indirect
+	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/client_golang v1.13.1 // indirect
 	github.com/prometheus/client_model v0.3.0 // indirect

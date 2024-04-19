@@ -54,7 +54,7 @@ func (bc *BaseContract) TxLockTokenBalance(
 	sender *types.Sender,
 	req *proto.BalanceLockRequest,
 ) error {
-	if req.Id == "" {
+	if req.GetId() == "" {
 		req.Id = bc.stub.GetTxID()
 	}
 
@@ -64,17 +64,17 @@ func (bc *BaseContract) TxLockTokenBalance(
 	}
 
 	// Check what's already there
-	_, err = bc.getLockedTokenBalance(req.Id)
+	_, err = bc.getLockedTokenBalance(req.GetId())
 	if err == nil {
 		return ErrAlreadyExist
 	}
 
-	address, err := types.AddrFromBase58Check(req.Address)
+	address, err := types.AddrFromBase58Check(req.GetAddress())
 	if err != nil {
 		return fmt.Errorf("address: %w", err)
 	}
 
-	amount, ok := new(big.Int).SetString(req.Amount, 10) //nolint:gomnd
+	amount, ok := new(big.Int).SetString(req.GetAmount(), 10) //nolint:gomnd
 	if !ok {
 		return ErrBigIntFromString
 	}
@@ -85,18 +85,18 @@ func (bc *BaseContract) TxLockTokenBalance(
 
 	// state record with balance lock details
 	balanceLock := &proto.TokenBalanceLock{
-		Id:            req.Id,
-		Address:       req.Address,
-		Token:         req.Token,
-		InitAmount:    req.Amount,
-		CurrentAmount: req.Amount,
-		Reason:        req.Reason,
-		Docs:          req.Docs,
-		Payload:       req.Payload,
+		Id:            req.GetId(),
+		Address:       req.GetAddress(),
+		Token:         req.GetToken(),
+		InitAmount:    req.GetAmount(),
+		CurrentAmount: req.GetAmount(),
+		Reason:        req.GetReason(),
+		Docs:          req.GetDocs(),
+		Payload:       req.GetPayload(),
 	}
 
 	prefix := hex.EncodeToString([]byte{byte(balance.BalanceTypeTokenExternalLocked)})
-	key, err := bc.stub.CreateCompositeKey(prefix, []string{balanceLock.Id})
+	key, err := bc.stub.CreateCompositeKey(prefix, []string{balanceLock.GetId()})
 	if err != nil {
 		return fmt.Errorf("create key: %w", err)
 	}
@@ -107,13 +107,13 @@ func (bc *BaseContract) TxLockTokenBalance(
 	}
 
 	balanceLockedEvent := &proto.TokenBalanceLocked{
-		Id:      balanceLock.Id,
-		Address: balanceLock.Address,
-		Token:   balanceLock.Token,
-		Amount:  balanceLock.CurrentAmount,
-		Reason:  balanceLock.Reason,
-		Docs:    balanceLock.Docs,
-		Payload: balanceLock.Payload,
+		Id:      balanceLock.GetId(),
+		Address: balanceLock.GetAddress(),
+		Token:   balanceLock.GetToken(),
+		Amount:  balanceLock.GetCurrentAmount(),
+		Reason:  balanceLock.GetReason(),
+		Docs:    balanceLock.GetDocs(),
+		Payload: balanceLock.GetPayload(),
 	}
 	event, err := json.Marshal(balanceLockedEvent)
 	if err != nil {
@@ -139,22 +139,22 @@ func (bc *BaseContract) TxUnlockTokenBalance( //nolint:funlen
 	}
 
 	// Check what's already there
-	balanceLock, err := bc.getLockedTokenBalance(req.Id)
+	balanceLock, err := bc.getLockedTokenBalance(req.GetId())
 	if err != nil {
 		return err
 	}
 
-	address, err := types.AddrFromBase58Check(req.Address)
+	address, err := types.AddrFromBase58Check(req.GetAddress())
 	if err != nil {
 		return fmt.Errorf("address: %w", err)
 	}
 
-	amount, ok := new(big.Int).SetString(req.Amount, 10) //nolint:gomnd
+	amount, ok := new(big.Int).SetString(req.GetAmount(), 10) //nolint:gomnd
 	if !ok {
 		return ErrBigIntFromString
 	}
 
-	cur, ok := new(big.Int).SetString(balanceLock.CurrentAmount, 10) //nolint:gomnd
+	cur, ok := new(big.Int).SetString(balanceLock.GetCurrentAmount(), 10) //nolint:gomnd
 	if !ok {
 		return ErrBigIntFromString
 	}
@@ -176,7 +176,7 @@ func (bc *BaseContract) TxUnlockTokenBalance( //nolint:funlen
 	balanceLock.CurrentAmount = new(big.Int).Sub(cur, amount).String()
 
 	prefix := hex.EncodeToString([]byte{byte(balance.BalanceTypeTokenExternalLocked)})
-	key, err := bc.stub.CreateCompositeKey(prefix, []string{balanceLock.Id})
+	key, err := bc.stub.CreateCompositeKey(prefix, []string{balanceLock.GetId()})
 	if err != nil {
 		return fmt.Errorf("create key: %w", err)
 	}
@@ -187,13 +187,13 @@ func (bc *BaseContract) TxUnlockTokenBalance( //nolint:funlen
 	}
 
 	balanceLockedEvent := &proto.TokenBalanceUnlocked{
-		Id:                balanceLock.Id,
-		Address:           balanceLock.Address,
-		Token:             balanceLock.Token,
-		Amount:            balanceLock.CurrentAmount,
-		Reason:            balanceLock.Reason,
-		Docs:              balanceLock.Docs,
-		Payload:           balanceLock.Payload,
+		Id:                balanceLock.GetId(),
+		Address:           balanceLock.GetAddress(),
+		Token:             balanceLock.GetToken(),
+		Amount:            balanceLock.GetCurrentAmount(),
+		Reason:            balanceLock.GetReason(),
+		Docs:              balanceLock.GetDocs(),
+		Payload:           balanceLock.GetPayload(),
 		CompleteOperation: isDelete,
 	}
 	event, err := json.Marshal(balanceLockedEvent)
@@ -225,7 +225,7 @@ func (bc *BaseContract) TxLockAllowedBalance(
 	sender *types.Sender,
 	req *proto.BalanceLockRequest,
 ) error {
-	if req.Id == "" {
+	if req.GetId() == "" {
 		req.Id = bc.stub.GetTxID()
 	}
 
@@ -235,39 +235,39 @@ func (bc *BaseContract) TxLockAllowedBalance(
 	}
 
 	// Check what's already there
-	_, err = bc.getLockedAllowedBalance(req.Id)
+	_, err = bc.getLockedAllowedBalance(req.GetId())
 	if err == nil {
 		return ErrAlreadyExist
 	}
 
-	address, err := types.AddrFromBase58Check(req.Address)
+	address, err := types.AddrFromBase58Check(req.GetAddress())
 	if err != nil {
 		return fmt.Errorf("address: %w", err)
 	}
 
-	amount, ok := new(big.Int).SetString(req.Amount, 10) //nolint:gomnd
+	amount, ok := new(big.Int).SetString(req.GetAmount(), 10) //nolint:gomnd
 	if !ok {
 		return ErrBigIntFromString
 	}
 
-	if err = bc.AllowedBalanceLock(req.Token, address, amount); err != nil {
+	if err = bc.AllowedBalanceLock(req.GetToken(), address, amount); err != nil {
 		return err
 	}
 
 	// state record with balance lock details
 	balanceLock := &proto.AllowedBalanceLock{
-		Id:            req.Id,
-		Address:       req.Address,
-		Token:         req.Token,
-		InitAmount:    req.Amount,
-		CurrentAmount: req.Amount,
-		Reason:        req.Reason,
-		Docs:          req.Docs,
-		Payload:       req.Payload,
+		Id:            req.GetId(),
+		Address:       req.GetAddress(),
+		Token:         req.GetToken(),
+		InitAmount:    req.GetAmount(),
+		CurrentAmount: req.GetAmount(),
+		Reason:        req.GetReason(),
+		Docs:          req.GetDocs(),
+		Payload:       req.GetPayload(),
 	}
 
 	prefix := hex.EncodeToString([]byte{byte(balance.BalanceTypeAllowedExternalLocked)})
-	key, err := bc.stub.CreateCompositeKey(prefix, []string{balanceLock.Id})
+	key, err := bc.stub.CreateCompositeKey(prefix, []string{balanceLock.GetId()})
 	if err != nil {
 		return fmt.Errorf("create key: %w", err)
 	}
@@ -278,13 +278,13 @@ func (bc *BaseContract) TxLockAllowedBalance(
 	}
 
 	balanceLockedEvent := &proto.AllowedBalanceLocked{
-		Id:      balanceLock.Id,
-		Address: balanceLock.Address,
-		Token:   balanceLock.Token,
-		Amount:  balanceLock.CurrentAmount,
-		Reason:  balanceLock.Reason,
-		Docs:    balanceLock.Docs,
-		Payload: balanceLock.Payload,
+		Id:      balanceLock.GetId(),
+		Address: balanceLock.GetAddress(),
+		Token:   balanceLock.GetToken(),
+		Amount:  balanceLock.GetCurrentAmount(),
+		Reason:  balanceLock.GetReason(),
+		Docs:    balanceLock.GetDocs(),
+		Payload: balanceLock.GetPayload(),
 	}
 	event, err := json.Marshal(balanceLockedEvent)
 	if err != nil {
@@ -310,22 +310,22 @@ func (bc *BaseContract) TxUnlockAllowedBalance( //nolint:funlen
 	}
 
 	// Check what's already there
-	balanceLock, err := bc.getLockedAllowedBalance(req.Id)
+	balanceLock, err := bc.getLockedAllowedBalance(req.GetId())
 	if err != nil {
 		return err
 	}
 
-	address, err := types.AddrFromBase58Check(req.Address)
+	address, err := types.AddrFromBase58Check(req.GetAddress())
 	if err != nil {
 		return fmt.Errorf("address: %w", err)
 	}
 
-	amount, ok := new(big.Int).SetString(req.Amount, 10) //nolint:gomnd
+	amount, ok := new(big.Int).SetString(req.GetAmount(), 10) //nolint:gomnd
 	if !ok {
 		return ErrBigIntFromString
 	}
 
-	cur, ok := new(big.Int).SetString(balanceLock.CurrentAmount, 10) //nolint:gomnd
+	cur, ok := new(big.Int).SetString(balanceLock.GetCurrentAmount(), 10) //nolint:gomnd
 	if !ok {
 		return ErrBigIntFromString
 	}
@@ -339,7 +339,7 @@ func (bc *BaseContract) TxUnlockAllowedBalance( //nolint:funlen
 		isDelete = true
 	}
 
-	if err = bc.AllowedBalanceUnLock(balanceLock.Token, address, amount); err != nil {
+	if err = bc.AllowedBalanceUnLock(balanceLock.GetToken(), address, amount); err != nil {
 		return err
 	}
 
@@ -347,7 +347,7 @@ func (bc *BaseContract) TxUnlockAllowedBalance( //nolint:funlen
 	balanceLock.CurrentAmount = new(big.Int).Sub(cur, amount).String()
 
 	prefix := hex.EncodeToString([]byte{byte(balance.BalanceTypeAllowedExternalLocked)})
-	key, err := bc.stub.CreateCompositeKey(prefix, []string{balanceLock.Id})
+	key, err := bc.stub.CreateCompositeKey(prefix, []string{balanceLock.GetId()})
 	if err != nil {
 		return fmt.Errorf("create key: %w", err)
 	}
@@ -358,13 +358,13 @@ func (bc *BaseContract) TxUnlockAllowedBalance( //nolint:funlen
 	}
 
 	balanceLockedEvent := &proto.AllowedBalanceUnlocked{
-		Id:                balanceLock.Id,
-		Address:           balanceLock.Address,
-		Token:             balanceLock.Token,
-		Amount:            balanceLock.CurrentAmount,
-		Reason:            balanceLock.Reason,
-		Docs:              balanceLock.Docs,
-		Payload:           balanceLock.Payload,
+		Id:                balanceLock.GetId(),
+		Address:           balanceLock.GetAddress(),
+		Token:             balanceLock.GetToken(),
+		Amount:            balanceLock.GetCurrentAmount(),
+		Reason:            balanceLock.GetReason(),
+		Docs:              balanceLock.GetDocs(),
+		Payload:           balanceLock.GetPayload(),
 		CompleteOperation: isDelete,
 	}
 	event, err := json.Marshal(balanceLockedEvent)
@@ -452,7 +452,7 @@ func (bc *BaseContract) verifyLockedArgs(
 		return ErrAdminNotSet
 	}
 
-	if admin, err := types.AddrFromBase58Check(bc.config.Admin.Address); err == nil {
+	if admin, err := types.AddrFromBase58Check(bc.config.GetAdmin().GetAddress()); err == nil {
 		if !sender.Equal(admin) {
 			return ErrUnauthorisedNotAdmin
 		}
@@ -461,23 +461,23 @@ func (bc *BaseContract) verifyLockedArgs(
 	}
 
 	// Request verification
-	if req.Id == "" {
+	if req.GetId() == "" {
 		return ErrEmptyLockID
 	}
 
-	if req.Address == "" {
+	if req.GetAddress() == "" {
 		return ErrAddressRequired
 	}
 
-	if req.Amount == "" {
+	if req.GetAmount() == "" {
 		return ErrAmountRequired
 	}
 
-	if req.Token == "" {
+	if req.GetToken() == "" {
 		return ErrTokenTickerRequired
 	}
 
-	if req.Reason == "" {
+	if req.GetReason() == "" {
 		return ErrReason
 	}
 

@@ -23,7 +23,7 @@ import (
 	"github.com/ddulesov/gogost/gost3410"
 	pb "github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/hyperledger/fabric-protos-go/peer"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/ed25519"
 	"golang.org/x/crypto/sha3"
 )
@@ -147,7 +147,7 @@ func (w *Wallet) AddressType() *types.Address {
 func (w *Wallet) addBalance(stub *stub.Stub, amount *big.Int, balanceType balance.BalanceType, path ...string) {
 	prefix := hex.EncodeToString([]byte{byte(balanceType)})
 	key, err := stub.CreateCompositeKey(prefix, append([]string{w.Address()}, path...))
-	assert.NoError(w.ledger.t, err)
+	require.NoError(w.ledger.t, err)
 	data := stub.State[key]
 	bal := new(big.Int).SetBytes(data)
 	newBalance := new(big.Int).Add(bal, amount)
@@ -159,14 +159,14 @@ func (w *Wallet) CheckGivenBalanceShouldBe(ch string, token string, expectedBala
 	st := w.ledger.stubs[ch]
 	prefix := hex.EncodeToString([]byte{byte(balance.BalanceTypeGiven)})
 	key, err := st.CreateCompositeKey(prefix, []string{token})
-	assert.NoError(w.ledger.t, err)
+	require.NoError(w.ledger.t, err)
 	bytes := st.State[key]
 	if bytes == nil && expectedBalance == 0 {
 		return
 	}
 	actualBalanceInt := new(big.Int).SetBytes(bytes)
 	expectedBalanceInt := new(big.Int).SetUint64(expectedBalance)
-	assert.Equal(w.ledger.t, expectedBalanceInt, actualBalanceInt)
+	require.Equal(w.ledger.t, expectedBalanceInt, actualBalanceInt)
 }
 
 // AddBalance adds balance to the wallet
@@ -184,7 +184,7 @@ func (w *Wallet) AddGivenBalance(ch string, givenBalanceChannel string, amount u
 	st := w.ledger.stubs[ch]
 	prefix := hex.EncodeToString([]byte{byte(balance.BalanceTypeGiven)})
 	key, err := st.CreateCompositeKey(prefix, []string{givenBalanceChannel})
-	assert.NoError(w.ledger.t, err)
+	require.NoError(w.ledger.t, err)
 	newBalance := new(big.Int).SetUint64(amount)
 	_ = st.PutBalanceToState(key, newBalance)
 }
@@ -197,49 +197,49 @@ func (w *Wallet) AddTokenBalance(ch string, token string, amount uint64) {
 
 // BalanceShouldBe checks the balance of the wallet
 func (w *Wallet) BalanceShouldBe(ch string, expected uint64) {
-	assert.Equal(w.ledger.t, "\""+strconv.FormatUint(expected, 10)+"\"", w.Invoke(ch, "balanceOf", w.Address()))
+	require.Equal(w.ledger.t, "\""+strconv.FormatUint(expected, 10)+"\"", w.Invoke(ch, "balanceOf", w.Address()))
 }
 
 // AllowedBalanceShouldBe checks the allowed balance of the wallet
 func (w *Wallet) AllowedBalanceShouldBe(ch string, token string, expected uint64) {
-	assert.Equal(w.ledger.t, "\""+strconv.FormatUint(expected, 10)+"\"", w.Invoke(ch, "allowedBalanceOf", w.Address(), token))
+	require.Equal(w.ledger.t, "\""+strconv.FormatUint(expected, 10)+"\"", w.Invoke(ch, "allowedBalanceOf", w.Address(), token))
 }
 
 // OtfBalanceShouldBe checks the otf balance of the wallet
 func (w *Wallet) OtfBalanceShouldBe(ch string, token string, expected uint64) {
-	assert.Equal(w.ledger.t, "\""+strconv.FormatUint(expected, 10)+"\"", w.Invoke(ch, "getBalance", w.Address(), token))
+	require.Equal(w.ledger.t, "\""+strconv.FormatUint(expected, 10)+"\"", w.Invoke(ch, "getBalance", w.Address(), token))
 }
 
 // IndustrialBalanceShouldBe checks the industrial balance of the wallet
 func (w *Wallet) IndustrialBalanceShouldBe(ch, group string, expected uint64) {
 	var balances map[string]string
 	res := w.Invoke(ch, "industrialBalanceOf", w.Address())
-	assert.NoError(w.ledger.t, json.Unmarshal([]byte(res), &balances))
+	require.NoError(w.ledger.t, json.Unmarshal([]byte(res), &balances))
 
 	if bal, ok := balances[group]; ok {
-		assert.Equal(w.ledger.t, strconv.FormatUint(expected, 10), bal)
+		require.Equal(w.ledger.t, strconv.FormatUint(expected, 10), bal)
 		return
 	}
 	if expected == 0 {
 		return
 	}
-	assert.Fail(w.ledger.t, "group not found")
+	require.Fail(w.ledger.t, "group not found")
 }
 
 // GroupBalanceShouldBe checks the group balance of the wallet
 func (w *Wallet) GroupBalanceShouldBe(ch, group string, expected uint64) {
 	var balances map[string]string
 	res := w.Invoke(ch, "groupBalanceOf", w.Address())
-	assert.NoError(w.ledger.t, json.Unmarshal([]byte(res), &balances))
+	require.NoError(w.ledger.t, json.Unmarshal([]byte(res), &balances))
 
 	if bal, ok := balances[group]; ok {
-		assert.Equal(w.ledger.t, strconv.FormatUint(expected, 10), bal)
+		require.Equal(w.ledger.t, strconv.FormatUint(expected, 10), bal)
 		return
 	}
 	if expected == 0 {
 		return
 	}
-	assert.Fail(w.ledger.t, "group not found")
+	require.Fail(w.ledger.t, "group not found")
 }
 
 // Invoke invokes a function on the ledger
@@ -272,48 +272,48 @@ func (w *Wallet) SignArgs(ch, fn string, args ...string) []string {
 // BatchedInvoke invokes a function on the ledger
 func (w *Wallet) BatchedInvoke(ch, fn string, args ...string) (string, TxResponse) {
 	if err := w.verifyIncoming(ch, fn); err != nil {
-		assert.NoError(w.ledger.t, err)
+		require.NoError(w.ledger.t, err)
 		return "", TxResponse{}
 	}
 	txID := txIDGen()
 	w.ledger.doInvoke(ch, txID, fn, args...)
 
 	id, err := hex.DecodeString(txID)
-	assert.NoError(w.ledger.t, err)
+	require.NoError(w.ledger.t, err)
 	data, err := pb.Marshal(&proto.Batch{TxIDs: [][]byte{id}})
-	assert.NoError(w.ledger.t, err)
+	require.NoError(w.ledger.t, err)
 
 	cert, err := hex.DecodeString(batchRobotCert)
-	assert.NoError(w.ledger.t, err)
+	require.NoError(w.ledger.t, err)
 	w.ledger.stubs[ch].SetCreator(cert)
 	res := w.Invoke(ch, core.BatchExecute, string(data))
 	out := &proto.BatchResponse{}
-	assert.NoError(w.ledger.t, pb.Unmarshal([]byte(res), out))
+	require.NoError(w.ledger.t, pb.Unmarshal([]byte(res), out))
 
 	e := <-w.ledger.stubs[ch].ChaincodeEventsChannel
-	if e.EventName == core.BatchExecute {
+	if e.GetEventName() == core.BatchExecute {
 		events := &proto.BatchEvent{}
-		assert.NoError(w.ledger.t, pb.Unmarshal(e.Payload, events))
-		for _, ev := range events.Events {
-			if hex.EncodeToString(ev.Id) == txID {
+		require.NoError(w.ledger.t, pb.Unmarshal(e.GetPayload(), events))
+		for _, ev := range events.GetEvents() {
+			if hex.EncodeToString(ev.GetId()) == txID {
 				evts := make(map[string][]byte)
-				for _, evt := range ev.Events {
-					evts[evt.Name] = evt.Value
+				for _, evt := range ev.GetEvents() {
+					evts[evt.GetName()] = evt.GetValue()
 				}
 				er := ""
-				if ev.Error != nil {
-					er = ev.Error.Error
+				if ev.GetError() != nil {
+					er = ev.GetError().GetError()
 				}
 				return txID, TxResponse{
-					Method: ev.Method,
+					Method: ev.GetMethod(),
 					Error:  er,
-					Result: string(ev.Result),
+					Result: string(ev.GetResult()),
 					Events: evts,
 				}
 			}
 		}
 	}
-	assert.Fail(w.ledger.t, shouldNotBeHereMsg)
+	require.Fail(w.ledger.t, shouldNotBeHereMsg)
 	return txID, TxResponse{}
 }
 
@@ -382,29 +382,29 @@ type BatchTxResponse map[string]*proto.TxResponse
 // DoBatch does a batch transaction
 func (w *Wallet) DoBatch(ch string, txID ...string) BatchTxResponse {
 	if err := w.verifyIncoming(ch, "fn"); err != nil {
-		assert.NoError(w.ledger.t, err)
+		require.NoError(w.ledger.t, err)
 		return BatchTxResponse{}
 	}
 	b := &proto.Batch{}
 	for _, id := range txID {
 		x, err := hex.DecodeString(id)
-		assert.NoError(w.ledger.t, err)
+		require.NoError(w.ledger.t, err)
 		b.TxIDs = append(b.TxIDs, x)
 	}
 	data, err := pb.Marshal(b)
-	assert.NoError(w.ledger.t, err)
+	require.NoError(w.ledger.t, err)
 
 	cert, err := hex.DecodeString(batchRobotCert)
-	assert.NoError(w.ledger.t, err)
+	require.NoError(w.ledger.t, err)
 	w.ledger.stubs[ch].SetCreator(cert)
 	res := w.Invoke(ch, core.BatchExecute, string(data))
 	out := &proto.BatchResponse{}
-	assert.NoError(w.ledger.t, pb.Unmarshal([]byte(res), out))
+	require.NoError(w.ledger.t, pb.Unmarshal([]byte(res), out))
 
 	result := make(BatchTxResponse)
-	for _, resp := range out.TxResponses {
+	for _, resp := range out.GetTxResponses() {
 		if resp != nil {
-			result[hex.EncodeToString(resp.Id)] = resp
+			result[hex.EncodeToString(resp.GetId())] = resp
 		}
 	}
 	return result
@@ -414,15 +414,15 @@ func (w *Wallet) DoBatch(ch string, txID ...string) BatchTxResponse {
 func (br BatchTxResponse) TxHasNoError(t *testing.T, txID ...string) {
 	for _, id := range txID {
 		res, ok := br[id]
-		assert.True(t, ok, "tx %s doesn't exist in batch response", id)
+		require.True(t, ok, "tx %s doesn't exist in batch response", id)
 		if !ok {
 			return
 		}
 		msg := ""
-		if res.Error != nil {
-			msg = res.Error.Error
+		if res.GetError() != nil {
+			msg = res.GetError().GetError()
 		}
-		assert.Nil(t, res.Error, msg)
+		require.Nil(t, res.GetError(), msg)
 	}
 }
 
@@ -440,53 +440,53 @@ func (w *Wallet) Ledger() *Ledger {
 // RawSignedMultiSwapInvoke invokes a function on the ledger
 func (w *Wallet) RawSignedMultiSwapInvoke(ch, fn string, args ...string) (string, TxResponse, []*proto.Swap, []*proto.MultiSwap) {
 	if err := w.verifyIncoming(ch, fn); err != nil {
-		assert.NoError(w.ledger.t, err)
+		require.NoError(w.ledger.t, err)
 		return "", TxResponse{}, nil, nil
 	}
 	txID := txIDGen()
 	args, _ = w.sign(fn, ch, args...)
 	cert, err := base64.StdEncoding.DecodeString(userCert)
-	assert.NoError(w.ledger.t, err)
+	require.NoError(w.ledger.t, err)
 	_ = w.ledger.stubs[ch].SetCreatorCert("platformMSP", cert)
 	w.ledger.doInvoke(ch, txID, fn, args...)
 
 	id, err := hex.DecodeString(txID)
-	assert.NoError(w.ledger.t, err)
+	require.NoError(w.ledger.t, err)
 	data, err := pb.Marshal(&proto.Batch{TxIDs: [][]byte{id}})
-	assert.NoError(w.ledger.t, err)
+	require.NoError(w.ledger.t, err)
 
 	cert, err = hex.DecodeString(batchRobotCert)
-	assert.NoError(w.ledger.t, err)
+	require.NoError(w.ledger.t, err)
 	w.ledger.stubs[ch].SetCreator(cert)
 	res := w.Invoke(ch, core.BatchExecute, string(data))
 	out := &proto.BatchResponse{}
-	assert.NoError(w.ledger.t, pb.Unmarshal([]byte(res), out))
+	require.NoError(w.ledger.t, pb.Unmarshal([]byte(res), out))
 
 	e := <-w.ledger.stubs[ch].ChaincodeEventsChannel
-	if e.EventName == core.BatchExecute {
+	if e.GetEventName() == core.BatchExecute {
 		events := &proto.BatchEvent{}
-		assert.NoError(w.ledger.t, pb.Unmarshal(e.Payload, events))
-		for _, ev := range events.Events {
-			if hex.EncodeToString(ev.Id) == txID {
+		require.NoError(w.ledger.t, pb.Unmarshal(e.GetPayload(), events))
+		for _, ev := range events.GetEvents() {
+			if hex.EncodeToString(ev.GetId()) == txID {
 				evts := make(map[string][]byte)
-				for _, evt := range ev.Events {
-					evts[evt.Name] = evt.Value
+				for _, evt := range ev.GetEvents() {
+					evts[evt.GetName()] = evt.GetValue()
 				}
 				er := ""
-				if ev.Error != nil {
-					er = ev.Error.Error
+				if ev.GetError() != nil {
+					er = ev.GetError().GetError()
 				}
 				return txID, TxResponse{
-					Method: ev.Method,
+					Method: ev.GetMethod(),
 					Error:  er,
-					Result: string(ev.Result),
+					Result: string(ev.GetResult()),
 					Events: evts,
-				}, out.CreatedSwaps, out.CreatedMultiSwap
+				}, out.GetCreatedSwaps(), out.GetCreatedMultiSwap()
 			}
 		}
 	}
-	assert.Fail(w.ledger.t, shouldNotBeHereMsg)
-	return txID, TxResponse{}, out.CreatedSwaps, out.CreatedMultiSwap
+	require.Fail(w.ledger.t, shouldNotBeHereMsg)
+	return txID, TxResponse{}, out.GetCreatedSwaps(), out.GetCreatedMultiSwap()
 }
 
 // RawSignedInvokeWithErrorReturned invokes a function on the ledger
@@ -497,7 +497,7 @@ func (w *Wallet) RawSignedInvokeWithErrorReturned(ch, fn string, args ...string)
 	txID := txIDGen()
 	args, _ = w.sign(fn, ch, args...)
 	cert, err := base64.StdEncoding.DecodeString(userCert)
-	assert.NoError(w.ledger.t, err)
+	require.NoError(w.ledger.t, err)
 	_ = w.ledger.stubs[ch].SetCreatorCert("platformMSP", cert)
 	err = w.ledger.doInvokeWithErrorReturned(ch, txID, fn, args...)
 	if err != nil {
@@ -526,26 +526,26 @@ func (w *Wallet) RawSignedInvokeWithErrorReturned(ch, fn string, args ...string)
 	}
 
 	e := <-w.ledger.stubs[ch].ChaincodeEventsChannel
-	if e.EventName == core.BatchExecute {
+	if e.GetEventName() == core.BatchExecute {
 		events := &proto.BatchEvent{}
-		err = pb.Unmarshal(e.Payload, events)
+		err = pb.Unmarshal(e.GetPayload(), events)
 		if err != nil {
 			return err
 		}
-		for _, ev := range events.Events {
-			if hex.EncodeToString(ev.Id) == txID {
+		for _, ev := range events.GetEvents() {
+			if hex.EncodeToString(ev.GetId()) == txID {
 				evts := make(map[string][]byte)
-				for _, evt := range ev.Events {
-					evts[evt.Name] = evt.Value
+				for _, evt := range ev.GetEvents() {
+					evts[evt.GetName()] = evt.GetValue()
 				}
-				if ev.Error != nil {
-					return errors.New(ev.Error.Error)
+				if ev.GetError() != nil {
+					return errors.New(ev.GetError().GetError())
 				}
 				return nil
 			}
 		}
 	}
-	assert.Fail(w.ledger.t, shouldNotBeHereMsg)
+	require.Fail(w.ledger.t, shouldNotBeHereMsg)
 	return nil
 }
 
@@ -556,7 +556,7 @@ func (w *Wallet) RawChTransferInvoke(ch, fn string, args ...string) (string, TxR
 	}
 	txID := txIDGen()
 	cert, err := hex.DecodeString(batchRobotCert)
-	assert.NoError(w.ledger.t, err)
+	require.NoError(w.ledger.t, err)
 	w.ledger.stubs[ch].SetCreator(cert)
 	err = w.ledger.doInvokeWithErrorReturned(ch, txID, fn, args...)
 	if err != nil {
@@ -595,28 +595,28 @@ func (w *Wallet) RawChTransferInvokeWithBatch(ch string, fn string, args ...stri
 	}
 
 	e := <-w.ledger.stubs[ch].ChaincodeEventsChannel
-	if e.EventName == core.BatchExecute {
+	if e.GetEventName() == core.BatchExecute {
 		events := &proto.BatchEvent{}
-		err = pb.Unmarshal(e.Payload, events)
+		err = pb.Unmarshal(e.GetPayload(), events)
 		if err != nil {
 			return "", TxResponse{}, err
 		}
-		for _, ev := range events.Events {
-			if hex.EncodeToString(ev.Id) == txID {
+		for _, ev := range events.GetEvents() {
+			if hex.EncodeToString(ev.GetId()) == txID {
 				evts := make(map[string][]byte)
-				for _, evt := range ev.Events {
-					evts[evt.Name] = evt.Value
+				for _, evt := range ev.GetEvents() {
+					evts[evt.GetName()] = evt.GetValue()
 				}
 				er := ""
 				var er1 error
-				if ev.Error != nil {
-					er = ev.Error.Error
+				if ev.GetError() != nil {
+					er = ev.GetError().GetError()
 					er1 = errors.New(er)
 				}
 				return txID, TxResponse{
-					Method: ev.Method,
+					Method: ev.GetMethod(),
 					Error:  er,
-					Result: string(ev.Result),
+					Result: string(ev.GetResult()),
 					Events: evts,
 				}, er1
 			}
@@ -629,25 +629,25 @@ func (w *Wallet) RawChTransferInvokeWithBatch(ch string, fn string, args ...stri
 // SignedInvoke invokes a function on the ledger
 func (w *Wallet) SignedInvoke(ch string, fn string, args ...string) string {
 	txID, res, swaps := w.RawSignedInvoke(ch, fn, args...)
-	assert.Equal(w.ledger.t, "", res.Error)
+	require.Equal(w.ledger.t, "", res.Error)
 	for _, swap := range swaps {
 		x := proto.Batch{Swaps: []*proto.Swap{{
-			Id:      swap.Id,
+			Id:      swap.GetId(),
 			Creator: []byte("0000"),
-			Owner:   swap.Owner,
-			Token:   swap.Token,
-			Amount:  swap.Amount,
-			From:    swap.From,
-			To:      swap.To,
-			Hash:    swap.Hash,
-			Timeout: swap.Timeout,
+			Owner:   swap.GetOwner(),
+			Token:   swap.GetToken(),
+			Amount:  swap.GetAmount(),
+			From:    swap.GetFrom(),
+			To:      swap.GetTo(),
+			Hash:    swap.GetHash(),
+			Timeout: swap.GetTimeout(),
 		}}}
 		data, err := pb.Marshal(&x)
-		assert.NoError(w.ledger.t, err)
+		require.NoError(w.ledger.t, err)
 		cert, err := hex.DecodeString(batchRobotCert)
-		assert.NoError(w.ledger.t, err)
-		w.ledger.stubs[strings.ToLower(swap.To)].SetCreator(cert)
-		w.Invoke(strings.ToLower(swap.To), core.BatchExecute, string(data))
+		require.NoError(w.ledger.t, err)
+		w.ledger.stubs[strings.ToLower(swap.GetTo())].SetCreator(cert)
+		w.Invoke(strings.ToLower(swap.GetTo()), core.BatchExecute, string(data))
 	}
 	return txID
 }
@@ -655,29 +655,29 @@ func (w *Wallet) SignedInvoke(ch string, fn string, args ...string) string {
 // SignedMultiSwapsInvoke invokes a function on the ledger
 func (w *Wallet) SignedMultiSwapsInvoke(ch string, fn string, args ...string) string {
 	txID, res, _, multiSwaps := w.RawSignedMultiSwapInvoke(ch, fn, args...)
-	assert.Equal(w.ledger.t, "", res.Error)
+	require.Equal(w.ledger.t, "", res.Error)
 	for _, swap := range multiSwaps {
 		x := proto.Batch{
 			MultiSwaps: []*proto.MultiSwap{
 				{
-					Id:      swap.Id,
+					Id:      swap.GetId(),
 					Creator: []byte("0000"),
-					Owner:   swap.Owner,
-					Token:   swap.Token,
-					Assets:  swap.Assets,
-					From:    swap.From,
-					To:      swap.To,
-					Hash:    swap.Hash,
-					Timeout: swap.Timeout,
+					Owner:   swap.GetOwner(),
+					Token:   swap.GetToken(),
+					Assets:  swap.GetAssets(),
+					From:    swap.GetFrom(),
+					To:      swap.GetTo(),
+					Hash:    swap.GetHash(),
+					Timeout: swap.GetTimeout(),
 				},
 			},
 		}
 		data, err := pb.Marshal(&x)
-		assert.NoError(w.ledger.t, err)
+		require.NoError(w.ledger.t, err)
 		cert, err := hex.DecodeString(batchRobotCert)
-		assert.NoError(w.ledger.t, err)
-		w.ledger.stubs[swap.To].SetCreator(cert)
-		w.Invoke(swap.To, core.BatchExecute, string(data))
+		require.NoError(w.ledger.t, err)
+		w.ledger.stubs[swap.GetTo()].SetCreator(cert)
+		w.Invoke(swap.GetTo(), core.BatchExecute, string(data))
 	}
 	return txID
 }
@@ -692,18 +692,18 @@ func (w *Wallet) OtfNbInvoke(ch string, fn string, args ...string) (string, stri
 // NbInvoke executes non-batched transactions
 func (w *Wallet) NbInvoke(ch string, fn string, args ...string) (string, string) {
 	if err := w.verifyIncoming(ch, fn); err != nil {
-		assert.NoError(w.ledger.t, err)
+		require.NoError(w.ledger.t, err)
 		return "", ""
 	}
 	txID := txIDGen()
 	message, hash := w.sign(fn, ch, args...)
 	cert, err := base64.StdEncoding.DecodeString(userCert)
-	assert.NoError(w.ledger.t, err)
+	require.NoError(w.ledger.t, err)
 	_ = w.ledger.stubs[ch].SetCreatorCert("platformMSP", cert)
 	w.ledger.doInvoke(ch, txID, fn, message...)
 
 	nested, err := pb.Marshal(&proto.Nested{Args: append([]string{fn}, message...)})
-	assert.NoError(w.ledger.t, err)
+	require.NoError(w.ledger.t, err)
 
 	return base58.Encode(nested), hash
 }

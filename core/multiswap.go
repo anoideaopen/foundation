@@ -31,10 +31,8 @@ func (cc *ChainCode) multiSwapDoneHandler(
 	args []string,
 	cfgBytes []byte,
 ) peer.Response {
-	if cc.contract.ContractConfig().Options.DisableMultiSwaps {
-		return shim.Error(fmt.Sprintf(
-			"handling multi-swap done failed, %s", ErrMultiSwapDisabled.Error(),
-		))
+	if cc.contract.ContractConfig().GetOptions().GetDisableMultiSwaps() {
+		return shim.Error("handling multi-swap done failed, " + ErrMultiSwapDisabled.Error())
 	}
 
 	_, contract := copyContractWithConfig(traceCtx, cc.contract, stub, cfgBytes)
@@ -75,21 +73,21 @@ func (bc *BaseContract) TxMultiSwapBegin(sender *types.Sender, token string, mul
 		Owner:   sender.Address().Bytes(),
 		Assets:  assets,
 		Token:   token,
-		From:    bc.config.Symbol,
+		From:    bc.config.GetSymbol(),
 		To:      contractTo,
 		Hash:    hash,
-		Timeout: ts.Seconds + userSideTimeout,
+		Timeout: ts.GetSeconds() + userSideTimeout,
 	}
 
 	switch {
-	case swap.Token == swap.From:
-		for _, asset := range swap.Assets {
-			if err = bc.TokenBalanceSubWithTicker(types.AddrFromBytes(swap.Owner), new(big.Int).SetBytes(asset.Amount), asset.Group, "multi-swap begin"); err != nil {
+	case swap.GetToken() == swap.GetFrom():
+		for _, asset := range swap.GetAssets() {
+			if err = bc.TokenBalanceSubWithTicker(types.AddrFromBytes(swap.GetOwner()), new(big.Int).SetBytes(asset.GetAmount()), asset.GetGroup(), "multi-swap begin"); err != nil {
 				return "", err
 			}
 		}
-	case swap.Token == swap.To:
-		if err = bc.AllowedIndustrialBalanceSub(types.AddrFromBytes(swap.Owner), swap.Assets, "reverse multi-swap begin"); err != nil {
+	case swap.GetToken() == swap.GetTo():
+		if err = bc.AllowedIndustrialBalanceSub(types.AddrFromBytes(swap.GetOwner()), swap.GetAssets(), "reverse multi-swap begin"); err != nil {
 			return "", err
 		}
 	default:
@@ -112,33 +110,33 @@ func (bc *BaseContract) TxMultiSwapCancel(sender *types.Sender, swapID string) e
 	if err != nil {
 		return err
 	}
-	if !bytes.Equal(swap.Creator, sender.Address().Bytes()) {
+	if !bytes.Equal(swap.GetCreator(), sender.Address().Bytes()) {
 		return fmt.Errorf("unauthorized, multiswap creator %s not eq sender %s",
-			string(swap.Creator), sender.Address().String())
+			string(swap.GetCreator()), sender.Address().String())
 	}
 
 	ts, err := bc.GetStub().GetTxTimestamp()
 	if err != nil {
 		return err
 	}
-	if swap.Timeout > ts.Seconds {
+	if swap.GetTimeout() > ts.GetSeconds() {
 		return errors.New("wait for timeout to end")
 	}
 
 	switch {
-	case bytes.Equal(swap.Creator, swap.Owner) && swap.Token == swap.From:
-		for _, asset := range swap.Assets {
-			if err = bc.TokenBalanceAddWithTicker(types.AddrFromBytes(swap.Owner), new(big.Int).SetBytes(asset.Amount), asset.Group, "multi-swap cancel"); err != nil {
+	case bytes.Equal(swap.GetCreator(), swap.GetOwner()) && swap.GetToken() == swap.GetFrom():
+		for _, asset := range swap.GetAssets() {
+			if err = bc.TokenBalanceAddWithTicker(types.AddrFromBytes(swap.GetOwner()), new(big.Int).SetBytes(asset.GetAmount()), asset.GetGroup(), "multi-swap cancel"); err != nil {
 				return err
 			}
 		}
-	case bytes.Equal(swap.Creator, swap.Owner) && swap.Token == swap.To:
-		if err = bc.AllowedIndustrialBalanceAdd(types.AddrFromBytes(swap.Owner), swap.Assets, "reverse multi-swap cancel"); err != nil {
+	case bytes.Equal(swap.GetCreator(), swap.GetOwner()) && swap.GetToken() == swap.GetTo():
+		if err = bc.AllowedIndustrialBalanceAdd(types.AddrFromBytes(swap.GetOwner()), swap.GetAssets(), "reverse multi-swap cancel"); err != nil {
 			return err
 		}
-	case bytes.Equal(swap.Creator, []byte("0000")) && swap.Token == swap.To:
-		for _, asset := range swap.Assets {
-			if err = balance.Add(bc.GetStub(), balance.BalanceTypeGiven, swap.From, "", new(mathbig.Int).SetBytes(asset.Amount)); err != nil {
+	case bytes.Equal(swap.GetCreator(), []byte("0000")) && swap.GetToken() == swap.GetTo():
+		for _, asset := range swap.GetAssets() {
+			if err = balance.Add(bc.GetStub(), balance.BalanceTypeGiven, swap.GetFrom(), "", new(mathbig.Int).SetBytes(asset.GetAmount())); err != nil {
 				return err
 			}
 		}

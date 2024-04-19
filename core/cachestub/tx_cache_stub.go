@@ -34,7 +34,7 @@ func (bts *TxCacheStub) GetTxID() string {
 func (bts *TxCacheStub) GetState(key string) ([]byte, error) {
 	existsElement, ok := bts.txWriteCache[key]
 	if ok {
-		return existsElement.Value, nil
+		return existsElement.GetValue(), nil
 	}
 	return bts.BatchCacheStub.GetState(key)
 }
@@ -73,8 +73,8 @@ func (bts *TxCacheStub) Commit() ([]*proto.WriteElement, []*proto.Event) {
 	for _, k := range writeKeys {
 		writes = append(writes, &proto.WriteElement{
 			Key:       k,
-			Value:     bts.txWriteCache[k].Value,
-			IsDeleted: bts.txWriteCache[k].IsDeleted,
+			Value:     bts.txWriteCache[k].GetValue(),
+			IsDeleted: bts.txWriteCache[k].GetIsDeleted(),
 		})
 	}
 

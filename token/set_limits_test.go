@@ -6,7 +6,7 @@ import (
 	"github.com/anoideaopen/foundation/core/types/big"
 	ma "github.com/anoideaopen/foundation/mock"
 	"github.com/anoideaopen/foundation/proto"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	pb "google.golang.org/protobuf/proto"
 )
 
@@ -292,7 +292,7 @@ func TestSetLimitsWrongNumberParameters(t *testing.T) {
 	issuer.SignedInvoke("tt", "setRate", "distribute", "", "1")
 
 	if err := issuer.RawSignedInvokeWithErrorReturned("tt", "setLimits", "distribute", "", "", "1", "10"); err != nil {
-		assert.Contains(t, err.Error(), "incorrect number of keys or signs")
+		require.Contains(t, err.Error(), "incorrect number of keys or signs")
 	}
 }
 
@@ -309,7 +309,7 @@ func BaseTokenSetLimitsTest(t *testing.T, ser *serieSetLimits) {
 	ledger.NewCC("tt", tt, config)
 
 	err := issuer.RawSignedInvokeWithErrorReturned("tt", "setRate", "distribute", "", "1")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	if err := issuer.RawSignedInvokeWithErrorReturned(
 		ser.tokenName,
@@ -319,16 +319,16 @@ func BaseTokenSetLimitsTest(t *testing.T, ser *serieSetLimits) {
 		ser.minLimit,
 		ser.maxLimit,
 	); err != nil {
-		assert.Equal(t, ser.errorMsg, err.Error())
+		require.Equal(t, ser.errorMsg, err.Error())
 	} else {
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		data, err1 := issuer.Ledger().GetStub("tt").GetState("tokenMetadata")
-		assert.NoError(t, err1)
+		require.NoError(t, err1)
 
 		config := &proto.Token{}
 		err2 := pb.Unmarshal(data, config)
-		assert.NoError(t, err2)
+		require.NoError(t, err2)
 
 		rate := config.Rates[0]
 		actualMinLimit := new(big.Int).SetBytes(rate.Min)

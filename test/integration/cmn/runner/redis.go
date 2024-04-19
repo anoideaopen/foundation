@@ -2,6 +2,7 @@ package runner
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -14,7 +15,6 @@ import (
 	docker "github.com/fsouza/go-dockerclient"
 	"github.com/go-redis/redis/v8"
 	runnerFbk "github.com/hyperledger/fabric/integration/nwo/runner"
-	"github.com/pkg/errors"
 	"github.com/tedsuo/ifrit"
 )
 
@@ -92,9 +92,7 @@ func (r *RedisDB) Run(sigCh <-chan os.Signal, ready chan<- struct{}) error {
 			Name: r.Name,
 			Config: &docker.Config{
 				Image: r.Image,
-				Env: []string{
-					fmt.Sprintf("_creator=%s", r.creator),
-				},
+				Env:   []string{"_creator=" + r.creator},
 			},
 			HostConfig: hostConfig,
 		},
@@ -133,7 +131,7 @@ func (r *RedisDB) Run(sigCh <-chan os.Signal, ready chan<- struct{}) error {
 
 	select {
 	case <-ctx.Done():
-		return errors.Wrapf(ctx.Err(), "database in container %s did not start", r.containerID)
+		return fmt.Errorf("database in container %s did not start: %w", r.containerID, ctx.Err())
 	case <-containerExit:
 		return errors.New("container exited before ready")
 	case <-r.ready(ctx, r.hostAddress):
@@ -274,7 +272,7 @@ func (r *RedisDB) Stop() error {
 	r.mutex.Lock()
 	if r.stopped {
 		r.mutex.Unlock()
-		return errors.Errorf("container %s already stopped", r.containerID)
+		return errors.New("container " + r.containerID + " already stopped")
 	}
 	r.stopped = true
 	r.mutex.Unlock()

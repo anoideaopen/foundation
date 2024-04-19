@@ -36,7 +36,7 @@ func (it *IndustrialToken) TxCreateMCRequest(sender *types.Sender, groupName, ma
 	if err = it.loadConfigUnlessLoaded(); err != nil {
 		return err
 	}
-	if !it.config.Initialized {
+	if !it.config.GetInitialized() {
 		return errors.New("token is not initialized")
 	}
 
@@ -47,9 +47,9 @@ func (it *IndustrialToken) TxCreateMCRequest(sender *types.Sender, groupName, ma
 
 	oldMaturityDate := time.Time{}
 	notFound := true
-	for _, group := range it.config.Groups {
-		if group.Id == groupName {
-			oldMaturityDate = time.Unix(group.Maturity, 0)
+	for _, group := range it.config.GetGroups() {
+		if group.GetId() == groupName {
+			oldMaturityDate = time.Unix(group.GetMaturity(), 0)
 			notFound = false
 			break
 		}
@@ -104,7 +104,7 @@ func (it *IndustrialToken) QueryMCRequestsList() ([]MaturityChangeRequest, error
 		}
 
 		var req MaturityChangeRequest
-		err = json.Unmarshal(res.Value, &req)
+		err = json.Unmarshal(res.GetValue(), &req)
 		if err != nil {
 			return nil, err
 		}

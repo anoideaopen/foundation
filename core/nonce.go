@@ -2,6 +2,7 @@ package core
 
 import (
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"sort"
 	"strconv"
@@ -50,7 +51,7 @@ func checkNonce(
 		}
 	}
 
-	lastNonce.Nonce, err = setNonce(nonce, lastNonce.Nonce, defaultNonceTTL)
+	lastNonce.Nonce, err = setNonce(nonce, lastNonce.GetNonce(), defaultNonceTTL)
 	if err != nil {
 		return err
 	}
@@ -65,7 +66,7 @@ func checkNonce(
 
 func setNonce(nonce uint64, lastNonce []uint64, nonceTTL uint) ([]uint64, error) {
 	if len(strconv.FormatUint(nonce, 10)) != lenTimeInMilliseconds {
-		return lastNonce, fmt.Errorf("incorrect nonce format")
+		return lastNonce, errors.New("incorrect nonce format")
 	}
 
 	if len(lastNonce) == 0 {

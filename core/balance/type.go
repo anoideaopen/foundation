@@ -1,13 +1,16 @@
 package balance
 
-import "fmt"
+import (
+	"fmt"
+	"strconv"
+)
 
 // BalanceType represents different types of balance-related state keys in the ledger.
-type BalanceType byte //nolint:revive
+type BalanceType byte
 
 // String returns the hexadecimal string representation of the BalanceType.
 func (ot BalanceType) String() string {
-	return fmt.Sprintf("%x", byte(ot))
+	return strconv.FormatUint(uint64(ot), 16)
 }
 
 // Constants for different BalanceType values representing various balance state keys.

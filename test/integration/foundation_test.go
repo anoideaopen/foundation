@@ -1,7 +1,6 @@
 package integration
 
 import (
-	"crypto/ed25519"
 	"errors"
 	"fmt"
 	"os"
@@ -15,8 +14,8 @@ import (
 	pb "github.com/anoideaopen/foundation/proto"
 	industrialtoken "github.com/anoideaopen/foundation/test/chaincode/industrial/industrial_token"
 	"github.com/anoideaopen/foundation/test/integration/cmn"
+	"github.com/anoideaopen/foundation/test/integration/cmn/client"
 	"github.com/anoideaopen/foundation/test/integration/cmn/runner"
-	"github.com/btcsuite/btcutil/base58"
 	docker "github.com/fsouza/go-dockerclient"
 	"github.com/golang/protobuf/proto"
 	"github.com/hyperledger/fabric-protos-go/common"
@@ -32,7 +31,6 @@ import (
 	"github.com/tedsuo/ifrit"
 	ginkgomon "github.com/tedsuo/ifrit/ginkgomon_v2"
 	"github.com/tedsuo/ifrit/grouper"
-	"golang.org/x/crypto/sha3"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/anypb"
 )
@@ -40,7 +38,7 @@ import (
 var _ = Describe("Foundation Tests", func() {
 	var (
 		testDir          string
-		client           *docker.Client
+		cli              *docker.Client
 		network          *nwo.Network
 		networkProcess   ifrit.Process
 		ordererProcesses []ifrit.Process
@@ -55,7 +53,7 @@ var _ = Describe("Foundation Tests", func() {
 		testDir, err = os.MkdirTemp("", "foundation")
 		Expect(err).NotTo(HaveOccurred())
 
-		client, err = docker.NewClientFromEnv()
+		cli, err = docker.NewClientFromEnv()
 		Expect(err).NotTo(HaveOccurred())
 	})
 
@@ -85,7 +83,7 @@ var _ = Describe("Foundation Tests", func() {
 			networkConfig.Channels = nil
 			channel := "testchannel1"
 
-			network = nwo.New(networkConfig, testDir, client, StartPort(), components)
+			network = nwo.New(networkConfig, testDir, cli, StartPort(), components)
 			cwd, err := os.Getwd()
 			Expect(err).NotTo(HaveOccurred())
 			network.ExternalBuilders = append(network.ExternalBuilders,
@@ -174,6 +172,7 @@ var _ = Describe("Foundation Tests", func() {
 			redisProcess   ifrit.Process
 			redisDB        *runner.RedisDB
 			networkFound   *cmn.NetworkFoundation
+			robotProc      ifrit.Process
 		)
 		BeforeEach(func() {
 			By("start redis")
@@ -202,7 +201,7 @@ var _ = Describe("Foundation Tests", func() {
 				peer.Channels = pchs
 			}
 
-			network = nwo.New(networkConfig, testDir, client, StartPort(), components)
+			network = nwo.New(networkConfig, testDir, cli, StartPort(), components)
 			cwd, err := os.Getwd()
 			Expect(err).NotTo(HaveOccurred())
 			network.ExternalBuilders = append(network.ExternalBuilders,
@@ -259,18 +258,14 @@ var _ = Describe("Foundation Tests", func() {
 			skiRobot, err := cmn.ReadSKI(pathToPrivateKeyRobot)
 			Expect(err).NotTo(HaveOccurred())
 
-			validators, err := cmn.NewSecrets(1)
-			Expect(err).NotTo(HaveOccurred())
-			adminPriv := validators[0]
-			adminPub := adminPriv.Public().(ed25519.PublicKey)
-			adminHash := sha3.Sum256(adminPub)
-			adminAddr := base58.CheckEncode(adminHash[1:], adminHash[0])
+			admin := client.NewUserFoundation()
+			Expect(admin.PrivateKey).NotTo(Equal(nil))
 
 			By("Deploying chaincode acl")
 			// ToDo - add config checking when ACL integration tests will be done
 			aclCfg := &aclpb.ACLConfig{
 				AdminSKIEncoded: skiBackend,
-				Validators:      []string{base58.Encode(validators[0].Public().(ed25519.PublicKey))},
+				Validators:      []string{admin.PublicKeyBase58},
 			}
 			cfgBytesACL, err := protojson.Marshal(aclCfg)
 			Expect(err).NotTo(HaveOccurred())
@@ -290,9 +285,9 @@ var _ = Describe("Foundation Tests", func() {
 			By("Deploying chaincode cc")
 			cfgCC := &pb.Config{
 				Contract: &pb.ContractConfig{Symbol: "CC", RobotSKI: skiRobot,
-					Admin: &pb.Wallet{Address: adminAddr}},
+					Admin: &pb.Wallet{Address: admin.AddressBase58Check}},
 				Token: &pb.TokenConfig{Name: "Currency Coin", Decimals: 8,
-					UnderlyingAsset: "US Dollars", Issuer: &pb.Wallet{Address: adminAddr}},
+					UnderlyingAsset: "US Dollars", Issuer: &pb.Wallet{Address: admin.AddressBase58Check}},
 			}
 			cfgBytesCC, err := protojson.Marshal(cfgCC)
 			Expect(err).NotTo(HaveOccurred())
@@ -311,20 +306,14 @@ var _ = Describe("Foundation Tests", func() {
 			Eventually(sess, network.EventuallyTimeout).Should(gbytes.Say(`{"name":"Currency Coin","symbol":"CC","decimals":8,"underlying_asset":"US Dollars"`))
 
 			By("Deploying chaincode fiat")
-			feeUsers, err := cmn.NewSecrets(2)
-			feeSetPriv := feeUsers[0]
-			feeSetPub := feeSetPriv.Public().(ed25519.PublicKey)
-			feeSetHash := sha3.Sum256(feeSetPub)
-			feeSetAddr := base58.CheckEncode(feeSetHash[1:], feeSetHash[0])
-			feeAdrPriv := feeUsers[1]
-			feeAdrPub := feeAdrPriv.Public().(ed25519.PublicKey)
-			feeAdrHash := sha3.Sum256(feeAdrPub)
-			feeAdrAddr := base58.CheckEncode(feeAdrHash[1:], feeAdrHash[0])
+			feeSetter := client.NewUserFoundation()
+			feeAddressSetter := client.NewUserFoundation()
+
 			cfgFiat := &pb.Config{
 				Contract: &pb.ContractConfig{
 					Symbol:   "FIAT",
 					RobotSKI: skiRobot,
-					Admin:    &pb.Wallet{Address: adminAddr},
+					Admin:    &pb.Wallet{Address: admin.AddressBase58Check},
 					Options: &pb.ChaincodeOptions{
 						DisabledFunctions: []string{"TxBuyToken", "TxBuyBack"},
 					},
@@ -333,9 +322,9 @@ var _ = Describe("Foundation Tests", func() {
 					Name:             "FIAT",
 					Decimals:         8,
 					UnderlyingAsset:  "US Dollars",
-					Issuer:           &pb.Wallet{Address: adminAddr},
-					FeeSetter:        &pb.Wallet{Address: feeSetAddr},
-					FeeAddressSetter: &pb.Wallet{Address: feeAdrAddr},
+					Issuer:           &pb.Wallet{Address: admin.AddressBase58Check},
+					FeeSetter:        &pb.Wallet{Address: feeSetter.AddressBase58Check},
+					FeeAddressSetter: &pb.Wallet{Address: feeAddressSetter.AddressBase58Check},
 				},
 			}
 			cfgBytesFiat, err := protojson.Marshal(cfgFiat)
@@ -363,15 +352,15 @@ var _ = Describe("Foundation Tests", func() {
 				TokensForUnit:    "1",
 				PaymentTerms:     "Non-prepaid",
 				Price:            "Floating",
-				Issuer:           &pb.Wallet{Address: adminAddr},
-				FeeSetter:        &pb.Wallet{Address: feeSetAddr},
-				FeeAddressSetter: &pb.Wallet{Address: feeAdrAddr},
+				Issuer:           &pb.Wallet{Address: admin.AddressBase58Check},
+				FeeSetter:        &pb.Wallet{Address: feeSetter.AddressBase58Check},
+				FeeAddressSetter: &pb.Wallet{Address: feeAddressSetter.AddressBase58Check},
 			}
 			cfgIndustrial := &pb.Config{
 				Contract: &pb.ContractConfig{
 					Symbol:   "INDUSTRIAL",
 					RobotSKI: skiRobot,
-					Admin:    &pb.Wallet{Address: adminAddr},
+					Admin:    &pb.Wallet{Address: admin.AddressBase58Check},
 				},
 			}
 			cfgIndustrial.ExtConfig, _ = anypb.New(&extCfg)
@@ -393,11 +382,23 @@ var _ = Describe("Foundation Tests", func() {
 			Eventually(sess, network.EventuallyTimeout).Should(gexec.Exit(0))
 			Eventually(sess, network.EventuallyTimeout).Should(gbytes.Say(`{"name":"Industrial token","symbol":"INDUSTRIAL","decimals":8,"underlying_asset":"TEST_UnderlyingAsset"`))
 
-			By("start robot")
+			By("robot start")
 			robotRunner := networkFound.RobotRunner()
-			robotRunner.Command.Env = append(robotRunner.Command.Env, "FABRIC_LOGGING_SPEC=orderer.consensus.smartbft=debug:grpc=debug")
-			robotProc := ifrit.Invoke(robotRunner)
+			robotProc = ifrit.Invoke(robotRunner)
 			Eventually(robotProc.Ready(), network.EventuallyTimeout).Should(BeClosed())
+
+			By("add admin to acl")
+			client.AddUser(network, peer, network.Orderers[1], admin)
+
+			By("add user to acl")
+			user1 := client.NewUserFoundation()
+			client.AddUser(network, peer, network.Orderers[1], user1)
+
+			By("robot stop")
+			robotProc.Signal(syscall.SIGTERM)
+			Eventually(robotProc.Wait(), network.EventuallyTimeout).Should(Receive())
+
+			// Eventually(sess, network.EventuallyTimeout/4).Should(gbytes.Say("PFI"))
 		})
 	})
 })
@@ -406,7 +407,7 @@ func peerGroupRunners(n *nwo.Network) (ifrit.Runner, []*ginkgomon.Runner) {
 	var runners []*ginkgomon.Runner
 	members := grouper.Members{}
 	for _, p := range n.Peers {
-		peerRunner := n.PeerRunner(p)
+		peerRunner := n.PeerRunner(p, "FABRIC_LOGGING_SPEC=debug:grpc=debug")
 		members = append(members, grouper.Member{Name: p.ID(), Runner: peerRunner})
 		runners = append(runners, peerRunner)
 	}

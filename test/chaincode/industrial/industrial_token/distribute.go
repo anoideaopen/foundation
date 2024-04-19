@@ -40,7 +40,7 @@ func (it *IndustrialToken) TxCreateDistribRequest(sender *types.Sender, args, re
 	if err != nil {
 		return err
 	}
-	if !it.config.Initialized {
+	if !it.config.GetInitialized() {
 		return errors.New("token is not initialized")
 	}
 
@@ -62,9 +62,9 @@ func (it *IndustrialToken) TxCreateDistribRequest(sender *types.Sender, args, re
 		}
 
 		fGroupNameFound := false
-		for _, group := range it.config.Groups {
-			if arg == group.Id {
-				groupName = group.Id
+		for _, group := range it.config.GetGroups() {
+			if arg == group.GetId() {
+				groupName = group.GetId()
 				fGroupNameFound = true
 				break
 			}
@@ -109,7 +109,7 @@ func (it *IndustrialToken) QueryDistribRequestsList() ([]DistribRequest, error) 
 		}
 
 		var req DistribRequest
-		err = json.Unmarshal(res.Value, &req)
+		err = json.Unmarshal(res.GetValue(), &req)
 		if err != nil {
 			return nil, err
 		}
@@ -154,7 +154,7 @@ func (it *IndustrialToken) TxAcceptDistribRequest(sender *types.Sender, requestI
 	}
 
 	for group, amount := range req.GroupsAmounts {
-		if err = it.IndustrialBalanceTransfer(it.ContractConfig().Symbol+"_"+group, sender.Address(), req.UserAddress, amount, req.Ref); err != nil {
+		if err = it.IndustrialBalanceTransfer(it.ContractConfig().GetSymbol()+"_"+group, sender.Address(), req.UserAddress, amount, req.Ref); err != nil {
 			return err
 		}
 	}

@@ -13,7 +13,7 @@ import (
 	"github.com/anoideaopen/foundation/proto"
 	"github.com/btcsuite/btcutil/base58"
 	pb "github.com/golang/protobuf/proto" //nolint:staticcheck
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -77,42 +77,42 @@ func (w *Multisig) RawSignedInvoke(signCnt int, ch string, fn string, args ...st
 	w.ledger.doInvoke(ch, txID, fn, args...)
 
 	id, err := hex.DecodeString(txID)
-	assert.NoError(w.ledger.t, err)
+	require.NoError(w.ledger.t, err)
 	data, err := pb.Marshal(&proto.Batch{TxIDs: [][]byte{id}})
-	assert.NoError(w.ledger.t, err)
+	require.NoError(w.ledger.t, err)
 
 	cert, err := hex.DecodeString(batchRobotCert)
-	assert.NoError(w.ledger.t, err)
+	require.NoError(w.ledger.t, err)
 	w.ledger.stubs[ch].SetCreator(cert)
 	res := w.Invoke(ch, core.BatchExecute, string(data))
 	out := &proto.BatchResponse{}
-	assert.NoError(w.ledger.t, pb.Unmarshal([]byte(res), out))
+	require.NoError(w.ledger.t, pb.Unmarshal([]byte(res), out))
 
 	e := <-w.ledger.stubs[ch].ChaincodeEventsChannel
-	if e.EventName == core.BatchExecute {
+	if e.GetEventName() == core.BatchExecute {
 		events := &proto.BatchEvent{}
-		assert.NoError(w.ledger.t, pb.Unmarshal(e.Payload, events))
-		for _, e := range events.Events {
-			if hex.EncodeToString(e.Id) == txID {
-				events := make(map[string][]byte)
-				for _, e := range e.Events {
-					events[e.Name] = e.Value
+		require.NoError(w.ledger.t, pb.Unmarshal(e.GetPayload(), events))
+		for _, ev := range events.GetEvents() {
+			if hex.EncodeToString(ev.GetId()) == txID {
+				events1 := make(map[string][]byte)
+				for _, evt := range ev.GetEvents() {
+					events1[evt.GetName()] = evt.GetValue()
 				}
 				err := ""
-				if e.Error != nil {
-					err = e.Error.Error
+				if ev.GetError() != nil {
+					err = ev.GetError().GetError()
 				}
 				return txID, TxResponse{
-					Method: e.Method,
+					Method: ev.GetMethod(),
 					Error:  err,
-					Result: string(e.Result),
-					Events: events,
-				}, out.CreatedSwaps
+					Result: string(ev.GetResult()),
+					Events: events1,
+				}, out.GetCreatedSwaps()
 			}
 		}
 	}
-	assert.Fail(w.ledger.t, shouldNotBeHereMsg)
-	return txID, TxResponse{}, out.CreatedSwaps
+	require.Fail(w.ledger.t, shouldNotBeHereMsg)
+	return txID, TxResponse{}, out.GetCreatedSwaps()
 }
 
 // SecretKeys returns private keys of multisig wallet

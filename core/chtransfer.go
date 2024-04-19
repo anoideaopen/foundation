@@ -66,7 +66,7 @@ func (bc *BaseContract) TxChannelTransferByAdmin(
 		return "", cctransfer.ErrAdminNotSet
 	}
 
-	if admin, err := types.AddrFromBase58Check(bc.config.Admin.Address); err == nil {
+	if admin, err := types.AddrFromBase58Check(bc.config.GetAdmin().GetAddress()); err == nil {
 		if !sender.Equal(admin) {
 			return "", cctransfer.ErrUnauthorisedNotAdmin
 		}
@@ -89,13 +89,13 @@ func (bc *BaseContract) createCCTransferFrom(
 	token string,
 	amount *big.Int,
 ) (string, error) {
-	if strings.EqualFold(bc.config.Symbol, to) {
+	if strings.EqualFold(bc.config.GetSymbol(), to) {
 		return "", cctransfer.ErrInvalidChannel
 	}
 
 	t := tokenSymbol(token)
 
-	if !strings.EqualFold(bc.config.Symbol, t) && !strings.EqualFold(to, t) {
+	if !strings.EqualFold(bc.config.GetSymbol(), t) && !strings.EqualFold(to, t) {
 		return "", cctransfer.ErrInvalidToken
 	}
 
@@ -114,12 +114,12 @@ func (bc *BaseContract) createCCTransferFrom(
 
 	tr := &pb.CCTransfer{
 		Id:               idTransfer,
-		From:             bc.config.Symbol,
+		From:             bc.config.GetSymbol(),
 		To:               to,
 		Token:            token,
 		User:             idUser.Bytes(),
 		Amount:           amount.Bytes(),
-		ForwardDirection: strings.EqualFold(bc.config.Symbol, t),
+		ForwardDirection: strings.EqualFold(bc.config.GetSymbol(), t),
 		TimeAsNanos:      ts.AsTime().UnixNano(),
 	}
 
@@ -130,12 +130,12 @@ func (bc *BaseContract) createCCTransferFrom(
 	// rebalancing
 	err = bc.ccTransferChangeBalance(
 		CreateFrom,
-		tr.ForwardDirection,
+		tr.GetForwardDirection(),
 		idUser,
 		amount,
-		tr.From,
-		tr.To,
-		tr.Token,
+		tr.GetFrom(),
+		tr.GetTo(),
+		tr.GetToken(),
 	)
 	if err != nil {
 		return "", err
@@ -158,25 +158,25 @@ func (bc *BaseContract) TxCreateCCTransferTo(dataIn string) (string, error) {
 	}
 
 	// see if it's already there.
-	if _, err := cctransfer.LoadCCToTransfer(bc.GetStub(), tr.Id); err == nil {
+	if _, err := cctransfer.LoadCCToTransfer(bc.GetStub(), tr.GetId()); err == nil {
 		return "", cctransfer.ErrIDTransferExist
 	}
 
-	if !strings.EqualFold(bc.config.Symbol, tr.From) && !strings.EqualFold(bc.config.Symbol, tr.To) {
+	if !strings.EqualFold(bc.config.GetSymbol(), tr.GetFrom()) && !strings.EqualFold(bc.config.GetSymbol(), tr.GetTo()) {
 		return "", cctransfer.ErrInvalidChannel
 	}
 
-	if strings.EqualFold(tr.From, tr.To) {
+	if strings.EqualFold(tr.GetFrom(), tr.GetTo()) {
 		return "", cctransfer.ErrInvalidChannel
 	}
 
-	t := tokenSymbol(tr.Token)
+	t := tokenSymbol(tr.GetToken())
 
-	if !strings.EqualFold(tr.From, t) && !strings.EqualFold(tr.To, t) {
+	if !strings.EqualFold(tr.GetFrom(), t) && !strings.EqualFold(tr.GetTo(), t) {
 		return "", cctransfer.ErrInvalidToken
 	}
 
-	if strings.EqualFold(tr.From, t) != tr.ForwardDirection {
+	if strings.EqualFold(tr.GetFrom(), t) != tr.GetForwardDirection() {
 		return "", cctransfer.ErrInvalidToken
 	}
 
@@ -188,12 +188,12 @@ func (bc *BaseContract) TxCreateCCTransferTo(dataIn string) (string, error) {
 	// rebalancing
 	err := bc.ccTransferChangeBalance(
 		CreateTo,
-		tr.ForwardDirection,
-		types.AddrFromBytes(tr.User),
-		new(big.Int).SetBytes(tr.Amount),
-		tr.From,
-		tr.To,
-		tr.Token,
+		tr.GetForwardDirection(),
+		types.AddrFromBytes(tr.GetUser()),
+		new(big.Int).SetBytes(tr.GetAmount()),
+		tr.GetFrom(),
+		tr.GetTo(),
+		tr.GetToken(),
 	)
 	if err != nil {
 		return "", err
@@ -215,19 +215,19 @@ func (bc *BaseContract) TxCancelCCTransferFrom(id string) error {
 	}
 
 	// If it's already committed, it's a mistake.
-	if tr.IsCommit {
+	if tr.GetIsCommit() {
 		return cctransfer.ErrTransferCommit
 	}
 
 	// rebalancing
 	err = bc.ccTransferChangeBalance(
 		CancelFrom,
-		tr.ForwardDirection,
-		types.AddrFromBytes(tr.User),
-		new(big.Int).SetBytes(tr.Amount),
-		tr.From,
-		tr.To,
-		tr.Token,
+		tr.GetForwardDirection(),
+		types.AddrFromBytes(tr.GetUser()),
+		new(big.Int).SetBytes(tr.GetAmount()),
+		tr.GetFrom(),
+		tr.GetTo(),
+		tr.GetToken(),
 	)
 	if err != nil {
 		return err
@@ -247,7 +247,7 @@ func (bc *BaseContract) NBTxCommitCCTransferFrom(id string) error {
 	}
 
 	// if it's already committed, it's an error
-	if tr.IsCommit {
+	if tr.GetIsCommit() {
 		return cctransfer.ErrTransferCommit
 	}
 
@@ -266,7 +266,7 @@ func (bc *BaseContract) NBTxDeleteCCTransferFrom(id string) error {
 	}
 
 	// if it's not committed, it's an error
-	if !tr.IsCommit {
+	if !tr.GetIsCommit() {
 		return cctransfer.ErrTransferNotCommit
 	}
 
@@ -284,7 +284,7 @@ func (bc *BaseContract) NBTxDeleteCCTransferTo(id string) error {
 	}
 
 	// if it is not committed, error
-	if !tr.IsCommit {
+	if !tr.GetIsCommit() {
 		return cctransfer.ErrTransferNotCommit
 	}
 

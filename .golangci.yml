@@ -61,6 +61,13 @@ linters:
     - testableexamples
     - dupword
     - gocheckcompilerdirectives
+    - perfsprint
+    - testifylint
+    - sloglint
+    - protogetter
+#    - spancheck
+#    - intrange # (Go 1.22+)
+#    - copyloopvar # (Go 1.22+)
   disable:
     - godot
     - wsl
@@ -100,3 +107,15 @@ linters-settings:
       - 'G107'
       - 'G402'
       - 'G404'
+  revive:
+    ignore-generated-header: true
+    rules:
+      - name: dot-imports
+        severity: warning
+        disabled: false
+        arguments:
+          - allowedPackages: ["github.com/onsi/gomega", "github.com/onsi/ginkgo/v2"]
+  stylecheck:
+    dot-import-whitelist:
+      - github.com/onsi/gomega
+      - github.com/onsi/ginkgo/v2

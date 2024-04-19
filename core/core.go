@@ -4,6 +4,7 @@ import (
 	"embed"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -19,14 +20,13 @@ import (
 	"github.com/anoideaopen/foundation/proto"
 	"github.com/hyperledger/fabric-chaincode-go/shim"
 	"github.com/hyperledger/fabric-protos-go/peer"
-	"github.com/pkg/errors"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 )
 
 const (
-	// assertInterfaceErrMsg is the error message used when an interface to error type assertion fails.
-	assertInterfaceErrMsg = "assertion interface -> error is failed"
+	// requireInterfaceErrMsg is the error message used when an interface to error type requireion fails.
+	requireInterfaceErrMsg = "requireion interface -> error is failed"
 
 	// chaincodeExecModeEnv is the environment variable that specifies the execution mode of the chaincode.
 	chaincodeExecModeEnv = "CHAINCODE_EXEC_MODE"
@@ -360,10 +360,10 @@ func NewCC(
 func (cc *ChainCode) Init(stub shim.ChaincodeStubInterface) peer.Response {
 	creator, err := stub.GetCreator()
 	if err != nil {
-		return shim.Error(fmt.Sprintf("init: getting creator of transaction: %s", err.Error()))
+		return shim.Error("init: getting creator of transaction: " + err.Error())
 	}
 	if err = hlfcreator.ValidateAdminCreator(creator); err != nil {
-		return shim.Error(fmt.Sprintf("init: validating admin creator: %s", err))
+		return shim.Error("init: validating admin creator: " + err.Error())
 	}
 
 	args := stub.GetStringArgs()
@@ -381,7 +381,7 @@ func (cc *ChainCode) Init(stub shim.ChaincodeStubInterface) peer.Response {
 	}
 
 	if err = validateContractMethods(cc.contract); err != nil {
-		return shim.Error(fmt.Sprintf("init: validating contract methods: %s", err.Error()))
+		return shim.Error("init: validating contract methods: " + err.Error())
 	}
 
 	if c, ok := cc.contract.(ContractConfigurable); ok {
@@ -405,7 +405,7 @@ func (cc *ChainCode) Init(stub shim.ChaincodeStubInterface) peer.Response {
 	}
 
 	if err = config.SaveConfig(stub, cfgBytes); err != nil {
-		return shim.Error(fmt.Sprintf("init: saving config: %s", err.Error()))
+		return shim.Error("init: saving config: " + err.Error())
 	}
 
 	return shim.Success(nil)
@@ -433,13 +433,13 @@ func (cc *ChainCode) Invoke(stub shim.ChaincodeStubInterface) (r peer.Response) 
 	// getting contract config
 	cfgBytes, err := config.LoadRawConfig(stub)
 	if err != nil {
-		return shim.Error(fmt.Sprintf("invoke: loading raw config: %s", err.Error()))
+		return shim.Error("invoke: loading raw config: " + err.Error())
 	}
 
 	// Apply config on all layers: base contract (SKI's & chaincode options),
 	// token base attributes and extended token parameters.
 	if err = applyConfig(&cc.contract, stub, cfgBytes); err != nil {
-		return shim.Error(fmt.Sprintf("applying configutarion: %s", err.Error()))
+		return shim.Error("applying configutarion: " + err.Error())
 	}
 
 	// Getting carrier from transient map and creating tracing span
@@ -470,7 +470,7 @@ func (cc *ChainCode) Invoke(stub shim.ChaincodeStubInterface) (r peer.Response) 
 
 	span.AddEvent("validating transaction ID")
 	if err = cc.ValidateTxID(stub); err != nil {
-		errMsg := fmt.Sprintf("invoke: validating transaction ID: %s", err.Error())
+		errMsg := "invoke: validating transaction ID: " + err.Error()
 		span.SetStatus(codes.Error, errMsg)
 		return shim.Error(errMsg)
 	}
@@ -478,7 +478,7 @@ func (cc *ChainCode) Invoke(stub shim.ChaincodeStubInterface) (r peer.Response) 
 	span.AddEvent("getting creator")
 	creatorBytes, err := stub.GetCreator()
 	if err != nil {
-		errMsg := fmt.Sprintf("invoke: failed to get creator of transaction: %s", err.Error())
+		errMsg := "invoke: failed to get creator of transaction: " + err.Error()
 		span.SetStatus(codes.Error, errMsg)
 		return shim.Error(errMsg)
 	}
@@ -486,7 +486,7 @@ func (cc *ChainCode) Invoke(stub shim.ChaincodeStubInterface) (r peer.Response) 
 	span.AddEvent("getting creator SKI and hashed cert")
 	creatorSKI, hashedCert, err := hlfcreator.CreatorSKIAndHashedCert(creatorBytes)
 	if err != nil {
-		errMsg := fmt.Sprintf("invoke: validating creator: %s", err.Error())
+		errMsg := "invoke: validating creator: " + err.Error()
 		span.SetStatus(codes.Error, errMsg)
 		return shim.Error(errMsg)
 	}
@@ -494,7 +494,7 @@ func (cc *ChainCode) Invoke(stub shim.ChaincodeStubInterface) (r peer.Response) 
 	span.AddEvent("parsing contract methods")
 	cc.methods, err = parseContractMethods(cc.contract)
 	if err != nil {
-		errMsg := fmt.Sprintf("invoke: parsing contract methods: %s", err.Error())
+		errMsg := "invoke: parsing contract methods: " + err.Error()
 		span.SetStatus(codes.Error, errMsg)
 		return shim.Error(errMsg)
 	}
@@ -513,13 +513,13 @@ func (cc *ChainCode) Invoke(stub shim.ChaincodeStubInterface) (r peer.Response) 
 
 		balanceType, err := balance.StringToBalanceType(arguments[0])
 		if err != nil {
-			errMsg := fmt.Sprintf("invoke: parsing object type: %s", err.Error())
+			errMsg := "invoke: parsing object type: " + err.Error()
 			span.SetStatus(codes.Error, errMsg)
 			return shim.Error(errMsg)
 		}
 
 		if err = balance.CreateIndex(stub, balanceType); err != nil {
-			errMsg := fmt.Sprintf("invoke: create index: %s", err.Error())
+			errMsg := "invoke: create index: " + err.Error()
 			span.SetStatus(codes.Error, errMsg)
 			return shim.Error(errMsg)
 		}
@@ -543,15 +543,15 @@ func (cc *ChainCode) Invoke(stub shim.ChaincodeStubInterface) (r peer.Response) 
 		DeleteCCTransferFrom:
 		contractCfg, err := config.ContractConfigFromBytes(cfgBytes)
 		if err != nil {
-			errMsg := fmt.Sprintf("loading base config %s", err.Error())
+			errMsg := "loading base config " + err.Error()
 			span.SetStatus(codes.Error, errMsg)
 			return shim.Error(errMsg)
 		}
 
-		robotSKIBytes, _ := hex.DecodeString(contractCfg.RobotSKI)
+		robotSKIBytes, _ := hex.DecodeString(contractCfg.GetRobotSKI())
 		err = hlfcreator.ValidateSKI(robotSKIBytes, creatorSKI, hashedCert)
 		if err != nil {
-			errMsg := fmt.Sprintf("invoke:unauthorized: robotSKI is not equal creatorSKI and hashedCert: %s", err.Error())
+			errMsg := "invoke:unauthorized: robotSKI is not equal creatorSKI and hashedCert: " + err.Error()
 			span.SetStatus(codes.Error, errMsg)
 			return shim.Error(errMsg)
 		}
@@ -559,7 +559,7 @@ func (cc *ChainCode) Invoke(stub shim.ChaincodeStubInterface) (r peer.Response) 
 
 	method, err := cc.methods.Method(functionName)
 	if err != nil {
-		errMsg := fmt.Sprintf("invoke: finding method: %s", err.Error())
+		errMsg := "invoke: finding method: " + err.Error()
 		span.SetStatus(codes.Error, errMsg)
 		return shim.Error(errMsg)
 	}
@@ -703,16 +703,11 @@ func (cc *ChainCode) batchExecuteHandler(
 		return peer.Response{}
 	}
 
-	robotSKIBytes, _ := hex.DecodeString(contractCfg.RobotSKI)
+	robotSKIBytes, _ := hex.DecodeString(contractCfg.GetRobotSKI())
 
 	err = hlfcreator.ValidateSKI(robotSKIBytes, creatorSKI, hashedCert)
 	if err != nil {
-		return shim.Error(
-			fmt.Sprintf(
-				"unauthorized: robotSKI is not equal creatorSKI and hashedCert: %s",
-				err.Error(),
-			),
-		)
+		return shim.Error("unauthorized: robotSKI is not equal creatorSKI and hashedCert: " + err.Error())
 	}
 
 	return cc.batchExecute(traceCtx, stub, args[0], cfgBytes)
@@ -732,7 +727,7 @@ func (cc *ChainCode) batchExecuteHandler(
 // If the method call returns an error or the return value cannot be converted to an error, it is returned as is.
 //
 // Errors from the method call are converted to Go errors and returned. If the conversion is not possible,
-// a generic error with message assertInterfaceErrMsg is returned.
+// a generic error with message requireInterfaceErrMsg is returned.
 func (cc *ChainCode) callMethod(
 	traceCtx telemetry.TraceContext,
 	stub shim.ChaincodeStubInterface,
@@ -769,8 +764,8 @@ func (cc *ChainCode) callMethod(
 	if errInt != nil {
 		err, ok := errInt.(error)
 		if !ok {
-			span.SetStatus(codes.Error, assertInterfaceErrMsg)
-			return nil, errors.New(assertInterfaceErrMsg)
+			span.SetStatus(codes.Error, requireInterfaceErrMsg)
+			return nil, errors.New(requireInterfaceErrMsg)
 		}
 		span.SetStatus(codes.Error, err.Error())
 		return nil, err
@@ -822,7 +817,7 @@ func doConvertToCall(
 		if res[1].Interface() != nil {
 			err, ok := res[1].Interface().(error)
 			if !ok {
-				return nil, errors.New(assertInterfaceErrMsg)
+				return nil, errors.New(requireInterfaceErrMsg)
 			}
 			return nil, fmt.Errorf(
 				"failed to convert arg value '%s' to type '%s' on index '%d': %w",
@@ -868,13 +863,13 @@ func doPrepareToSave(
 			if res[1].Interface() != nil {
 				err, ok := res[1].Interface().(error)
 				if !ok {
-					return nil, errors.New(assertInterfaceErrMsg)
+					return nil, errors.New(requireInterfaceErrMsg)
 				}
 				return nil, err
 			}
 			as[i], ok = res[0].Interface().(string)
 			if !ok {
-				return nil, errors.New(assertInterfaceErrMsg)
+				return nil, errors.New(requireInterfaceErrMsg)
 			}
 			continue
 		}
@@ -888,7 +883,7 @@ func doPrepareToSave(
 		if res[1].Interface() != nil {
 			err, ok := res[1].Interface().(error)
 			if !ok {
-				return nil, errors.New(assertInterfaceErrMsg)
+				return nil, errors.New(requireInterfaceErrMsg)
 			}
 			return nil, err
 		}
@@ -945,7 +940,7 @@ func (cc *ChainCode) Start() error {
 	var ccID string
 	// if chaincode was set during runtime build, use it
 	if ccID = os.Getenv(chaincodeCcIDEnv); ccID == "" {
-		return fmt.Errorf("need to specify chaincode id if running as server")
+		return errors.New("need to specify chaincode id if running as server")
 	}
 
 	port := os.Getenv(chaincodeServerPortEnv)
@@ -1022,7 +1017,7 @@ func applyConfig(
 
 	ccbc, ok := (*bci).(ContractConfigurable)
 	if !ok {
-		return fmt.Errorf("chaincode is not ContractConfigurable")
+		return errors.New("chaincode is not ContractConfigurable")
 	}
 
 	contractCfg, err := config.ContractConfigFromBytes(cfgBytes)
@@ -1030,7 +1025,7 @@ func applyConfig(
 		return fmt.Errorf("parsing base config: %w", err)
 	}
 
-	if contractCfg.Options == nil {
+	if contractCfg.GetOptions() == nil {
 		contractCfg.Options = new(proto.ChaincodeOptions)
 	}
 

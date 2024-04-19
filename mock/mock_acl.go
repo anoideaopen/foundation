@@ -146,7 +146,7 @@ func (ma *mockACL) addRight(stub shim.ChaincodeStubInterface, channel, cc, role,
 	}
 	address := pb.Address{Address: append([]byte{ver}, value...)[:32]}
 
-	for _, existedAddr := range addresses.Addresses {
+	for _, existedAddr := range addresses.GetAddresses() {
 		if address.String() == existedAddr.String() {
 			return nil
 		}
@@ -190,9 +190,9 @@ func (ma *mockACL) removeRight(stub shim.ChaincodeStubInterface, channel, cc, ro
 	}
 	address := pb.Address{Address: append([]byte{ver}, value...)[:32]}
 
-	for i, existedAddr := range addresses.Addresses {
+	for i, existedAddr := range addresses.GetAddresses() {
 		if existedAddr.String() == address.String() {
-			addresses.Addresses = append(addresses.Addresses[:i], addresses.Addresses[i+1:]...)
+			addresses.Addresses = append(addresses.Addresses[:i], addresses.GetAddresses()[i+1:]...)
 			rawAddresses, err = proto.Marshal(addresses)
 			if err != nil {
 				return err
@@ -237,7 +237,7 @@ func (ma *mockACL) getRight(stub shim.ChaincodeStubInterface, channel, cc, role,
 	}
 	address := pb.Address{Address: append([]byte{ver}, value...)[:32]}
 
-	for _, existedAddr := range addrs.Addresses {
+	for _, existedAddr := range addrs.GetAddresses() {
 		if existedAddr.String() == address.String() {
 			return true, nil
 		}

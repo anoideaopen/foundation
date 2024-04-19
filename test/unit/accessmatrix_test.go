@@ -7,7 +7,6 @@ import (
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/mock"
 	"github.com/anoideaopen/foundation/token"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -63,17 +62,17 @@ func TestRights(t *testing.T) {
 			Operation: createOp,
 			Address:   user.Address(),
 		})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		isIssuer := issuer.Invoke(testTokenCCName, getRightFn,
 			testTokenCCName, user.Address(), acl.Issuer.String(), createOp)
-		assert.Equal(t, "true", isIssuer)
+		require.Equal(t, "true", isIssuer)
 	})
 
 	t.Run("multi-emission, non-permitted operation", func(t *testing.T) {
 		isIssuer := issuer.Invoke(testTokenCCName, getRightFn,
 			testTokenCCName, issuer.Address(), acl.Issuer.String(), deleteOp)
-		assert.Equal(t, "false", isIssuer)
+		require.Equal(t, "false", isIssuer)
 	})
 
 	t.Run("remove right & check it is removed", func(t *testing.T) {
@@ -84,10 +83,10 @@ func TestRights(t *testing.T) {
 			Operation: createOp,
 			Address:   user.Address(),
 		})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		isIssuer := issuer.Invoke(testTokenCCName, getRightFn,
 			testTokenCCName, user.Address(), acl.Issuer.String(), createOp)
-		assert.Equal(t, "false", isIssuer)
+		require.Equal(t, "false", isIssuer)
 	})
 
 	t.Run("check double setting right", func(t *testing.T) {
@@ -98,7 +97,7 @@ func TestRights(t *testing.T) {
 			Operation: acceptOp,
 			Address:   user.Address(),
 		})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		err = issuer.AddAccountRight(&mock.Right{
 			Channel:   testTokenCCName,
@@ -107,7 +106,7 @@ func TestRights(t *testing.T) {
 			Operation: acceptOp,
 			Address:   user.Address(),
 		})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		err = issuer.RemoveAccountRight(&mock.Right{
 			Channel:   testTokenCCName,
@@ -116,10 +115,10 @@ func TestRights(t *testing.T) {
 			Operation: acceptOp,
 			Address:   user.Address(),
 		})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		isIssuer := issuer.Invoke(testTokenCCName, getRightFn,
 			testTokenCCName, user.Address(), acl.Issuer.String(), acceptOp)
-		assert.Equal(t, "false", isIssuer)
+		require.Equal(t, "false", isIssuer)
 	})
 }

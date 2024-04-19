@@ -159,14 +159,14 @@ func parseContractMethods(in BaseContractInterface) (ContractMethods, error) {
 		method := t.Method(i)
 		nb := false
 		query := false
-		if contains(cfgOptions.DisabledFunctions, method.Name) {
+		if contains(cfgOptions.GetDisabledFunctions(), method.Name) {
 			continue
 		}
-		if cfgOptions.DisableSwaps && (method.Name == "QuerySwapGet" ||
+		if cfgOptions.GetDisableSwaps() && (method.Name == "QuerySwapGet" ||
 			method.Name == "TxSwapBegin" || method.Name == "TxSwapCancel") {
 			continue
 		}
-		if cfgOptions.DisableMultiSwaps && (method.Name == "QueryMultiSwapGet" ||
+		if cfgOptions.GetDisableMultiSwaps() && (method.Name == "QueryMultiSwapGet" ||
 			method.Name == "TxMultiSwapBegin" || method.Name == "TxMultiSwapCancel") {
 			continue
 		}

@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	customBig "github.com/anoideaopen/foundation/core/types/big"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type BigInt struct {
@@ -25,22 +25,22 @@ func TestStdBigIntStructMarshalling(t *testing.T) {
 	tbiStr := "{\"num\":" + bigIntVal + "}"
 
 	bi, ok := new(big.Int).SetString(bigIntVal, 10)
-	assert.Equal(t, true, ok)
+	require.Equal(t, true, ok)
 	tbi := BigInt{
 		NumberField: bi,
 	}
 
 	t.Run("struct with *big.Int marshal test", func(t *testing.T) {
 		tbiData, err := json.Marshal(tbi)
-		assert.NoError(t, err)
-		assert.Equal(t, tbiStr, string(tbiData))
+		require.NoError(t, err)
+		require.Equal(t, tbiStr, string(tbiData))
 	})
 
 	t.Run("struct with *big.Int unmarshall test", func(t *testing.T) {
 		var tbi1 BigInt
 		err := json.Unmarshal([]byte(tbiStr), &tbi1)
-		assert.NoError(t, err)
-		assert.Equal(t, tbi, tbi1)
+		require.NoError(t, err)
+		require.Equal(t, tbi, tbi1)
 	})
 }
 
@@ -51,21 +51,21 @@ func TestCustomBigIntStructMarshalling(t *testing.T) {
 	tbiStr := "{\"num\":\"" + bigIntVal + "\"}" // added \" quotes
 
 	bi, ok := new(customBig.Int).SetString(bigIntVal, 10)
-	assert.Equal(t, true, ok)
+	require.Equal(t, true, ok)
 	tbi := CustomBigInt{
 		NumberField: bi,
 	}
 
 	t.Run("struct with *big.Int marshal test", func(t *testing.T) {
 		tbiData, err := json.Marshal(tbi)
-		assert.NoError(t, err)
-		assert.Equal(t, tbiStr, string(tbiData))
+		require.NoError(t, err)
+		require.Equal(t, tbiStr, string(tbiData))
 	})
 
 	t.Run("struct with *big.Int unmarshall test", func(t *testing.T) {
 		var tbi1 CustomBigInt
 		err := json.Unmarshal([]byte(tbiStr), &tbi1)
-		assert.NoError(t, err)
-		assert.Equal(t, tbi, tbi1)
+		require.NoError(t, err)
+		require.Equal(t, tbi, tbi1)
 	})
 }

@@ -36,7 +36,7 @@ func DocumentsList(stub shim.ChaincodeStubInterface) ([]Doc, error) {
 		}
 
 		var doc Doc
-		err = json.Unmarshal(res.Value, &doc)
+		err = json.Unmarshal(res.GetValue(), &doc)
 		if err != nil {
 			return nil, err
 		}

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/hex"
 	"errors"
-	"fmt"
 	mathbig "math/big"
 
 	"github.com/anoideaopen/foundation/core/balance"
@@ -35,8 +34,8 @@ func (cc *ChainCode) swapDoneHandler(
 	args []string,
 	cfgBytes []byte,
 ) peer.Response {
-	if cc.contract.ContractConfig().Options.DisableSwaps {
-		return shim.Error(fmt.Sprintf("handling swap done failed, %s", ErrSwapDisabled.Error()))
+	if cc.contract.ContractConfig().GetOptions().GetDisableSwaps() {
+		return shim.Error("handling swap done failed, " + ErrSwapDisabled.Error())
 	}
 
 	_, contract := copyContractWithConfig(traceCtx, cc.contract, stub, cfgBytes)
@@ -75,19 +74,19 @@ func (bc *BaseContract) TxSwapBegin(
 		Owner:   sender.Address().Bytes(),
 		Token:   token,
 		Amount:  amount.Bytes(),
-		From:    bc.config.Symbol,
+		From:    bc.config.GetSymbol(),
 		To:      contractTo,
 		Hash:    hash,
-		Timeout: ts.Seconds + userSideTimeout,
+		Timeout: ts.GetSeconds() + userSideTimeout,
 	}
 
 	switch {
-	case s.TokenSymbol() == s.From:
-		if err = bc.TokenBalanceSubWithTicker(types.AddrFromBytes(s.Owner), amount, s.Token, "swap begin"); err != nil {
+	case s.TokenSymbol() == s.GetFrom():
+		if err = bc.TokenBalanceSubWithTicker(types.AddrFromBytes(s.GetOwner()), amount, s.GetToken(), "swap begin"); err != nil {
 			return "", err
 		}
-	case s.TokenSymbol() == s.To:
-		if err = bc.AllowedBalanceSub(s.Token, types.AddrFromBytes(s.Owner), amount, "reverse swap begin"); err != nil {
+	case s.TokenSymbol() == s.GetTo():
+		if err = bc.AllowedBalanceSub(s.GetToken(), types.AddrFromBytes(s.GetOwner()), amount, "reverse swap begin"); err != nil {
 			return "", err
 		}
 	default:
@@ -129,16 +128,16 @@ func (bc *BaseContract) TxSwapCancel(_ *types.Sender, swapID string) error { // 
 	// }
 
 	switch {
-	case bytes.Equal(s.Creator, s.Owner) && s.TokenSymbol() == s.From:
-		if err = bc.TokenBalanceAddWithTicker(types.AddrFromBytes(s.Owner), new(big.Int).SetBytes(s.Amount), s.Token, "swap cancel"); err != nil {
+	case bytes.Equal(s.GetCreator(), s.GetOwner()) && s.TokenSymbol() == s.GetFrom():
+		if err = bc.TokenBalanceAddWithTicker(types.AddrFromBytes(s.GetOwner()), new(big.Int).SetBytes(s.GetAmount()), s.GetToken(), "swap cancel"); err != nil {
 			return err
 		}
-	case bytes.Equal(s.Creator, s.Owner) && s.TokenSymbol() == s.To:
-		if err = bc.AllowedBalanceAdd(s.Token, types.AddrFromBytes(s.Owner), new(big.Int).SetBytes(s.Amount), "reverse swap cancel"); err != nil {
+	case bytes.Equal(s.GetCreator(), s.GetOwner()) && s.TokenSymbol() == s.GetTo():
+		if err = bc.AllowedBalanceAdd(s.GetToken(), types.AddrFromBytes(s.GetOwner()), new(big.Int).SetBytes(s.GetAmount()), "reverse swap cancel"); err != nil {
 			return err
 		}
-	case bytes.Equal(s.Creator, []byte("0000")) && s.TokenSymbol() == s.To:
-		if err = balance.Add(bc.GetStub(), balance.BalanceTypeGiven, s.From, "", new(mathbig.Int).SetBytes(s.Amount)); err != nil {
+	case bytes.Equal(s.GetCreator(), []byte("0000")) && s.TokenSymbol() == s.GetTo():
+		if err = balance.Add(bc.GetStub(), balance.BalanceTypeGiven, s.GetFrom(), "", new(mathbig.Int).SetBytes(s.GetAmount())); err != nil {
 			return err
 		}
 	}
