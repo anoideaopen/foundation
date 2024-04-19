@@ -2,6 +2,7 @@ package telemetry
 
 import (
 	"context"
+
 	"github.com/hyperledger/fabric-chaincode-go/shim"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
