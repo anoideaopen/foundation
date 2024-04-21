@@ -120,6 +120,21 @@ func (b *BatchHandler) HandleBatcherRequests(traceCtx telemetry.TraceContext, ba
 			}
 			txResponses = append(txResponses, txResponse)
 			batchTxEvents = append(batchTxEvents, batchTxEvent)
+		default:
+			err := fmt.Errorf("unsupported batcher request type %s request.BatcherRequestID %s", request.BatcherRequestType, request.BatcherRequestID)
+			responseError := &proto.ResponseError{Error: err.Error()}
+			txResponse := &proto.BatcherTxResponse{
+				BatcherRequestId: request.BatcherRequestID,
+				Method:           request.Method,
+				Error:            responseError,
+			}
+			batchTxEvent := &proto.BatcherTxEvent{
+				BatcherRequestId: request.BatcherRequestID,
+				Method:           request.Method,
+				Error:            responseError,
+			}
+			txResponses = append(txResponses, txResponse)
+			batchTxEvents = append(batchTxEvents, batchTxEvent)
 		}
 	}
 	if err := b.batchCacheStub.Commit(); err != nil {
@@ -135,10 +150,6 @@ type BatcherRequestType string
 
 const (
 	TxBatcherRequestType BatcherRequestType = "tx"
-	//SwapsBatchRequestType          BatcherRequestType = "swaps"
-	//SwapsKeysBatchRequestType      BatcherRequestType = "swaps_keys"
-	//MultiSwapsBatchRequestType     BatcherRequestType = "multi_swaps"
-	//MultiSwapsKeysBatchRequestType BatcherRequestType = "multi_swaps_keys"
 )
 
 // BatcherRequest represents the data required to execute a Hyperledger Fabric chaincode.
