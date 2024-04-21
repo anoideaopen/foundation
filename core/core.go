@@ -80,6 +80,7 @@ const (
 	CommitCCTransferFrom = "commitCCTransferFrom"
 	CancelCCTransferFrom = "cancelCCTransferFrom"
 	DeleteCCTransferFrom = "deleteCCTransferFrom"
+	BatcherBatchExecute  = "batcherBatchExecute"
 )
 
 // TokenConfigurable is an interface that defines methods for validating, applying, and
@@ -555,6 +556,23 @@ func (cc *ChainCode) Invoke(stub shim.ChaincodeStubInterface) (r peer.Response) 
 			span.SetStatus(codes.Error, errMsg)
 			return shim.Error(errMsg)
 		}
+	case BatcherBatchExecute:
+		bytes, err := BatcherHandler(
+			traceCtx,
+			stub,
+			cfgBytes,
+			creatorSKI,
+			hashedCert,
+			arguments,
+			cc,
+		)
+		if err != nil {
+			errMsg := fmt.Sprintf("failed to execute method %s: txID %s: %s", BatcherBatchExecute, stub.GetTxID(), err.Error())
+			span.SetStatus(codes.Error, errMsg)
+			return shim.Error(errMsg)
+		}
+
+		return shim.Success(bytes)
 	}
 
 	method, err := cc.methods.Method(functionName)

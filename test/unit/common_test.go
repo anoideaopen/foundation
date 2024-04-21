@@ -33,8 +33,9 @@ func makeBaseTokenConfig(
 ) string {
 	cfg := &proto.Config{
 		Contract: &proto.ContractConfig{
-			Symbol:   symbol,
-			RobotSKI: fixtures_test.RobotHashedCert,
+			Symbol:     symbol,
+			RobotSKI:   fixtures_test.RobotHashedCert,
+			BatcherSKI: fixtures_test.RobotHashedCert,
 		},
 		Token: &proto.TokenConfig{
 			Name:     name,
