@@ -177,3 +177,17 @@ func (n *NetworkFoundation) nextColor() string {
 func RobotModulePath() string {
 	return "github.com/anoideaopen/robot"
 }
+
+// PeerTLSCACert returns the path to the local tlsca cert for the peer.
+func (n *NetworkFoundation) PeerTLSCACert(p *nwo.Peer) string {
+	dirName := filepath.Join(n.PeerLocalMSPDir(p), "tlscacerts")
+	fileName := fmt.Sprintf("tlsca.%s-cert.pem", n.Organization(p.Organization).Domain)
+	return filepath.Join(dirName, fileName)
+}
+
+// OrdererTLSCACert returns the path to the local tlsca cert for the Orderer.
+func (n *NetworkFoundation) OrdererTLSCACert(o *nwo.Orderer) string {
+	dirName := filepath.Join(n.OrdererLocalMSPDir(o), "tlscacerts")
+	fileName := fmt.Sprintf("tlsca.%s-cert.pem", n.Organization(o.Organization).Domain)
+	return filepath.Join(dirName, fileName)
+}
