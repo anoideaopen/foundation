@@ -105,6 +105,10 @@ message BatcherTxResponse {
     repeated WriteElement writes = 4;
 }
 
+message BatcherBatchResponse {
+    repeated BatcherTxResponse batcher_tx_responses = 1;
+}
+
 message BatcherTxEvent {
     string batcher_request_id            = 1;
     string method                        = 2;
@@ -112,6 +116,10 @@ message BatcherTxEvent {
     bytes result                         = 4;
     repeated Event events                = 6;
     repeated AccountingRecord accounting = 7;
+}
+
+message BatcherBatchEvent {
+    repeated BatcherTxEvent batchTxEvents = 1;
 }
 
 message BatchEvent {

@@ -13,7 +13,13 @@ import (
 	"github.com/anoideaopen/foundation/hlfcreator"
 	"github.com/anoideaopen/foundation/internal/config"
 	"github.com/anoideaopen/foundation/proto"
+	pb "github.com/golang/protobuf/proto"
 	"github.com/hyperledger/fabric-chaincode-go/shim"
+)
+
+const (
+	BatcherBatchExecuteEvent                    = "batcherBatchExecute"
+	TxBatcherRequestType     BatcherRequestType = "tx"
 )
 
 func BatcherHandler(
@@ -28,9 +34,9 @@ func BatcherHandler(
 		return nil, fmt.Errorf("expected 1 argument, got %d", len(arguments))
 	}
 
-	var batchDTO BatcherBatchDTO
+	var batchDTO BatcherBatchExecuteRequestDTO
 	if err := json.Unmarshal([]byte(arguments[0]), &batchDTO); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal BatcherBatchDTO: %w", err)
+		return nil, fmt.Errorf("failed to unmarshal BatcherBatchExecuteRequestDTO: %w", err)
 	}
 
 	b, err := NewBatchHandler(stub, cfgBytes, cc)
@@ -42,17 +48,25 @@ func BatcherHandler(
 		return nil, fmt.Errorf("failed to validate creator: %w", err)
 	}
 
-	resp, err := b.HandleBatcherRequests(traceCtx, batchDTO.Requests)
+	batchResponse, batchEvent, err := b.HandleBatcherRequests(traceCtx, batchDTO.Requests)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute: %w", err)
 	}
 
-	bytes, err := json.Marshal(resp)
+	responseData, err := json.Marshal(batchResponse)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal response: %w", err)
+		return nil, fmt.Errorf("failed to marshal batchResponse: %w", err)
 	}
 
-	return bytes, nil
+	eventData, err := pb.Marshal(&batchEvent)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal batchEvent: %w", err)
+	}
+	if err = stub.SetEvent(BatcherBatchExecuteEvent, eventData); err != nil {
+		return nil, fmt.Errorf("failed to set batchEvent: %w", err)
+	}
+
+	return responseData, nil
 }
 
 type BatchHandler struct {
@@ -92,22 +106,27 @@ func (b *BatchHandler) ValidateCreator(creatorSKI [32]byte, hashedCert [32]byte)
 	return nil
 }
 
-func (b *BatchHandler) HandleBatcherRequests(traceCtx telemetry.TraceContext, batcherRequests []BatcherRequest) (BatcherInsertResponseDTO, error) {
-	var txResponses []*proto.BatcherTxResponse
-	var batchTxEvents []*proto.BatcherTxEvent
+func (b *BatchHandler) HandleBatcherRequests(traceCtx telemetry.TraceContext, batcherRequests []BatcherRequest) (
+	proto.BatcherBatchResponse,
+	proto.BatcherBatchEvent,
+	error,
+) {
+	response := proto.BatcherBatchResponse{}
+	event := proto.BatcherBatchEvent{}
+
 	for _, request := range batcherRequests {
+		txResponse := &proto.BatcherTxResponse{
+			BatcherRequestId: request.BatcherRequestID,
+			Method:           request.Method,
+		}
+		batchTxEvent := &proto.BatcherTxEvent{
+			BatcherRequestId: request.BatcherRequestID,
+			Method:           request.Method,
+		}
+
 		switch request.BatcherRequestType {
 		case TxBatcherRequestType:
 			writes, accounting, events, result, err := b.HandleTxBatcherRequest(traceCtx, request, b.batchCacheStub, b.cfgBytes)
-
-			txResponse := &proto.BatcherTxResponse{
-				BatcherRequestId: request.BatcherRequestID,
-				Method:           request.Method,
-			}
-			batchTxEvent := &proto.BatcherTxEvent{
-				BatcherRequestId: request.BatcherRequestID,
-				Method:           request.Method,
-			}
 			if err != nil {
 				responseError := &proto.ResponseError{Error: err.Error()}
 				txResponse.Error = responseError
@@ -118,39 +137,24 @@ func (b *BatchHandler) HandleBatcherRequests(traceCtx telemetry.TraceContext, ba
 				batchTxEvent.Result = result
 				batchTxEvent.Events = events
 			}
-			txResponses = append(txResponses, txResponse)
-			batchTxEvents = append(batchTxEvents, batchTxEvent)
 		default:
 			err := fmt.Errorf("unsupported batcher request type %s request.BatcherRequestID %s", request.BatcherRequestType, request.BatcherRequestID)
 			responseError := &proto.ResponseError{Error: err.Error()}
-			txResponse := &proto.BatcherTxResponse{
-				BatcherRequestId: request.BatcherRequestID,
-				Method:           request.Method,
-				Error:            responseError,
-			}
-			batchTxEvent := &proto.BatcherTxEvent{
-				BatcherRequestId: request.BatcherRequestID,
-				Method:           request.Method,
-				Error:            responseError,
-			}
-			txResponses = append(txResponses, txResponse)
-			batchTxEvents = append(batchTxEvents, batchTxEvent)
+			txResponse.Error = responseError
+			batchTxEvent.Error = responseError
 		}
-	}
-	if err := b.batchCacheStub.Commit(); err != nil {
-		return BatcherInsertResponseDTO{}, fmt.Errorf("failed to commit changes using batchCacheStub: %w", err)
+		response.BatcherTxResponses = append(response.BatcherTxResponses, txResponse)
+		event.BatchTxEvents = append(event.BatchTxEvents, batchTxEvent)
 	}
 
-	return BatcherInsertResponseDTO{
-		TxResponses: txResponses,
-	}, nil
+	if err := b.batchCacheStub.Commit(); err != nil {
+		return response, event, fmt.Errorf("failed to commit changes using batchCacheStub: %w", err)
+	}
+
+	return response, event, nil
 }
 
 type BatcherRequestType string
-
-const (
-	TxBatcherRequestType BatcherRequestType = "tx"
-)
 
 // BatcherRequest represents the data required to execute a Hyperledger Fabric chaincode.
 type BatcherRequest struct {
@@ -162,11 +166,11 @@ type BatcherRequest struct {
 	BatcherRequestType BatcherRequestType `json:"batcherRequestType"` // tx, swaps, swaps_keys, multi_swaps, multi_swaps_keys
 }
 
-type BatcherBatchDTO struct {
+type BatcherBatchExecuteRequestDTO struct {
 	Requests []BatcherRequest `json:"requests"`
 }
 
-type BatcherInsertResponseDTO struct {
+type BatcherBatchExecuteResponseDTO struct {
 	TxResponses []*proto.BatcherTxResponse
 }
 

@@ -362,16 +362,7 @@ func (m *ContractConfig) validate(all bool) error {
 		}
 	}
 
-	if !_ContractConfig_BatcherSKI_Pattern.MatchString(m.GetBatcherSKI()) {
-		err := ContractConfigValidationError{
-			field:  "BatcherSKI",
-			reason: "value does not match regex pattern \"^[0-9a-f]+$\"",
-		}
-		if !all {
-			return err
-		}
-		errors = append(errors, err)
-	}
+	// no validation rules for BatcherSKI
 
 	if len(errors) > 0 {
 		return ContractConfigMultiError(errors)
@@ -454,8 +445,6 @@ var _ interface {
 var _ContractConfig_Symbol_Pattern = regexp.MustCompile("^[A-Z]+[A-Z0-9]+(-[A-Z0-9]+)?$")
 
 var _ContractConfig_RobotSKI_Pattern = regexp.MustCompile("^[0-9a-f]+$")
-
-var _ContractConfig_BatcherSKI_Pattern = regexp.MustCompile("^[0-9a-f]+$")
 
 // Validate checks the field values on CollectorEndpoint with the rules defined
 // in the proto definition for this message. If any rules are violated, the

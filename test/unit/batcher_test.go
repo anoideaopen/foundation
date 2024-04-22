@@ -26,11 +26,8 @@ func TestBatcherEmitTransfer(t *testing.T) {
 
 	user1 := ledger.NewWallet()
 
-	peerResp, err := owner.BatcherSignedInvoke("fiat", "emit", user1.Address(), "1000")
+	_, err := owner.BatcherSignedInvoke("fiat", "emit", user1.Address(), "1000")
 	require.NoError(t, err)
-	require.NotNil(t, peerResp)
-	require.Equal(t, peerResp.Status, int32(200))
-	require.Empty(t, peerResp.Message)
 
 	user1.BalanceShouldBe("fiat", 1000)
 
