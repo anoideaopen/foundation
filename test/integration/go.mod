@@ -6,7 +6,7 @@ require (
 	github.com/IBM/idemix v0.0.2-0.20231011101252-a4feda90f3f7
 	github.com/anoideaopen/acl v0.0.0-20240419220630-8074c4ac95e0
 	github.com/anoideaopen/foundation v0.0.0-20240412063944-9a91dc2600fa
-	github.com/anoideaopen/robot v0.0.0-20240420000402-5a265b913100
+	github.com/anoideaopen/robot v0.0.0-20240423113504-029deb8f11c8
 	github.com/btcsuite/btcutil v1.0.3-0.20201208143702-a53e38424cce
 	github.com/fsouza/go-dockerclient v1.10.0
 	github.com/go-redis/redis/v8 v8.11.4

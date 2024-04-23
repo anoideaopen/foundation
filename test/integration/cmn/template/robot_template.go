@@ -24,8 +24,9 @@ logLevel: debug
 logType: lr-txt-dev
 profilePath: {{ .ConnectionPath User }}
 redisStor:
-  addr:
-    - 127.0.0.1:6379
+  addr:{{ range .Robot.RedisAddresses }}
+    - {{ . }}
+  {{- end }}
   dbPrefix: robot
   password: ""
   rootCAs: {{ .CACertsBundlePath }}
@@ -35,7 +36,7 @@ robots:{{ range .Channels }}
   {{- $chName := . }}
   - chName: {{ . }}
     collectorsBufSize: 1000
-    src: {{ range $w.Channels }}
+    src: {{- range $w.Channels }}
       {{- if and (ne . "acl") (ne . $chName) }}
       - chName: {{ . }}
         initBlockNum: 0

@@ -183,8 +183,10 @@ var _ = Describe("Foundation Tests", func() {
 		})
 		AfterEach(func() {
 			By("stop redis " + redisDB.Address())
-			redisProcess.Signal(syscall.SIGTERM)
-			Eventually(redisProcess.Wait(), time.Minute).Should(Receive())
+			if redisProcess != nil {
+				redisProcess.Signal(syscall.SIGTERM)
+				Eventually(redisProcess.Wait(), time.Minute).Should(Receive())
+			}
 		})
 		BeforeEach(func() {
 			networkConfig := nwo.MultiNodeSmartBFT()
@@ -213,6 +215,7 @@ var _ = Describe("Foundation Tests", func() {
 			)
 
 			networkFound = cmn.New(network, channels)
+			networkFound.Robot.RedisAddresses = []string{redisDB.Address()}
 
 			networkFound.GenerateConfigTree()
 			networkFound.Bootstrap()
@@ -395,10 +398,10 @@ var _ = Describe("Foundation Tests", func() {
 			client.AddUser(network, peer, network.Orderers[1], user1)
 
 			By("robot stop")
-			robotProc.Signal(syscall.SIGTERM)
-			Eventually(robotProc.Wait(), network.EventuallyTimeout).Should(Receive())
-
-			// Eventually(sess, network.EventuallyTimeout/4).Should(gbytes.Say("PFI"))
+			if robotProc != nil {
+				robotProc.Signal(syscall.SIGTERM)
+				Eventually(robotProc.Wait(), network.EventuallyTimeout).Should(Receive())
+			}
 		})
 	})
 })

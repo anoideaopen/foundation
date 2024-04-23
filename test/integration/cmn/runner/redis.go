@@ -92,7 +92,6 @@ func (r *RedisDB) Run(sigCh <-chan os.Signal, ready chan<- struct{}) error {
 			Name: r.Name,
 			Config: &docker.Config{
 				Image: r.Image,
-				Env:   []string{"_creator=" + r.creator},
 			},
 			HostConfig: hostConfig,
 		},

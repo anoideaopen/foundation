@@ -47,7 +47,8 @@ func New(network *nwo.Network, channels []string) *NetworkFoundation {
 
 // Robot defines an orderer instance and its owning organization.
 type Robot struct {
-	Ports nwo.Ports `yaml:"ports,omitempty"`
+	Ports          nwo.Ports `yaml:"ports,omitempty"`
+	RedisAddresses []string  `yaml:"redis_addresses,omitempty"`
 }
 
 func (n *NetworkFoundation) GenerateConfigTree() {

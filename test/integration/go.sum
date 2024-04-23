@@ -96,8 +96,8 @@ github.com/anoideaopen/fabric-sdk-go v0.0.1 h1:SCnrPPqqBLredJ2AbqbpPrQlrmfWVTZiU
 github.com/anoideaopen/fabric-sdk-go v0.0.1/go.mod h1:L8ECPqpdBc/ObG4PDH4wHTsYLoi74UcSPgI0hLR/vHc=
 github.com/anoideaopen/glog v0.0.1 h1:R74P5xxtb6aclqmJQfbxJaJwL+ZwL8YZJmRty07GHQw=
 github.com/anoideaopen/glog v0.0.1/go.mod h1:cSvwFK5GNW5UO+NZwUA2Jnp4xETN3sy3apFyI4vcr54=
-github.com/anoideaopen/robot v0.0.0-20240420000402-5a265b913100 h1:4WhLlGNSQFPprUBEMGEvUM1VUjQElrGE2JffusNg3tc=
-github.com/anoideaopen/robot v0.0.0-20240420000402-5a265b913100/go.mod h1:S6GEF7XdlO2X3on+56UBgCyM9qjYaVdLHkRHru3nklo=
+github.com/anoideaopen/robot v0.0.0-20240423113504-029deb8f11c8 h1:ahDC3xbJ1HLSnUqPEQPul3+Q878w6aOBQtLEJEQLH6c=
+github.com/anoideaopen/robot v0.0.0-20240423113504-029deb8f11c8/go.mod h1:S6GEF7XdlO2X3on+56UBgCyM9qjYaVdLHkRHru3nklo=
 github.com/apache/thrift v0.12.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb+bacwQ=
 github.com/apache/thrift v0.13.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb+bacwQ=
 github.com/armon/circbuf v0.0.0-20150827004946-bbbad097214e/go.mod h1:3U/XgcO3hCbHZ8TKRvWD2dDTCfh9M9ya+I9JpbB7O8o=
