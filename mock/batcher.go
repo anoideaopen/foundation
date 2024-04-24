@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"net/http"
 	"strconv"
 
 	"github.com/anoideaopen/foundation/core"
@@ -16,13 +17,13 @@ import (
 func (w *Wallet) BatcherSignedInvoke(ch string, fn string, args ...string) ([]byte, error) {
 	err := w.verifyIncoming(ch, fn)
 	if err != nil {
-		return nil, fmt.Errorf("verify incoming args: %w", err)
+		return nil, fmt.Errorf("failed to verify incoming args: %w", err)
 	}
 
 	// setup creator
 	cert, err := hex.DecodeString(batchRobotCert)
 	if err != nil {
-		return nil, fmt.Errorf("decode hex string batchRobotCert: %w", err)
+		return nil, fmt.Errorf("failed to decode hex string batchRobotCert: %w", err)
 	}
 	w.ledger.stubs[ch].SetCreator(cert)
 
@@ -39,24 +40,28 @@ func (w *Wallet) BatcherSignedInvoke(ch string, fn string, args ...string) ([]by
 	requests := core.BatcherBatchExecuteRequestDTO{Requests: []core.BatcherRequest{r}}
 	bytes, err := json.Marshal(requests)
 	if err != nil {
-		return nil, fmt.Errorf("marshal requests BatcherBatchExecuteRequestDTO: %w", err)
+		return nil, fmt.Errorf("failed to marshal requests BatcherBatchExecuteRequestDTO: %w", err)
 	}
 
 	// do invoke chaincode
 	txID := txIDGen()
 	peerResponse, err := w.ledger.doInvokeWithPeerResponse(ch, txID, core.BatcherBatchExecute, string(bytes))
 	if err != nil {
-		return nil, fmt.Errorf("doInvokeWithPeerResponseO: %w", err)
+		return nil, fmt.Errorf("failed to invoke method %s: %w", core.BatcherBatchExecute, err)
+	}
+
+	if peerResponse.Status != http.StatusOK {
+		return nil, fmt.Errorf("failed to invoke method %s: %v", core.BatcherBatchExecute, peerResponse.Status)
 	}
 
 	var batchResponse proto.BatcherBatchResponse
 	err = json.Unmarshal(peerResponse.Payload, &batchResponse)
 	if err != nil {
-		return nil, fmt.Errorf("Unmarshal BatcherBatchExecuteResponseDTO: %w", err)
+		return nil, fmt.Errorf("failed to unmarshal BatcherBatchExecuteResponseDTO: %w", err)
 	}
 
 	if len(batchResponse.BatcherTxResponses) != 1 {
-		return nil, fmt.Errorf("len(BatcherBatchExecuteResponseDTO.TxResponses) != 1")
+		return nil, fmt.Errorf("failed to handle response, current response len is %d", len(batchResponse.BatcherTxResponses))
 	}
 
 	e := <-w.ledger.stubs[ch].ChaincodeEventsChannel
