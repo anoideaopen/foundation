@@ -4,7 +4,10 @@ import (
 	"fmt"
 	"time"
 
+	pb "github.com/anoideaopen/foundation/proto"
 	"github.com/anoideaopen/foundation/test/integration/cmn"
+	"github.com/btcsuite/btcutil/base58"
+	"github.com/golang/protobuf/proto"
 	"github.com/hyperledger/fabric/integration/nwo"
 	"github.com/hyperledger/fabric/integration/nwo/commands"
 	. "github.com/onsi/gomega"
@@ -41,6 +44,16 @@ func CheckUser(network *nwo.Network, peer *nwo.Peer, user *UserFoundation) {
 		Eventually(sess, network.EventuallyTimeout).Should(gexec.Exit())
 		if sess.ExitCode() != 0 {
 			return fmt.Sprintf("exit code is %d: %s, %v", sess.ExitCode(), string(sess.Err.Contents()), err)
+		}
+
+		out := sess.Out.Contents()[:len(sess.Out.Contents())-1] // skip line feed
+		resp := &pb.AclResponse{}
+		err = proto.Unmarshal(out, resp)
+		Expect(err).NotTo(HaveOccurred())
+
+		addr := base58.CheckEncode(resp.GetAddress().GetAddress().GetAddress()[1:], resp.GetAddress().GetAddress().GetAddress()[0])
+		if addr != user.AddressBase58Check {
+			return fmt.Sprintf("Error: expected %s, received %s", user.AddressBase58Check, addr)
 		}
 
 		return ""
