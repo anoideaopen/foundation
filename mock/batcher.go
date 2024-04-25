@@ -33,6 +33,7 @@ func (w *Wallet) BatcherSignedInvoke(ch string, fn string, args ...string) ([]by
 	r := core.BatcherRequest{}
 	r.BatcherRequestID = strconv.FormatInt(rand.Int63(), 10)
 	r.Chaincode = ch
+	r.Channel = ch
 	r.Method = fn
 	r.Args = argsWithSign
 	r.BatcherRequestType = core.TxBatcherRequestType
