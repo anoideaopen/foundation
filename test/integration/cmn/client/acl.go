@@ -49,7 +49,9 @@ func CheckUser(network *nwo.Network, peer *nwo.Peer, user *UserFoundation) {
 		out := sess.Out.Contents()[:len(sess.Out.Contents())-1] // skip line feed
 		resp := &pb.AclResponse{}
 		err = proto.Unmarshal(out, resp)
-		Expect(err).NotTo(HaveOccurred())
+		if err != nil {
+			return fmt.Sprintf("failed to unmarshal response: %v", err)
+		}
 
 		addr := base58.CheckEncode(resp.GetAddress().GetAddress().GetAddress()[1:], resp.GetAddress().GetAddress().GetAddress()[0])
 		if addr != user.AddressBase58Check {

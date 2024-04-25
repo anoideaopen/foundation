@@ -33,11 +33,10 @@ redisStor:
   withTLS: false
 robots:{{ range .Channels }}
   {{- if ne . "acl" }}
-  {{- $chName := . }}
   - chName: {{ . }}
     collectorsBufSize: 1000
     src: {{- range $w.Channels }}
-      {{- if and (ne . "acl") (ne . $chName) }}
+      {{- if ne . "acl" }}
       - chName: {{ . }}
         initBlockNum: 0
       {{- end }}

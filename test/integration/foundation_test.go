@@ -35,6 +35,13 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
+const (
+	channelAcl        = "acl"
+	channelCC         = "cc"
+	channelFiat       = "fiat"
+	channelIndustrial = "industrial"
+)
+
 var _ = Describe("Foundation Tests", func() {
 	var (
 		testDir          string
@@ -167,7 +174,7 @@ var _ = Describe("Foundation Tests", func() {
 
 	Describe("foundation test", func() {
 		var (
-			channels       = []string{"acl", "cc", "fiat", "industrial"}
+			channels       = []string{channelAcl, channelCC, channelFiat, channelIndustrial}
 			ordererRunners []*ginkgomon.Runner
 			redisProcess   ifrit.Process
 			redisDB        *runner.RedisDB
@@ -277,8 +284,8 @@ var _ = Describe("Foundation Tests", func() {
 
 			By("querying the chaincode from acl")
 			sess, err := network.PeerUserSession(peer, "User1", commands.ChaincodeQuery{
-				ChannelID: "acl",
-				Name:      "acl",
+				ChannelID: channelAcl,
+				Name:      channelAcl,
 				Ctor:      `{"Args":["getAddresses", "10", ""]}`,
 			})
 			Expect(err).NotTo(HaveOccurred())
@@ -295,13 +302,13 @@ var _ = Describe("Foundation Tests", func() {
 			cfgBytesCC, err := protojson.Marshal(cfgCC)
 			Expect(err).NotTo(HaveOccurred())
 			ctorCC := fmt.Sprintf(`{"Args":[%s]}`, strconv.Quote(string(cfgBytesCC)))
-			cmn.DeployChaincodeFoundation(network, "cc", components,
+			cmn.DeployChaincodeFoundation(network, channelCC, components,
 				"github.com/anoideaopen/foundation/test/chaincode/cc", ctorCC, testDir)
 
 			By("querying the chaincode from cc")
 			sess, err = network.PeerUserSession(peer, "User1", commands.ChaincodeQuery{
-				ChannelID: "cc",
-				Name:      "cc",
+				ChannelID: channelCC,
+				Name:      channelCC,
 				Ctor:      `{"Args":["metadata"]}`,
 			})
 			Expect(err).NotTo(HaveOccurred())
@@ -333,13 +340,13 @@ var _ = Describe("Foundation Tests", func() {
 			cfgBytesFiat, err := protojson.Marshal(cfgFiat)
 			Expect(err).NotTo(HaveOccurred())
 			ctorFiat := fmt.Sprintf(`{"Args":[%s]}`, strconv.Quote(string(cfgBytesFiat)))
-			cmn.DeployChaincodeFoundation(network, "fiat", components,
+			cmn.DeployChaincodeFoundation(network, channelFiat, components,
 				"github.com/anoideaopen/foundation/test/chaincode/fiat", ctorFiat, testDir)
 
 			By("querying the chaincode from fiat")
 			sess, err = network.PeerUserSession(peer, "User1", commands.ChaincodeQuery{
-				ChannelID: "fiat",
-				Name:      "fiat",
+				ChannelID: channelFiat,
+				Name:      channelFiat,
 				Ctor:      `{"Args":["metadata"]}`,
 			})
 			Expect(err).NotTo(HaveOccurred())
@@ -372,13 +379,13 @@ var _ = Describe("Foundation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 			ctorIndustrial := fmt.Sprintf(`{"Args":[%s]}`, strconv.Quote(string(cfgBytesIndustrial)))
 			By("Deploying chaincode industrial")
-			cmn.DeployChaincodeFoundation(network, "industrial", components,
+			cmn.DeployChaincodeFoundation(network, channelIndustrial, components,
 				"github.com/anoideaopen/foundation/test/chaincode/industrial", ctorIndustrial, testDir)
 
 			By("querying the chaincode from industrial")
 			sess, err = network.PeerUserSession(peer, "User1", commands.ChaincodeQuery{
-				ChannelID: "industrial",
-				Name:      "industrial",
+				ChannelID: channelIndustrial,
+				Name:      channelIndustrial,
 				Ctor:      `{"Args":["metadata"]}`,
 			})
 			Expect(err).NotTo(HaveOccurred())
@@ -391,11 +398,27 @@ var _ = Describe("Foundation Tests", func() {
 			Eventually(robotProc.Ready(), network.EventuallyTimeout).Should(BeClosed())
 
 			By("add admin to acl")
-			client.AddUser(network, peer, network.Orderers[1], admin)
+			client.AddUser(network, peer, network.Orderers[0], admin)
 
 			By("add user to acl")
 			user1 := client.NewUserFoundation()
-			client.AddUser(network, peer, network.Orderers[1], user1)
+			client.AddUser(network, peer, network.Orderers[0], user1)
+
+			By("emit tokens")
+			emintAmount := "1"
+			client.TxInvokeWithSign(network, peer, network.Orderers[0],
+				channelFiat, channelFiat, admin,
+				"emit", "", client.NewNonceByTime().Get(), user1.AddressBase58Check, emintAmount)
+
+			By("emit check")
+			f := func(out []byte) string {
+				if string(out) != "\"1\"" {
+					return "not equal " + string(out) + " and \"1\""
+				}
+				return ""
+			}
+			client.Query(network, peer, channelFiat, channelFiat, checkResult(f),
+				"balanceOf", user1.AddressBase58Check)
 
 			By("robot stop")
 			if robotProc != nil {
@@ -405,6 +428,22 @@ var _ = Describe("Foundation Tests", func() {
 		})
 	})
 })
+
+func checkResult(f func(out []byte) string) client.CheckResultFunc {
+	return func(err error, sessExitCode int, sessError []byte, sessOut []byte) string {
+		if err != nil {
+			return fmt.Sprintf("error executing command: %v", err)
+		}
+
+		if sessExitCode != 0 {
+			return fmt.Sprintf("exit code is %d: %s, %v", sessExitCode, string(sessError), err)
+		}
+
+		out := sessOut[:len(sessOut)-1] // skip line feed
+
+		return f(out)
+	}
+}
 
 func peerGroupRunners(n *nwo.Network) (ifrit.Runner, []*ginkgomon.Runner) {
 	var runners []*ginkgomon.Runner
