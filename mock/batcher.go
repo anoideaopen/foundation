@@ -51,7 +51,7 @@ func (w *Wallet) BatcherSignedInvoke(ch string, fn string, args ...string) ([]by
 	}
 
 	if peerResponse.Status != http.StatusOK {
-		return nil, fmt.Errorf("failed to invoke method %s: %v", core.BatcherBatchExecute, peerResponse.Status)
+		return nil, fmt.Errorf("failed to invoke method %s, status: '%v', message: '%s'", core.BatcherBatchExecute, peerResponse.Status, peerResponse.Message)
 	}
 
 	var batchResponse proto.BatcherBatchResponse
