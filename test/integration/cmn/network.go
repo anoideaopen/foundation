@@ -179,6 +179,22 @@ func RobotModulePath() string {
 	return "github.com/anoideaopen/robot"
 }
 
+func AclModulePath() string {
+	return "github.com/anoideaopen/acl"
+}
+
+func CcModulePath() string {
+	return "github.com/anoideaopen/foundation/test/chaincode/cc"
+}
+
+func FiatModulePath() string {
+	return "github.com/anoideaopen/foundation/test/chaincode/fiat"
+}
+
+func IndustrialModulePath() string {
+	return "github.com/anoideaopen/foundation/test/chaincode/industrial"
+}
+
 // PeerTLSCACert returns the path to the local tlsca cert for the peer.
 func (n *NetworkFoundation) PeerTLSCACert(p *nwo.Peer) string {
 	dirName := filepath.Join(n.PeerLocalMSPDir(p), "tlscacerts")

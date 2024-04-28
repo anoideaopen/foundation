@@ -5,14 +5,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"syscall"
 	"time"
 
-	aclpb "github.com/anoideaopen/acl/proto"
-	pb "github.com/anoideaopen/foundation/proto"
-	industrialtoken "github.com/anoideaopen/foundation/test/chaincode/industrial/industrial_token"
 	"github.com/anoideaopen/foundation/test/integration/cmn"
 	"github.com/anoideaopen/foundation/test/integration/cmn/client"
 	"github.com/anoideaopen/foundation/test/integration/cmn/runner"
@@ -31,15 +27,6 @@ import (
 	"github.com/tedsuo/ifrit"
 	ginkgomon "github.com/tedsuo/ifrit/ginkgomon_v2"
 	"github.com/tedsuo/ifrit/grouper"
-	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/types/known/anypb"
-)
-
-const (
-	channelAcl        = "acl"
-	channelCC         = "cc"
-	channelFiat       = "fiat"
-	channelIndustrial = "industrial"
 )
 
 var _ = Describe("Foundation Tests", func() {
@@ -174,12 +161,18 @@ var _ = Describe("Foundation Tests", func() {
 
 	Describe("foundation test", func() {
 		var (
-			channels       = []string{channelAcl, channelCC, channelFiat, channelIndustrial}
-			ordererRunners []*ginkgomon.Runner
-			redisProcess   ifrit.Process
-			redisDB        *runner.RedisDB
-			networkFound   *cmn.NetworkFoundation
-			robotProc      ifrit.Process
+			channels         = []string{cmn.ChannelAcl, cmn.ChannelCC, cmn.ChannelFiat, cmn.ChannelIndustrial}
+			ordererRunners   []*ginkgomon.Runner
+			redisProcess     ifrit.Process
+			redisDB          *runner.RedisDB
+			networkFound     *cmn.NetworkFoundation
+			robotProc        ifrit.Process
+			skiBackend       string
+			skiRobot         string
+			peer             *nwo.Peer
+			admin            *client.UserFoundation
+			feeSetter        *client.UserFoundation
+			feeAddressSetter *client.UserFoundation
 		)
 		BeforeEach(func() {
 			By("start redis")
@@ -254,149 +247,46 @@ var _ = Describe("Foundation Tests", func() {
 			for _, channel := range channels {
 				network.JoinChannel(channel, network.Orderers[0], network.PeersWithChannel(channel)...)
 			}
-		})
 
-		It("deploy acl cc fiat industrial and query", func() {
-			By("Deploying chaincode")
-			peer := network.Peer("Org1", "peer0")
+			peer = network.Peer("Org1", "peer0")
 
 			pathToPrivateKeyBackend := network.PeerUserKey(peer, "User1")
-			skiBackend, err := cmn.ReadSKI(pathToPrivateKeyBackend)
+			skiBackend, err = cmn.ReadSKI(pathToPrivateKeyBackend)
 			Expect(err).NotTo(HaveOccurred())
 
 			pathToPrivateKeyRobot := network.PeerUserKey(peer, "User2")
-			skiRobot, err := cmn.ReadSKI(pathToPrivateKeyRobot)
+			skiRobot, err = cmn.ReadSKI(pathToPrivateKeyRobot)
 			Expect(err).NotTo(HaveOccurred())
 
-			admin := client.NewUserFoundation()
+			admin = client.NewUserFoundation()
 			Expect(admin.PrivateKey).NotTo(Equal(nil))
+			feeSetter = client.NewUserFoundation()
+			Expect(feeSetter.PrivateKey).NotTo(Equal(nil))
+			feeAddressSetter = client.NewUserFoundation()
+			Expect(feeAddressSetter.PrivateKey).NotTo(Equal(nil))
 
-			By("Deploying chaincode acl")
-			// ToDo - add config checking when ACL integration tests will be done
-			aclCfg := &aclpb.ACLConfig{
-				AdminSKIEncoded: skiBackend,
-				Validators:      []string{admin.PublicKeyBase58},
-			}
-			cfgBytesACL, err := protojson.Marshal(aclCfg)
-			Expect(err).NotTo(HaveOccurred())
-			ctorACL := fmt.Sprintf(`{"Args":[%s]}`, strconv.Quote(string(cfgBytesACL)))
-			cmn.DeployChaincodeACL(network, components, ctorACL, testDir)
-
-			By("querying the chaincode from acl")
-			sess, err := network.PeerUserSession(peer, "User1", commands.ChaincodeQuery{
-				ChannelID: channelAcl,
-				Name:      channelAcl,
-				Ctor:      `{"Args":["getAddresses", "10", ""]}`,
-			})
-			Expect(err).NotTo(HaveOccurred())
-			Eventually(sess, network.EventuallyTimeout).Should(gexec.Exit(0))
-			Eventually(sess, network.EventuallyTimeout).Should(gbytes.Say(`{"Addrs":null,"Bookmark":""}`))
-
-			By("Deploying chaincode cc")
-			cfgCC := &pb.Config{
-				Contract: &pb.ContractConfig{Symbol: "CC", RobotSKI: skiRobot,
-					Admin: &pb.Wallet{Address: admin.AddressBase58Check}},
-				Token: &pb.TokenConfig{Name: "Currency Coin", Decimals: 8,
-					UnderlyingAsset: "US Dollars", Issuer: &pb.Wallet{Address: admin.AddressBase58Check}},
-			}
-			cfgBytesCC, err := protojson.Marshal(cfgCC)
-			Expect(err).NotTo(HaveOccurred())
-			ctorCC := fmt.Sprintf(`{"Args":[%s]}`, strconv.Quote(string(cfgBytesCC)))
-			cmn.DeployChaincodeFoundation(network, channelCC, components,
-				"github.com/anoideaopen/foundation/test/chaincode/cc", ctorCC, testDir)
-
-			By("querying the chaincode from cc")
-			sess, err = network.PeerUserSession(peer, "User1", commands.ChaincodeQuery{
-				ChannelID: channelCC,
-				Name:      channelCC,
-				Ctor:      `{"Args":["metadata"]}`,
-			})
-			Expect(err).NotTo(HaveOccurred())
-			Eventually(sess, network.EventuallyTimeout).Should(gexec.Exit(0))
-			Eventually(sess, network.EventuallyTimeout).Should(gbytes.Say(`{"name":"Currency Coin","symbol":"CC","decimals":8,"underlying_asset":"US Dollars"`))
-
-			By("Deploying chaincode fiat")
-			feeSetter := client.NewUserFoundation()
-			feeAddressSetter := client.NewUserFoundation()
-
-			cfgFiat := &pb.Config{
-				Contract: &pb.ContractConfig{
-					Symbol:   "FIAT",
-					RobotSKI: skiRobot,
-					Admin:    &pb.Wallet{Address: admin.AddressBase58Check},
-					Options: &pb.ChaincodeOptions{
-						DisabledFunctions: []string{"TxBuyToken", "TxBuyBack"},
-					},
-				},
-				Token: &pb.TokenConfig{
-					Name:             "FIAT",
-					Decimals:         8,
-					UnderlyingAsset:  "US Dollars",
-					Issuer:           &pb.Wallet{Address: admin.AddressBase58Check},
-					FeeSetter:        &pb.Wallet{Address: feeSetter.AddressBase58Check},
-					FeeAddressSetter: &pb.Wallet{Address: feeAddressSetter.AddressBase58Check},
-				},
-			}
-			cfgBytesFiat, err := protojson.Marshal(cfgFiat)
-			Expect(err).NotTo(HaveOccurred())
-			ctorFiat := fmt.Sprintf(`{"Args":[%s]}`, strconv.Quote(string(cfgBytesFiat)))
-			cmn.DeployChaincodeFoundation(network, channelFiat, components,
-				"github.com/anoideaopen/foundation/test/chaincode/fiat", ctorFiat, testDir)
-
-			By("querying the chaincode from fiat")
-			sess, err = network.PeerUserSession(peer, "User1", commands.ChaincodeQuery{
-				ChannelID: channelFiat,
-				Name:      channelFiat,
-				Ctor:      `{"Args":["metadata"]}`,
-			})
-			Expect(err).NotTo(HaveOccurred())
-			Eventually(sess, network.EventuallyTimeout).Should(gexec.Exit(0))
-			Eventually(sess, network.EventuallyTimeout).Should(gbytes.Say(`{"name":"FIAT","symbol":"FIAT","decimals":8,"underlying_asset":"US Dollars"`))
-
-			extCfg := industrialtoken.ExtConfig{
-				Name:             "Industrial token",
-				Decimals:         8,
-				UnderlyingAsset:  "TEST_UnderlyingAsset",
-				DeliveryForm:     "TEST_DeliveryForm",
-				UnitOfMeasure:    "TEST_IT",
-				TokensForUnit:    "1",
-				PaymentTerms:     "Non-prepaid",
-				Price:            "Floating",
-				Issuer:           &pb.Wallet{Address: admin.AddressBase58Check},
-				FeeSetter:        &pb.Wallet{Address: feeSetter.AddressBase58Check},
-				FeeAddressSetter: &pb.Wallet{Address: feeAddressSetter.AddressBase58Check},
-			}
-			cfgIndustrial := &pb.Config{
-				Contract: &pb.ContractConfig{
-					Symbol:   "INDUSTRIAL",
-					RobotSKI: skiRobot,
-					Admin:    &pb.Wallet{Address: admin.AddressBase58Check},
-				},
-			}
-			cfgIndustrial.ExtConfig, _ = anypb.New(&extCfg)
-
-			cfgBytesIndustrial, err := protojson.Marshal(cfgIndustrial)
-			Expect(err).NotTo(HaveOccurred())
-			ctorIndustrial := fmt.Sprintf(`{"Args":[%s]}`, strconv.Quote(string(cfgBytesIndustrial)))
-			By("Deploying chaincode industrial")
-			cmn.DeployChaincodeFoundation(network, channelIndustrial, components,
-				"github.com/anoideaopen/foundation/test/chaincode/industrial", ctorIndustrial, testDir)
-
-			By("querying the chaincode from industrial")
-			sess, err = network.PeerUserSession(peer, "User1", commands.ChaincodeQuery{
-				ChannelID: channelIndustrial,
-				Name:      channelIndustrial,
-				Ctor:      `{"Args":["metadata"]}`,
-			})
-			Expect(err).NotTo(HaveOccurred())
-			Eventually(sess, network.EventuallyTimeout).Should(gexec.Exit(0))
-			Eventually(sess, network.EventuallyTimeout).Should(gbytes.Say(`{"name":"Industrial token","symbol":"INDUSTRIAL","decimals":8,"underlying_asset":"TEST_UnderlyingAsset"`))
-
-			By("robot start")
+			cmn.DeployACL(network, components, peer, testDir, skiBackend, admin.PublicKeyBase58)
+			cmn.DeployCC(network, components, peer, testDir, skiRobot, admin.AddressBase58Check)
+			cmn.DeployFiat(network, components, peer, testDir, skiRobot,
+				admin.AddressBase58Check, feeSetter.AddressBase58Check, feeAddressSetter.AddressBase58Check)
+			cmn.DeployIndustrial(network, components, peer, testDir, skiRobot,
+				admin.AddressBase58Check, feeSetter.AddressBase58Check, feeAddressSetter.AddressBase58Check)
+		})
+		BeforeEach(func() {
+			By("start robot")
 			robotRunner := networkFound.RobotRunner()
 			robotProc = ifrit.Invoke(robotRunner)
 			Eventually(robotProc.Ready(), network.EventuallyTimeout).Should(BeClosed())
+		})
+		AfterEach(func() {
+			By("stop robot")
+			if robotProc != nil {
+				robotProc.Signal(syscall.SIGTERM)
+				Eventually(robotProc.Wait(), network.EventuallyTimeout).Should(Receive())
+			}
+		})
 
+		It("deploy acl cc fiat industrial and query", func() {
 			By("add admin to acl")
 			client.AddUser(network, peer, network.Orderers[0], admin)
 
@@ -407,24 +297,19 @@ var _ = Describe("Foundation Tests", func() {
 			By("emit tokens")
 			emintAmount := "1"
 			client.TxInvokeWithSign(network, peer, network.Orderers[0],
-				channelFiat, channelFiat, admin,
+				cmn.ChannelFiat, cmn.ChannelFiat, admin,
 				"emit", "", client.NewNonceByTime().Get(), user1.AddressBase58Check, emintAmount)
 
 			By("emit check")
 			f := func(out []byte) string {
-				if string(out) != "\"1\"" {
-					return "not equal " + string(out) + " and \"1\""
+				etl := "\"" + emintAmount + "\""
+				if string(out) != etl {
+					return "not equal " + string(out) + " and " + etl
 				}
 				return ""
 			}
-			client.Query(network, peer, channelFiat, channelFiat, checkResult(f),
+			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat, checkResult(f),
 				"balanceOf", user1.AddressBase58Check)
-
-			By("robot stop")
-			if robotProc != nil {
-				robotProc.Signal(syscall.SIGTERM)
-				Eventually(robotProc.Wait(), network.EventuallyTimeout).Should(Receive())
-			}
 		})
 	})
 })

@@ -1,30 +1,161 @@
 package cmn
 
 import (
+	"fmt"
 	"path/filepath"
+	"strconv"
 
+	aclpb "github.com/anoideaopen/acl/proto"
+	pb "github.com/anoideaopen/foundation/proto"
+	industrialtoken "github.com/anoideaopen/foundation/test/chaincode/industrial/industrial_token"
 	"github.com/hyperledger/fabric/integration/nwo"
 	"github.com/hyperledger/fabric/integration/nwo/commands"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gbytes"
 	"github.com/onsi/gomega/gexec"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/types/known/anypb"
 )
 
-const NameACL = "acl"
+const (
+	ChannelAcl        = "acl"
+	ChannelCC         = "cc"
+	ChannelFiat       = "fiat"
+	ChannelIndustrial = "industrial"
+)
 
-func DeployChaincodeACL(network *nwo.Network, components *nwo.Components, ctor, testDir string) {
-	nwo.DeployChaincode(network, NameACL, network.Orderers[0], nwo.Chaincode{
-		Name:            NameACL,
-		Version:         "0.0",
-		Path:            components.Build("github.com/anoideaopen/acl"),
-		Lang:            "binary",
-		PackageFile:     filepath.Join(testDir, "acl.tar.gz"),
-		Ctor:            ctor,
-		SignaturePolicy: `AND ('Org1MSP.member','Org2MSP.member')`,
-		Sequence:        "1",
-		InitRequired:    true,
-		Label:           "my_prebuilt_chaincode",
+func DeployACL(network *nwo.Network, components *nwo.Components, peer *nwo.Peer,
+	testDir string, skiBackend string, publicKeyBase58 string) {
+	By("Deploying chaincode acl")
+	aclCfg := &aclpb.ACLConfig{
+		AdminSKIEncoded: skiBackend,
+		Validators:      []string{publicKeyBase58},
+	}
+	cfgBytesACL, err := protojson.Marshal(aclCfg)
+	Expect(err).NotTo(HaveOccurred())
+	ctorACL := fmt.Sprintf(`{"Args":[%s]}`, strconv.Quote(string(cfgBytesACL)))
+	DeployChaincodeFoundation(network, ChannelAcl, components,
+		AclModulePath(), ctorACL, testDir)
+
+	By("querying the chaincode from acl")
+	sess, err := network.PeerUserSession(peer, "User1", commands.ChaincodeQuery{
+		ChannelID: ChannelAcl,
+		Name:      ChannelAcl,
+		Ctor:      `{"Args":["getAddresses", "10", ""]}`,
 	})
+	Expect(err).NotTo(HaveOccurred())
+	Eventually(sess, network.EventuallyTimeout).Should(gexec.Exit(0))
+	Eventually(sess, network.EventuallyTimeout).Should(gbytes.Say(`{"Addrs":null,"Bookmark":""}`))
+}
+
+func DeployCC(network *nwo.Network, components *nwo.Components, peer *nwo.Peer,
+	testDir string, skiRobot string, addressBase58Check string) {
+	By("Deploying chaincode cc")
+	cfgCC := &pb.Config{
+		Contract: &pb.ContractConfig{Symbol: "CC", RobotSKI: skiRobot,
+			Admin: &pb.Wallet{Address: addressBase58Check}},
+		Token: &pb.TokenConfig{Name: "Currency Coin", Decimals: 8,
+			UnderlyingAsset: "US Dollars", Issuer: &pb.Wallet{Address: addressBase58Check}},
+	}
+	cfgBytesCC, err := protojson.Marshal(cfgCC)
+	Expect(err).NotTo(HaveOccurred())
+	ctorCC := fmt.Sprintf(`{"Args":[%s]}`, strconv.Quote(string(cfgBytesCC)))
+	DeployChaincodeFoundation(network, ChannelCC, components,
+		CcModulePath(), ctorCC, testDir)
+
+	By("querying the chaincode from cc")
+	sess, err := network.PeerUserSession(peer, "User1", commands.ChaincodeQuery{
+		ChannelID: ChannelCC,
+		Name:      ChannelCC,
+		Ctor:      `{"Args":["metadata"]}`,
+	})
+	Expect(err).NotTo(HaveOccurred())
+	Eventually(sess, network.EventuallyTimeout).Should(gexec.Exit(0))
+	Eventually(sess, network.EventuallyTimeout).Should(gbytes.Say(`{"name":"Currency Coin","symbol":"CC","decimals":8,"underlying_asset":"US Dollars"`))
+}
+
+func DeployFiat(network *nwo.Network, components *nwo.Components, peer *nwo.Peer,
+	testDir string, skiRobot string, adminAddressBase58Check string,
+	feeSetterAddressBase58Check string, feeAddressSetterAddressBase58Check string) {
+	By("Deploying chaincode fiat")
+
+	cfgFiat := &pb.Config{
+		Contract: &pb.ContractConfig{
+			Symbol:   "FIAT",
+			RobotSKI: skiRobot,
+			Admin:    &pb.Wallet{Address: adminAddressBase58Check},
+			Options: &pb.ChaincodeOptions{
+				DisabledFunctions: []string{"TxBuyToken", "TxBuyBack"},
+			},
+		},
+		Token: &pb.TokenConfig{
+			Name:             "FIAT",
+			Decimals:         8,
+			UnderlyingAsset:  "US Dollars",
+			Issuer:           &pb.Wallet{Address: adminAddressBase58Check},
+			FeeSetter:        &pb.Wallet{Address: feeSetterAddressBase58Check},
+			FeeAddressSetter: &pb.Wallet{Address: feeAddressSetterAddressBase58Check},
+		},
+	}
+	cfgBytesFiat, err := protojson.Marshal(cfgFiat)
+	Expect(err).NotTo(HaveOccurred())
+	ctorFiat := fmt.Sprintf(`{"Args":[%s]}`, strconv.Quote(string(cfgBytesFiat)))
+	DeployChaincodeFoundation(network, ChannelFiat, components,
+		FiatModulePath(), ctorFiat, testDir)
+
+	By("querying the chaincode from fiat")
+	sess, err := network.PeerUserSession(peer, "User1", commands.ChaincodeQuery{
+		ChannelID: ChannelFiat,
+		Name:      ChannelFiat,
+		Ctor:      `{"Args":["metadata"]}`,
+	})
+	Expect(err).NotTo(HaveOccurred())
+	Eventually(sess, network.EventuallyTimeout).Should(gexec.Exit(0))
+	Eventually(sess, network.EventuallyTimeout).Should(gbytes.Say(`{"name":"FIAT","symbol":"FIAT","decimals":8,"underlying_asset":"US Dollars"`))
+}
+
+func DeployIndustrial(network *nwo.Network, components *nwo.Components, peer *nwo.Peer,
+	testDir string, skiRobot string, adminAddressBase58Check string,
+	feeSetterAddressBase58Check string, feeAddressSetterAddressBase58Check string) {
+	extCfg := industrialtoken.ExtConfig{
+		Name:             "Industrial token",
+		Decimals:         8,
+		UnderlyingAsset:  "TEST_UnderlyingAsset",
+		DeliveryForm:     "TEST_DeliveryForm",
+		UnitOfMeasure:    "TEST_IT",
+		TokensForUnit:    "1",
+		PaymentTerms:     "Non-prepaid",
+		Price:            "Floating",
+		Issuer:           &pb.Wallet{Address: adminAddressBase58Check},
+		FeeSetter:        &pb.Wallet{Address: feeSetterAddressBase58Check},
+		FeeAddressSetter: &pb.Wallet{Address: feeAddressSetterAddressBase58Check},
+	}
+	cfgIndustrial := &pb.Config{
+		Contract: &pb.ContractConfig{
+			Symbol:   "INDUSTRIAL",
+			RobotSKI: skiRobot,
+			Admin:    &pb.Wallet{Address: adminAddressBase58Check},
+		},
+	}
+	cfgIndustrial.ExtConfig, _ = anypb.New(&extCfg)
+
+	cfgBytesIndustrial, err := protojson.Marshal(cfgIndustrial)
+	Expect(err).NotTo(HaveOccurred())
+	ctorIndustrial := fmt.Sprintf(`{"Args":[%s]}`, strconv.Quote(string(cfgBytesIndustrial)))
+	By("Deploying chaincode industrial")
+	DeployChaincodeFoundation(network, ChannelIndustrial, components,
+		IndustrialModulePath(), ctorIndustrial, testDir)
+
+	By("querying the chaincode from industrial")
+	sess, err := network.PeerUserSession(peer, "User1", commands.ChaincodeQuery{
+		ChannelID: ChannelIndustrial,
+		Name:      ChannelIndustrial,
+		Ctor:      `{"Args":["metadata"]}`,
+	})
+	Expect(err).NotTo(HaveOccurred())
+	Eventually(sess, network.EventuallyTimeout).Should(gexec.Exit(0))
+	Eventually(sess, network.EventuallyTimeout).Should(gbytes.Say(`{"name":"Industrial token","symbol":"INDUSTRIAL","decimals":8,"underlying_asset":"TEST_UnderlyingAsset"`))
 }
 
 func DeployChaincodeFoundation(

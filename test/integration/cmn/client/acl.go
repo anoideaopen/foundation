@@ -17,9 +17,9 @@ import (
 
 func AddUser(network *nwo.Network, peer *nwo.Peer, orderer *nwo.Orderer, user *UserFoundation) {
 	sess, err := network.PeerUserSession(peer, "User1", commands.ChaincodeInvoke{
-		ChannelID: cmn.NameACL,
+		ChannelID: cmn.ChannelAcl,
 		Orderer:   network.OrdererAddress(orderer, nwo.ListenPort),
-		Name:      cmn.NameACL,
+		Name:      cmn.ChannelAcl,
 		Ctor:      fmt.Sprintf(`{"Args":["addUser", "%s", "test", "testuser", "true"]}`, user.PublicKeyBase58),
 		PeerAddresses: []string{
 			network.PeerAddress(network.Peer("Org1", "peer0"), nwo.ListenPort),
@@ -37,8 +37,8 @@ func AddUser(network *nwo.Network, peer *nwo.Peer, orderer *nwo.Orderer, user *U
 func CheckUser(network *nwo.Network, peer *nwo.Peer, user *UserFoundation) {
 	Eventually(func() string {
 		sess, err := network.PeerUserSession(peer, "User1", commands.ChaincodeQuery{
-			ChannelID: cmn.NameACL,
-			Name:      cmn.NameACL,
+			ChannelID: cmn.ChannelAcl,
+			Name:      cmn.ChannelAcl,
 			Ctor:      fmt.Sprintf(`{"Args":["checkKeys", "%s"]}`, user.PublicKeyBase58),
 		})
 		Eventually(sess, network.EventuallyTimeout).Should(gexec.Exit())
