@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"math"
 	"regexp"
-	"strings"
 
 	pbfound "github.com/anoideaopen/foundation/proto"
+	"github.com/anoideaopen/foundation/test/integration/cmn"
 	"github.com/btcsuite/btcutil/base58"
 	"github.com/golang/protobuf/proto"
 	"github.com/hyperledger/fabric-protos-go/common"
@@ -25,50 +25,65 @@ import (
 	"github.com/onsi/gomega/gexec"
 )
 
-// NBTxInvoke func for invoke to foundation fabric
-func NBTxInvoke(network *nwo.Network, peer *nwo.Peer, orderer *nwo.Orderer,
-	channel string, ccName string, args ...string) {
-
-	ctor := "\"" + strings.Join(args, "\", \"") + "\""
-	sess, err := network.PeerUserSession(peer, "User1", commands.ChaincodeInvoke{
+func invokeNBTx(network *nwo.Network, peer *nwo.Peer, orderer *nwo.Orderer, userOrg string,
+	checkErr CheckResultFunc, channel string, ccName string, args ...string) {
+	sess, err := network.PeerUserSession(peer, userOrg, commands.ChaincodeInvoke{
 		ChannelID: channel,
 		Orderer:   network.OrdererAddress(orderer, nwo.ListenPort),
 		Name:      ccName,
-		Ctor:      fmt.Sprintf(`{"Args":[%s]}`, ctor),
+		Ctor:      cmn.CtorFromSlice(args),
 		PeerAddresses: []string{
 			network.PeerAddress(network.Peer("Org1", "peer0"), nwo.ListenPort),
 			network.PeerAddress(network.Peer("Org2", "peer0"), nwo.ListenPort),
 		},
 		WaitForEvent: true,
 	})
+	if checkErr != nil {
+		Eventually(sess, network.EventuallyTimeout).Should(gexec.Exit())
+		res := checkErr(err, sess.ExitCode(), sess.Err.Contents(), sess.Out.Contents())
+		Expect(res).Should(BeEmpty())
+
+		return
+	}
+
 	Expect(err).NotTo(HaveOccurred())
 	Eventually(sess, network.EventuallyTimeout).Should(gexec.Exit(0))
 	Expect(sess.Err).To(gbytes.Say("Chaincode invoke successful. result: status:200"))
 }
 
+// NBTxInvoke func for invoke to foundation fabric
+func NBTxInvoke(network *nwo.Network, peer *nwo.Peer, orderer *nwo.Orderer,
+	checkErr CheckResultFunc, channel string, ccName string, args ...string) {
+	invokeNBTx(network, peer, orderer, "User1", checkErr, channel, ccName, args...)
+}
+
+// NBTxInvokeByRobot func for invoke to foundation fabric from robot
+func NBTxInvokeByRobot(network *nwo.Network, peer *nwo.Peer, orderer *nwo.Orderer,
+	checkErr CheckResultFunc, channel string, ccName string, args ...string) {
+	invokeNBTx(network, peer, orderer, "User2", checkErr, channel, ccName, args...)
+}
+
 // NBTxInvokeWithSign func for invoke with sign to foundation fabric
 func NBTxInvokeWithSign(network *nwo.Network, peer *nwo.Peer, orderer *nwo.Orderer,
-	channel string, ccName string, user *UserFoundation,
+	checkErr CheckResultFunc, channel string, ccName string, user *UserFoundation,
 	fn string, requestID string, nonce string, args ...string) {
 	ctorArgs := append(append([]string{fn, requestID, channel, ccName}, args...), nonce)
 	pubKey, sMsg, err := user.Sign(ctorArgs...)
 	Expect(err).NotTo(HaveOccurred())
 
 	ctorArgs = append(ctorArgs, pubKey, base58.Encode(sMsg))
-	NBTxInvoke(network, peer, orderer, channel, ccName, ctorArgs...)
+	NBTxInvoke(network, peer, orderer, checkErr, channel, ccName, ctorArgs...)
 }
 
-// TxInvoke func for invoke to foundation fabric
-func TxInvoke(network *nwo.Network, peer *nwo.Peer, orderer *nwo.Orderer,
-	channel string, ccName string, args ...string) {
+func invokeTx(network *nwo.Network, peer *nwo.Peer, orderer *nwo.Orderer, userOrg string,
+	channel string, ccName string, args ...string) (txId string) {
 	lh := nwo.GetLedgerHeight(network, peer, channel)
 
-	ctor := "\"" + strings.Join(args, "\", \"") + "\""
-	sess, err := network.PeerUserSession(peer, "User1", commands.ChaincodeInvoke{
+	sess, err := network.PeerUserSession(peer, userOrg, commands.ChaincodeInvoke{
 		ChannelID: channel,
 		Orderer:   network.OrdererAddress(orderer, nwo.ListenPort),
 		Name:      ccName,
-		Ctor:      fmt.Sprintf(`{"Args":[%s]}`, ctor),
+		Ctor:      cmn.CtorFromSlice(args),
 		PeerAddresses: []string{
 			network.PeerAddress(network.Peer("Org1", "peer0"), nwo.ListenPort),
 			network.PeerAddress(network.Peer("Org2", "peer0"), nwo.ListenPort),
@@ -80,7 +95,7 @@ func TxInvoke(network *nwo.Network, peer *nwo.Peer, orderer *nwo.Orderer,
 	Expect(sess.Err).To(gbytes.Say("Chaincode invoke successful. result: status:200"))
 
 	l := sess.Err.Contents()
-	txId := scanTxIDInLog(l)
+	txId = scanTxIDInLog(l)
 	Expect(txId).NotTo(BeEmpty())
 
 	By("getting the signer for user1 on peer " + peer.ID())
@@ -182,7 +197,7 @@ func TxInvoke(network *nwo.Network, peer *nwo.Peer, orderer *nwo.Orderer,
 				ccEvent, err := protoutil.UnmarshalChaincodeEvents(caPayload.Events)
 				Expect(err).NotTo(HaveOccurred())
 
-				if ccEvent.GetEventName() == "batchExecute" && isValid {
+				if ccEvent.GetEventName() == "batchExecute" {
 					batchResponse := &pbfound.BatchResponse{}
 					err = proto.Unmarshal(caPayload.Response.Payload, batchResponse)
 					Expect(err).NotTo(HaveOccurred())
@@ -199,16 +214,28 @@ func TxInvoke(network *nwo.Network, peer *nwo.Peer, orderer *nwo.Orderer,
 	}
 }
 
+// TxInvoke func for invoke to foundation fabric
+func TxInvoke(network *nwo.Network, peer *nwo.Peer, orderer *nwo.Orderer,
+	channel string, ccName string, args ...string) (txId string) {
+	return invokeTx(network, peer, orderer, "User1", channel, ccName, args...)
+}
+
+// TxInvokeByRobot func for invoke to foundation fabric from robot
+func TxInvokeByRobot(network *nwo.Network, peer *nwo.Peer, orderer *nwo.Orderer,
+	channel string, ccName string, args ...string) (txId string) {
+	return invokeTx(network, peer, orderer, "User2", channel, ccName, args...)
+}
+
 // TxInvokeWithSign func for invoke with sign to foundation fabric
 func TxInvokeWithSign(network *nwo.Network, peer *nwo.Peer, orderer *nwo.Orderer,
 	channel string, ccName string, user *UserFoundation,
-	fn string, requestID string, nonce string, args ...string) {
+	fn string, requestID string, nonce string, args ...string) (txId string) {
 	ctorArgs := append(append([]string{fn, requestID, channel, ccName}, args...), nonce)
 	pubKey, sMsg, err := user.Sign(ctorArgs...)
 	Expect(err).NotTo(HaveOccurred())
 
 	ctorArgs = append(ctorArgs, pubKey, base58.Encode(sMsg))
-	TxInvoke(network, peer, orderer, channel, ccName, ctorArgs...)
+	return TxInvoke(network, peer, orderer, channel, ccName, ctorArgs...)
 }
 
 func scanTxIDInLog(data []byte) string {

@@ -34,3 +34,7 @@ func (n *Nonce) Get() string {
 func (n *Nonce) Next() {
 	n.val++
 }
+
+func (n *Nonce) Add(v uint64) {
+	n.val += v
+}

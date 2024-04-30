@@ -20,7 +20,7 @@ func AddUser(network *nwo.Network, peer *nwo.Peer, orderer *nwo.Orderer, user *U
 		ChannelID: cmn.ChannelAcl,
 		Orderer:   network.OrdererAddress(orderer, nwo.ListenPort),
 		Name:      cmn.ChannelAcl,
-		Ctor:      fmt.Sprintf(`{"Args":["addUser", "%s", "test", "testuser", "true"]}`, user.PublicKeyBase58),
+		Ctor:      cmn.CtorFromSlice([]string{"addUser", user.PublicKeyBase58, "test", user.UserID, "true"}),
 		PeerAddresses: []string{
 			network.PeerAddress(network.Peer("Org1", "peer0"), nwo.ListenPort),
 			network.PeerAddress(network.Peer("Org2", "peer0"), nwo.ListenPort),
@@ -39,7 +39,7 @@ func CheckUser(network *nwo.Network, peer *nwo.Peer, user *UserFoundation) {
 		sess, err := network.PeerUserSession(peer, "User1", commands.ChaincodeQuery{
 			ChannelID: cmn.ChannelAcl,
 			Name:      cmn.ChannelAcl,
-			Ctor:      fmt.Sprintf(`{"Args":["checkKeys", "%s"]}`, user.PublicKeyBase58),
+			Ctor:      cmn.CtorFromSlice([]string{"checkKeys", user.PublicKeyBase58}),
 		})
 		Eventually(sess, network.EventuallyTimeout).Should(gexec.Exit())
 		if sess.ExitCode() != 0 {
@@ -56,6 +56,74 @@ func CheckUser(network *nwo.Network, peer *nwo.Peer, user *UserFoundation) {
 		addr := base58.CheckEncode(resp.GetAddress().GetAddress().GetAddress()[1:], resp.GetAddress().GetAddress().GetAddress()[0])
 		if addr != user.AddressBase58Check {
 			return fmt.Sprintf("Error: expected %s, received %s", user.AddressBase58Check, addr)
+		}
+
+		return ""
+	}, network.EventuallyTimeout, time.Second).Should(BeEmpty())
+}
+
+func AddRights(network *nwo.Network, peer *nwo.Peer, orderer *nwo.Orderer,
+	channel string, cc string, role string, operation string, user *UserFoundation) {
+	sess, err := network.PeerUserSession(peer, "User1", commands.ChaincodeInvoke{
+		ChannelID: cmn.ChannelAcl,
+		Orderer:   network.OrdererAddress(orderer, nwo.ListenPort),
+		Name:      cmn.ChannelAcl,
+		Ctor:      cmn.CtorFromSlice([]string{"addRights", channel, cc, role, operation, user.AddressBase58Check}),
+		PeerAddresses: []string{
+			network.PeerAddress(network.Peer("Org1", "peer0"), nwo.ListenPort),
+			network.PeerAddress(network.Peer("Org2", "peer0"), nwo.ListenPort),
+		},
+		WaitForEvent: true,
+	})
+	Expect(err).NotTo(HaveOccurred())
+	Eventually(sess, network.EventuallyTimeout).Should(gexec.Exit(0))
+	Expect(sess.Err).To(gbytes.Say("Chaincode invoke successful. result: status:200"))
+
+	CheckRights(network, peer, channel, cc, role, operation, user, true)
+}
+
+func RemoveRights(network *nwo.Network, peer *nwo.Peer, orderer *nwo.Orderer,
+	channel string, cc string, role string, operation string, user *UserFoundation) {
+	sess, err := network.PeerUserSession(peer, "User1", commands.ChaincodeInvoke{
+		ChannelID: cmn.ChannelAcl,
+		Orderer:   network.OrdererAddress(orderer, nwo.ListenPort),
+		Name:      cmn.ChannelAcl,
+		Ctor:      cmn.CtorFromSlice([]string{"removeRights", channel, cc, role, operation, user.AddressBase58Check}),
+		PeerAddresses: []string{
+			network.PeerAddress(network.Peer("Org1", "peer0"), nwo.ListenPort),
+			network.PeerAddress(network.Peer("Org2", "peer0"), nwo.ListenPort),
+		},
+		WaitForEvent: true,
+	})
+	Expect(err).NotTo(HaveOccurred())
+	Eventually(sess, network.EventuallyTimeout).Should(gexec.Exit(0))
+	Expect(sess.Err).To(gbytes.Say("Chaincode invoke successful. result: status:200"))
+
+	CheckRights(network, peer, channel, cc, role, operation, user, false)
+}
+
+func CheckRights(network *nwo.Network, peer *nwo.Peer,
+	channel string, cc string, role string, operation string, user *UserFoundation, result bool) {
+	Eventually(func() string {
+		sess, err := network.PeerUserSession(peer, "User1", commands.ChaincodeQuery{
+			ChannelID: cmn.ChannelAcl,
+			Name:      cmn.ChannelAcl,
+			Ctor:      cmn.CtorFromSlice([]string{"getAccountOperationRight", channel, cc, role, operation, user.AddressBase58Check}),
+		})
+		Eventually(sess, network.EventuallyTimeout).Should(gexec.Exit())
+		if sess.ExitCode() != 0 {
+			return fmt.Sprintf("exit code is %d: %s, %v", sess.ExitCode(), string(sess.Err.Contents()), err)
+		}
+
+		out := sess.Out.Contents()[:len(sess.Out.Contents())-1] // skip line feed
+		haveRight := &pb.HaveRight{}
+		err = proto.Unmarshal(out, haveRight)
+		if err != nil {
+			return fmt.Sprintf("failed to unmarshal response: %v", err)
+		}
+
+		if haveRight.HaveRight != result {
+			return fmt.Sprintf("Error: expected %t, received %t", result, haveRight.HaveRight)
 		}
 
 		return ""

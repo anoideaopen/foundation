@@ -1,6 +1,7 @@
 package cmn
 
 import (
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"io"
@@ -207,4 +208,19 @@ func (n *NetworkFoundation) OrdererTLSCACert(o *nwo.Orderer) string {
 	dirName := filepath.Join(n.OrdererLocalMSPDir(o), "tlscacerts")
 	fileName := fmt.Sprintf("tlsca.%s-cert.pem", n.Organization(o.Organization).Domain)
 	return filepath.Join(dirName, fileName)
+}
+
+func CtorFromSlice(s []string) string {
+	sa := struct {
+		Function string `json:",omitempty"`
+		Args     []string
+	}{}
+	sa.Args = s
+
+	b, err := json.Marshal(&sa)
+	if err != nil {
+		return ""
+	}
+
+	return string(b)
 }

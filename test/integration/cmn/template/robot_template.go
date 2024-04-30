@@ -21,7 +21,7 @@ googleCryptoSettings:
   gcloudProject: null
   userCert: null
 logLevel: debug
-logType: lr-txt-dev
+logType: lr-json-dev
 profilePath: {{ .ConnectionPath User }}
 redisStor:
   addr:{{ range .Robot.RedisAddresses }}

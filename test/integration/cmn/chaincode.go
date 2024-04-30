@@ -1,9 +1,7 @@
 package cmn
 
 import (
-	"fmt"
 	"path/filepath"
-	"strconv"
 
 	aclpb "github.com/anoideaopen/acl/proto"
 	pb "github.com/anoideaopen/foundation/proto"
@@ -34,7 +32,7 @@ func DeployACL(network *nwo.Network, components *nwo.Components, peer *nwo.Peer,
 	}
 	cfgBytesACL, err := protojson.Marshal(aclCfg)
 	Expect(err).NotTo(HaveOccurred())
-	ctorACL := fmt.Sprintf(`{"Args":[%s]}`, strconv.Quote(string(cfgBytesACL)))
+	ctorACL := CtorFromSlice([]string{string(cfgBytesACL)})
 	DeployChaincodeFoundation(network, ChannelAcl, components,
 		AclModulePath(), ctorACL, testDir)
 
@@ -42,7 +40,7 @@ func DeployACL(network *nwo.Network, components *nwo.Components, peer *nwo.Peer,
 	sess, err := network.PeerUserSession(peer, "User1", commands.ChaincodeQuery{
 		ChannelID: ChannelAcl,
 		Name:      ChannelAcl,
-		Ctor:      `{"Args":["getAddresses", "10", ""]}`,
+		Ctor:      CtorFromSlice([]string{"getAddresses", "10", ""}),
 	})
 	Expect(err).NotTo(HaveOccurred())
 	Eventually(sess, network.EventuallyTimeout).Should(gexec.Exit(0))
@@ -60,7 +58,7 @@ func DeployCC(network *nwo.Network, components *nwo.Components, peer *nwo.Peer,
 	}
 	cfgBytesCC, err := protojson.Marshal(cfgCC)
 	Expect(err).NotTo(HaveOccurred())
-	ctorCC := fmt.Sprintf(`{"Args":[%s]}`, strconv.Quote(string(cfgBytesCC)))
+	ctorCC := CtorFromSlice([]string{string(cfgBytesCC)})
 	DeployChaincodeFoundation(network, ChannelCC, components,
 		CcModulePath(), ctorCC, testDir)
 
@@ -68,7 +66,7 @@ func DeployCC(network *nwo.Network, components *nwo.Components, peer *nwo.Peer,
 	sess, err := network.PeerUserSession(peer, "User1", commands.ChaincodeQuery{
 		ChannelID: ChannelCC,
 		Name:      ChannelCC,
-		Ctor:      `{"Args":["metadata"]}`,
+		Ctor:      CtorFromSlice([]string{"metadata"}),
 	})
 	Expect(err).NotTo(HaveOccurred())
 	Eventually(sess, network.EventuallyTimeout).Should(gexec.Exit(0))
@@ -100,7 +98,7 @@ func DeployFiat(network *nwo.Network, components *nwo.Components, peer *nwo.Peer
 	}
 	cfgBytesFiat, err := protojson.Marshal(cfgFiat)
 	Expect(err).NotTo(HaveOccurred())
-	ctorFiat := fmt.Sprintf(`{"Args":[%s]}`, strconv.Quote(string(cfgBytesFiat)))
+	ctorFiat := CtorFromSlice([]string{string(cfgBytesFiat)})
 	DeployChaincodeFoundation(network, ChannelFiat, components,
 		FiatModulePath(), ctorFiat, testDir)
 
@@ -108,7 +106,7 @@ func DeployFiat(network *nwo.Network, components *nwo.Components, peer *nwo.Peer
 	sess, err := network.PeerUserSession(peer, "User1", commands.ChaincodeQuery{
 		ChannelID: ChannelFiat,
 		Name:      ChannelFiat,
-		Ctor:      `{"Args":["metadata"]}`,
+		Ctor:      CtorFromSlice([]string{"metadata"}),
 	})
 	Expect(err).NotTo(HaveOccurred())
 	Eventually(sess, network.EventuallyTimeout).Should(gexec.Exit(0))
@@ -142,7 +140,7 @@ func DeployIndustrial(network *nwo.Network, components *nwo.Components, peer *nw
 
 	cfgBytesIndustrial, err := protojson.Marshal(cfgIndustrial)
 	Expect(err).NotTo(HaveOccurred())
-	ctorIndustrial := fmt.Sprintf(`{"Args":[%s]}`, strconv.Quote(string(cfgBytesIndustrial)))
+	ctorIndustrial := CtorFromSlice([]string{string(cfgBytesIndustrial)})
 	By("Deploying chaincode industrial")
 	DeployChaincodeFoundation(network, ChannelIndustrial, components,
 		IndustrialModulePath(), ctorIndustrial, testDir)
@@ -151,7 +149,7 @@ func DeployIndustrial(network *nwo.Network, components *nwo.Components, peer *nw
 	sess, err := network.PeerUserSession(peer, "User1", commands.ChaincodeQuery{
 		ChannelID: ChannelIndustrial,
 		Name:      ChannelIndustrial,
-		Ctor:      `{"Args":["metadata"]}`,
+		Ctor:      CtorFromSlice([]string{"metadata"}),
 	})
 	Expect(err).NotTo(HaveOccurred())
 	Eventually(sess, network.EventuallyTimeout).Should(gexec.Exit(0))

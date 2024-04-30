@@ -4,9 +4,9 @@ go 1.18
 
 require (
 	github.com/IBM/idemix v0.0.2-0.20231011101252-a4feda90f3f7
-	github.com/anoideaopen/acl v0.0.0-20240419220630-8074c4ac95e0
+	github.com/anoideaopen/acl v0.0.0-20240501104203-80bb00f48f8b
 	github.com/anoideaopen/foundation v0.0.0-20240412063944-9a91dc2600fa
-	github.com/anoideaopen/robot v0.0.0-20240423113504-029deb8f11c8
+	github.com/anoideaopen/robot v0.0.0-20240501101437-e4bbcfe15d06
 	github.com/btcsuite/btcutil v1.0.3-0.20201208143702-a53e38424cce
 	github.com/fsouza/go-dockerclient v1.10.0
 	github.com/go-redis/redis/v8 v8.11.4
@@ -37,9 +37,9 @@ require (
 	github.com/ale-linux/aries-framework-go/component/kmscrypto v0.0.0-20230817163708-4b3de6d91874 // indirect
 	github.com/alecthomas/template v0.0.0-20190718012654-fb15b899a751 // indirect
 	github.com/alecthomas/units v0.0.0-20210912230133-d1bdfacee922 // indirect
-	github.com/anoideaopen/cartridge v0.0.2 // indirect
-	github.com/anoideaopen/common-component v0.0.2 // indirect
-	github.com/anoideaopen/glog v0.0.1 // indirect
+	github.com/anoideaopen/cartridge v0.0.3 // indirect
+	github.com/anoideaopen/common-component v0.0.3 // indirect
+	github.com/anoideaopen/glog v0.0.2 // indirect
 	github.com/avast/retry-go/v4 v4.0.5 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bits-and-blooms/bitset v1.13.0 // indirect

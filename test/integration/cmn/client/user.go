@@ -16,6 +16,7 @@ type UserFoundation struct {
 	PublicKey          ed25519.PublicKey
 	PublicKeyBase58    string
 	AddressBase58Check string
+	UserID             string
 }
 
 func NewUserFoundation() *UserFoundation {
@@ -32,6 +33,7 @@ func NewUserFoundation() *UserFoundation {
 		PublicKey:          publicKey,
 		PublicKeyBase58:    publicKeyBase58,
 		AddressBase58Check: addressBase58Check,
+		UserID:             "testuser",
 	}
 }
 
@@ -50,6 +52,7 @@ func UserFoundationFromPrivateKey(privateKey ed25519.PrivateKey) (*UserFoundatio
 		PublicKey:          publicKey,
 		PublicKeyBase58:    publicKeyBase58,
 		AddressBase58Check: addressBase58Check,
+		UserID:             "testuser",
 	}, nil
 }
 
@@ -78,6 +81,12 @@ func (u *UserFoundation) Sign(args ...string) (publicKeyBase58 string, signMsg [
 	}
 
 	return
+}
+
+func (u *UserFoundation) SetUserID(id string) {
+	if len(id) != 0 {
+		u.UserID = id
+	}
 }
 
 // MultiSig - added multi sign

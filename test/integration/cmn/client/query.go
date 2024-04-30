@@ -1,10 +1,9 @@
 package client
 
 import (
-	"fmt"
-	"strings"
 	"time"
 
+	"github.com/anoideaopen/foundation/test/integration/cmn"
 	"github.com/btcsuite/btcutil/base58"
 	"github.com/hyperledger/fabric/integration/nwo"
 	"github.com/hyperledger/fabric/integration/nwo/commands"
@@ -43,12 +42,11 @@ type CheckResultFunc func(err error, exitCode int, sessError []byte, sessOut []b
 // Query func for query from foundation fabric
 func Query(network *nwo.Network, peer *nwo.Peer, channel string, ccName string,
 	checkResultFunc CheckResultFunc, args ...string) {
-	ctor := "\"" + strings.Join(args, "\", \"") + "\""
 	Eventually(func() string {
 		sess, err := network.PeerUserSession(peer, "User1", commands.ChaincodeQuery{
 			ChannelID: channel,
 			Name:      ccName,
-			Ctor:      fmt.Sprintf(`{"Args":[%s]}`, ctor),
+			Ctor:      cmn.CtorFromSlice(args),
 		})
 		Eventually(sess, network.EventuallyTimeout).Should(gexec.Exit())
 
