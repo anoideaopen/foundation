@@ -8,6 +8,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/proto"
 	"github.com/anoideaopen/foundation/test/integration/cmn"
 	"github.com/anoideaopen/foundation/test/integration/cmn/client"
@@ -1003,6 +1004,129 @@ var _ = Describe("Basic foundation Tests", func() {
 					"balanceOf", user1.AddressBase58Check)
 
 				By("check allowed balance 2")
+				client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC,
+					checkResult(checkBalance(zeroAmount), nil),
+					"allowedBalanceOf", user1.AddressBase58Check, "FIAT")
+			})
+		})
+
+		Describe("multiswap tests", func() {
+			var (
+				user1           *client.UserFoundation
+				swapAmount      = "1"
+				zeroAmount      = "0"
+				defaultSwapHash = "7d4e3eec80026719639ed4dba68916eb94c7a49a053e05c8f9578fe4e5a3d7ea"
+				defaultSwapKey  = "12345"
+			)
+
+			BeforeEach(func() {
+				By("add admin to acl")
+				client.AddUser(network, peer, network.Orderers[0], admin)
+
+				By("add user to acl")
+				user1 = client.NewUserFoundation()
+				client.AddUser(network, peer, network.Orderers[0], user1)
+
+				By("emit tokens 1000")
+				client.TxInvokeWithSign(network, peer, network.Orderers[0],
+					cmn.ChannelFiat, cmn.ChannelFiat, admin,
+					"emit", "", client.NewNonceByTime().Get(), user1.AddressBase58Check, swapAmount)
+
+				By("emit check")
+				client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
+					checkResult(checkBalance(swapAmount), nil),
+					"balanceOf", user1.AddressBase58Check)
+			})
+
+			It("multiswap token from fiat to cc then multiswap from cc to fiat", func() {
+				By("multiswap from fiat to cc")
+				By("multiswap begin")
+				assets, err := json.Marshal(types.MultiSwapAssets{
+					Assets: []*types.MultiSwapAsset{
+						{
+							Group:  "FIAT",
+							Amount: swapAmount,
+						},
+					},
+				})
+				Expect(err).NotTo(HaveOccurred())
+				swapBeginTxID := client.TxInvokeWithSign(network, peer, network.Orderers[0],
+					cmn.ChannelFiat, cmn.ChannelFiat, user1,
+					"multiSwapBegin", "", client.NewNonceByTime().Get(),
+					"FIAT", string(assets), "CC", defaultSwapHash)
+				Expect(swapBeginTxID).ToNot(BeEmpty())
+
+				By("multiswap get 1")
+				fGet := func(out []byte) string {
+					if len(out) == 0 {
+						return "out is empty"
+					}
+
+					return ""
+				}
+				client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC,
+					checkResult(fGet, nil),
+					"multiSwapGet", swapBeginTxID)
+
+				By("check balance 1")
+				client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
+					checkResult(checkBalance(zeroAmount), nil),
+					"balanceOf", user1.AddressBase58Check)
+
+				By("check allowed balance 1")
+				client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC,
+					checkResult(checkBalance(zeroAmount), nil),
+					"allowedBalanceOf", user1.AddressBase58Check, "FIAT")
+
+				By("multiswap done")
+				client.NBTxInvoke(network, peer, network.Orderers[0], nil,
+					cmn.ChannelCC, cmn.ChannelCC,
+					"multiSwapDone", swapBeginTxID, defaultSwapKey)
+
+				By("check balance 2")
+				client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
+					checkResult(checkBalance(zeroAmount), nil),
+					"balanceOf", user1.AddressBase58Check)
+
+				By("check allowed balance 2")
+				client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC,
+					checkResult(checkBalance(swapAmount), nil),
+					"allowedBalanceOf", user1.AddressBase58Check, "FIAT")
+
+				By("multiswap from cc to fiat")
+				By("multiswap begin")
+				swapBeginTxID = client.TxInvokeWithSign(network, peer, network.Orderers[0],
+					cmn.ChannelCC, cmn.ChannelCC, user1,
+					"multiSwapBegin", "", client.NewNonceByTime().Get(),
+					"FIAT", string(assets), "FIAT", defaultSwapHash)
+				Expect(swapBeginTxID).ToNot(BeEmpty())
+
+				By("multiswap get 2")
+				client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
+					checkResult(fGet, nil),
+					"multiSwapGet", swapBeginTxID)
+
+				By("check balance 3")
+				client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
+					checkResult(checkBalance(zeroAmount), nil),
+					"balanceOf", user1.AddressBase58Check)
+
+				By("check allowed balance 3")
+				client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC,
+					checkResult(checkBalance(zeroAmount), nil),
+					"allowedBalanceOf", user1.AddressBase58Check, "FIAT")
+
+				By("multiswap done")
+				client.NBTxInvoke(network, peer, network.Orderers[0], nil,
+					cmn.ChannelFiat, cmn.ChannelFiat,
+					"multiSwapDone", swapBeginTxID, defaultSwapKey)
+
+				By("check balance 4")
+				client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
+					checkResult(checkBalance(swapAmount), nil),
+					"balanceOf", user1.AddressBase58Check)
+
+				By("check allowed balance 4")
 				client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC,
 					checkResult(checkBalance(zeroAmount), nil),
 					"allowedBalanceOf", user1.AddressBase58Check, "FIAT")
