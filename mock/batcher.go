@@ -15,6 +15,15 @@ import (
 )
 
 func (w *Wallet) BatcherSignedInvoke(ch string, fn string, args ...string) ([]byte, error) {
+	txEvent, err := w.BatcherSignedInvokeWithTxEventReturned(ch, fn, args...)
+	if err != nil {
+		return nil, err
+	}
+
+	return txEvent.Result, nil
+}
+
+func (w *Wallet) BatcherSignedInvokeWithTxEventReturned(ch string, fn string, args ...string) (*proto.BatcherTxEvent, error) {
 	err := w.verifyIncoming(ch, fn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to verify incoming args: %w", err)
@@ -77,7 +86,7 @@ func (w *Wallet) BatcherSignedInvoke(ch string, fn string, args ...string) ([]by
 				if ev.Error != nil {
 					return nil, errors.New(ev.Error.Error)
 				}
-				return ev.Result, nil
+				return ev, nil
 			}
 		}
 	}
