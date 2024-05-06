@@ -8,7 +8,6 @@ import (
 	"github.com/anoideaopen/foundation/core/types/big"
 	ma "github.com/anoideaopen/foundation/mock"
 	"github.com/hyperledger/fabric-chaincode-go/shim"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -28,7 +27,7 @@ func TestBaseToken_QueryGetFeeTransfer(t *testing.T) {
 		name           string
 		args           testArgs
 		want           *FeeTransferResponseDTO
-		wantErr        assert.ErrorAssertionFunc
+		wantErr        require.ErrorAssertionFunc
 		wantRespMsg    string
 		wantRespStatus int32
 	}{
@@ -48,7 +47,7 @@ func TestBaseToken_QueryGetFeeTransfer(t *testing.T) {
 				Amount:   big.NewInt(1),
 				Currency: "VT",
 			},
-			wantErr:        assert.NoError,
+			wantErr:        require.NoError,
 			wantRespStatus: shim.OK,
 			wantRespMsg:    "",
 		},
@@ -65,7 +64,7 @@ func TestBaseToken_QueryGetFeeTransfer(t *testing.T) {
 				allowedBalanceAmount: 10,
 			},
 			want:           nil,
-			wantErr:        assert.NoError,
+			wantErr:        require.NoError,
 			wantRespStatus: shim.ERROR,
 			wantRespMsg:    "failed to validate fee transfer request argument: recipient address can't be empty",
 		},
@@ -82,7 +81,7 @@ func TestBaseToken_QueryGetFeeTransfer(t *testing.T) {
 				allowedBalanceAmount: 10,
 			},
 			want:           nil,
-			wantErr:        assert.NoError,
+			wantErr:        require.NoError,
 			wantRespStatus: shim.ERROR,
 			wantRespMsg:    "failed to validate fee transfer request argument: sender address can't be empty",
 		},
@@ -99,7 +98,7 @@ func TestBaseToken_QueryGetFeeTransfer(t *testing.T) {
 				allowedBalanceAmount: 10,
 			},
 			want:           nil,
-			wantErr:        assert.NoError,
+			wantErr:        require.NoError,
 			wantRespStatus: shim.ERROR,
 			wantRespMsg:    "failed to validate fee transfer request argument: amount must be non-negative",
 		},
@@ -125,20 +124,19 @@ func TestBaseToken_QueryGetFeeTransfer(t *testing.T) {
 
 			bytes, err := json.Marshal(tt.args.chaincodeArgs)
 			require.NoError(t, err)
-			resp, err := from.InvokeWithPeerResponse(name, "getFeeTransfer", string(bytes))
-			if !tt.wantErr(t, err, fmt.Sprintf("QueryGetFeeTransfer(%v, %v, %v)", tt.args.chaincodeArgs.SenderAddress, tt.args.chaincodeArgs.RecipientAddress, tt.args.chaincodeArgs.Amount)) {
-				return
-			}
 
-			assert.Equal(t, tt.wantRespStatus, resp.Status)
-			assert.Equal(t, tt.wantRespMsg, resp.Message)
+			resp, err := from.InvokeWithPeerResponse(name, "getFeeTransfer", string(bytes))
+			tt.wantErr(t, err, fmt.Sprintf("QueryGetFeeTransfer(%v, %v, %v)", tt.args.chaincodeArgs.SenderAddress, tt.args.chaincodeArgs.RecipientAddress, tt.args.chaincodeArgs.Amount))
+
+			require.Equal(t, tt.wantRespStatus, resp.Status)
+			require.Equal(t, tt.wantRespMsg, resp.Message)
 
 			if tt.want != nil {
 				feeTransferRespDTO := FeeTransferResponseDTO{}
 				err = json.Unmarshal(resp.Payload, &feeTransferRespDTO)
-				assert.Equal(t, tt.want.Currency, feeTransferRespDTO.Currency)
-				assert.Equal(t, tt.want.Amount, feeTransferRespDTO.Amount)
-				assert.Equal(t, feeAggregator.Address(), feeTransferRespDTO.FeeAddress.String())
+				require.Equal(t, tt.want.Currency, feeTransferRespDTO.Currency)
+				require.Equal(t, tt.want.Amount, feeTransferRespDTO.Amount)
+				require.Equal(t, feeAggregator.Address(), feeTransferRespDTO.FeeAddress.String())
 			}
 		})
 	}

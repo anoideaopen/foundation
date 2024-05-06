@@ -40,38 +40,38 @@ type BaseContractInterface interface {
 }
 
 func Answer(stub *cachestub.BatchCacheStub, swap *proto.Swap, robotSideTimeout int64) (r *proto.SwapResponse) {
-	r = &proto.SwapResponse{Id: swap.Id, Error: &proto.ResponseError{Error: "panic swapAnswer"}}
+	r = &proto.SwapResponse{Id: swap.GetId(), Error: &proto.ResponseError{Error: "panic swapAnswer"}}
 	defer func() {
 		if rc := recover(); rc != nil {
-			log.Println("panic swapAnswer: " + hex.EncodeToString(swap.Id) + "\n" + string(debug.Stack()))
+			log.Println("panic swapAnswer: " + hex.EncodeToString(swap.GetId()) + "\n" + string(debug.Stack()))
 		}
 	}()
 
 	ts, err := stub.GetTxTimestamp()
 	if err != nil {
-		return &proto.SwapResponse{Id: swap.Id, Error: &proto.ResponseError{Error: err.Error()}}
+		return &proto.SwapResponse{Id: swap.GetId(), Error: &proto.ResponseError{Error: err.Error()}}
 	}
-	txStub := stub.NewTxCacheStub(hex.EncodeToString(swap.Id))
+	txStub := stub.NewTxCacheStub(hex.EncodeToString(swap.GetId()))
 
 	swap.Creator = []byte("0000")
-	swap.Timeout = ts.Seconds + robotSideTimeout
+	swap.Timeout = ts.GetSeconds() + robotSideTimeout
 
 	switch {
-	case swap.TokenSymbol() == swap.From:
+	case swap.TokenSymbol() == swap.GetFrom():
 		// nothing to do
-	case swap.TokenSymbol() == swap.To:
-		if err = balance.Sub(txStub, balance.BalanceTypeGiven, swap.From, "", new(mathbig.Int).SetBytes(swap.Amount)); err != nil {
-			return &proto.SwapResponse{Id: swap.Id, Error: &proto.ResponseError{Error: err.Error()}}
+	case swap.TokenSymbol() == swap.GetTo():
+		if err = balance.Sub(txStub, balance.BalanceTypeGiven, swap.GetFrom(), "", new(mathbig.Int).SetBytes(swap.GetAmount())); err != nil {
+			return &proto.SwapResponse{Id: swap.GetId(), Error: &proto.ResponseError{Error: err.Error()}}
 		}
 	default:
-		return &proto.SwapResponse{Id: swap.Id, Error: &proto.ResponseError{Error: ErrIncorrectSwap}}
+		return &proto.SwapResponse{Id: swap.GetId(), Error: &proto.ResponseError{Error: ErrIncorrectSwap}}
 	}
 
-	if err = Save(txStub, hex.EncodeToString(swap.Id), swap); err != nil {
-		return &proto.SwapResponse{Id: swap.Id, Error: &proto.ResponseError{Error: err.Error()}}
+	if err = Save(txStub, hex.EncodeToString(swap.GetId()), swap); err != nil {
+		return &proto.SwapResponse{Id: swap.GetId(), Error: &proto.ResponseError{Error: err.Error()}}
 	}
 	writes, _ := txStub.Commit()
-	return &proto.SwapResponse{Id: swap.Id, Writes: writes}
+	return &proto.SwapResponse{Id: swap.GetId(), Writes: writes}
 }
 
 func RobotDone(stub *cachestub.BatchCacheStub, swapID []byte, key string) (r *proto.SwapResponse) {
@@ -88,12 +88,12 @@ func RobotDone(stub *cachestub.BatchCacheStub, swapID []byte, key string) (r *pr
 		return &proto.SwapResponse{Id: swapID, Error: &proto.ResponseError{Error: err.Error()}}
 	}
 	hash := sha3.Sum256([]byte(key))
-	if !bytes.Equal(s.Hash, hash[:]) {
+	if !bytes.Equal(s.GetHash(), hash[:]) {
 		return &proto.SwapResponse{Id: swapID, Error: &proto.ResponseError{Error: ErrIncorrectKey}}
 	}
 
-	if s.TokenSymbol() == s.From {
-		if err = balance.Add(txStub, balance.BalanceTypeGiven, s.To, "", new(mathbig.Int).SetBytes(s.Amount)); err != nil {
+	if s.TokenSymbol() == s.GetFrom() {
+		if err = balance.Add(txStub, balance.BalanceTypeGiven, s.GetTo(), "", new(mathbig.Int).SetBytes(s.GetAmount())); err != nil {
 			return &proto.SwapResponse{Id: swapID, Error: &proto.ResponseError{Error: err.Error()}}
 		}
 	}
@@ -110,19 +110,19 @@ func UserDone(bci BaseContractInterface, swapID string, key string) peer.Respons
 		return shim.Error(err.Error())
 	}
 	hash := sha3.Sum256([]byte(key))
-	if !bytes.Equal(s.Hash, hash[:]) {
+	if !bytes.Equal(s.GetHash(), hash[:]) {
 		return shim.Error(ErrIncorrectKey)
 	}
 
-	if bytes.Equal(s.Creator, s.Owner) {
+	if bytes.Equal(s.GetCreator(), s.GetOwner()) {
 		return shim.Error(ErrIncorrectSwap)
 	}
-	if s.TokenSymbol() == s.From {
-		if err = bci.AllowedBalanceAdd(s.Token, types.AddrFromBytes(s.Owner), new(big.Int).SetBytes(s.Amount), "swap done"); err != nil {
+	if s.TokenSymbol() == s.GetFrom() {
+		if err = bci.AllowedBalanceAdd(s.GetFrom(), types.AddrFromBytes(s.GetOwner()), new(big.Int).SetBytes(s.GetAmount()), "swap done"); err != nil {
 			return shim.Error(err.Error())
 		}
 	} else {
-		if err = bci.TokenBalanceAdd(types.AddrFromBytes(s.Owner), new(big.Int).SetBytes(s.Amount), s.Token); err != nil {
+		if err = bci.TokenBalanceAdd(types.AddrFromBytes(s.GetOwner()), new(big.Int).SetBytes(s.GetAmount()), s.GetToken()); err != nil {
 			return shim.Error(err.Error())
 		}
 	}
@@ -130,7 +130,7 @@ func UserDone(bci BaseContractInterface, swapID string, key string) peer.Respons
 	if err = Delete(bci.GetStub(), swapID); err != nil {
 		return shim.Error(err.Error())
 	}
-	e := strings.Join([]string{s.From, swapID, key}, "\t")
+	e := strings.Join([]string{s.GetFrom(), swapID, key}, "\t")
 	if err = bci.GetStub().SetEvent(SwapKeyEvent, []byte(e)); err != nil {
 		return shim.Error(err.Error())
 	}
@@ -149,9 +149,9 @@ func UserDone(bci BaseContractInterface, swapID string, key string) peer.Respons
 		)
 	}); ok {
 		f.OnSwapDoneEvent(
-			s.Token,
-			types.AddrFromBytes(s.Owner),
-			new(big.Int).SetBytes(s.Amount),
+			s.GetToken(),
+			types.AddrFromBytes(s.GetOwner()),
+			new(big.Int).SetBytes(s.GetAmount()),
 		)
 	}
 

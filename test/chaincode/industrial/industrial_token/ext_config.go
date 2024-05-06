@@ -20,8 +20,8 @@ func (it *IndustrialToken) ValidateExtConfig(cfgBytes []byte) error {
 		return fmt.Errorf("unmarshalling config: %w", err)
 	}
 
-	if cfgFull.ExtConfig.MessageIs(&ec) {
-		if err := cfgFull.ExtConfig.UnmarshalTo(&ec); err != nil {
+	if cfgFull.GetExtConfig().MessageIs(&ec) {
+		if err := cfgFull.GetExtConfig().UnmarshalTo(&ec); err != nil {
 			return fmt.Errorf("unmarshalling ext config: %w", err)
 		}
 	}
@@ -43,8 +43,8 @@ func (it *IndustrialToken) ApplyExtConfig(cfgBytes []byte) error {
 		return fmt.Errorf("unmarshalling config: %w", err)
 	}
 
-	if cfgFull.ExtConfig.MessageIs(&ec) {
-		if err := cfgFull.ExtConfig.UnmarshalTo(&ec); err != nil {
+	if cfgFull.GetExtConfig().MessageIs(&ec) {
+		if err := cfgFull.GetExtConfig().UnmarshalTo(&ec); err != nil {
 			return fmt.Errorf("unmarshalling ext config: %w", err)
 		}
 	}

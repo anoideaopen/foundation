@@ -8,7 +8,6 @@ import (
 	"github.com/anoideaopen/foundation/core/balance"
 	"github.com/anoideaopen/foundation/mock"
 	"github.com/anoideaopen/foundation/proto"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -45,18 +44,18 @@ func TestExternalLockUnlock(t *testing.T) {
 	}
 
 	data1, err := json.Marshal(request1)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	data2, err := json.Marshal(request2)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	idToken := owner.SignedInvoke("cc", "lockTokenBalance", string(data1))
 	idAllowed := owner.SignedInvoke("cc", "lockAllowedBalance", string(data2))
 
 	err = owner.InvokeWithError("cc", "getLockedTokenBalance", idToken)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	err = owner.InvokeWithError("cc", "getLockedAllowedBalance", idAllowed)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	user1.BalanceShouldBe("cc", 400)
 	user1.AllowedBalanceShouldBe("cc", "vt", 400)
@@ -67,42 +66,42 @@ func TestExternalLockUnlock(t *testing.T) {
 	request2.Amount = "150"
 
 	data1, err = json.Marshal(request1)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	data2, err = json.Marshal(request2)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	err = owner.RawSignedInvokeWithErrorReturned("cc", "unlockTokenBalance", string(data1))
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	err = owner.RawSignedInvokeWithErrorReturned("cc", "unlockAllowedBalance", string(data2))
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	user1.BalanceShouldBe("cc", 550)
 	user1.AllowedBalanceShouldBe("cc", "vt", 550)
 
 	err = owner.InvokeWithError("cc", "getLockedTokenBalance", idToken)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	err = owner.InvokeWithError("cc", "getLockedAllowedBalance", idAllowed)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	request1.Amount = "450"
 	request2.Amount = "450"
 
 	data1, err = json.Marshal(request1)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	data2, err = json.Marshal(request2)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	err = owner.RawSignedInvokeWithErrorReturned("cc", "unlockTokenBalance", string(data1))
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	err = owner.RawSignedInvokeWithErrorReturned("cc", "unlockAllowedBalance", string(data2))
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	err = owner.InvokeWithError("cc", "getLockedTokenBalance", idToken)
-	assert.ErrorContains(t, err, core.ErrLockNotExists.Error())
+	require.ErrorContains(t, err, core.ErrLockNotExists.Error())
 	err = owner.InvokeWithError("cc", "getLockedAllowedBalance", idAllowed)
-	assert.ErrorContains(t, err, core.ErrLockNotExists.Error())
+	require.ErrorContains(t, err, core.ErrLockNotExists.Error())
 
 	user1.BalanceShouldBe("cc", 1000)
 	user1.AllowedBalanceShouldBe("cc", "vt", 1000)
@@ -140,20 +139,20 @@ func TestNotAdminFailedLockUnlock(t *testing.T) {
 	}
 
 	data1, err := json.Marshal(request1)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	data2, err := json.Marshal(request2)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	err = user1.RawSignedInvokeWithErrorReturned("cc", "lockTokenBalance", string(data1))
-	assert.EqualError(t, err, core.ErrUnauthorisedNotAdmin.Error())
+	require.EqualError(t, err, core.ErrUnauthorisedNotAdmin.Error())
 	err = user1.RawSignedInvokeWithErrorReturned("cc", "lockAllowedBalance", string(data2))
-	assert.EqualError(t, err, core.ErrUnauthorisedNotAdmin.Error())
+	require.EqualError(t, err, core.ErrUnauthorisedNotAdmin.Error())
 
 	err = user1.RawSignedInvokeWithErrorReturned("cc", "unlockTokenBalance", string(data1))
-	assert.EqualError(t, err, core.ErrUnauthorisedNotAdmin.Error())
+	require.EqualError(t, err, core.ErrUnauthorisedNotAdmin.Error())
 	err = user1.RawSignedInvokeWithErrorReturned("cc", "unlockAllowedBalance", string(data2))
-	assert.EqualError(t, err, core.ErrUnauthorisedNotAdmin.Error())
+	require.EqualError(t, err, core.ErrUnauthorisedNotAdmin.Error())
 }
 
 func TestFailedMoreLockThenBalance(t *testing.T) {
@@ -188,15 +187,15 @@ func TestFailedMoreLockThenBalance(t *testing.T) {
 	}
 
 	data1, err := json.Marshal(request1)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	data2, err := json.Marshal(request2)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	err = owner.RawSignedInvokeWithErrorReturned("cc", "lockTokenBalance", string(data1))
-	assert.EqualError(t, err, balance.ErrInsufficientBalance.Error())
+	require.EqualError(t, err, balance.ErrInsufficientBalance.Error())
 	err = owner.RawSignedInvokeWithErrorReturned("cc", "lockAllowedBalance", string(data2))
-	assert.EqualError(t, err, balance.ErrInsufficientBalance.Error())
+	require.EqualError(t, err, balance.ErrInsufficientBalance.Error())
 }
 
 func TestFailedCreateTwiceLock(t *testing.T) {
@@ -231,10 +230,10 @@ func TestFailedCreateTwiceLock(t *testing.T) {
 	}
 
 	data1, err := json.Marshal(request1)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	data2, err := json.Marshal(request2)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	idToken := owner.SignedInvoke("cc", "lockTokenBalance", string(data1))
 	idAllowed := owner.SignedInvoke("cc", "lockAllowedBalance", string(data2))
@@ -243,15 +242,15 @@ func TestFailedCreateTwiceLock(t *testing.T) {
 	request2.Id = idAllowed
 
 	data1, err = json.Marshal(request1)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	data2, err = json.Marshal(request2)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	err = owner.RawSignedInvokeWithErrorReturned("cc", "lockTokenBalance", string(data1))
-	assert.EqualError(t, err, core.ErrAlreadyExist.Error())
+	require.EqualError(t, err, core.ErrAlreadyExist.Error())
 	err = owner.RawSignedInvokeWithErrorReturned("cc", "lockAllowedBalance", string(data2))
-	assert.EqualError(t, err, core.ErrAlreadyExist.Error())
+	require.EqualError(t, err, core.ErrAlreadyExist.Error())
 }
 
 func TestFailedUnlock(t *testing.T) {
@@ -286,10 +285,10 @@ func TestFailedUnlock(t *testing.T) {
 	}
 
 	data1, err := json.Marshal(request1)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	data2, err := json.Marshal(request2)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	idToken := owner.SignedInvoke("cc", "lockTokenBalance", string(data1))
 	idAllowed := owner.SignedInvoke("cc", "lockAllowedBalance", string(data2))
@@ -300,25 +299,25 @@ func TestFailedUnlock(t *testing.T) {
 	request2.Amount = "610"
 
 	data1, err = json.Marshal(request1)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	data2, err = json.Marshal(request2)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	err = owner.RawSignedInvokeWithErrorReturned("cc", "unlockTokenBalance", string(data1))
-	assert.EqualError(t, err, core.ErrInsufficientFunds.Error())
+	require.EqualError(t, err, core.ErrInsufficientFunds.Error())
 	err = owner.RawSignedInvokeWithErrorReturned("cc", "unlockAllowedBalance", string(data2))
-	assert.EqualError(t, err, core.ErrInsufficientFunds.Error())
+	require.EqualError(t, err, core.ErrInsufficientFunds.Error())
 
 	request1.Amount = "-100"
 	request2.Amount = "-100"
 
 	data1, err = json.Marshal(request1)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	data2, err = json.Marshal(request2)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	err = owner.RawSignedInvokeWithErrorReturned("cc", "unlockTokenBalance", string(data1))
-	assert.EqualError(t, err, "amount must be non-negative")
+	require.EqualError(t, err, "amount must be non-negative")
 	err = owner.RawSignedInvokeWithErrorReturned("cc", "unlockAllowedBalance", string(data2))
-	assert.EqualError(t, err, "amount must be non-negative")
+	require.EqualError(t, err, "amount must be non-negative")
 }

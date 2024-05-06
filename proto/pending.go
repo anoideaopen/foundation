@@ -24,21 +24,21 @@ type pendingTxDump struct {
 // DumpJSON returns the JSON representation of the pending transaction
 func (x *PendingTx) DumpJSON() []byte {
 	var sender *addressDump
-	if x.Sender != nil {
+	if x.GetSender() != nil {
 		sender = &addressDump{
-			UserID:       x.Sender.UserID,
-			Address:      base58.CheckEncode(x.Sender.Address[1:], x.Sender.Address[0]),
-			IsIndustrial: x.Sender.IsIndustrial,
-			IsMultisig:   x.Sender.IsMultisig,
+			UserID:       x.GetSender().GetUserID(),
+			Address:      base58.CheckEncode(x.GetSender().GetAddress()[1:], x.GetSender().GetAddress()[0]),
+			IsIndustrial: x.GetSender().GetIsIndustrial(),
+			IsMultisig:   x.GetSender().GetIsMultisig(),
 		}
 	}
 
 	data, err := json.MarshalIndent(&pendingTxDump{
-		Method:    x.Method,
+		Method:    x.GetMethod(),
 		Sender:    sender,
-		Args:      x.Args,
-		Timestamp: x.Timestamp,
-		Nonce:     x.Nonce,
+		Args:      x.GetArgs(),
+		Timestamp: x.GetTimestamp(),
+		Nonce:     x.GetNonce(),
 	}, "", "  ")
 	if err != nil {
 		panic(err)

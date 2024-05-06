@@ -4,14 +4,14 @@ import "github.com/btcsuite/btcutil/base58"
 
 // AddrString returns the address string
 func (x *Address) AddrString() string {
-	return base58.CheckEncode(x.Address[1:], x.Address[0])
+	return base58.CheckEncode(x.GetAddress()[1:], x.GetAddress()[0])
 }
 
 // Addr returns the address
 func (x *AclResponse) Addr() (out [32]byte) {
-	if x.Address == nil {
+	if x.GetAddress() == nil {
 		return [32]byte{}
 	}
-	copy(out[:], x.Address.Address.Address[:32])
+	copy(out[:], x.GetAddress().GetAddress().GetAddress()[:32])
 	return out
 }

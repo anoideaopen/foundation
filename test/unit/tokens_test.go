@@ -9,7 +9,6 @@ import (
 	"github.com/anoideaopen/foundation/core/types/big"
 	"github.com/anoideaopen/foundation/mock"
 	"github.com/anoideaopen/foundation/token"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -185,7 +184,7 @@ func TestMultisigEmitTransfer(t *testing.T) {
 	user1 := ledger.NewWallet()
 
 	_, res, _ := owner.RawSignedInvoke(2, "fiat", "emit", user1.Address(), "1000")
-	assert.Equal(t, "", res.Error)
+	require.Equal(t, "", res.Error)
 	user1.BalanceShouldBe("fiat", 1000)
 }
 
@@ -210,16 +209,16 @@ func TestBuyLimit(t *testing.T) {
 	owner.SignedInvoke("cc", "setLimits", "buyToken", "FIAT", "100", "200")
 
 	_, resp, _ := user1.RawSignedInvoke("cc", "buyToken", "50", "FIAT")
-	assert.Equal(t, "amount out of limits", resp.Error)
+	require.Equal(t, "amount out of limits", resp.Error)
 
 	_, resp, _ = user1.RawSignedInvoke("cc", "buyToken", "300", "FIAT")
-	assert.Equal(t, "amount out of limits", resp.Error)
+	require.Equal(t, "amount out of limits", resp.Error)
 
 	user1.SignedInvoke("cc", "buyToken", "150", "FIAT")
 
 	_, resp, _ = owner.RawSignedInvoke("cc", "setLimits", "buyToken", "FIAT", "100", "0")
-	assert.Equal(t, "", resp.Error)
+	require.Equal(t, "", resp.Error)
 
 	_, resp, _ = owner.RawSignedInvoke("cc", "setLimits", "buyToken", "FIAT", "100", "50")
-	assert.Equal(t, "min limit is greater than max limit", resp.Error)
+	require.Equal(t, "min limit is greater than max limit", resp.Error)
 }

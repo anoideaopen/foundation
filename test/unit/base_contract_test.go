@@ -8,7 +8,6 @@ import (
 	"github.com/anoideaopen/foundation/core/types/big"
 	"github.com/anoideaopen/foundation/mock"
 	"github.com/anoideaopen/foundation/token"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -72,7 +71,7 @@ func TestGetEmptyNonce(t *testing.T) {
 
 	t.Run("Get nonce with new wallet", func(t *testing.T) {
 		nonce := owner.Invoke(testTokenCCName, testGetNonceFnName, owner.Address())
-		assert.Equal(t, nonce, testMessageEmptyNonce)
+		require.Equal(t, nonce, testMessageEmptyNonce)
 	})
 }
 
@@ -92,7 +91,7 @@ func TestGetNonce(t *testing.T) {
 
 	t.Run("Get nonce with new wallet", func(t *testing.T) {
 		nonce := owner.Invoke(testTokenCCName, testGetNonceFnName, owner.Address())
-		assert.NotEqual(t, nonce, testMessageEmptyNonce)
+		require.NotEqual(t, nonce, testMessageEmptyNonce)
 	})
 }
 
@@ -107,7 +106,7 @@ func TestInit(t *testing.T) {
 
 	t.Run("Init new chaincode", func(t *testing.T) {
 		message := ledger.NewCC(testTokenCCName, tt, config)
-		assert.Empty(t, message)
+		require.Empty(t, message)
 	})
 }
 
@@ -125,6 +124,6 @@ func TestTxHealthCheck(t *testing.T) {
 
 	t.Run("Healthcheck checking", func(t *testing.T) {
 		txID := owner.SignedInvoke(testTokenCCName, "healthCheck")
-		assert.NotEmpty(t, txID)
+		require.NotEmpty(t, txID)
 	})
 }

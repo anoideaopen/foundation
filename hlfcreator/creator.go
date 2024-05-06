@@ -27,7 +27,7 @@ var ErrDecodeSerializedIdentity = errors.New("failed to validate block after dec
 // ValidateAdminCreator checks if the creator of the transaction is an admin.
 func ValidateAdminCreator(creator []byte) error {
 	if len(creator) == 0 {
-		return fmt.Errorf("creator is nil or empty")
+		return errors.New("creator is nil or empty")
 	}
 
 	var identity msp.SerializedIdentity
@@ -35,7 +35,7 @@ func ValidateAdminCreator(creator []byte) error {
 		return fmt.Errorf("failed to unmarshal SerializedIdentity %v: %w", creator, err)
 	}
 
-	b, _ := pem.Decode(identity.IdBytes)
+	b, _ := pem.Decode(identity.GetIdBytes())
 	if b == nil || len(b.Bytes) == 0 {
 		return ErrDecodeSerializedIdentity
 	}
@@ -61,7 +61,7 @@ func ValidateAdminCreator(creator []byte) error {
 
 func CreatorSKIAndHashedCert(creator []byte) (creatorSKI [32]byte, hashedCert [32]byte, err error) {
 	if len(creator) == 0 {
-		return creatorSKI, hashedCert, fmt.Errorf("creator is nil or empty")
+		return creatorSKI, hashedCert, errors.New("creator is nil or empty")
 	}
 
 	var identity msp.SerializedIdentity
@@ -69,7 +69,7 @@ func CreatorSKIAndHashedCert(creator []byte) (creatorSKI [32]byte, hashedCert [3
 		return creatorSKI, hashedCert, err
 	}
 
-	b, _ := pem.Decode(identity.IdBytes)
+	b, _ := pem.Decode(identity.GetIdBytes())
 	if b == nil || len(b.Bytes) == 0 {
 		return creatorSKI, hashedCert, ErrDecodeSerializedIdentity
 	}
@@ -80,7 +80,7 @@ func CreatorSKIAndHashedCert(creator []byte) (creatorSKI [32]byte, hashedCert [3
 
 	pk, ok := parsed.PublicKey.(*ecdsa.PublicKey)
 	if !ok {
-		return creatorSKI, hashedCert, errors.New("public key type assertion failed")
+		return creatorSKI, hashedCert, errors.New("public key type requireion failed")
 	}
 
 	// ToDo - need to remove deprecated elliptic.Marshal to when Go version will be updated to 1.20

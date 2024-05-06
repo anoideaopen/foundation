@@ -17,7 +17,6 @@ import (
 	"github.com/anoideaopen/foundation/test/unit/fixtures_test"
 	"github.com/anoideaopen/foundation/token"
 	pb "github.com/golang/protobuf/proto" //nolint:staticcheck
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/sha3"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -149,7 +148,7 @@ func TestAtomicMultiSwapMoveToken(t *testing.T) { //nolint:gocognit
 			},
 		},
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	txID, _, _, multiSwaps := user1.RawSignedMultiSwapInvoke(baCC, "multiSwapBegin", tokenBA, string(bytes), otfCC, swapHash)
 	w := user1
 	for _, swap := range multiSwaps {
@@ -179,7 +178,7 @@ func TestAtomicMultiSwapMoveToken(t *testing.T) { //nolint:gocognit
 			events := &proto.BatchEvent{}
 			err = pb.Unmarshal(e.Payload, events)
 			if err != nil {
-				assert.FailNow(t, err.Error())
+				require.FailNow(t, err.Error())
 			}
 			for _, ev := range events.Events {
 				if hex.EncodeToString(ev.Id) == txID {
@@ -188,7 +187,7 @@ func TestAtomicMultiSwapMoveToken(t *testing.T) { //nolint:gocognit
 						evts[evt.Name] = evt.Value
 					}
 					if ev.Error != nil {
-						assert.FailNow(t, err.Error())
+						require.FailNow(t, err.Error())
 					}
 				}
 			}
@@ -218,7 +217,7 @@ func TestAtomicMultiSwapMoveToken(t *testing.T) { //nolint:gocognit
 	ledger.WaitMultiSwapAnswer(otfCC, txID, time.Second*5)
 
 	swapID := user1.Invoke(otfCC, "multiSwapGet", txID)
-	assert.NotNil(t, swapID)
+	require.NotNil(t, swapID)
 
 	user1.Invoke(otfCC, "multiSwapDone", txID, swapKey)
 
@@ -263,7 +262,7 @@ func TestAtomicMultiSwapMoveToken(t *testing.T) { //nolint:gocognit
 			events := &proto.BatchEvent{}
 			err = pb.Unmarshal(e.Payload, events)
 			if err != nil {
-				assert.FailNow(t, err.Error())
+				require.FailNow(t, err.Error())
 			}
 			for _, ev := range events.Events {
 				if hex.EncodeToString(ev.Id) == txID {
@@ -272,7 +271,7 @@ func TestAtomicMultiSwapMoveToken(t *testing.T) { //nolint:gocognit
 						evts[evt.Name] = evt.Value
 					}
 					if ev.Error != nil {
-						assert.FailNow(t, err.Error())
+						require.FailNow(t, err.Error())
 					}
 				}
 			}
@@ -360,7 +359,7 @@ func TestAtomicMultiSwapMoveTokenBack(t *testing.T) {
 			},
 		},
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	txID := user1.SignedMultiSwapsInvoke(otfCC, "multiSwapBegin", tokenBA, string(bytes), baCC, swapHash)
 
 	user1.GroupBalanceShouldBe(baCC, BA1, 0)
@@ -386,7 +385,7 @@ func TestAtomicMultiSwapMoveTokenBack(t *testing.T) {
 	ledger.WaitMultiSwapAnswer(baCC, txID, time.Second*5)
 
 	swapID := user1.Invoke(baCC, "multiSwapGet", txID)
-	assert.NotNil(t, swapID)
+	require.NotNil(t, swapID)
 
 	user1.CheckGivenBalanceShouldBe(baCC, otfCC, 0)
 	user1.GroupBalanceShouldBe(baCC, BA1, 0)
@@ -494,10 +493,10 @@ func TestAtomicMultiSwapToThirdChannel(t *testing.T) {
 			},
 		},
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	_, res, _, _ := user1.RawSignedMultiSwapInvoke(otfCC, "multiSwapBegin", tokenBA, string(bytes), ba02CC, swapHash) //nolint:dogsled
-	assert.Equal(t, "incorrect swap", res.Error)
+	require.Equal(t, "incorrect swap", res.Error)
 	err = user1.RawSignedInvokeWithErrorReturned(otfCC, "swapBegin", tokenBA, string(bytes), ba02CC, swapHash)
-	assert.Error(t, err)
-	assert.Equal(t, "incorrect swap", res.Error)
+	require.Error(t, err)
+	require.Equal(t, "incorrect swap", res.Error)
 }

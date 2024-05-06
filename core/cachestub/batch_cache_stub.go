@@ -23,7 +23,7 @@ func NewBatchCacheStub(stub shim.ChaincodeStubInterface) *BatchCacheStub {
 func (bs *BatchCacheStub) GetState(key string) ([]byte, error) {
 	existsElement, ok := bs.batchWriteCache[key]
 	if ok {
-		return existsElement.Value, nil
+		return existsElement.GetValue(), nil
 	}
 	return bs.ChaincodeStubInterface.GetState(key)
 }
@@ -37,12 +37,12 @@ func (bs *BatchCacheStub) PutState(key string, value []byte) error {
 // Commit puts state from a BatchCacheStub cache to the chaincode state
 func (bs *BatchCacheStub) Commit() error {
 	for key, element := range bs.batchWriteCache {
-		if element.IsDeleted {
+		if element.GetIsDeleted() {
 			if err := bs.ChaincodeStubInterface.DelState(key); err != nil {
 				return err
 			}
 		} else {
-			if err := bs.ChaincodeStubInterface.PutState(key, element.Value); err != nil {
+			if err := bs.ChaincodeStubInterface.PutState(key, element.GetValue()); err != nil {
 				return err
 			}
 		}

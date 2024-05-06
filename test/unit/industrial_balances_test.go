@@ -8,7 +8,7 @@ import (
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/core/types/big"
 	"github.com/anoideaopen/foundation/mock"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func (tt *TestToken) TxIndustrialBalanceAdd(_ *types.Sender, token string, address *types.Address, amount *big.Int, reason string) error {
@@ -69,9 +69,9 @@ func TestIndustrialBalanceAdd(t *testing.T) {
 		balanceResponse := owner.Invoke(testTokenWithGroup, "industrialBalanceGet", user.Address())
 		balance, err := GetIndustrialBalanceFromResponseByGroup(balanceResponse, testGroup)
 		if err != nil {
-			assert.FailNow(t, err.Error())
+			require.FailNow(t, err.Error())
 		}
-		assert.Equal(t, balanceAddAmount, balance, "assert that balance equals "+balanceAddAmount)
+		require.Equal(t, balanceAddAmount, balance, "require that balance equals "+balanceAddAmount)
 	})
 }
 
@@ -107,9 +107,9 @@ func TestIndustrialBalanceSub(t *testing.T) {
 		balanceAfterSubResponse := owner.Invoke(testTokenWithGroup, "industrialBalanceGet", user.Address())
 		balanceAfterSub, err := GetIndustrialBalanceFromResponseByGroup(balanceAfterSubResponse, testGroup)
 		if err != nil {
-			assert.FailNow(t, err.Error())
+			require.FailNow(t, err.Error())
 		}
-		assert.Equal(t, balanceAfterSubExpected, balanceAfterSub, "assert that balance equals "+balanceAfterSubExpected)
+		require.Equal(t, balanceAfterSubExpected, balanceAfterSub, "require that balance equals "+balanceAfterSubExpected)
 	})
 }
 
@@ -142,16 +142,16 @@ func TestIndustrialBalanceTransfer(t *testing.T) {
 		balanceAfterSubUser2Response := owner.Invoke(testTokenWithGroup, "industrialBalanceGet", user2.Address())
 		balanceAfterSubUser2, err := GetIndustrialBalanceFromResponseByGroup(balanceAfterSubUser2Response, testGroup)
 		if err != nil {
-			assert.FailNow(t, err.Error())
+			require.FailNow(t, err.Error())
 		}
-		assert.Equal(t, balanceAfterTransferUser2Expected, balanceAfterSubUser2, "assert that balance equals "+balanceAfterTransferUser2Expected)
+		require.Equal(t, balanceAfterTransferUser2Expected, balanceAfterSubUser2, "require that balance equals "+balanceAfterTransferUser2Expected)
 
 		balanceAfterSubUser1Response := owner.Invoke(testTokenWithGroup, "industrialBalanceGet", user1.Address())
 		balanceAfterSubUser1, err := GetIndustrialBalanceFromResponseByGroup(balanceAfterSubUser1Response, testGroup)
 		if err != nil {
-			assert.FailNow(t, err.Error())
+			require.FailNow(t, err.Error())
 		}
-		assert.Equal(t, balanceAfterTransferUser1Expected, balanceAfterSubUser1, "assert that balance equals "+balanceAfterTransferUser1Expected)
+		require.Equal(t, balanceAfterTransferUser1Expected, balanceAfterSubUser1, "require that balance equals "+balanceAfterTransferUser1Expected)
 	})
 }
 
@@ -184,9 +184,9 @@ func TestIndustrialBalanceLockAndGetLocked(t *testing.T) {
 	balanceResponse := owner.Invoke(testTokenWithGroup, "industrialBalanceGet", user1.Address())
 	balance, err := GetIndustrialBalanceFromResponseByGroup(balanceResponse, testGroup)
 	if err != nil {
-		assert.FailNow(t, err.Error())
+		require.FailNow(t, err.Error())
 	}
-	assert.Equal(t, balanceAddAmount, balance, "assert that balance equals "+balanceAddAmount)
+	require.Equal(t, balanceAddAmount, balance, "require that balance equals "+balanceAddAmount)
 
 	t.Run("Industrial balance lock and get test", func(t *testing.T) {
 		owner.SignedInvoke(testTokenWithGroup, "industrialBalanceLock", testTokenWithGroup, user1.Address(), lockAmount)
@@ -194,16 +194,16 @@ func TestIndustrialBalanceLockAndGetLocked(t *testing.T) {
 		balanceAfterLockResponse := owner.Invoke(testTokenWithGroup, "industrialBalanceGet", user1.Address())
 		balanceAfterLock, err := GetIndustrialBalanceFromResponseByGroup(balanceAfterLockResponse, testGroup)
 		if err != nil {
-			assert.FailNow(t, err.Error())
+			require.FailNow(t, err.Error())
 		}
-		assert.Equal(t, lockAmount, balanceAfterLock, "assert that balance equals "+balanceAfterLock)
+		require.Equal(t, lockAmount, balanceAfterLock, "require that balance equals "+balanceAfterLock)
 
 		lockedBalanceResponse := owner.Invoke(testTokenWithGroup, "industrialBalanceGetLocked", user1.Address())
 		lockedBalance, err := GetIndustrialBalanceFromResponseByGroup(lockedBalanceResponse, testGroup)
 		if err != nil {
-			assert.FailNow(t, err.Error())
+			require.FailNow(t, err.Error())
 		}
-		assert.Equal(t, lockAmount, lockedBalance, "assert that locked balance equals "+lockedBalance)
+		require.Equal(t, lockAmount, lockedBalance, "require that locked balance equals "+lockedBalance)
 	})
 }
 
@@ -236,34 +236,34 @@ func TestIndustrialBalanceUnLock(t *testing.T) {
 	balanceResponse := owner.Invoke(testTokenWithGroup, "industrialBalanceGet", user1.Address())
 	balance, err := GetIndustrialBalanceFromResponseByGroup(balanceResponse, testGroup)
 	if err != nil {
-		assert.FailNow(t, err.Error())
+		require.FailNow(t, err.Error())
 	}
-	assert.Equal(t, balanceAddAmount, balance, "assert that balance equals "+balanceAddAmount)
+	require.Equal(t, balanceAddAmount, balance, "require that balance equals "+balanceAddAmount)
 
 	owner.SignedInvoke(testTokenWithGroup, "industrialBalanceLock", testTokenWithGroup, user1.Address(), lockAmount)
 
 	balanceAfterLockResponse := owner.Invoke(testTokenWithGroup, "industrialBalanceGet", user1.Address())
 	balanceAfterLock, err := GetIndustrialBalanceFromResponseByGroup(balanceAfterLockResponse, testGroup)
 	if err != nil {
-		assert.FailNow(t, err.Error())
+		require.FailNow(t, err.Error())
 	}
-	assert.Equal(t, lockAmount, balanceAfterLock, "assert that balance equals "+balanceAfterLock)
+	require.Equal(t, lockAmount, balanceAfterLock, "require that balance equals "+balanceAfterLock)
 
 	lockedBalanceResponse := owner.Invoke(testTokenWithGroup, "industrialBalanceGetLocked", user1.Address())
 	lockedBalance, err := GetIndustrialBalanceFromResponseByGroup(lockedBalanceResponse, testGroup)
 	if err != nil {
-		assert.FailNow(t, err.Error())
+		require.FailNow(t, err.Error())
 	}
-	assert.Equal(t, lockAmount, lockedBalance, "assert that locked balance equals "+lockedBalance)
+	require.Equal(t, lockAmount, lockedBalance, "require that locked balance equals "+lockedBalance)
 
 	t.Run("Industrial balance unlock test", func(t *testing.T) {
 		owner.SignedInvoke(testTokenWithGroup, "industrialBalanceUnLock", testTokenWithGroup, user1.Address(), "300")
 		lockedBalanceAfterUnlockResponse := owner.Invoke(testTokenWithGroup, "industrialBalanceGetLocked", user1.Address())
 		lockedBalanceAfterUnlock, err := GetIndustrialBalanceFromResponseByGroup(lockedBalanceAfterUnlockResponse, testGroup)
 		if err != nil {
-			assert.FailNow(t, err.Error())
+			require.FailNow(t, err.Error())
 		}
-		assert.Equal(t, "200", lockedBalanceAfterUnlock, "assert that locked balance equals "+lockedBalance)
+		require.Equal(t, "200", lockedBalanceAfterUnlock, "require that locked balance equals "+lockedBalance)
 	})
 }
 
@@ -298,24 +298,24 @@ func TestIndustrialBalanceTransferLocked(t *testing.T) {
 	balanceResponse := owner.Invoke(testTokenWithGroup, "industrialBalanceGet", user1.Address())
 	balance, err := GetIndustrialBalanceFromResponseByGroup(balanceResponse, testGroup)
 	if err != nil {
-		assert.FailNow(t, err.Error())
+		require.FailNow(t, err.Error())
 	}
-	assert.Equal(t, balanceAddAmount, balance, "assert that balance equals "+balanceAddAmount)
+	require.Equal(t, balanceAddAmount, balance, "require that balance equals "+balanceAddAmount)
 	owner.SignedInvoke(testTokenWithGroup, "industrialBalanceLock", testTokenWithGroup, user1.Address(), lockAmount)
 
 	balanceAfterLockResponse := owner.Invoke(testTokenWithGroup, "industrialBalanceGet", user1.Address())
 	balanceAfterLock, err := GetIndustrialBalanceFromResponseByGroup(balanceAfterLockResponse, testGroup)
 	if err != nil {
-		assert.FailNow(t, err.Error())
+		require.FailNow(t, err.Error())
 	}
-	assert.Equal(t, lockAmount, balanceAfterLock, "assert that balance equals "+balanceAfterLock)
+	require.Equal(t, lockAmount, balanceAfterLock, "require that balance equals "+balanceAfterLock)
 
 	lockedBalanceResponse := owner.Invoke(testTokenWithGroup, "industrialBalanceGetLocked", user1.Address())
 	lockedBalance, err := GetIndustrialBalanceFromResponseByGroup(lockedBalanceResponse, testGroup)
 	if err != nil {
-		assert.FailNow(t, err.Error())
+		require.FailNow(t, err.Error())
 	}
-	assert.Equal(t, lockAmount, lockedBalance, "assert that locked balance equals "+lockedBalance)
+	require.Equal(t, lockAmount, lockedBalance, "require that locked balance equals "+lockedBalance)
 
 	t.Run("Industrial balance transfer locked", func(t *testing.T) {
 		owner.SignedInvoke(testTokenWithGroup, "industrialBalanceTransferLocked", testTokenWithGroup, user1.Address(), user2.Address(), transferAmount, "transfer locked")
@@ -323,16 +323,16 @@ func TestIndustrialBalanceTransferLocked(t *testing.T) {
 		balanceAfterTransferUser1Response := owner.Invoke(testTokenWithGroup, "industrialBalanceGetLocked", user1.Address())
 		balanceAfterTransferUser1, err := GetIndustrialBalanceFromResponseByGroup(balanceAfterTransferUser1Response, testGroup)
 		if err != nil {
-			assert.FailNow(t, err.Error())
+			require.FailNow(t, err.Error())
 		}
-		assert.Equal(t, "200", balanceAfterTransferUser1, "assert that locked balance equals "+lockedBalance)
+		require.Equal(t, "200", balanceAfterTransferUser1, "require that locked balance equals "+lockedBalance)
 
 		balanceAfterTransferUser2Response := owner.Invoke(testTokenWithGroup, "industrialBalanceGet", user2.Address())
 		balanceAfterTransferUser2, err := GetIndustrialBalanceFromResponseByGroup(balanceAfterTransferUser2Response, testGroup)
 		if err != nil {
-			assert.FailNow(t, err.Error())
+			require.FailNow(t, err.Error())
 		}
-		assert.Equal(t, transferAmount, balanceAfterTransferUser2, "assert that locked balance equals "+lockedBalance)
+		require.Equal(t, transferAmount, balanceAfterTransferUser2, "require that locked balance equals "+lockedBalance)
 	})
 }
 
@@ -358,25 +358,25 @@ func TestIndustrialBalanceBurnLocked(t *testing.T) {
 	balanceResponse := owner.Invoke(testTokenWithGroup, "industrialBalanceGet", user1.Address())
 	balance, err := GetIndustrialBalanceFromResponseByGroup(balanceResponse, testGroup)
 	if err != nil {
-		assert.FailNow(t, err.Error())
+		require.FailNow(t, err.Error())
 	}
-	assert.Equal(t, balanceAddAmount, balance, "assert that balance equals "+balanceAddAmount)
+	require.Equal(t, balanceAddAmount, balance, "require that balance equals "+balanceAddAmount)
 
 	owner.SignedInvoke(testTokenWithGroup, "industrialBalanceLock", testTokenWithGroup, user1.Address(), lockAmount)
 
 	balanceAfterLockResponse := owner.Invoke(testTokenWithGroup, "industrialBalanceGet", user1.Address())
 	balanceAfterLock, err := GetIndustrialBalanceFromResponseByGroup(balanceAfterLockResponse, testGroup)
 	if err != nil {
-		assert.FailNow(t, err.Error())
+		require.FailNow(t, err.Error())
 	}
-	assert.Equal(t, lockAmount, balanceAfterLock, "assert that balance equals "+balanceAfterLock)
+	require.Equal(t, lockAmount, balanceAfterLock, "require that balance equals "+balanceAfterLock)
 
 	lockedBalanceResponse := owner.Invoke(testTokenWithGroup, "industrialBalanceGetLocked", user1.Address())
 	lockedBalance, err := GetIndustrialBalanceFromResponseByGroup(lockedBalanceResponse, testGroup)
 	if err != nil {
-		assert.FailNow(t, err.Error())
+		require.FailNow(t, err.Error())
 	}
-	assert.Equal(t, lockAmount, lockedBalance, "assert that locked balance equals "+lockedBalance)
+	require.Equal(t, lockAmount, lockedBalance, "require that locked balance equals "+lockedBalance)
 
 	t.Run("Industrial balance burn locked", func(t *testing.T) {
 		owner.SignedInvoke(testTokenWithGroup, "industrialBalanceBurnLocked", testTokenWithGroup, user1.Address(), "300", "burn locked")
@@ -384,9 +384,9 @@ func TestIndustrialBalanceBurnLocked(t *testing.T) {
 		lockedBalanceAfterBurnResponse := owner.Invoke(testTokenWithGroup, "industrialBalanceGetLocked", user1.Address())
 		lockedBalanceAfterBurn, err := GetIndustrialBalanceFromResponseByGroup(lockedBalanceAfterBurnResponse, testGroup)
 		if err != nil {
-			assert.FailNow(t, err.Error())
+			require.FailNow(t, err.Error())
 		}
-		assert.Equal(t, "200", lockedBalanceAfterBurn, "assert that locked balance equals "+lockedBalance)
+		require.Equal(t, "200", lockedBalanceAfterBurn, "require that locked balance equals "+lockedBalance)
 	})
 }
 

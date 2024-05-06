@@ -13,7 +13,7 @@ import (
 	"github.com/btcsuite/btcutil/base58"
 	pb "github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/hyperledger/fabric-protos-go/peer"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
 )
@@ -29,25 +29,25 @@ func (w *Wallet) SignedInvokeTraced(ctx context.Context, ch, fn string, args ...
 	} else {
 		txID, res, swaps = w.RawSignedInvokeTraced(ctx, ch, fn, args...)
 	}
-	assert.Equal(w.ledger.t, "", res.Error)
+	require.Equal(w.ledger.t, "", res.Error)
 	for _, swap := range swaps {
 		x := proto.Batch{Swaps: []*proto.Swap{{
-			Id:      swap.Id,
+			Id:      swap.GetId(),
 			Creator: []byte("0000"),
-			Owner:   swap.Owner,
-			Token:   swap.Token,
-			Amount:  swap.Amount,
-			From:    swap.From,
-			To:      swap.To,
-			Hash:    swap.Hash,
-			Timeout: swap.Timeout,
+			Owner:   swap.GetOwner(),
+			Token:   swap.GetToken(),
+			Amount:  swap.GetAmount(),
+			From:    swap.GetFrom(),
+			To:      swap.GetTo(),
+			Hash:    swap.GetHash(),
+			Timeout: swap.GetTimeout(),
 		}}}
 		data, err := pb.Marshal(&x)
-		assert.NoError(w.ledger.t, err)
+		require.NoError(w.ledger.t, err)
 		cert, err := hex.DecodeString(batchRobotCert)
-		assert.NoError(w.ledger.t, err)
-		w.ledger.stubs[strings.ToLower(swap.To)].SetCreator(cert)
-		w.Invoke(strings.ToLower(swap.To), core.BatchExecute, string(data))
+		require.NoError(w.ledger.t, err)
+		w.ledger.stubs[strings.ToLower(swap.GetTo())].SetCreator(cert)
+		w.Invoke(strings.ToLower(swap.GetTo()), core.BatchExecute, string(data))
 	}
 
 	return txID
@@ -67,7 +67,7 @@ func (w *Wallet) RawSignedInvokeTracedWithErrorReturned(ctx context.Context, ch,
 	txID := txIDGen()
 	args, _ = w.sign(fn, ch, args...)
 	cert, err := base64.StdEncoding.DecodeString(userCert)
-	assert.NoError(w.ledger.t, err)
+	require.NoError(w.ledger.t, err)
 	_ = w.ledger.stubs[ch].SetCreatorCert("platformMSP", cert)
 	if ctx == nil {
 		err = w.ledger.doInvokeWithErrorReturned(ch, txID, fn, args...)
@@ -100,26 +100,26 @@ func (w *Wallet) RawSignedInvokeTracedWithErrorReturned(ctx context.Context, ch,
 	}
 
 	e := <-w.ledger.stubs[ch].ChaincodeEventsChannel
-	if e.EventName == core.BatchExecute {
+	if e.GetEventName() == core.BatchExecute {
 		events := &proto.BatchEvent{}
-		err = pb.Unmarshal(e.Payload, events)
+		err = pb.Unmarshal(e.GetPayload(), events)
 		if err != nil {
 			return err
 		}
-		for _, ev := range events.Events {
-			if hex.EncodeToString(ev.Id) == txID {
+		for _, ev := range events.GetEvents() {
+			if hex.EncodeToString(ev.GetId()) == txID {
 				evts := make(map[string][]byte)
-				for _, evt := range ev.Events {
-					evts[evt.Name] = evt.Value
+				for _, evt := range ev.GetEvents() {
+					evts[evt.GetName()] = evt.GetValue()
 				}
-				if ev.Error != nil {
-					return errors.New(ev.Error.Error)
+				if ev.GetError() != nil {
+					return errors.New(ev.GetError().GetError())
 				}
 				return nil
 			}
 		}
 	}
-	assert.Fail(w.ledger.t, shouldNotBeHereMsg)
+	require.Fail(w.ledger.t, shouldNotBeHereMsg)
 	return nil
 }
 
@@ -139,13 +139,13 @@ func (w *Wallet) RawSignedInvokeTraced(ctx context.Context, ch, fn string, args 
 
 func (w *Wallet) RawSignedMultiSwapInvokeTraced(ctx context.Context, ch, fn string, args ...string) (string, TxResponse, []*proto.Swap, []*proto.MultiSwap) {
 	if err := w.verifyIncoming(ch, fn); err != nil {
-		assert.NoError(w.ledger.t, err)
+		require.NoError(w.ledger.t, err)
 		return "", TxResponse{}, nil, nil
 	}
 	txID := txIDGen()
 	args, _ = w.sign(fn, ch, args...)
 	cert, err := base64.StdEncoding.DecodeString(userCert)
-	assert.NoError(w.ledger.t, err)
+	require.NoError(w.ledger.t, err)
 	_ = w.ledger.stubs[ch].SetCreatorCert("platformMSP", cert)
 
 	if ctx == nil {
@@ -155,42 +155,42 @@ func (w *Wallet) RawSignedMultiSwapInvokeTraced(ctx context.Context, ch, fn stri
 	}
 
 	id, err := hex.DecodeString(txID)
-	assert.NoError(w.ledger.t, err)
+	require.NoError(w.ledger.t, err)
 	data, err := pb.Marshal(&proto.Batch{TxIDs: [][]byte{id}})
-	assert.NoError(w.ledger.t, err)
+	require.NoError(w.ledger.t, err)
 
 	cert, err = hex.DecodeString(batchRobotCert)
-	assert.NoError(w.ledger.t, err)
+	require.NoError(w.ledger.t, err)
 	w.ledger.stubs[ch].SetCreator(cert)
 	res := w.Invoke(ch, core.BatchExecute, string(data))
 	out := &proto.BatchResponse{}
-	assert.NoError(w.ledger.t, pb.Unmarshal([]byte(res), out))
+	require.NoError(w.ledger.t, pb.Unmarshal([]byte(res), out))
 
 	e := <-w.ledger.stubs[ch].ChaincodeEventsChannel
-	if e.EventName == core.BatchExecute {
+	if e.GetEventName() == core.BatchExecute {
 		events := &proto.BatchEvent{}
-		assert.NoError(w.ledger.t, pb.Unmarshal(e.Payload, events))
-		for _, ev := range events.Events {
-			if hex.EncodeToString(ev.Id) == txID {
+		require.NoError(w.ledger.t, pb.Unmarshal(e.GetPayload(), events))
+		for _, ev := range events.GetEvents() {
+			if hex.EncodeToString(ev.GetId()) == txID {
 				evts := make(map[string][]byte)
-				for _, evt := range ev.Events {
-					evts[evt.Name] = evt.Value
+				for _, evt := range ev.GetEvents() {
+					evts[evt.GetName()] = evt.GetValue()
 				}
 				er := ""
-				if ev.Error != nil {
-					er = ev.Error.Error
+				if ev.GetError() != nil {
+					er = ev.GetError().GetError()
 				}
 				return txID, TxResponse{
-					Method: ev.Method,
+					Method: ev.GetMethod(),
 					Error:  er,
-					Result: string(ev.Result),
+					Result: string(ev.GetResult()),
 					Events: evts,
-				}, out.CreatedSwaps, out.CreatedMultiSwap
+				}, out.GetCreatedSwaps(), out.GetCreatedMultiSwap()
 			}
 		}
 	}
-	assert.Fail(w.ledger.t, shouldNotBeHereMsg)
-	return txID, TxResponse{}, out.CreatedSwaps, out.CreatedMultiSwap
+	require.Fail(w.ledger.t, shouldNotBeHereMsg)
+	return txID, TxResponse{}, out.GetCreatedSwaps(), out.GetCreatedMultiSwap()
 }
 
 func (ledger *Ledger) doInvokeTraced(ctx context.Context, ch, txID, fn string, args ...string) string {
@@ -203,21 +203,21 @@ func (ledger *Ledger) doInvokeTraced(ctx context.Context, ch, txID, fn string, a
 	} else {
 		resp, err = ledger.doInvokeWithPeerResponseTraced(ctx, ch, txID, fn, args...)
 	}
-	assert.NoError(ledger.t, err)
-	assert.Equal(ledger.t, int32(200), resp.Status, resp.Message) //nolint:gomnd
-	return string(resp.Payload)
+	require.NoError(ledger.t, err)
+	require.Equal(ledger.t, int32(200), resp.GetStatus(), resp.GetMessage()) //nolint:gomnd
+	return string(resp.GetPayload())
 }
 
 // NbInvokeTraced executes non-batched transactions with telemetry tracing
 func (w *Wallet) NbInvokeTraced(ctx context.Context, ch string, fn string, args ...string) (string, string) {
 	if err := w.verifyIncoming(ch, fn); err != nil {
-		assert.NoError(w.ledger.t, err)
+		require.NoError(w.ledger.t, err)
 		return "", ""
 	}
 	txID := txIDGen()
 	message, hash := w.sign(fn, ch, args...)
 	cert, err := base64.StdEncoding.DecodeString(userCert)
-	assert.NoError(w.ledger.t, err)
+	require.NoError(w.ledger.t, err)
 	_ = w.ledger.stubs[ch].SetCreatorCert("platformMSP", cert)
 
 	if ctx == nil {
@@ -227,7 +227,7 @@ func (w *Wallet) NbInvokeTraced(ctx context.Context, ch string, fn string, args 
 	}
 
 	nested, err := pb.Marshal(&proto.Nested{Args: append([]string{fn}, message...)})
-	assert.NoError(w.ledger.t, err)
+	require.NoError(w.ledger.t, err)
 
 	return base58.Encode(nested), hash
 }
@@ -245,8 +245,8 @@ func (ledger *Ledger) doInvokeTracedWithErrorReturned(ctx context.Context, ch, t
 	if err != nil {
 		return err
 	}
-	if resp.Status != 200 { //nolint:gomnd
-		return errors.New(resp.Message)
+	if resp.GetStatus() != 200 { //nolint:gomnd
+		return errors.New(resp.GetMessage())
 	}
 	return nil
 }
@@ -262,7 +262,7 @@ func (ledger *Ledger) doInvokeWithPeerResponseTraced(ctx context.Context, ch, tx
 	}
 
 	creator, err := ledger.stubs[ch].GetCreator()
-	assert.NoError(ledger.t, err)
+	require.NoError(ledger.t, err)
 
 	if len(creator) == 0 {
 		_ = ledger.stubs[ch].SetDefaultCreatorCert("platformMSP")
@@ -274,7 +274,7 @@ func (ledger *Ledger) doInvokeWithPeerResponseTraced(ctx context.Context, ch, tx
 			Input:       &peer.ChaincodeInput{Args: vArgs},
 		},
 	})
-	assert.NoError(ledger.t, err)
+	require.NoError(ledger.t, err)
 
 	carrier := propagation.MapCarrier{}
 
@@ -282,12 +282,12 @@ func (ledger *Ledger) doInvokeWithPeerResponseTraced(ctx context.Context, ch, tx
 	otel.GetTextMapPropagator().Inject(ctx, carrier)
 
 	transientDataMap, err := telemetry.PackToTransientMap(carrier)
-	assert.NoError(ledger.t, err)
+	require.NoError(ledger.t, err)
 
 	payload, err := pb.Marshal(&peer.ChaincodeProposalPayload{Input: input, TransientMap: transientDataMap})
-	assert.NoError(ledger.t, err)
+	require.NoError(ledger.t, err)
 	proposal, err := pb.Marshal(&peer.Proposal{Payload: payload})
-	assert.NoError(ledger.t, err)
+	require.NoError(ledger.t, err)
 	result := ledger.stubs[ch].MockInvokeWithSignedProposal(txID, vArgs, &peer.SignedProposal{
 		ProposalBytes: proposal,
 	})

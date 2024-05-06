@@ -57,7 +57,7 @@ func (bt *BaseToken) QueryGetFeeTransfer(req FeeTransferRequestDTO) (*FeeTransfe
 		return nil, fmt.Errorf("failed to validate config for fee: %w", err)
 	}
 
-	if len(bt.config.FeeAddress) == 0 {
+	if len(bt.config.GetFeeAddress()) == 0 {
 		return nil, ErrFeeAddressNotConfigured
 	}
 
@@ -67,7 +67,7 @@ func (bt *BaseToken) QueryGetFeeTransfer(req FeeTransferRequestDTO) (*FeeTransfe
 	}
 
 	resp := &FeeTransferResponseDTO{
-		FeeAddress: types.AddrFromBytes(bt.config.FeeAddress),
+		FeeAddress: types.AddrFromBytes(bt.config.GetFeeAddress()),
 		Amount:     fee.Fee,
 		Currency:   fee.Currency,
 	}

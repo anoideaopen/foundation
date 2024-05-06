@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 env:
-  GO_VER: 1.21.8
+  GO_VER: 1.21.9
   GO_VER_OLD: 1.18.7
   GINKGO_VER: 2.13.2
 
@@ -113,8 +113,8 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VER }}
-      - name: couchdb
-        run: docker pull couchdb:3.3.3
+      - name: redis
+        run: docker pull redis:7.2.4
       - name: fabric-ccenv
         run: docker pull hyperledger/fabric-ccenv:latest
       - name: fabric-baseos

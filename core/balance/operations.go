@@ -1,7 +1,7 @@
 package balance
 
 import (
-	"fmt"
+	"errors"
 	"math/big"
 
 	"github.com/hyperledger/fabric-chaincode-go/shim"
@@ -9,8 +9,8 @@ import (
 
 // Error definitions for balance operations.
 var (
-	ErrAmountMustBeNonNegative = fmt.Errorf("amount must be non-negative")
-	ErrInsufficientBalance     = fmt.Errorf("insufficient balance")
+	ErrAmountMustBeNonNegative = errors.New("amount must be non-negative")
+	ErrInsufficientBalance     = errors.New("insufficient balance")
 )
 
 // Add adds the given amount to the balance for the specified address and token, if the amount is greater than zero.
