@@ -39,16 +39,16 @@ func BatcherHandler(
 		return nil, fmt.Errorf("failed to unmarshal BatcherBatchExecuteRequestDTO: %w", err)
 	}
 
-	b, err := NewBatchHandler(stub, cfgBytes, cc)
+	batcher, err := NewBatcher(stub, cfgBytes, cc)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create batchInsertHandler: %w", err)
 	}
 
-	if err := b.ValidateCreator(creatorSKI, hashedCert); err != nil {
+	if err := batcher.ValidateCreator(creatorSKI, hashedCert); err != nil {
 		return nil, fmt.Errorf("failed to validate creator: %w", err)
 	}
 
-	batchResponse, batchEvent, err := b.HandleBatcherRequests(traceCtx, batchDTO.Requests)
+	batchResponse, batchEvent, err := batcher.HandleBatch(traceCtx, batchDTO.Requests)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute: %w", err)
 	}
@@ -69,22 +69,22 @@ func BatcherHandler(
 	return responseData, nil
 }
 
-type BatchHandler struct {
+type Batcher struct {
 	batchCacheStub *cachestub.BatchCacheStub
 	cc             *ChainCode
 	cfgBytes       []byte
 	batcherSKI     string
 }
 
-func NewBatchHandler(stub shim.ChaincodeStubInterface, cfgBytes []byte, cc *ChainCode) (BatchHandler, error) {
+func NewBatcher(stub shim.ChaincodeStubInterface, cfgBytes []byte, cc *ChainCode) (Batcher, error) {
 	contractCfg, err := config.ContractConfigFromBytes(cfgBytes)
 	if err != nil {
-		return BatchHandler{}, fmt.Errorf("LoadConfig: contract config from bytes: %w", err)
+		return Batcher{}, fmt.Errorf("LoadConfig: contract config from bytes: %w", err)
 	}
 
 	batchCacheStub := cachestub.NewBatchCacheStub(stub)
 
-	return BatchHandler{
+	return Batcher{
 		batchCacheStub: batchCacheStub,
 		cfgBytes:       cfgBytes,
 		batcherSKI:     contractCfg.GetBatcherSKI(),
@@ -92,7 +92,7 @@ func NewBatchHandler(stub shim.ChaincodeStubInterface, cfgBytes []byte, cc *Chai
 	}, nil
 }
 
-func (b *BatchHandler) ValidateCreator(creatorSKI [32]byte, hashedCert [32]byte) error {
+func (b *Batcher) ValidateCreator(creatorSKI [32]byte, hashedCert [32]byte) error {
 	batcherSKIBytes, err := hex.DecodeString(b.batcherSKI)
 	if err != nil {
 		return fmt.Errorf("failed to decode hex batcherSKI: %w", err)
@@ -106,7 +106,7 @@ func (b *BatchHandler) ValidateCreator(creatorSKI [32]byte, hashedCert [32]byte)
 	return nil
 }
 
-func (b *BatchHandler) HandleBatcherRequests(traceCtx telemetry.TraceContext, batcherRequests []BatcherRequest) (
+func (b *Batcher) HandleBatch(traceCtx telemetry.TraceContext, batcherRequests []BatcherRequest) (
 	*proto.BatcherBatchResponse,
 	*proto.BatcherBatchEvent,
 	error,
@@ -122,7 +122,7 @@ func (b *BatchHandler) HandleBatcherRequests(traceCtx telemetry.TraceContext, ba
 
 		switch request.BatcherRequestType {
 		case TxBatcherRequestType:
-			txResponse, batchTxEvent = b.HandleTxBatcherRequest(traceCtx, request, b.batchCacheStub, b.cfgBytes)
+			txResponse, batchTxEvent = b.HandleRequest(traceCtx, request, b.batchCacheStub, b.cfgBytes)
 		default:
 			txResponse, batchTxEvent = txResultWithError(
 				txResponse,
@@ -179,7 +179,7 @@ func txResultWithError(
 	return txResponse, batchTxEvent
 }
 
-func (b *BatchHandler) validatedTxSenderMethodAndArgs(
+func (b *Batcher) validatedTxSenderMethodAndArgs(
 	stub *cachestub.BatchCacheStub,
 	request BatcherRequest,
 ) (*proto.Address, *Fn, []string, error) {
@@ -210,7 +210,7 @@ func (b *BatchHandler) validatedTxSenderMethodAndArgs(
 	return senderAddress, method, args, nil
 }
 
-func (b *BatchHandler) HandleTxBatcherRequest(
+func (b *Batcher) HandleRequest(
 	traceCtx telemetry.TraceContext,
 	request BatcherRequest,
 	stub *cachestub.BatchCacheStub,
@@ -256,7 +256,7 @@ func (b *BatchHandler) HandleTxBatcherRequest(
 	return txResponse, batchTxEvent
 }
 
-func (b *BatchHandler) saveBatchRequestID(requestID string) error {
+func (b *Batcher) saveBatchRequestID(requestID string) error {
 	const batcherKeyPrefix = "batcher"
 
 	compositeKey, err := b.batchCacheStub.CreateCompositeKey(batcherKeyPrefix, []string{requestID})
