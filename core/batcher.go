@@ -13,7 +13,7 @@ import (
 	"github.com/anoideaopen/foundation/hlfcreator"
 	"github.com/anoideaopen/foundation/internal/config"
 	"github.com/anoideaopen/foundation/proto"
-	pb "github.com/golang/protobuf/proto"
+	pb "github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/hyperledger/fabric-chaincode-go/shim"
 )
 
@@ -58,7 +58,7 @@ func BatcherHandler(
 		return nil, fmt.Errorf("failed to marshal batchResponse: %w", err)
 	}
 
-	eventData, err := pb.Marshal(&batchEvent)
+	eventData, err := pb.Marshal(batchEvent)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal batchEvent: %w", err)
 	}
@@ -87,7 +87,7 @@ func NewBatchHandler(stub shim.ChaincodeStubInterface, cfgBytes []byte, cc *Chai
 	return BatchHandler{
 		batchCacheStub: batchCacheStub,
 		cfgBytes:       cfgBytes,
-		batcherSKI:     contractCfg.BatcherSKI,
+		batcherSKI:     contractCfg.GetBatcherSKI(),
 		cc:             cc,
 	}, nil
 }
@@ -107,41 +107,28 @@ func (b *BatchHandler) ValidateCreator(creatorSKI [32]byte, hashedCert [32]byte)
 }
 
 func (b *BatchHandler) HandleBatcherRequests(traceCtx telemetry.TraceContext, batcherRequests []BatcherRequest) (
-	proto.BatcherBatchResponse,
-	proto.BatcherBatchEvent,
+	*proto.BatcherBatchResponse,
+	*proto.BatcherBatchEvent,
 	error,
 ) {
-	response := proto.BatcherBatchResponse{}
-	event := proto.BatcherBatchEvent{}
+	response := &proto.BatcherBatchResponse{}
+	event := &proto.BatcherBatchEvent{}
 
 	for _, request := range batcherRequests {
-		txResponse := &proto.BatcherTxResponse{
-			BatcherRequestId: request.BatcherRequestID,
-			Method:           request.Method,
-		}
-		batchTxEvent := &proto.BatcherTxEvent{
-			BatcherRequestId: request.BatcherRequestID,
-			Method:           request.Method,
-		}
+		var (
+			txResponse   *proto.BatcherTxResponse
+			batchTxEvent *proto.BatcherTxEvent
+		)
 
 		switch request.BatcherRequestType {
 		case TxBatcherRequestType:
-			writes, accounting, events, result, err := b.HandleTxBatcherRequest(traceCtx, request, b.batchCacheStub, b.cfgBytes)
-			if err != nil {
-				responseError := &proto.ResponseError{Error: err.Error()}
-				txResponse.Error = responseError
-				batchTxEvent.Error = responseError
-			} else {
-				txResponse.Writes = writes
-				batchTxEvent.Accounting = accounting
-				batchTxEvent.Result = result
-				batchTxEvent.Events = events
-			}
+			txResponse, batchTxEvent = b.HandleTxBatcherRequest(traceCtx, request, b.batchCacheStub, b.cfgBytes)
 		default:
-			err := fmt.Errorf("unsupported batcher request type %s request.BatcherRequestID %s", request.BatcherRequestType, request.BatcherRequestID)
-			responseError := &proto.ResponseError{Error: err.Error()}
-			txResponse.Error = responseError
-			batchTxEvent.Error = responseError
+			txResponse, batchTxEvent = txResultWithError(
+				txResponse,
+				batchTxEvent,
+				fmt.Errorf("unsupported batcher request type %s request.BatcherRequestID %s", request.BatcherRequestType, request.BatcherRequestID),
+			)
 		}
 		response.BatcherTxResponses = append(response.BatcherTxResponses, txResponse)
 		event.BatchTxEvents = append(event.BatchTxEvents, batchTxEvent)
@@ -174,48 +161,120 @@ type BatcherBatchExecuteResponseDTO struct {
 	TxResponses []*proto.BatcherTxResponse
 }
 
+func txResultWithError(
+	txResponse *proto.BatcherTxResponse,
+	batchTxEvent *proto.BatcherTxEvent,
+	err error,
+) (
+	*proto.BatcherTxResponse,
+	*proto.BatcherTxEvent,
+) {
+	responseError := &proto.ResponseError{Error: err.Error()}
+	if txResponse != nil {
+		txResponse.Error = responseError
+	}
+	if batchTxEvent != nil {
+		batchTxEvent.Error = responseError
+	}
+	return txResponse, batchTxEvent
+}
+
+func (b *BatchHandler) validatedTxSenderMethodAndArgs(
+	stub *cachestub.BatchCacheStub,
+	request BatcherRequest,
+) (*proto.Address, *Fn, []string, error) {
+	method, err := b.cc.methods.Method(request.Method)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("parsing method '%s' in tx '%s': %w", request.Method, request.BatcherRequestID, err)
+	}
+
+	senderAddress, args, nonce, err := b.cc.validateAndExtractInvocationContext(stub, method, request.Method, request.Args)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	args, err = doPrepareToSave(stub, method, args)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	args = args[:len(method.in)]
+	if senderAddress == nil {
+		return nil, nil, nil, fmt.Errorf("no sender in BatcherRequestID %s", request.BatcherRequestID)
+	}
+
+	sender := types.NewSenderFromAddr((*types.Address)(senderAddress))
+	if err = checkNonce(stub, sender, nonce); err != nil {
+		return nil, nil, nil, fmt.Errorf("incorrect tx %s nonce: %w", request.BatcherRequestID, err)
+	}
+	return senderAddress, method, args, nil
+}
+
 func (b *BatchHandler) HandleTxBatcherRequest(
 	traceCtx telemetry.TraceContext,
 	request BatcherRequest,
 	stub *cachestub.BatchCacheStub,
 	cfgBytes []byte,
-) ([]*proto.WriteElement, []*proto.AccountingRecord, []*proto.Event, []byte, error) {
-	txCacheStub := stub.NewTxCacheStub(request.BatcherRequestID)
+) (
+	*proto.BatcherTxResponse,
+	*proto.BatcherTxEvent,
+) {
+	var (
+		txCacheStub = stub.NewTxCacheStub(request.BatcherRequestID)
+		txResponse  = &proto.BatcherTxResponse{
+			BatcherRequestId: request.BatcherRequestID,
+			Method:           request.Method,
+		}
+		batchTxEvent = &proto.BatcherTxEvent{
+			BatcherRequestId: request.BatcherRequestID,
+			Method:           request.Method,
+		}
+	)
 
-	method, err := b.cc.methods.Method(request.Method)
+	if err := b.saveBatchRequestID(request.BatcherRequestID); err != nil {
+		return txResultWithError(txResponse, batchTxEvent, err)
+	}
+
+	senderAddress, method, args, err := b.validatedTxSenderMethodAndArgs(stub, request)
 	if err != nil {
-		return nil, nil, nil, nil, fmt.Errorf("parsing method '%s' in tx '%s': %s", request.Method, request.BatcherRequestID, err.Error())
+		return txResultWithError(txResponse, batchTxEvent, err)
 	}
 
-	senderAddress, args, nonce, err := b.cc.validateAndExtractInvocationContext(stub, method, request.Method, request.Args)
+	batchTxEvent.Result, err = b.cc.callMethod(traceCtx, txCacheStub, method, senderAddress, args, cfgBytes)
 	if err != nil {
-		return nil, nil, nil, nil, err
-	}
-	args, err = doPrepareToSave(stub, method, args)
-	if err != nil {
-		return nil, nil, nil, nil, err
-	}
-	args = args[:len(method.in)]
-
-	if senderAddress == nil {
-		return nil, nil, nil, nil, fmt.Errorf("no sender in BatcherRequestID %s", request.BatcherRequestID)
+		return txResultWithError(txResponse, batchTxEvent, err)
 	}
 
-	sender := types.NewSenderFromAddr((*types.Address)(senderAddress))
-	if err = checkNonce(stub, sender, nonce); err != nil {
-		return nil, nil, nil, nil, fmt.Errorf("incorrect tx %s nonce: %s", request.BatcherRequestID, err.Error())
-	}
-
-	response, err := b.cc.callMethod(traceCtx, txCacheStub, method, senderAddress, args, cfgBytes)
-	if err != nil {
-		return nil, nil, nil, nil, err
-	}
-
-	writes, events := txCacheStub.Commit()
+	txResponse.Writes, batchTxEvent.Events = txCacheStub.Commit()
 
 	sort.Slice(txCacheStub.Accounting, func(i, j int) bool {
 		return strings.Compare(txCacheStub.Accounting[i].String(), txCacheStub.Accounting[j].String()) < 0
 	})
 
-	return writes, txCacheStub.Accounting, events, response, nil
+	batchTxEvent.Accounting = txCacheStub.Accounting
+
+	return txResponse, batchTxEvent
+}
+
+func (b *BatchHandler) saveBatchRequestID(requestID string) error {
+	const batcherKeyPrefix = "batcher"
+
+	compositeKey, err := b.batchCacheStub.CreateCompositeKey(batcherKeyPrefix, []string{requestID})
+	if err != nil {
+		return fmt.Errorf("failed creating composite key: %w", err)
+	}
+
+	existing, err := b.batchCacheStub.GetState(compositeKey)
+	if err != nil {
+		return fmt.Errorf("failed checking if batch request with ID %s has been handled or not", requestID)
+	}
+	if len(existing) > 0 {
+		return fmt.Errorf("request with ID %s has been already handled", requestID)
+	}
+
+	if err = b.batchCacheStub.PutState(compositeKey, []byte(requestID)); err != nil {
+		return fmt.Errorf("failed saving batch request ID: %w", err)
+	}
+
+	return nil
 }
