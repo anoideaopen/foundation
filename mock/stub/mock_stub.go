@@ -12,6 +12,7 @@ import (
 	"container/list"
 	"encoding/base64"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -25,7 +26,6 @@ import (
 	"github.com/hyperledger/fabric-protos-go/msp"
 	pb "github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/op/go-logging"
-	"github.com/pkg/errors"
 )
 
 const module = "mock"
@@ -188,11 +188,11 @@ func (stub *Stub) MockInvokeWithSignedProposal(uuid string, args [][]byte, sp *p
 	if err := proto.Unmarshal(proposalBytes, &proposal); err != nil {
 		return pb.Response{Message: "bad proposal"}
 	}
-	payloadBytes := proposal.Payload
+	payloadBytes := proposal.GetPayload()
 	if err := proto.Unmarshal(payloadBytes, &payload); err != nil {
 		return pb.Response{Message: "bad payload"}
 	}
-	stub.transientMap = payload.TransientMap
+	stub.transientMap = payload.GetTransientMap()
 	stub.args = args
 	stub.MockTransactionStart(uuid)
 	stub.signedProposal = sp
@@ -217,7 +217,7 @@ func (stub *Stub) GetPrivateData(collection string, key string) ([]byte, error) 
 
 // GetPrivateDataHash returns the hash of the specified `key` from the specified `collection`.
 func (stub *Stub) GetPrivateDataHash(_, _ string) ([]byte, error) { // collection, key
-	return nil, errors.Errorf(ErrFuncNotImplemented, "GetPrivateDataHash")
+	return nil, fmt.Errorf(ErrFuncNotImplemented, "GetPrivateDataHash")
 }
 
 // PutPrivateData puts the specified `key` and `value` into the transaction's
@@ -295,7 +295,7 @@ OuterLoop:
 	for elem := stub.Keys.Front(); elem != nil; elem = elem.Next() {
 		elemValue, ok := elem.Value.(string)
 		if !ok {
-			err := errors.New("cannot assertion elem to string")
+			err := errors.New("cannot requireion elem to string")
 			stub.logger.Errorf("%+v", err)
 			return err
 		}
@@ -341,7 +341,7 @@ func (stub *Stub) DelState(key string) error {
 	for elem := stub.Keys.Front(); elem != nil; elem = elem.Next() {
 		el, ok := elem.Value.(string)
 		if !ok {
-			return errors.New("type assertion failed")
+			return errors.New("type requireion failed")
 		}
 		if strings.Compare(key, el) == 0 {
 			stub.Keys.Remove(elem)
@@ -852,7 +852,7 @@ const (
 func validateSimpleKeys(simpleKeys ...string) error {
 	for _, key := range simpleKeys {
 		if len(key) > 0 && key[0] == compositeKeyNamespace[0] {
-			return errors.Errorf(`first character of the key [%s] contains a null character which is not allowed`, key)
+			return errors.New("first character of the key [" + key + "] contains a null character which is not allowed")
 		}
 	}
 	return nil
@@ -886,11 +886,11 @@ func splitCompositeKey(compositeKey string) (string, []string, error) {
 
 func validateCompositeKeyAttribute(str string) error {
 	if !utf8.ValidString(str) {
-		return errors.Errorf("not a valid utf8 string: [%x]", str)
+		return errors.New("not a valid utf8 string: [" + str + "]")
 	}
 	for index, runeValue := range str {
 		if runeValue == minUnicodeRuneValue || runeValue == maxUnicodeRuneValue {
-			return errors.Errorf(`input contain unicode %#U starting at position [%d]. %#U and %#U are not allowed in the input attribute of a composite key`,
+			return fmt.Errorf(`input contain unicode %#U starting at position [%d]. %#U and %#U are not allowed in the input attribute of a composite key`,
 				runeValue, index, minUnicodeRuneValue, maxUnicodeRuneValue)
 		}
 	}

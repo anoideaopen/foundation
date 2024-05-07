@@ -2,6 +2,7 @@ package core
 
 import (
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"sort"
 	"strconv"
@@ -18,7 +19,7 @@ const StateKeyNonce byte = 42 // hex: 2a
 
 const (
 	doublingMemoryCoef    = 2
-	lenTimeInMilliseconds = 13
+	LenTimeInMilliseconds = 13
 	// defaultNonceTTL is time in seconds for nonce. If attempting to execute a transaction in a batch
 	// that is older than the maximum nonce (at the current moment) by more than NonceTTL,
 	// we will not execute it and return an error.
@@ -50,7 +51,7 @@ func checkNonce(
 		}
 	}
 
-	lastNonce.Nonce, err = setNonce(nonce, lastNonce.Nonce, defaultNonceTTL)
+	lastNonce.Nonce, err = setNonce(nonce, lastNonce.GetNonce(), defaultNonceTTL)
 	if err != nil {
 		return err
 	}
@@ -64,8 +65,8 @@ func checkNonce(
 }
 
 func setNonce(nonce uint64, lastNonce []uint64, nonceTTL uint) ([]uint64, error) {
-	if len(strconv.FormatUint(nonce, 10)) != lenTimeInMilliseconds {
-		return lastNonce, fmt.Errorf("incorrect nonce format")
+	if len(strconv.FormatUint(nonce, 10)) != LenTimeInMilliseconds {
+		return lastNonce, errors.New("incorrect nonce format")
 	}
 
 	if len(lastNonce) == 0 {

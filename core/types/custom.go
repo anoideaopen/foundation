@@ -71,7 +71,7 @@ func (a *Address) PrepareToSave(stub shim.ChaincodeStubInterface, in string) (st
 	if err != nil {
 		return "", err
 	}
-	if accInfo.BlackListed {
+	if accInfo.GetBlackListed() {
 		return "", fmt.Errorf("address %s is blacklisted", in)
 	}
 	return in, nil

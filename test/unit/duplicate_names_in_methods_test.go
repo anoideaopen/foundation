@@ -14,7 +14,7 @@ import (
 	"github.com/anoideaopen/foundation/token"
 	"github.com/google/uuid"
 	"github.com/hyperledger/fabric-chaincode-go/shim"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
@@ -74,10 +74,10 @@ func TestDuplicateNames(t *testing.T) {
 			idBytes := [16]byte(uuid.New())
 			rsp := ms.MockInit(hex.EncodeToString(idBytes[:]), [][]byte{cfgBytes})
 			if test.err == nil {
-				assert.Empty(t, rsp.GetMessage())
+				require.Empty(t, rsp.GetMessage())
 			} else {
-				assert.Equal(t, int32(shim.ERROR), rsp.GetStatus())
-				assert.Contains(t, rsp.GetMessage(), test.err.Error())
+				require.Equal(t, int32(shim.ERROR), rsp.GetStatus())
+				require.Contains(t, rsp.GetMessage(), test.err.Error())
 			}
 		})
 	}

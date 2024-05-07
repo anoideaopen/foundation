@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	ma "github.com/anoideaopen/foundation/mock"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -31,14 +30,14 @@ func TestBaseTokenTxBuy(t *testing.T) {
 
 	user.AddAllowedBalance("vt", "usd", 5)
 	if err := user.RawSignedInvokeWithErrorReturned("vt", "buyToken", "0", "usd"); err != nil {
-		assert.Equal(t, "amount should be more than zero", err.Error())
+		require.Equal(t, "amount should be more than zero", err.Error())
 	}
 	if err := user.RawSignedInvokeWithErrorReturned("vt", "buyToken", "1", "rub"); err != nil {
-		assert.Equal(t, "impossible to buy for this currency", err.Error())
+		require.Equal(t, "impossible to buy for this currency", err.Error())
 	}
 	if err := user.RawSignedInvokeWithErrorReturned("vt", "buyToken", "100", "usd"); err != nil {
-		assert.Equal(t, "amount out of limits", err.Error())
+		require.Equal(t, "amount out of limits", err.Error())
 	}
 	err := user.RawSignedInvokeWithErrorReturned("vt", "buyToken", "1", "usd")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }

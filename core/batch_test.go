@@ -16,7 +16,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/hyperledger/fabric-chaincode-go/shim"
 	"github.com/hyperledger/fabric-protos-go/peer"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/encoding/protojson"
 	pb "google.golang.org/protobuf/proto"
@@ -87,7 +86,7 @@ func TestSaveToBatchWithWrongArgs(t *testing.T) {
 
 	wrongArgs := []string{"arg0", "arg1"}
 	chainCode, errChainCode := NewCC(&testBatchContract{})
-	assert.NoError(t, errChainCode)
+	require.NoError(t, errChainCode)
 
 	mockStub := stub.NewMockStub(testChaincodeName, chainCode)
 
@@ -103,20 +102,20 @@ func TestSaveToBatchWithWrongArgs(t *testing.T) {
 	mockStub.MockInit(hex.EncodeToString(idBytes[:]), [][]byte{config})
 
 	err := applyConfig(&chainCode.contract, mockStub, config)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	mockStub.TxID = testEncodedTxID
 	mockStub.MockTransactionStart(testEncodedTxID)
 	mockStub.TxTimestamp = s.timestamp
 
 	batchTimestamp, err := mockStub.GetTxTimestamp()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	chainCode.methods, err = parseContractMethods(chainCode.contract)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	fn, err := chainCode.methods.Method(s.FnName)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	errSave := chainCode.saveToBatch(
 		telemetry.TraceContext{},
@@ -127,7 +126,7 @@ func TestSaveToBatchWithWrongArgs(t *testing.T) {
 		wrongArgs,
 		uint64(batchTimestamp.Seconds),
 	)
-	assert.ErrorContains(t, errSave, "incorrect number of arguments, found 2 but expected more than 5")
+	require.ErrorContains(t, errSave, "incorrect number of arguments, found 2 but expected more than 5")
 }
 
 // TestSaveToBatchWithSignedArgs - negative test with wrong Args in saveToBatch
@@ -141,7 +140,7 @@ func TestSaveToBatchWithSignedArgs(t *testing.T) {
 	}
 
 	chainCode, errChainCode := NewCC(&testBatchContract{})
-	assert.NoError(t, errChainCode)
+	require.NoError(t, errChainCode)
 
 	mockStub := stub.NewMockStub(testChaincodeName, chainCode)
 
@@ -157,20 +156,20 @@ func TestSaveToBatchWithSignedArgs(t *testing.T) {
 	mockStub.MockInit(hex.EncodeToString(idBytes[:]), [][]byte{config})
 
 	err := applyConfig(&chainCode.contract, mockStub, config)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	mockStub.TxID = testEncodedTxID
 	mockStub.MockTransactionStart(testEncodedTxID)
 	mockStub.TxTimestamp = s.timestamp
 
 	batchTimestamp, err := mockStub.GetTxTimestamp()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	chainCode.methods, err = parseContractMethods(chainCode.contract)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	fn, err := chainCode.methods.Method(s.FnName)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	err = chainCode.saveToBatch(
 		telemetry.TraceContext{},
@@ -181,7 +180,7 @@ func TestSaveToBatchWithSignedArgs(t *testing.T) {
 		argsForTestFnWithSignedTwoArgs,
 		uint64(batchTimestamp.Seconds),
 	)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 // TestSaveToBatchWithWrongSignedArgs - negative test with wrong Args in saveToBatch
@@ -197,7 +196,7 @@ func TestSaveToBatchWithWrongSignedArgs(t *testing.T) {
 
 	wrongArgs := []string{"arg0", "arg1"}
 	chainCode, errChainCode := NewCC(&testBatchContract{})
-	assert.NoError(t, errChainCode)
+	require.NoError(t, errChainCode)
 
 	mockStub := stub.NewMockStub(testChaincodeName, chainCode)
 
@@ -213,20 +212,20 @@ func TestSaveToBatchWithWrongSignedArgs(t *testing.T) {
 	mockStub.MockInit(hex.EncodeToString(idBytes[:]), [][]byte{[]byte(config)})
 
 	err := applyConfig(&chainCode.contract, mockStub, []byte(config))
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	mockStub.TxID = testEncodedTxID
 	mockStub.MockTransactionStart(testEncodedTxID)
 	mockStub.TxTimestamp = s.timestamp
 
 	batchTimestamp, err := mockStub.GetTxTimestamp()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	chainCode.methods, err = parseContractMethods(chainCode.contract)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	fn, err := chainCode.methods.Method(s.FnName)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	err = chainCode.saveToBatch(
 		telemetry.TraceContext{},
@@ -237,7 +236,7 @@ func TestSaveToBatchWithWrongSignedArgs(t *testing.T) {
 		wrongArgs,
 		uint64(batchTimestamp.Seconds),
 	)
-	assert.EqualError(t, err, "validate arguments. failed to convert arg value 'arg0' "+
+	require.EqualError(t, err, "validate arguments. failed to convert arg value 'arg0' "+
 		"to type '<int64 Value>' on index '0': strconv.ParseInt: parsing \"arg0\": invalid syntax")
 }
 
@@ -253,7 +252,7 @@ func TestSaveToBatchWrongFnName(t *testing.T) {
 	}
 
 	chainCode, errChainCode := NewCC(&testBatchContract{})
-	assert.NoError(t, errChainCode)
+	require.NoError(t, errChainCode)
 
 	ms := stub.NewMockStub(testChaincodeName, chainCode)
 
@@ -262,7 +261,7 @@ func TestSaveToBatchWrongFnName(t *testing.T) {
 	ms.TxTimestamp = s.timestamp
 
 	_, err := ms.GetTxTimestamp()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	cfg := &proto.Config{
 		Contract: &proto.ContractConfig{
@@ -274,14 +273,14 @@ func TestSaveToBatchWrongFnName(t *testing.T) {
 	cfgBytes, _ := protojson.Marshal(cfg)
 
 	err = applyConfig(&chainCode.contract, ms, cfgBytes)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	chainCode.methods, err = parseContractMethods(chainCode.contract)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	fn, err := chainCode.methods.Method(s.FnName)
-	assert.ErrorContains(t, err, "method 'unknownFunctionName' not found")
-	assert.Nil(t, fn)
+	require.ErrorContains(t, err, "method 'unknownFunctionName' not found")
+	require.Nil(t, fn)
 }
 
 // TestSaveAndLoadToBatchWithWrongID - negative test with wrong ID for loadToBatch
@@ -301,7 +300,7 @@ func TestSaveAndLoadToBatchWithWrongID(t *testing.T) {
 // SaveAndLoadToBatchTest - basic test to check Args in saveToBatch and loadFromBatch
 func SaveAndLoadToBatchTest(t *testing.T, ser *serieBatches, args []string) {
 	chainCode, errChainCode := NewCC(&testBatchContract{})
-	assert.NoError(t, errChainCode)
+	require.NoError(t, errChainCode)
 
 	ms := stub.NewMockStub(testChaincodeName, chainCode)
 
@@ -315,14 +314,14 @@ func SaveAndLoadToBatchTest(t *testing.T, ser *serieBatches, args []string) {
 	cfgBytes, _ := protojson.Marshal(cfg)
 
 	err := ms.SetAdminCreatorCert("platformMSP")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	idBytes := [16]byte(uuid.New())
 	rsp := ms.MockInit(hex.EncodeToString(idBytes[:]), [][]byte{cfgBytes})
 	require.Equal(t, int32(shim.OK), rsp.GetStatus(), rsp.GetMessage())
 
 	err = applyConfig(&chainCode.contract, ms, cfgBytes)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	ms.TxID = testEncodedTxID
 	ms.MockTransactionStart(testEncodedTxID)
@@ -331,13 +330,13 @@ func SaveAndLoadToBatchTest(t *testing.T, ser *serieBatches, args []string) {
 	}
 
 	batchTimestamp, err := ms.GetTxTimestamp()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	chainCode.methods, err = parseContractMethods(chainCode.contract)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	fn, err := chainCode.methods.Method(ser.FnName)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	errSave := chainCode.saveToBatch(
 		telemetry.TraceContext{},
@@ -348,26 +347,26 @@ func SaveAndLoadToBatchTest(t *testing.T, ser *serieBatches, args []string) {
 		args,
 		uint64(batchTimestamp.Seconds),
 	)
-	assert.NoError(t, errSave)
+	require.NoError(t, errSave)
 	ms.MockTransactionEnd(testEncodedTxID)
 
 	state, err := ms.GetState(fmt.Sprintf("\u0000batchTransactions\u0000%s\u0000", testEncodedTxID))
-	assert.NotNil(t, state)
-	assert.NoError(t, err)
+	require.NotNil(t, state)
+	require.NoError(t, err)
 
 	pending := new(proto.PendingTx)
 	err = pb.Unmarshal(state, pending)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
-	assert.Equal(t, pending.Args, args)
+	require.Equal(t, pending.Args, args)
 
 	pending, _, err = chainCode.loadFromBatch(ms, ser.testID)
 	if err != nil {
-		assert.Equal(t, ser.errorMsg, err.Error())
+		require.Equal(t, ser.errorMsg, err.Error())
 	} else {
-		assert.NoError(t, err)
-		assert.Equal(t, pending.Method, ser.FnName)
-		assert.Equal(t, pending.Args, args)
+		require.NoError(t, err)
+		require.Equal(t, pending.Method, ser.FnName)
+		require.Equal(t, pending.Args, args)
 	}
 }
 
@@ -381,19 +380,19 @@ func TestBatchExecuteWithRightParams(t *testing.T) {
 	}
 
 	resp := BatchExecuteTest(t, s, argsForTestFnWithFive)
-	assert.NotNil(t, resp)
-	assert.Equal(t, resp.GetStatus(), int32(200))
+	require.NotNil(t, resp)
+	require.Equal(t, resp.GetStatus(), int32(200))
 
 	response := &proto.BatchResponse{}
 	err := pb.Unmarshal(resp.GetPayload(), response)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
-	assert.Len(t, response.TxResponses, 1)
+	require.Len(t, response.TxResponses, 1)
 
 	txResponse := response.TxResponses[0]
-	assert.Equal(t, txResponse.Id, txIDBytes)
-	assert.Equal(t, txResponse.Method, testFnWithFiveArgsMethod)
-	assert.Nil(t, txResponse.Error)
+	require.Equal(t, txResponse.Id, txIDBytes)
+	require.Equal(t, txResponse.Method, testFnWithFiveArgsMethod)
+	require.Nil(t, txResponse.Error)
 }
 
 // TestBatchExecuteWithWrongParams - negative test with wrong parameters in batchExecute
@@ -408,25 +407,25 @@ func TestBatchExecuteWithWrongParams(t *testing.T) {
 	}
 
 	resp := BatchExecuteTest(t, s, argsForTestFnWithFive)
-	assert.NotNil(t, resp)
-	assert.Equal(t, resp.GetStatus(), int32(200))
+	require.NotNil(t, resp)
+	require.Equal(t, resp.GetStatus(), int32(200))
 
 	response := &proto.BatchResponse{}
 	err := pb.Unmarshal(resp.GetPayload(), response)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
-	assert.Len(t, response.TxResponses, 1)
+	require.Len(t, response.TxResponses, 1)
 
 	txResponse := response.TxResponses[0]
-	assert.Equal(t, txResponse.Id, testIDBytes)
-	assert.Equal(t, txResponse.Method, "")
-	assert.Equal(t, txResponse.Error.Error, "function and args loading error: transaction 776f6e646572 not found")
+	require.Equal(t, txResponse.Id, testIDBytes)
+	require.Equal(t, txResponse.Method, "")
+	require.Equal(t, txResponse.Error.Error, "function and args loading error: transaction 776f6e646572 not found")
 }
 
 // BatchExecuteTest - basic test for SaveBatch, LoadBatch and batchExecute
 func BatchExecuteTest(t *testing.T, ser *serieBatchExecute, args []string) peer.Response {
 	chainCode, err := NewCC(&testBatchContract{})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	ms := stub.NewMockStub(testChaincodeName, chainCode)
 
@@ -444,24 +443,24 @@ func BatchExecuteTest(t *testing.T, ser *serieBatchExecute, args []string) peer.
 
 	idBytes := [16]byte(uuid.New())
 	rsp := ms.MockInit(hex.EncodeToString(idBytes[:]), [][]byte{cfgBytes})
-	assert.Equal(t, int32(shim.OK), rsp.GetStatus())
+	require.Equal(t, int32(shim.OK), rsp.GetStatus())
 
 	err = applyConfig(&chainCode.contract, ms, cfgBytes)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	ms.TxID = testEncodedTxID
 	ms.MockTransactionStart(testEncodedTxID)
 
 	batchTimestamp, err := ms.GetTxTimestamp()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	methods, err := parseContractMethods(chainCode.contract)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	chainCode.methods = methods
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	method, err := chainCode.methods.Method(testFnWithFiveArgsMethod)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	err = chainCode.saveToBatch(
 		telemetry.TraceContext{},
@@ -472,22 +471,22 @@ func BatchExecuteTest(t *testing.T, ser *serieBatchExecute, args []string) peer.
 		args,
 		uint64(batchTimestamp.Seconds),
 	)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	ms.MockTransactionEnd(testEncodedTxID)
 	state, err := ms.GetState(fmt.Sprintf("\u0000batchTransactions\u0000%s\u0000", testEncodedTxID))
-	assert.NotNil(t, state)
-	assert.NoError(t, err)
+	require.NotNil(t, state)
+	require.NoError(t, err)
 
 	pending := new(proto.PendingTx)
 	err = pb.Unmarshal(state, pending)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
-	assert.Equal(t, pending.Method, testFnWithFiveArgsMethod)
-	assert.Equal(t, pending.Timestamp, batchTimestamp.Seconds)
-	assert.Equal(t, pending.Args, args)
+	require.Equal(t, pending.Method, testFnWithFiveArgsMethod)
+	require.Equal(t, pending.Timestamp, batchTimestamp.Seconds)
+	require.Equal(t, pending.Args, args)
 
 	dataIn, err := pb.Marshal(&proto.Batch{TxIDs: [][]byte{ser.testIDBytes}})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	return chainCode.batchExecute(telemetry.TraceContext{}, ms, string(dataIn), nil)
 }
@@ -495,7 +494,7 @@ func BatchExecuteTest(t *testing.T, ser *serieBatchExecute, args []string) peer.
 // TestBatchedTxExecute tests positive test for batchedTxExecute
 func TestBatchedTxExecute(t *testing.T) {
 	chainCode, err := NewCC(&testBatchContract{})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	ms := stub.NewMockStub(testChaincodeName, chainCode)
 	require.NotNil(t, ms)
@@ -519,7 +518,7 @@ func TestBatchedTxExecute(t *testing.T) {
 	require.Equal(t, int32(shim.OK), rsp.GetStatus())
 
 	err = applyConfig(&chainCode.contract, ms, cfgBytes)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	chainCode.methods, err = parseContractMethods(chainCode.contract)
 	require.NoError(t, err)
@@ -531,13 +530,13 @@ func TestBatchedTxExecute(t *testing.T) {
 	ms.MockTransactionStart(testEncodedTxID)
 
 	batchTimestamp, err := ms.GetTxTimestamp()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	chainCode.methods, err = parseContractMethods(chainCode.contract)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	fn, err := chainCode.methods.Method(testFnWithFiveArgsMethod)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	err = chainCode.saveToBatch(
 		telemetry.TraceContext{},
@@ -547,7 +546,7 @@ func TestBatchedTxExecute(t *testing.T) {
 		nil,
 		argsForTestFnWithFive,
 		uint64(batchTimestamp.Seconds))
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	ms.MockTransactionEnd(testEncodedTxID)
 
 	resp, event := chainCode.batchedTxExecute(
@@ -556,10 +555,10 @@ func TestBatchedTxExecute(t *testing.T) {
 		txIDBytes,
 		nil,
 	)
-	assert.NotNil(t, resp)
-	assert.NotNil(t, event)
-	assert.Nil(t, resp.Error)
-	assert.Nil(t, event.Error)
+	require.NotNil(t, resp)
+	require.NotNil(t, event)
+	require.Nil(t, resp.Error)
+	require.Nil(t, event.Error)
 }
 
 // CreateUtcTimestamp returns a Google/protobuf/Timestamp in UTC

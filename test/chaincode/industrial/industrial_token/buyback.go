@@ -51,7 +51,7 @@ func (it *IndustrialToken) TxIndustrialBuyBack(
 	}
 
 	return it.IndustrialBalanceTransfer(
-		it.ContractConfig().Symbol+"_"+group,
+		it.ContractConfig().GetSymbol()+"_"+group,
 		sender.Address(),
 		it.Issuer(),
 		amount,

@@ -6,7 +6,7 @@ import (
 
 	"github.com/anoideaopen/foundation/core/types/big"
 	pb "github.com/anoideaopen/foundation/proto"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestConvertToAsset(t *testing.T) {
@@ -78,14 +78,14 @@ func TestConvertToAsset(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := ConvertToAsset(tt.in)
 			if (err != nil) != tt.wantErr {
-				assert.EqualError(t, err, tt.ErrMsg)
-				assert.Nil(t, got)
+				require.EqualError(t, err, tt.ErrMsg)
+				require.Nil(t, got)
 				return
 			}
 			if len(tt.want) == len(got) && len(got) == 0 {
 				return
 			}
-			assert.Equal(t, len(tt.want), len(got), "size of array")
+			require.Equal(t, len(tt.want), len(got), "size of array")
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("ConvertToAsset() got = %v, want %v", got, tt.want)
 			}

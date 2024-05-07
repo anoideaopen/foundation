@@ -36,7 +36,7 @@ func CreateIndex(
 			return err
 		}
 
-		_, components, err := stub.SplitCompositeKey(result.Key)
+		_, components, err := stub.SplitCompositeKey(result.GetKey())
 		if err != nil {
 			return err
 		}
@@ -47,7 +47,7 @@ func CreateIndex(
 
 		address := components[0]
 		token := components[1]
-		balance := result.Value
+		balance := result.GetValue()
 
 		inverseCompositeKey, err := stub.CreateCompositeKey(
 			InverseBalanceObjectType,

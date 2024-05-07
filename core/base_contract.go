@@ -3,6 +3,7 @@ package core
 import (
 	"embed"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"runtime/debug"
 	"sort"
@@ -82,7 +83,7 @@ func (bc *BaseContract) QueryGetNonce(owner *types.Address) (string, error) {
 			// let's just say it's an old nonsense
 			lastNonce.Nonce = []uint64{new(big.Int).SetBytes(data).Uint64()}
 		}
-		exist = strconv.FormatUint(lastNonce.Nonce[len(lastNonce.Nonce)-1], 10)
+		exist = strconv.FormatUint(lastNonce.GetNonce()[len(lastNonce.GetNonce())-1], 10)
 	}
 
 	return exist, nil
@@ -91,7 +92,7 @@ func (bc *BaseContract) QueryGetNonce(owner *types.Address) (string, error) {
 // QuerySrcFile returns file
 func (bc *BaseContract) QuerySrcFile(name string) (string, error) {
 	if bc.srcFs == nil {
-		return "", fmt.Errorf("embed fs is nil")
+		return "", errors.New("embed fs is nil")
 	}
 
 	b, err := bc.srcFs.ReadFile(name)
@@ -103,7 +104,7 @@ func (bc *BaseContract) QuerySrcFile(name string) (string, error) {
 // end   - exclude
 func (bc *BaseContract) QuerySrcPartFile(name string, start int, end int) (string, error) {
 	if bc.srcFs == nil {
-		return "", fmt.Errorf("embed fs is nil")
+		return "", errors.New("embed fs is nil")
 	}
 
 	f, err := bc.srcFs.ReadFile(name)
@@ -124,7 +125,7 @@ func (bc *BaseContract) QuerySrcPartFile(name string, start int, end int) (strin
 	}
 
 	if start > end {
-		return "", fmt.Errorf("start more then end")
+		return "", errors.New("start more then end")
 	}
 
 	return string(f[start:end]), nil
@@ -133,7 +134,7 @@ func (bc *BaseContract) QuerySrcPartFile(name string, start int, end int) (strin
 // QueryNameOfFiles returns list path/name of embed files
 func (bc *BaseContract) QueryNameOfFiles() ([]string, error) {
 	if bc.srcFs == nil {
-		return nil, fmt.Errorf("embed fs is nil")
+		return nil, errors.New("embed fs is nil")
 	}
 
 	fs, err := bc.srcFs.ReadDir(".")
@@ -207,7 +208,7 @@ func (bc *BaseContract) TxHealthCheck(_ *types.Sender) error {
 }
 
 func (bc *BaseContract) GetID() string {
-	return bc.config.Symbol
+	return bc.config.GetSymbol()
 }
 
 func (bc *BaseContract) ValidateConfig(config []byte) error {
@@ -216,11 +217,11 @@ func (bc *BaseContract) ValidateConfig(config []byte) error {
 		return fmt.Errorf("unmarshalling base config data failed: %w", err)
 	}
 
-	if cfg.Contract == nil {
-		return fmt.Errorf("validating contract config: contract config is not set or broken")
+	if cfg.GetContract() == nil {
+		return errors.New("validating contract config: contract config is not set or broken")
 	}
 
-	if err := cfg.Contract.ValidateAll(); err != nil {
+	if err := cfg.GetContract().ValidateAll(); err != nil {
 		return fmt.Errorf("validating contract config: %w", err)
 	}
 
@@ -270,7 +271,7 @@ func (bc *BaseContract) TracingHandler() *telemetry.TracingHandler {
 func (bc *BaseContract) setupTracing() {
 	serviceName := "chaincode-" + bc.GetID()
 
-	telemetry.InstallTraceProvider(bc.ContractConfig().TracingCollectorEndpoint, serviceName)
+	telemetry.InstallTraceProvider(bc.ContractConfig().GetTracingCollectorEndpoint(), serviceName)
 
 	th := &telemetry.TracingHandler{}
 	th.Tracer = otel.Tracer(serviceName)

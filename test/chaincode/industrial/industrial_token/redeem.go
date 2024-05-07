@@ -37,12 +37,12 @@ func (it *IndustrialToken) TxCreateRedeemRequest(sender *types.Sender, groupName
 	if err = it.loadConfigUnlessLoaded(); err != nil {
 		return err
 	}
-	if !it.config.Initialized {
+	if !it.config.GetInitialized() {
 		return errors.New("token is not initialized")
 	}
 	notFound := true
-	for _, group := range it.config.Groups {
-		if group.Id == groupName {
+	for _, group := range it.config.GetGroups() {
+		if group.GetId() == groupName {
 			notFound = false
 			break
 		}
@@ -91,7 +91,7 @@ func (it *IndustrialToken) QueryRedeemRequestsList() ([]RedeemRequest, error) {
 		}
 
 		var req RedeemRequest
-		err = json.Unmarshal(res.Value, &req)
+		err = json.Unmarshal(res.GetValue(), &req)
 		if err != nil {
 			return nil, err
 		}
@@ -114,8 +114,8 @@ func (it *IndustrialToken) TxAcceptRedeemRequest(sender *types.Sender, requestID
 	if err != nil {
 		return err
 	}
-	maxRate := new(big.Int).SetBytes(rate.Max)
-	minRate := new(big.Int).SetBytes(rate.Min)
+	maxRate := new(big.Int).SetBytes(rate.GetMax())
+	minRate := new(big.Int).SetBytes(rate.GetMin())
 	if amount.Cmp(minRate) < 0 || (maxRate.Cmp(bigIntZero) > 0 && amount.Cmp(maxRate) > 0) {
 		return errors.New("incorrect amount")
 	}
@@ -161,7 +161,7 @@ func (it *IndustrialToken) TxAcceptRedeemRequest(sender *types.Sender, requestID
 
 	if returnAmount.Cmp(bigIntZero) > 0 {
 		// returning to user not accepted amount of tokens
-		return it.IndustrialBalanceAdd(it.ContractConfig().Symbol+"_"+req.GroupName, req.UserAddress, returnAmount, "Redeem returned")
+		return it.IndustrialBalanceAdd(it.ContractConfig().GetSymbol()+"_"+req.GroupName, req.UserAddress, returnAmount, "Redeem returned")
 	}
 
 	return nil
@@ -201,28 +201,28 @@ func (it *IndustrialToken) TxDenyRedeemRequest(sender *types.Sender, requestID s
 	}
 
 	// returning to user not accepted amount of tokens
-	return it.IndustrialBalanceAdd(it.ContractConfig().Symbol+"_"+req.GroupName, req.UserAddress, req.Amount, "Redeem denied")
+	return it.IndustrialBalanceAdd(it.ContractConfig().GetSymbol()+"_"+req.GroupName, req.UserAddress, req.Amount, "Redeem denied")
 }
 
 func (it *IndustrialToken) changeEmissionInGroup(groupName string, amount *big.Int) error {
 	if err := it.loadConfigUnlessLoaded(); err != nil {
 		return err
 	}
-	if !it.config.Initialized {
+	if !it.config.GetInitialized() {
 		return errors.New("token is not initialized")
 	}
 
-	for _, group := range it.config.Groups {
-		if group.Id == groupName {
+	for _, group := range it.config.GetGroups() {
+		if group.GetId() == groupName {
 			if group.Emission == nil {
 				group.Emission = new(big.Int).Bytes()
 			}
 
-			if new(big.Int).SetBytes(group.Emission).Cmp(amount) < 0 {
+			if new(big.Int).SetBytes(group.GetEmission()).Cmp(amount) < 0 {
 				return errors.New("emission can't become negative")
 			}
 
-			group.Emission = new(big.Int).Sub(new(big.Int).SetBytes(group.Emission), amount).Bytes()
+			group.Emission = new(big.Int).Sub(new(big.Int).SetBytes(group.GetEmission()), amount).Bytes()
 
 			return it.saveConfig()
 		}

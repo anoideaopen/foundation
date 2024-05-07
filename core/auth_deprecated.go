@@ -3,6 +3,7 @@ package core
 
 import (
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -10,7 +11,6 @@ import (
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/btcsuite/btcutil/base58"
 	"github.com/hyperledger/fabric-chaincode-go/shim"
-	"github.com/pkg/errors"
 	"golang.org/x/crypto/ed25519"
 	"golang.org/x/crypto/sha3"
 )
@@ -41,10 +41,10 @@ func CheckSign(
 		return &types.Address{}, "", err
 	}
 
-	if acl.Account != nil && acl.Account.GrayListed {
-		errMsg := fmt.Sprintf("address %s is graylisted", (*types.Address)(acl.Address.Address).String())
-		return &types.Address{}, "", fmt.Errorf(errMsg)
+	if acl.GetAccount().GetGrayListed() {
+		errMsg := fmt.Sprintf("address %s is graylisted", (*types.Address)(acl.GetAddress().GetAddress()).String())
+		return &types.Address{}, "", errors.New(errMsg)
 	}
 
-	return (*types.Address)(acl.Address.Address), hex.EncodeToString(message[:]), nil
+	return (*types.Address)(acl.GetAddress().GetAddress()), hex.EncodeToString(message[:]), nil
 }

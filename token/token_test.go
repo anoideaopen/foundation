@@ -10,7 +10,7 @@ import (
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/core/types/big"
 	"github.com/anoideaopen/foundation/mock"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -115,19 +115,19 @@ func TestBaseTokenRoles(t *testing.T) {
 	t.Run("Issuer address check", func(t *testing.T) {
 		actualIssuerAddr := issuer.Invoke(testTokenCCName, testTokenGetIssuerFnName)
 		actualIssuerAddr = trimStartEndQuotes(actualIssuerAddr)
-		assert.Equal(t, issuer.Address(), actualIssuerAddr)
+		require.Equal(t, issuer.Address(), actualIssuerAddr)
 	})
 
 	t.Run("FeeSetter address check", func(t *testing.T) {
 		actualFeeSetterAddr := issuer.Invoke(testTokenCCName, testTokenGetFeeSetterFnName)
 		actualFeeSetterAddr = trimStartEndQuotes(actualFeeSetterAddr)
-		assert.Equal(t, feeSetter.Address(), actualFeeSetterAddr)
+		require.Equal(t, feeSetter.Address(), actualFeeSetterAddr)
 	})
 
 	t.Run("FeeAddressSetter address check", func(t *testing.T) {
 		actualFeeAddressSetterAddr := issuer.Invoke(testTokenCCName, testTokenGetFeeAddressSetterFnName)
 		actualFeeAddressSetterAddr = trimStartEndQuotes(actualFeeAddressSetterAddr)
-		assert.Equal(t, feeAddressSetter.Address(), actualFeeAddressSetterAddr)
+		require.Equal(t, feeAddressSetter.Address(), actualFeeAddressSetterAddr)
 	})
 }
 
@@ -198,12 +198,12 @@ func TestSetFee(t *testing.T) {
 		rawMD := feeSetter.Invoke(testTokenCCName, "metadata")
 		md := &metadata{}
 
-		assert.NoError(t, json.Unmarshal([]byte(rawMD), md))
-		assert.Equal(t, testTokenSymbol, md.Fee.Currency)
-		assert.Equal(t, fmt.Sprint(testFee), md.Fee.Fee.String())
-		assert.Equal(t, fmt.Sprint(testFloor), md.Fee.Floor.String())
-		assert.Equal(t, fmt.Sprint(testCap), md.Fee.Cap.String())
-		assert.Equal(t, feeAggregator.Address(), md.Fee.Address)
+		require.NoError(t, json.Unmarshal([]byte(rawMD), md))
+		require.Equal(t, testTokenSymbol, md.Fee.Currency)
+		require.Equal(t, fmt.Sprint(testFee), md.Fee.Fee.String())
+		require.Equal(t, fmt.Sprint(testFloor), md.Fee.Floor.String())
+		require.Equal(t, fmt.Sprint(testCap), md.Fee.Cap.String())
+		require.Equal(t, feeAggregator.Address(), md.Fee.Address)
 	})
 }
 

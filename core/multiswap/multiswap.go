@@ -40,40 +40,40 @@ type BaseContractInterface interface {
 }
 
 func Answer(stub *cachestub.BatchCacheStub, swap *proto.MultiSwap, robotSideTimeout int64) (r *proto.SwapResponse) {
-	r = &proto.SwapResponse{Id: swap.Id, Error: &proto.ResponseError{Error: "panic multiSwapAnswer"}}
+	r = &proto.SwapResponse{Id: swap.GetId(), Error: &proto.ResponseError{Error: "panic multiSwapAnswer"}}
 	defer func() {
 		if rc := recover(); rc != nil {
-			log.Println("panic multiSwapAnswer: " + hex.EncodeToString(swap.Id) + "\n" + string(debug.Stack()))
+			log.Println("panic multiSwapAnswer: " + hex.EncodeToString(swap.GetId()) + "\n" + string(debug.Stack()))
 		}
 	}()
 
 	ts, err := stub.GetTxTimestamp()
 	if err != nil {
-		return &proto.SwapResponse{Id: swap.Id, Error: &proto.ResponseError{Error: err.Error()}}
+		return &proto.SwapResponse{Id: swap.GetId(), Error: &proto.ResponseError{Error: err.Error()}}
 	}
-	txStub := stub.NewTxCacheStub(hex.EncodeToString(swap.Id))
+	txStub := stub.NewTxCacheStub(hex.EncodeToString(swap.GetId()))
 
 	swap.Creator = []byte("0000")
-	swap.Timeout = ts.Seconds + robotSideTimeout
+	swap.Timeout = ts.GetSeconds() + robotSideTimeout
 
 	switch {
-	case swap.Token == swap.From:
+	case swap.GetToken() == swap.GetFrom():
 		// nothing to do
-	case swap.Token == swap.To:
-		for _, asset := range swap.Assets {
-			if err = balance.Sub(txStub, balance.BalanceTypeGiven, swap.From, "", new(mathbig.Int).SetBytes(asset.Amount)); err != nil {
-				return &proto.SwapResponse{Id: swap.Id, Error: &proto.ResponseError{Error: err.Error()}}
+	case swap.GetToken() == swap.GetTo():
+		for _, asset := range swap.GetAssets() {
+			if err = balance.Sub(txStub, balance.BalanceTypeGiven, swap.GetFrom(), "", new(mathbig.Int).SetBytes(asset.GetAmount())); err != nil {
+				return &proto.SwapResponse{Id: swap.GetId(), Error: &proto.ResponseError{Error: err.Error()}}
 			}
 		}
 	default:
-		return &proto.SwapResponse{Id: swap.Id, Error: &proto.ResponseError{Error: ErrIncorrectMultiSwap}}
+		return &proto.SwapResponse{Id: swap.GetId(), Error: &proto.ResponseError{Error: ErrIncorrectMultiSwap}}
 	}
 
-	if err = Save(txStub, hex.EncodeToString(swap.Id), swap); err != nil {
-		return &proto.SwapResponse{Id: swap.Id, Error: &proto.ResponseError{Error: err.Error()}}
+	if err = Save(txStub, hex.EncodeToString(swap.GetId()), swap); err != nil {
+		return &proto.SwapResponse{Id: swap.GetId(), Error: &proto.ResponseError{Error: err.Error()}}
 	}
 	writes, _ := txStub.Commit()
-	return &proto.SwapResponse{Id: swap.Id, Writes: writes}
+	return &proto.SwapResponse{Id: swap.GetId(), Writes: writes}
 }
 
 func RobotDone(stub *cachestub.BatchCacheStub, swapID []byte, key string) (r *proto.SwapResponse) {
@@ -90,13 +90,13 @@ func RobotDone(stub *cachestub.BatchCacheStub, swapID []byte, key string) (r *pr
 		return &proto.SwapResponse{Id: swapID, Error: &proto.ResponseError{Error: err.Error()}}
 	}
 	hash := sha3.Sum256([]byte(key))
-	if !bytes.Equal(swap.Hash, hash[:]) {
+	if !bytes.Equal(swap.GetHash(), hash[:]) {
 		return &proto.SwapResponse{Id: swapID, Error: &proto.ResponseError{Error: ErrIncorrectMultiSwapKey}}
 	}
 
-	if swap.Token == swap.From {
-		for _, asset := range swap.Assets {
-			if err = balance.Add(txStub, balance.BalanceTypeGiven, swap.To, "", new(mathbig.Int).SetBytes(asset.Amount)); err != nil {
+	if swap.GetToken() == swap.GetFrom() {
+		for _, asset := range swap.GetAssets() {
+			if err = balance.Add(txStub, balance.BalanceTypeGiven, swap.GetTo(), "", new(mathbig.Int).SetBytes(asset.GetAmount())); err != nil {
 				return &proto.SwapResponse{Id: swapID, Error: &proto.ResponseError{Error: err.Error()}}
 			}
 		}
@@ -115,20 +115,20 @@ func UserDone(bc BaseContractInterface, swapID string, key string) peer.Response
 		return shim.Error(err.Error())
 	}
 	hash := sha3.Sum256([]byte(key))
-	if !bytes.Equal(swap.Hash, hash[:]) {
+	if !bytes.Equal(swap.GetHash(), hash[:]) {
 		return shim.Error(ErrIncorrectMultiSwapKey)
 	}
 
-	if bytes.Equal(swap.Creator, swap.Owner) {
+	if bytes.Equal(swap.GetCreator(), swap.GetOwner()) {
 		return shim.Error(ErrIncorrectMultiSwap)
 	}
-	if swap.Token == swap.From {
-		if err = bc.AllowedIndustrialBalanceAdd(types.AddrFromBytes(swap.Owner), swap.Assets, "multi-swap done"); err != nil {
+	if swap.GetToken() == swap.GetFrom() {
+		if err = bc.AllowedIndustrialBalanceAdd(types.AddrFromBytes(swap.GetOwner()), swap.GetAssets(), "multi-swap done"); err != nil {
 			return shim.Error(err.Error())
 		}
 	} else {
-		for _, asset := range swap.Assets {
-			if err = bc.TokenBalanceAddWithTicker(types.AddrFromBytes(swap.Owner), new(big.Int).SetBytes(asset.Amount), asset.Group, "reverse multi-swap done"); err != nil {
+		for _, asset := range swap.GetAssets() {
+			if err = bc.TokenBalanceAddWithTicker(types.AddrFromBytes(swap.GetOwner()), new(big.Int).SetBytes(asset.GetAmount()), asset.GetGroup(), "reverse multi-swap done"); err != nil {
 				return shim.Error(err.Error())
 			}
 		}
@@ -137,7 +137,7 @@ func UserDone(bc BaseContractInterface, swapID string, key string) peer.Response
 	if err = Delete(bc.GetStub(), swapID); err != nil {
 		return shim.Error(err.Error())
 	}
-	e := strings.Join([]string{swap.From, swapID, key}, "\t")
+	e := strings.Join([]string{swap.GetFrom(), swapID, key}, "\t")
 	if err = bc.GetStub().SetEvent(MultiSwapKeyEvent, []byte(e)); err != nil {
 		return shim.Error(err.Error())
 	}
@@ -156,9 +156,9 @@ func UserDone(bc BaseContractInterface, swapID string, key string) peer.Response
 		)
 	}); ok {
 		f.OnMultiSwapDoneEvent(
-			swap.Token,
-			types.AddrFromBytes(swap.Owner),
-			swap.Assets,
+			swap.GetToken(),
+			types.AddrFromBytes(swap.GetOwner()),
+			swap.GetAssets(),
 		)
 	}
 

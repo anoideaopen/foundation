@@ -10,7 +10,6 @@ import (
 	"github.com/anoideaopen/foundation/core/types/big"
 	"github.com/anoideaopen/foundation/mock"
 	"github.com/anoideaopen/foundation/test/unit/fixtures_test"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/sha3"
 )
@@ -97,34 +96,34 @@ func TestQuery(t *testing.T) {
 
 	t.Run("Query allowed balance add  [negative]", func(t *testing.T) {
 		err := owner.InvokeWithError("vt", "allowedBalanceAdd", "CC", user1.Address(), "50", "add balance")
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	})
 
 	t.Run("Query allowed balance sub  [negative]", func(t *testing.T) {
 		err := owner.InvokeWithError("vt", "allowedBalanceSub", "CC", user1.Address(), "50", "sub balance")
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	})
 
 	t.Run("Query allowed balance lock  [negative]", func(t *testing.T) {
 		err := owner.InvokeWithError("vt", "allowedBalanceLock", "CC", user1.Address(), "50")
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	})
 
 	t.Run("Query allowed balance unlock [negative]", func(t *testing.T) {
 		err := owner.InvokeWithError("vt", "allowedBalanceUnLock", "CC", user1.Address(), "50")
-		assert.Errorf(t, err, "method PutState is not implemented for query")
+		require.Errorf(t, err, "method PutState is not implemented for query")
 	})
 
 	t.Run("Query allowed balance transfer locked [negative]", func(t *testing.T) {
 		err := owner.InvokeWithError("vt", "allowedBalanceTransferLocked", "CC", user1.Address(), user2.Address(), "50", "transfer")
-		assert.Errorf(t, err, "method PutState is not implemented for query")
+		require.Errorf(t, err, "method PutState is not implemented for query")
 
 		user2.AllowedBalanceShouldBe("vt", "CC", 0)
 	})
 
 	t.Run("Query allowed balance burn locked [negative]", func(t *testing.T) {
 		err := owner.InvokeWithError("vt", "allowedBalanceBurnLocked", "CC", user1.Address(), "50", "transfer")
-		assert.Errorf(t, err, "method PutState is not implemented for query")
+		require.Errorf(t, err, "method PutState is not implemented for query")
 	})
 
 	txID2 := user1.SignedInvoke("cc", "swapBegin", "CC", "VT", "150", swapHash)
@@ -134,6 +133,6 @@ func TestQuery(t *testing.T) {
 
 	t.Run("Allowed balances get all", func(t *testing.T) {
 		balance := owner.Invoke("vt", "allowedBalanceGetAll", user1.Address())
-		assert.Equal(t, "{\"CC\":\"600\"}", balance)
+		require.Equal(t, "{\"CC\":\"600\"}", balance)
 	})
 }

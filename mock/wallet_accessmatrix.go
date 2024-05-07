@@ -1,7 +1,7 @@
 package mock
 
 import (
-	"fmt"
+	"errors"
 
 	"github.com/hyperledger/fabric-chaincode-go/shim"
 )
@@ -18,19 +18,19 @@ type Right struct {
 // IsValid checks if the right is valid
 func (r Right) IsValid() error {
 	if len(r.Channel) == 0 {
-		return fmt.Errorf("right is broken, channel is not set")
+		return errors.New("right is broken, channel is not set")
 	}
 
 	if len(r.Chaincode) == 0 {
-		return fmt.Errorf("right is broken, chaincode is not set")
+		return errors.New("right is broken, chaincode is not set")
 	}
 
 	if len(r.Role) == 0 {
-		return fmt.Errorf("right is broken, role is not set")
+		return errors.New("right is broken, role is not set")
 	}
 
 	if len(r.Address) == 0 {
-		return fmt.Errorf("right is broken, address is not set")
+		return errors.New("right is broken, address is not set")
 	}
 
 	return nil
@@ -57,7 +57,7 @@ func (w *Wallet) RemoveAccountRight(right *Right) error {
 
 func (w *Wallet) modifyRight(opFn operation, right *Right) error {
 	if right == nil {
-		return fmt.Errorf("right is not set")
+		return errors.New("right is not set")
 	}
 
 	validationErr := right.IsValid()
@@ -79,8 +79,8 @@ func (w *Wallet) modifyRight(opFn operation, right *Right) error {
 	aclstub.MockPeerChaincodeWithChannel(acl, aclstub, acl)
 
 	rsp := aclstub.InvokeChaincode(acl, params, acl)
-	if rsp.Status != shim.OK {
-		return fmt.Errorf(rsp.Message)
+	if rsp.GetStatus() != shim.OK {
+		return errors.New(rsp.GetMessage())
 	}
 
 	return nil

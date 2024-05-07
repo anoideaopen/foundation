@@ -98,11 +98,11 @@ func ContractConfigFromBytes(cfgBytes []byte) (*proto.ContractConfig, error) {
 		return nil, fmt.Errorf("unmarshalling failed: %w", err)
 	}
 
-	if cfg.Contract.Options == nil {
+	if cfg.GetContract().GetOptions() == nil {
 		cfg.Contract.Options = new(proto.ChaincodeOptions)
 	}
 
-	return cfg.Contract, nil
+	return cfg.GetContract(), nil
 }
 
 // TokenConfigFromBytes parses the provided byte slice containing JSON-encoded token configuration

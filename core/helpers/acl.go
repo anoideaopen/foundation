@@ -24,10 +24,10 @@ const (
 // if the address has changed in the ACL, we also fix it in the token channel
 func AddAddrIfChanged(stub shim.ChaincodeStubInterface, addrMsgFromACL *pb.SignedAddress) error { //nolint:gocognit
 	// check if it multisig, and it's pubkeys changed or not
-	if addrMsgFromACL.Address.IsMultisig { //nolint:nestif
+	if addrMsgFromACL.GetAddress().GetIsMultisig() { //nolint:nestif
 		changeTx, err := shim.CreateCompositeKey(
 			replaceTxChangePrefix,
-			[]string{base58.CheckEncode(addrMsgFromACL.Address.Address[1:], addrMsgFromACL.Address.Address[0])},
+			[]string{base58.CheckEncode(addrMsgFromACL.GetAddress().GetAddress()[1:], addrMsgFromACL.GetAddress().GetAddress()[0])},
 		)
 		if err != nil {
 			return err
@@ -39,8 +39,8 @@ func AddAddrIfChanged(stub shim.ChaincodeStubInterface, addrMsgFromACL *pb.Signe
 		}
 
 		// if there is no public key change transaction in the token channel, but such a transaction is present in the ACL
-		if len(signedChangeTxBytes) == 0 && len(addrMsgFromACL.SignaturePolicy.ReplaceKeysSignedTx) != 0 {
-			m, err := json.Marshal(addrMsgFromACL.SignaturePolicy.ReplaceKeysSignedTx)
+		if len(signedChangeTxBytes) == 0 && len(addrMsgFromACL.GetSignaturePolicy().GetReplaceKeysSignedTx()) != 0 {
+			m, err := json.Marshal(addrMsgFromACL.GetSignaturePolicy().GetReplaceKeysSignedTx())
 			if err != nil {
 				return err
 			}
@@ -50,16 +50,16 @@ func AddAddrIfChanged(stub shim.ChaincodeStubInterface, addrMsgFromACL *pb.Signe
 				return err
 			}
 			// if public key change transaction is present in both channels
-		} else if len(signedChangeTxBytes) != 0 && len(addrMsgFromACL.SignaturePolicy.ReplaceKeysSignedTx) != 0 {
+		} else if len(signedChangeTxBytes) != 0 && len(addrMsgFromACL.GetSignaturePolicy().GetReplaceKeysSignedTx()) != 0 {
 			var signedChangeTx []string
 			if err = json.Unmarshal(signedChangeTxBytes, &signedChangeTx); err != nil {
 				return fmt.Errorf("failed to unmarshal replace tx: %w", err)
 			}
 
-			for index, replaceTx := range addrMsgFromACL.SignaturePolicy.ReplaceKeysSignedTx {
+			for index, replaceTx := range addrMsgFromACL.GetSignaturePolicy().GetReplaceKeysSignedTx() {
 				if replaceTx != signedChangeTx[index] {
 					// pubkeys in multisig already changed, put new pb.SignedAddress to token channel too
-					m, err := json.Marshal(addrMsgFromACL.SignaturePolicy.ReplaceKeysSignedTx)
+					m, err := json.Marshal(addrMsgFromACL.GetSignaturePolicy().GetReplaceKeysSignedTx())
 					if err != nil {
 						return err
 					}
@@ -74,7 +74,7 @@ func AddAddrIfChanged(stub shim.ChaincodeStubInterface, addrMsgFromACL *pb.Signe
 		}
 	}
 
-	chngTx, err := shim.CreateCompositeKey(signedTxChangePrefix, []string{base58.CheckEncode(addrMsgFromACL.Address.Address[1:], addrMsgFromACL.Address.Address[0])})
+	chngTx, err := shim.CreateCompositeKey(signedTxChangePrefix, []string{base58.CheckEncode(addrMsgFromACL.GetAddress().GetAddress()[1:], addrMsgFromACL.GetAddress().GetAddress()[0])})
 	if err != nil {
 		return err
 	}
@@ -84,8 +84,8 @@ func AddAddrIfChanged(stub shim.ChaincodeStubInterface, addrMsgFromACL *pb.Signe
 	}
 	// if there is no public key change transaction in the token channel, but such a transaction is present in the ACL
 
-	if len(signedChangeTxBytes) == 0 && len(addrMsgFromACL.SignedTx) != 0 { //nolint:nestif
-		m, err := json.Marshal(addrMsgFromACL.SignedTx)
+	if len(signedChangeTxBytes) == 0 && len(addrMsgFromACL.GetSignedTx()) != 0 { //nolint:nestif
+		m, err := json.Marshal(addrMsgFromACL.GetSignedTx())
 		if err != nil {
 			return err
 		}
@@ -95,17 +95,17 @@ func AddAddrIfChanged(stub shim.ChaincodeStubInterface, addrMsgFromACL *pb.Signe
 			return err
 		}
 		// if public key change transaction is present in both channels
-	} else if len(signedChangeTxBytes) != 0 && len(addrMsgFromACL.SignedTx) != 0 {
+	} else if len(signedChangeTxBytes) != 0 && len(addrMsgFromACL.GetSignedTx()) != 0 {
 		var signedChangeTx []string
 		if err = json.Unmarshal(signedChangeTxBytes, &signedChangeTx); err != nil {
 			return fmt.Errorf("failed to unmarshal signed tx: %w", err)
 		}
 
 		// check if pb.SignedAddress from ACL has the same SignedTx as pb.SignedAddress saved in the token channel
-		for index, changePubkeyTx := range addrMsgFromACL.SignedTx {
+		for index, changePubkeyTx := range addrMsgFromACL.GetSignedTx() {
 			if changePubkeyTx != signedChangeTx[index] {
 				// pubkey already changed, put new SignedTx to token channel too
-				m, err := json.Marshal(addrMsgFromACL.SignedTx)
+				m, err := json.Marshal(addrMsgFromACL.GetSignedTx())
 				if err != nil {
 					return err
 				}
@@ -134,16 +134,16 @@ func GetAddress(stub shim.ChaincodeStubInterface, keys string) (*pb.AclResponse,
 		[]byte(keys),
 	}, "acl")
 
-	if resp.Status != http.StatusOK {
-		return nil, errors.New(resp.Message)
+	if resp.GetStatus() != http.StatusOK {
+		return nil, errors.New(resp.GetMessage())
 	}
 
-	if len(resp.Payload) == 0 {
+	if len(resp.GetPayload()) == 0 {
 		return nil, errors.New("empty response")
 	}
 
 	addrMsg := &pb.AclResponse{}
-	if err := proto.Unmarshal(resp.Payload, addrMsg); err != nil {
+	if err := proto.Unmarshal(resp.GetPayload(), addrMsg); err != nil {
 		return nil, err
 	}
 
@@ -157,16 +157,16 @@ func GetFullAddress(stub shim.ChaincodeStubInterface, key string) (*pb.Address, 
 		[]byte(key),
 	}, "acl")
 
-	if resp.Status != http.StatusOK {
-		return nil, errors.New(resp.Message)
+	if resp.GetStatus() != http.StatusOK {
+		return nil, errors.New(resp.GetMessage())
 	}
 
-	if len(resp.Payload) == 0 {
+	if len(resp.GetPayload()) == 0 {
 		return nil, errors.New("empty response")
 	}
 
 	addrMsg := &pb.Address{}
-	if err := proto.Unmarshal(resp.Payload, addrMsg); err != nil {
+	if err := proto.Unmarshal(resp.GetPayload(), addrMsg); err != nil {
 		return nil, err
 	}
 
@@ -180,15 +180,15 @@ func GetAccountInfo(stub shim.ChaincodeStubInterface, addr string) (*pb.AccountI
 		[]byte(addr),
 	}, "acl")
 
-	if resp.Status != http.StatusOK {
-		return nil, errors.New(resp.Message)
+	if resp.GetStatus() != http.StatusOK {
+		return nil, errors.New(resp.GetMessage())
 	}
-	if len(resp.Payload) == 0 {
+	if len(resp.GetPayload()) == 0 {
 		return nil, errors.New("empty response")
 	}
 
 	infoMsg := pb.AccountInfo{}
-	if err := json.Unmarshal(resp.Payload, &infoMsg); err != nil {
+	if err := json.Unmarshal(resp.GetPayload(), &infoMsg); err != nil {
 		return nil, err
 	}
 	return &infoMsg, nil

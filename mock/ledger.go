@@ -28,7 +28,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/sirupsen/logrus"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/ed25519"
 	"golang.org/x/crypto/sha3"
 )
@@ -58,13 +58,14 @@ func NewLedger(t *testing.T, options ...string) *Ledger {
 	var err error
 	if level, ok := os.LookupEnv("LOG"); ok {
 		lvl, err = logrus.ParseLevel(level)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	}
 	logrus.SetLevel(lvl)
 	logrus.SetFormatter(&logrus.JSONFormatter{})
 
 	aclStub := stub.NewMockStub("acl", new(mockACL))
-	assert.Equal(t, int32(http.StatusOK), aclStub.MockInit(hex.EncodeToString([]byte("acl")), nil).Status)
+	resp := aclStub.MockInit(hex.EncodeToString([]byte("acl")), nil)
+	require.Equal(t, int32(http.StatusOK), resp.GetStatus())
 
 	prefix := config.BatchPrefix
 	if len(options) != 0 && options[0] != "" {
@@ -104,7 +105,7 @@ func (ledger *Ledger) NewCCArgsArr(
 	opts ...core.ChaincodeOption,
 ) string {
 	_, exists := ledger.stubs[name]
-	assert.False(
+	require.False(
 		ledger.t,
 		exists,
 		fmt.Sprintf("stub with name '%s' has already exist in ledger mock; "+
@@ -112,14 +113,14 @@ func (ledger *Ledger) NewCCArgsArr(
 	)
 
 	cc, err := core.NewCC(bci, opts...)
-	assert.NoError(ledger.t, err)
+	require.NoError(ledger.t, err)
 	ledger.stubs[name] = stub.NewMockStub(name, cc)
 	ledger.stubs[name].ChannelID = name
 
 	ledger.stubs[name].MockPeerChaincode("acl/acl", ledger.stubs["acl"])
 
 	err = ledger.stubs[name].SetAdminCreatorCert("platformMSP")
-	assert.NoError(ledger.t, err)
+	require.NoError(ledger.t, err)
 
 	args := make([][]byte, 0, len(initArgs))
 	for _, ia := range initArgs {
@@ -127,7 +128,7 @@ func (ledger *Ledger) NewCCArgsArr(
 	}
 
 	res := ledger.stubs[name].MockInit(txIDGen(), args)
-	message := res.Message
+	message := res.GetMessage()
 	if message != "" {
 		return message
 	}
@@ -143,7 +144,7 @@ func (ledger *Ledger) NewCC(
 	opts ...core.ChaincodeOption,
 ) string {
 	_, exists := ledger.stubs[name]
-	assert.False(
+	require.False(
 		ledger.t,
 		exists,
 		fmt.Sprintf("stub with name '%s' has already exist in ledger mock; "+
@@ -151,16 +152,16 @@ func (ledger *Ledger) NewCC(
 	)
 
 	cc, err := core.NewCC(bci, opts...)
-	assert.NoError(ledger.t, err)
+	require.NoError(ledger.t, err)
 	ledger.stubs[name] = stub.NewMockStub(name, cc)
 	ledger.stubs[name].ChannelID = name
 
 	ledger.stubs[name].MockPeerChaincode("acl/acl", ledger.stubs["acl"])
 
 	err = ledger.stubs[name].SetAdminCreatorCert("platformMSP")
-	assert.NoError(ledger.t, err)
+	require.NoError(ledger.t, err)
 	res := ledger.stubs[name].MockInit(txIDGen(), [][]byte{[]byte(config)})
-	message := res.Message
+	message := res.GetMessage()
 	if message != "" {
 		return message
 	}
@@ -180,7 +181,7 @@ func (ledger *Ledger) WaitMultiSwapAnswer(name string, id string, timeout time.D
 	ticker := time.NewTicker(interval)
 	count := timeout.Microseconds() / interval.Microseconds()
 	key, err := ledger.stubs[name].CreateCompositeKey(multiswap.MultiSwapCompositeType, []string{id})
-	assert.NoError(ledger.t, err)
+	require.NoError(ledger.t, err)
 	for count > 0 {
 		count--
 		<-ticker.C
@@ -191,7 +192,7 @@ func (ledger *Ledger) WaitMultiSwapAnswer(name string, id string, timeout time.D
 	for k, v := range ledger.stubs[name].State {
 		fmt.Println(k, string(v))
 	}
-	assert.Fail(ledger.t, "timeout exceeded")
+	require.Fail(ledger.t, "timeout exceeded")
 }
 
 // WaitSwapAnswer waits for swap answer
@@ -200,7 +201,7 @@ func (ledger *Ledger) WaitSwapAnswer(name string, id string, timeout time.Durati
 	ticker := time.NewTicker(interval)
 	count := timeout.Microseconds() / interval.Microseconds()
 	key, err := ledger.stubs[name].CreateCompositeKey("swaps", []string{id})
-	assert.NoError(ledger.t, err)
+	require.NoError(ledger.t, err)
 	for count > 0 {
 		count--
 		<-ticker.C
@@ -211,7 +212,7 @@ func (ledger *Ledger) WaitSwapAnswer(name string, id string, timeout time.Durati
 	for k, v := range ledger.stubs[name].State {
 		fmt.Println(k, string(v))
 	}
-	assert.Fail(ledger.t, "timeout exceeded")
+	require.Fail(ledger.t, "timeout exceeded")
 }
 
 // WaitChTransferTo waits for transfer to event
@@ -230,23 +231,23 @@ func (ledger *Ledger) WaitChTransferTo(name string, id string, timeout time.Dura
 	for k, v := range ledger.stubs[name].State {
 		fmt.Println(k, string(v))
 	}
-	assert.Fail(ledger.t, "timeout exceeded")
+	require.Fail(ledger.t, "timeout exceeded")
 }
 
 // NewWallet creates new wallet
 func (ledger *Ledger) NewWallet() *Wallet {
 	pKey, sKey, err := ed25519.GenerateKey(rand.Reader)
-	assert.NoError(ledger.t, err)
+	require.NoError(ledger.t, err)
 
 	sKeyGOST, err := gost3410.GenPrivateKey(
 		gost3410.CurveIdGostR34102001CryptoProXchAParamSet(),
 		gost3410.Mode2001,
 		rand.Reader,
 	)
-	assert.NoError(ledger.t, err)
+	require.NoError(ledger.t, err)
 
 	pKeyGOST, err := sKeyGOST.PublicKey()
-	assert.NoError(ledger.t, err)
+	require.NoError(ledger.t, err)
 
 	var (
 		hash     = sha3.Sum256(pKey)
@@ -268,7 +269,7 @@ func (ledger *Ledger) NewMultisigWallet(n int) *Multisig {
 	wlt := &Multisig{Wallet: Wallet{ledger: ledger}}
 	for i := 0; i < n; i++ {
 		pKey, sKey, err := ed25519.GenerateKey(rand.Reader)
-		assert.NoError(ledger.t, err)
+		require.NoError(ledger.t, err)
 		wlt.pKeys = append(wlt.pKeys, pKey)
 		wlt.sKeys = append(wlt.sKeys, sKey)
 	}
@@ -289,10 +290,10 @@ func (ledger *Ledger) NewMultisigWallet(n int) *Multisig {
 // NewWalletFromKey creates new wallet from key
 func (ledger *Ledger) NewWalletFromKey(key string) *Wallet {
 	decoded, ver, err := base58.CheckDecode(key)
-	assert.NoError(ledger.t, err)
+	require.NoError(ledger.t, err)
 	sKey := ed25519.PrivateKey(append([]byte{ver}, decoded...))
 	pub, ok := sKey.Public().(ed25519.PublicKey)
-	assert.True(ledger.t, ok)
+	require.True(ledger.t, ok)
 	hash := sha3.Sum256(pub)
 	return &Wallet{
 		ledger: ledger,
@@ -305,19 +306,19 @@ func (ledger *Ledger) NewWalletFromKey(key string) *Wallet {
 // NewWalletFromHexKey creates new wallet from hex key
 func (ledger *Ledger) NewWalletFromHexKey(key string) *Wallet {
 	decoded, err := hex.DecodeString(key)
-	assert.NoError(ledger.t, err)
+	require.NoError(ledger.t, err)
 	sKey := ed25519.PrivateKey(decoded)
 	pub, ok := sKey.Public().(ed25519.PublicKey)
-	assert.True(ledger.t, ok)
+	require.True(ledger.t, ok)
 	hash := sha3.Sum256(pub)
 	return &Wallet{ledger: ledger, sKey: sKey, pKey: pub, addr: base58.CheckEncode(hash[1:], hash[0])}
 }
 
 func (ledger *Ledger) doInvoke(ch, txID, fn string, args ...string) string {
 	resp, err := ledger.doInvokeWithPeerResponse(ch, txID, fn, args...)
-	assert.NoError(ledger.t, err)
-	assert.Equal(ledger.t, int32(200), resp.Status, resp.Message) //nolint:gomnd
-	return string(resp.Payload)
+	require.NoError(ledger.t, err)
+	require.Equal(ledger.t, int32(200), resp.GetStatus(), resp.GetMessage()) //nolint:gomnd
+	return string(resp.GetPayload())
 }
 
 func (ledger *Ledger) doInvokeWithErrorReturned(ch, txID, fn string, args ...string) error {
@@ -325,8 +326,8 @@ func (ledger *Ledger) doInvokeWithErrorReturned(ch, txID, fn string, args ...str
 	if err != nil {
 		return err
 	}
-	if resp.Status != 200 { //nolint:gomnd
-		return errors.New(resp.Message)
+	if resp.GetStatus() != 200 { //nolint:gomnd
+		return errors.New(resp.GetMessage())
 	}
 	return nil
 }
@@ -342,7 +343,7 @@ func (ledger *Ledger) doInvokeWithPeerResponse(ch, txID, fn string, args ...stri
 	}
 
 	creator, err := ledger.stubs[ch].GetCreator()
-	assert.NoError(ledger.t, err)
+	require.NoError(ledger.t, err)
 
 	if len(creator) == 0 {
 		_ = ledger.stubs[ch].SetDefaultCreatorCert("platformMSP")
@@ -354,11 +355,11 @@ func (ledger *Ledger) doInvokeWithPeerResponse(ch, txID, fn string, args ...stri
 			Input:       &peer.ChaincodeInput{Args: vArgs},
 		},
 	})
-	assert.NoError(ledger.t, err)
+	require.NoError(ledger.t, err)
 	payload, err := pb.Marshal(&peer.ChaincodeProposalPayload{Input: input})
-	assert.NoError(ledger.t, err)
+	require.NoError(ledger.t, err)
 	proposal, err := pb.Marshal(&peer.Proposal{Payload: payload})
-	assert.NoError(ledger.t, err)
+	require.NoError(ledger.t, err)
 	result := ledger.stubs[ch].MockInvokeWithSignedProposal(txID, vArgs, &peer.SignedProposal{
 		ProposalBytes: proposal,
 	})
@@ -427,7 +428,7 @@ func (ledger *Ledger) Metadata(ch string) *Metadata {
 	fmt.Println(resp)
 	var out Metadata
 	err := json.Unmarshal([]byte(resp), &out)
-	assert.NoError(ledger.t, err)
+	require.NoError(ledger.t, err)
 	return &out
 }
 
@@ -437,7 +438,7 @@ func (ledger *Ledger) IndustrialMetadata(ch string) *IndustrialMetadata {
 	fmt.Println(resp)
 	var out IndustrialMetadata
 	err := json.Unmarshal([]byte(resp), &out)
-	assert.NoError(ledger.t, err)
+	require.NoError(ledger.t, err)
 
 	return &out
 }
@@ -466,7 +467,7 @@ func (ledger *Ledger) GetPending(token string, txID ...string) {
 		id := strings.Split(k, "\x00")[2]
 		if len(txID) == 0 || stringsContains(id, txID) {
 			var p proto.PendingTx
-			assert.NoError(ledger.t, pb.Unmarshal(v, &p))
+			require.NoError(ledger.t, pb.Unmarshal(v, &p))
 			fmt.Println(id, string(p.DumpJSON()))
 		}
 	}

@@ -47,34 +47,34 @@ func (bt *BaseToken) QueryMetadata() (*Metadata, error) {
 		return &Metadata{}, err
 	}
 	m := &Metadata{
-		Name:            bt.TokenConfig().Name,
-		Symbol:          bt.ContractConfig().Symbol,
-		Decimals:        uint(bt.TokenConfig().Decimals),
-		UnderlyingAsset: bt.TokenConfig().UnderlyingAsset,
-		Issuer:          bt.TokenConfig().Issuer.Address,
+		Name:            bt.TokenConfig().GetName(),
+		Symbol:          bt.ContractConfig().GetSymbol(),
+		Decimals:        uint(bt.TokenConfig().GetDecimals()),
+		UnderlyingAsset: bt.TokenConfig().GetUnderlyingAsset(),
+		Issuer:          bt.TokenConfig().GetIssuer().GetAddress(),
 		Methods:         bt.GetMethods(bt),
-		TotalEmission:   new(big.Int).SetBytes(bt.config.TotalEmission),
+		TotalEmission:   new(big.Int).SetBytes(bt.config.GetTotalEmission()),
 		Fee:             &Fee{},
 	}
 
-	if types.IsValidAddressLen(bt.config.FeeAddress) {
-		m.Fee.Address = types.AddrFromBytes(bt.config.FeeAddress).String()
+	if types.IsValidAddressLen(bt.config.GetFeeAddress()) {
+		m.Fee.Address = types.AddrFromBytes(bt.config.GetFeeAddress()).String()
 	}
 
-	if bt.config.Fee != nil {
-		m.Fee.Currency = bt.config.Fee.Currency
-		m.Fee.Fee = new(big.Int).SetBytes(bt.config.Fee.Fee)
-		m.Fee.Floor = new(big.Int).SetBytes(bt.config.Fee.Floor)
-		m.Fee.Cap = new(big.Int).SetBytes(bt.config.Fee.Cap)
+	if bt.config.GetFee() != nil {
+		m.Fee.Currency = bt.config.GetFee().GetCurrency()
+		m.Fee.Fee = new(big.Int).SetBytes(bt.config.GetFee().GetFee())
+		m.Fee.Floor = new(big.Int).SetBytes(bt.config.GetFee().GetFloor())
+		m.Fee.Cap = new(big.Int).SetBytes(bt.config.GetFee().GetCap())
 	}
 
-	for _, r := range bt.config.Rates {
+	for _, r := range bt.config.GetRates() {
 		m.Rates = append(m.Rates, &MetadataRate{
-			DealType: r.DealType,
-			Currency: r.Currency,
-			Rate:     new(big.Int).SetBytes(r.Rate),
-			Min:      new(big.Int).SetBytes(r.Min),
-			Max:      new(big.Int).SetBytes(r.Max),
+			DealType: r.GetDealType(),
+			Currency: r.GetCurrency(),
+			Rate:     new(big.Int).SetBytes(r.GetRate()),
+			Min:      new(big.Int).SetBytes(r.GetMin()),
+			Max:      new(big.Int).SetBytes(r.GetMax()),
 		})
 	}
 
@@ -123,14 +123,14 @@ func (bt *BaseToken) TxSetRate(sender *types.Sender, dealType string, currency s
 	if rate.Sign() == 0 {
 		return errors.New("trying to set rate = 0")
 	}
-	if bt.ContractConfig().Symbol == currency {
+	if bt.ContractConfig().GetSymbol() == currency {
 		return errors.New("currency is equals token: it is impossible")
 	}
 	if err := bt.loadConfigUnlessLoaded(); err != nil {
 		return err
 	}
-	for i, r := range bt.config.Rates {
-		if r.DealType == dealType && r.Currency == currency {
+	for i, r := range bt.config.GetRates() {
+		if r.GetDealType() == dealType && r.GetCurrency() == currency {
 			bt.config.Rates[i].Rate = rate.Bytes()
 			return bt.saveConfig()
 		}
@@ -157,10 +157,10 @@ func (bt *BaseToken) TxSetLimits(sender *types.Sender, dealType string, currency
 		return err
 	}
 	unknownDealType := true
-	for i, r := range bt.config.Rates {
-		if r.DealType == dealType {
+	for i, r := range bt.config.GetRates() {
+		if r.GetDealType() == dealType {
 			unknownDealType = false
-			if r.Currency == currency {
+			if r.GetCurrency() == currency {
 				bt.config.Rates[i].Max = max.Bytes()
 				bt.config.Rates[i].Min = min.Bytes()
 				return bt.saveConfig()
@@ -178,15 +178,15 @@ func (bt *BaseToken) TxDeleteRate(sender *types.Sender, dealType string, currenc
 	if !sender.Equal(bt.Issuer()) {
 		return errors.New("unauthorized")
 	}
-	if bt.ContractConfig().Symbol == currency {
+	if bt.ContractConfig().GetSymbol() == currency {
 		return errors.New("currency is equals token: it is impossible")
 	}
 	if err := bt.loadConfigUnlessLoaded(); err != nil {
 		return err
 	}
-	for i, r := range bt.config.Rates {
-		if r.DealType == dealType && r.Currency == currency {
-			bt.config.Rates = append(bt.config.Rates[:i], bt.config.Rates[i+1:]...)
+	for i, r := range bt.config.GetRates() {
+		if r.GetDealType() == dealType && r.GetCurrency() == currency {
+			bt.config.Rates = append(bt.config.Rates[:i], bt.config.GetRates()[i+1:]...)
 			return bt.saveConfig()
 		}
 	}

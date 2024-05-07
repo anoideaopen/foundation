@@ -6,7 +6,6 @@ import (
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/core/types/big"
 	"github.com/anoideaopen/foundation/mock"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -50,7 +49,7 @@ func TestTokenBalanceLockAndGetLocked(t *testing.T) {
 		issuer.SignedInvoke("tt", "tokenBalanceLock", user1.Address(), "500")
 		user1.BalanceShouldBe("tt", 500)
 		lockedBalance := user1.Invoke(testTokenCCName, "tokenBalanceGetLocked", user1.Address())
-		assert.Equal(t, lockedBalance, "\"500\"")
+		require.Equal(t, lockedBalance, "\"500\"")
 	})
 }
 
@@ -72,12 +71,12 @@ func TestTokenBalanceUnlock(t *testing.T) {
 
 	user1.BalanceShouldBe(testTokenCCName, 500)
 	lockedBalance := user1.Invoke(testTokenCCName, "tokenBalanceGetLocked", user1.Address())
-	assert.Equal(t, lockedBalance, "\"500\"")
+	require.Equal(t, lockedBalance, "\"500\"")
 
 	t.Run("Token balance unlock test", func(t *testing.T) {
 		owner.SignedInvoke(testTokenCCName, "tokenBalanceUnlock", user1.Address(), "500")
 		lockedBalance = user1.Invoke(testTokenCCName, "tokenBalanceGetLocked", user1.Address())
-		assert.Equal(t, lockedBalance, "\"0\"")
+		require.Equal(t, lockedBalance, "\"0\"")
 		user1.BalanceShouldBe(testTokenCCName, 1000)
 	})
 }
@@ -101,12 +100,12 @@ func TestTokenBalanceTransferLocked(t *testing.T) {
 	owner.SignedInvoke(testTokenCCName, "tokenBalanceLock", user1.Address(), "500")
 	user1.BalanceShouldBe(testTokenCCName, 500)
 	lockedBalance := user1.Invoke(testTokenCCName, "tokenBalanceGetLocked", user1.Address())
-	assert.Equal(t, lockedBalance, "\"500\"")
+	require.Equal(t, lockedBalance, "\"500\"")
 
 	t.Run("Locked balance transfer test", func(t *testing.T) {
 		owner.SignedInvoke(testTokenCCName, "tokenBalanceTransferLocked", user1.Address(), user2.Address(), "500", "transfer")
 		lockedBalanceUser1 := user1.Invoke(testTokenCCName, "tokenBalanceGetLocked", user1.Address())
-		assert.Equal(t, lockedBalanceUser1, "\"0\"")
+		require.Equal(t, lockedBalanceUser1, "\"0\"")
 		user2.BalanceShouldBe(testTokenCCName, 500)
 	})
 }
@@ -129,11 +128,11 @@ func TestTokenBalanceBurnLocked(t *testing.T) {
 	owner.SignedInvoke(testTokenCCName, "tokenBalanceLock", user1.Address(), "500")
 	user1.BalanceShouldBe(testTokenCCName, 500)
 	lockedBalance := user1.Invoke(testTokenCCName, "tokenBalanceGetLocked", user1.Address())
-	assert.Equal(t, lockedBalance, "\"500\"")
+	require.Equal(t, lockedBalance, "\"500\"")
 
 	t.Run("Locked balance burn test", func(t *testing.T) {
 		owner.SignedInvoke(testTokenCCName, "tokenBalanceBurnLocked", user1.Address(), "500", "burn")
 		lockedBalanceUser1 := user1.Invoke(testTokenCCName, "tokenBalanceGetLocked", user1.Address())
-		assert.Equal(t, lockedBalanceUser1, "\"0\"")
+		require.Equal(t, lockedBalanceUser1, "\"0\"")
 	})
 }

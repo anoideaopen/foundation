@@ -27,13 +27,13 @@ func InstallTraceProvider(
 		otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}))
 	}()
 
-	if settings == nil || len(settings.Endpoint) == 0 {
+	if settings == nil || len(settings.GetEndpoint()) == 0 {
 		tracerProvider = trace.NewNoopTracerProvider()
 		return
 	}
 
 	client := otlptracehttp.NewClient(
-		otlptracehttp.WithEndpoint(settings.Endpoint),
+		otlptracehttp.WithEndpoint(settings.GetEndpoint()),
 		otlptracehttp.WithInsecure(),
 	)
 

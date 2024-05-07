@@ -1,6 +1,7 @@
 package core
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -14,7 +15,6 @@ import (
 	"github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/hyperledger/fabric-chaincode-go/shim"
 	"github.com/hyperledger/fabric-protos-go/peer"
-	"github.com/pkg/errors"
 	"golang.org/x/crypto/ed25519"
 	"golang.org/x/crypto/sha3"
 )
@@ -77,8 +77,8 @@ func (cc *ChainCode) validateAndExtractInvocationContext(
 	// Determine the number of signatures needed.
 	requiredSignatures := 1 // One signature is required by default.
 	if invocationDetails.signersCount > 1 {
-		if acl.Address != nil && acl.Address.SignaturePolicy != nil {
-			requiredSignatures = int(acl.Address.SignaturePolicy.N)
+		if acl.GetAddress().GetSignaturePolicy() != nil {
+			requiredSignatures = int(acl.GetAddress().GetSignaturePolicy().GetN())
 		} else {
 			requiredSignatures = invocationDetails.signersCount // If there is no rule in the ACL, all signatures are required.
 		}
@@ -133,7 +133,7 @@ func (cc *ChainCode) validateAndExtractInvocationContext(
 	}
 
 	// Update the address if it has changed.
-	if err = helpers.AddAddrIfChanged(stub, acl.Address); err != nil {
+	if err = helpers.AddAddrIfChanged(stub, acl.GetAddress()); err != nil {
 		return nil, nil, 0, err
 	}
 
@@ -144,7 +144,7 @@ func (cc *ChainCode) validateAndExtractInvocationContext(
 	}
 
 	// Return the signer's address, method arguments, and nonce.
-	return acl.Address.Address, args[3 : 3+len(fnMetadata.in)], nonce, nil
+	return acl.GetAddress().GetAddress(), args[3 : 3+len(fnMetadata.in)], nonce, nil
 }
 
 func checkACLSignerStatus(stub shim.ChaincodeStubInterface, signers []string) (*pb.AclResponse, error) {
@@ -154,12 +154,12 @@ func checkACLSignerStatus(stub shim.ChaincodeStubInterface, signers []string) (*
 	}
 
 	// Check the status of the signer in the access control list.
-	if acl.Account != nil {
-		if acl.Account.BlackListed {
-			return nil, fmt.Errorf("address %s is blacklisted", (*types.Address)(acl.Address.Address).String())
+	if acl.GetAccount() != nil {
+		if acl.GetAccount().GetBlackListed() {
+			return nil, fmt.Errorf("address %s is blacklisted", (*types.Address)(acl.GetAddress().GetAddress()).String())
 		}
-		if acl.Account.GrayListed {
-			return nil, fmt.Errorf("address %s is graylisted", (*types.Address)(acl.Address.Address).String())
+		if acl.GetAccount().GetGrayListed() {
+			return nil, fmt.Errorf("address %s is graylisted", (*types.Address)(acl.GetAddress().GetAddress()).String())
 		}
 	}
 
@@ -223,28 +223,26 @@ func checkChaincodeAndChannelName(
 	}
 
 	proposal := &peer.Proposal{}
-	if err = proto.Unmarshal(signedProposal.ProposalBytes, proposal); err != nil {
+	if err = proto.Unmarshal(signedProposal.GetProposalBytes(), proposal); err != nil {
 		return err
 	}
 
 	payload := &peer.ChaincodeProposalPayload{}
-	if err = proto.Unmarshal(proposal.Payload, payload); err != nil {
+	if err = proto.Unmarshal(proposal.GetPayload(), payload); err != nil {
 		return err
 	}
 
 	invocationSpec := &peer.ChaincodeInvocationSpec{}
-	if err = proto.Unmarshal(payload.Input, invocationSpec); err != nil {
+	if err = proto.Unmarshal(payload.GetInput(), invocationSpec); err != nil {
 		return err
 	}
 
 	// Check the correspondence between the name and the channel of the chancode.
-	if invocationSpec.ChaincodeSpec == nil ||
-		invocationSpec.ChaincodeSpec.ChaincodeId == nil ||
-		chaincodeName != invocationSpec.ChaincodeSpec.ChaincodeId.Name {
+	if chaincodeName != invocationSpec.GetChaincodeSpec().GetChaincodeId().GetName() {
 		return fmt.Errorf(
 			"incorrect chaincode name in args by index 1. found %s but expected %s",
 			chaincodeName,
-			invocationSpec.ChaincodeSpec.ChaincodeId.Name,
+			invocationSpec.GetChaincodeSpec().GetChaincodeId().GetName(),
 		)
 	}
 
