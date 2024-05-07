@@ -231,7 +231,7 @@ func (b *BatchHandler) HandleTxBatcherRequest(
 		}
 	)
 
-	if err := b.saveBatchRequestID(request); err != nil {
+	if err := b.saveBatchRequestID(request.BatcherRequestID); err != nil {
 		return txResultWithError(txResponse, batchTxEvent, err)
 	}
 
@@ -256,23 +256,23 @@ func (b *BatchHandler) HandleTxBatcherRequest(
 	return txResponse, batchTxEvent
 }
 
-func (b *BatchHandler) saveBatchRequestID(request BatcherRequest) error {
+func (b *BatchHandler) saveBatchRequestID(requestID string) error {
 	const batcherKeyPrefix = "batcher"
 
-	compositeKey, err := b.batchCacheStub.CreateCompositeKey(batcherKeyPrefix, []string{request.BatcherRequestID})
+	compositeKey, err := b.batchCacheStub.CreateCompositeKey(batcherKeyPrefix, []string{requestID})
 	if err != nil {
 		return fmt.Errorf("failed creating composite key: %w", err)
 	}
 
 	existing, err := b.batchCacheStub.GetState(compositeKey)
 	if err != nil {
-		return fmt.Errorf("failed checking if batch request with ID %s has been handled or not", request.BatcherRequestID)
+		return fmt.Errorf("failed checking if batch request with ID %s has been handled or not", requestID)
 	}
 	if len(existing) > 0 {
-		return fmt.Errorf("request with ID %s has been already handled", request.BatcherRequestID)
+		return fmt.Errorf("request with ID %s has been already handled", requestID)
 	}
 
-	if err = b.batchCacheStub.PutState(compositeKey, []byte(request.BatcherRequestID)); err != nil {
+	if err = b.batchCacheStub.PutState(compositeKey, []byte(requestID)); err != nil {
 		return fmt.Errorf("failed saving batch request ID: %w", err)
 	}
 
