@@ -13,7 +13,7 @@ import (
 	"github.com/anoideaopen/foundation/hlfcreator"
 	"github.com/anoideaopen/foundation/internal/config"
 	"github.com/anoideaopen/foundation/proto"
-	pb "github.com/golang/protobuf/proto"
+	pb "github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/hyperledger/fabric-chaincode-go/shim"
 )
 
@@ -58,7 +58,7 @@ func BatcherHandler(
 		return nil, fmt.Errorf("failed to marshal batchResponse: %w", err)
 	}
 
-	eventData, err := pb.Marshal(&batchEvent)
+	eventData, err := pb.Marshal(batchEvent)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal batchEvent: %w", err)
 	}
@@ -87,7 +87,7 @@ func NewBatchHandler(stub shim.ChaincodeStubInterface, cfgBytes []byte, cc *Chai
 	return BatchHandler{
 		batchCacheStub: batchCacheStub,
 		cfgBytes:       cfgBytes,
-		batcherSKI:     contractCfg.BatcherSKI,
+		batcherSKI:     contractCfg.GetBatcherSKI(),
 		cc:             cc,
 	}, nil
 }
@@ -107,12 +107,12 @@ func (b *BatchHandler) ValidateCreator(creatorSKI [32]byte, hashedCert [32]byte)
 }
 
 func (b *BatchHandler) HandleBatcherRequests(traceCtx telemetry.TraceContext, batcherRequests []BatcherRequest) (
-	proto.BatcherBatchResponse,
-	proto.BatcherBatchEvent,
+	*proto.BatcherBatchResponse,
+	*proto.BatcherBatchEvent,
 	error,
 ) {
-	response := proto.BatcherBatchResponse{}
-	event := proto.BatcherBatchEvent{}
+	response := &proto.BatcherBatchResponse{}
+	event := &proto.BatcherBatchEvent{}
 
 	for _, request := range batcherRequests {
 		var (
@@ -205,7 +205,7 @@ func (b *BatchHandler) validatedTxSenderMethodAndArgs(
 
 	sender := types.NewSenderFromAddr((*types.Address)(senderAddress))
 	if err = checkNonce(stub, sender, nonce); err != nil {
-		return nil, nil, nil, fmt.Errorf("incorrect tx %s nonce: %v", request.BatcherRequestID, err)
+		return nil, nil, nil, fmt.Errorf("incorrect tx %s nonce: %w", request.BatcherRequestID, err)
 	}
 	return senderAddress, method, args, nil
 }
@@ -231,6 +231,10 @@ func (b *BatchHandler) HandleTxBatcherRequest(
 		}
 	)
 
+	if err := b.saveBatchRequestID(request); err != nil {
+		return txResultWithError(txResponse, batchTxEvent, err)
+	}
+
 	senderAddress, method, args, err := b.validatedTxSenderMethodAndArgs(stub, request)
 	if err != nil {
 		return txResultWithError(txResponse, batchTxEvent, err)
@@ -250,4 +254,27 @@ func (b *BatchHandler) HandleTxBatcherRequest(
 	batchTxEvent.Accounting = txCacheStub.Accounting
 
 	return txResponse, batchTxEvent
+}
+
+func (b *BatchHandler) saveBatchRequestID(request BatcherRequest) error {
+	const batcherKeyPrefix = "batcher"
+
+	compositeKey, err := b.batchCacheStub.CreateCompositeKey(batcherKeyPrefix, []string{request.BatcherRequestID})
+	if err != nil {
+		return fmt.Errorf("failed creating composite key: %w", err)
+	}
+
+	existing, err := b.batchCacheStub.GetState(compositeKey)
+	if err != nil {
+		return fmt.Errorf("failed checking if batch request with ID %s has been handled or not", request.BatcherRequestID)
+	}
+	if len(existing) > 0 {
+		return fmt.Errorf("request with ID %s has been already handled", request.BatcherRequestID)
+	}
+
+	if err = b.batchCacheStub.PutState(compositeKey, []byte(request.BatcherRequestID)); err != nil {
+		return fmt.Errorf("failed saving batch request ID: %w", err)
+	}
+
+	return nil
 }

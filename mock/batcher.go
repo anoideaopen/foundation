@@ -11,7 +11,7 @@ import (
 
 	"github.com/anoideaopen/foundation/core"
 	"github.com/anoideaopen/foundation/proto"
-	pb "github.com/golang/protobuf/proto"
+	pb "github.com/golang/protobuf/proto" //nolint:staticcheck
 )
 
 func (w *Wallet) BatcherSignedInvoke(ch string, fn string, args ...string) ([]byte, error) {
@@ -20,7 +20,7 @@ func (w *Wallet) BatcherSignedInvoke(ch string, fn string, args ...string) ([]by
 		return nil, err
 	}
 
-	return txEvent.Result, nil
+	return txEvent.GetResult(), nil
 }
 
 func (w *Wallet) BatcherSignedInvokeWithTxEventReturned(ch string, fn string, args ...string) (*proto.BatcherTxEvent, error) {
@@ -60,31 +60,31 @@ func (w *Wallet) BatcherSignedInvokeWithTxEventReturned(ch string, fn string, ar
 		return nil, fmt.Errorf("failed to invoke method %s: %w", core.BatcherBatchExecute, err)
 	}
 
-	if peerResponse.Status != http.StatusOK {
-		return nil, fmt.Errorf("failed to invoke method %s, status: '%v', message: '%s'", core.BatcherBatchExecute, peerResponse.Status, peerResponse.Message)
+	if peerResponse.GetStatus() != http.StatusOK {
+		return nil, fmt.Errorf("failed to invoke method %s, status: '%v', message: '%s'", core.BatcherBatchExecute, peerResponse.GetStatus(), peerResponse.GetMessage())
 	}
 
 	var batchResponse proto.BatcherBatchResponse
-	err = json.Unmarshal(peerResponse.Payload, &batchResponse)
+	err = json.Unmarshal(peerResponse.GetPayload(), &batchResponse)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal BatcherBatchExecuteResponseDTO: %w", err)
 	}
 
-	if len(batchResponse.BatcherTxResponses) != 1 {
-		return nil, fmt.Errorf("failed to handle response, current response len is %d", len(batchResponse.BatcherTxResponses))
+	if len(batchResponse.GetBatcherTxResponses()) != 1 {
+		return nil, fmt.Errorf("failed to handle response, current response len is %d", len(batchResponse.GetBatcherTxResponses()))
 	}
 
 	e := <-w.ledger.stubs[ch].ChaincodeEventsChannel
-	if e.EventName == core.BatcherBatchExecuteEvent {
+	if e.GetEventName() == core.BatcherBatchExecuteEvent {
 		events := &proto.BatcherBatchEvent{}
-		err = pb.Unmarshal(e.Payload, events)
+		err = pb.Unmarshal(e.GetPayload(), events)
 		if err != nil {
 			return nil, fmt.Errorf("failed to unmarshal BatcherBatchEvent: %w", err)
 		}
-		for _, ev := range events.BatchTxEvents {
-			if ev.BatcherRequestId == r.BatcherRequestID {
-				if ev.Error != nil {
-					return nil, errors.New(ev.Error.Error)
+		for _, ev := range events.GetBatchTxEvents() {
+			if ev.GetBatcherRequestId() == r.BatcherRequestID {
+				if ev.GetError() != nil {
+					return nil, errors.New(ev.GetError().GetError())
 				}
 				return ev, nil
 			}
