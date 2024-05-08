@@ -17,20 +17,22 @@ import (
 )
 
 const (
-	BatcherBatchExecuteEvent                    = "batcherBatchExecute"
+	EventBatcherBatchExecute                    = "batcherBatchExecute"
 	TxBatcherRequestType     BatcherRequestType = "tx"
 )
 
+const ErrorCodeBatcherRequestTypeUnsupported = 404
+
 type (
-	BatcherBatchRequestDTO struct {
+	BatcherBatchExecuteRequest struct {
 		Requests []BatcherRequest `json:"requests"`
 	}
 
-	BatcherBatchResponseDTO struct {
+	BatcherBatchExecuteResponse struct {
 		Responses []BatcherResponse `json:"responses"`
 	}
 
-	BatcherBatchEventDTO struct {
+	BatcherBatchExecuteEvent struct {
 		Events []BatcherEvent `json:"events"`
 	}
 
@@ -94,9 +96,9 @@ func BatcherHandler(
 		return nil, fmt.Errorf("expected 1 argument, got %d", len(arguments))
 	}
 
-	var batchDTO BatcherBatchRequestDTO
-	if err := json.Unmarshal([]byte(arguments[0]), &batchDTO); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal BatcherBatchRequestDTO: %w", err)
+	var batcherBatchExecuteRequest BatcherBatchExecuteRequest
+	if err := json.Unmarshal([]byte(arguments[0]), &batcherBatchExecuteRequest); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal BatcherBatchExecuteRequest: %w", err)
 	}
 
 	batcher, err := NewBatcher(stub, cfgBytes, cc)
@@ -108,26 +110,26 @@ func BatcherHandler(
 		return nil, fmt.Errorf("failed to validate creator: %w", err)
 	}
 
-	batchResponse, batchEvent, err := batcher.HandleBatch(traceCtx, batchDTO.Requests)
+	responses, events, err := batcher.HandleBatch(traceCtx, batcherBatchExecuteRequest.Requests)
 	if err != nil {
 		return nil, fmt.Errorf("failed handling batch: %w", err)
 	}
 
-	batchEventBytes, err := json.Marshal(batchEvent)
+	eventBytes, err := json.Marshal(BatcherBatchExecuteEvent{Events: events})
 	if err != nil {
 		return nil, fmt.Errorf("failed marshalling batcher event: %w", err)
 	}
 
-	if err = stub.SetEvent(BatcherBatchExecuteEvent, batchEventBytes); err != nil {
+	if err = stub.SetEvent(EventBatcherBatchExecute, eventBytes); err != nil {
 		return nil, fmt.Errorf("failed setting batch event: %w", err)
 	}
 
-	batchResponseBytes, err := json.Marshal(batchResponse)
+	responseBytes, err := json.Marshal(BatcherBatchExecuteResponse{Responses: responses})
 	if err != nil {
 		return nil, fmt.Errorf("failed marshalling batch response: %w", err)
 	}
 
-	return batchResponseBytes, nil
+	return responseBytes, nil
 }
 
 func NewBatcher(stub shim.ChaincodeStubInterface, cfgBytes []byte, cc *ChainCode) (Batcher, error) {
@@ -164,15 +166,12 @@ func (b *Batcher) HandleBatch(
 	traceCtx telemetry.TraceContext,
 	requests []BatcherRequest,
 ) (
-	*BatcherBatchResponseDTO,
-	*BatcherBatchEventDTO,
+	[]BatcherResponse,
+	[]BatcherEvent,
 	error,
 ) {
-	var (
-		responseDTO = &BatcherBatchResponseDTO{}
-		eventDTO    = &BatcherBatchEventDTO{}
-	)
-
+	var responses []BatcherResponse
+	var events []BatcherEvent
 	for _, request := range requests {
 		var (
 			response BatcherResponse
@@ -184,16 +183,13 @@ func (b *Batcher) HandleBatch(
 			response, event = b.HandleRequest(traceCtx, request, b.batchCacheStub, b.cfgBytes)
 		default:
 			msg := fmt.Sprintf("unsupported batcher request type %s batch request %s", request.BatcherRequestType, request.BatcherRequestID)
-			response.Error = &BatcherResponseError{
-				Code:  404,
-				Error: msg,
-			}
-
+			response.Error = &BatcherResponseError{Code: ErrorCodeBatcherRequestTypeUnsupported, Error: msg}
 			response.BatcherRequestId = request.BatcherRequestID
 		}
-		responseDTO.Responses = append(responseDTO.Responses, response)
+
+		responses = append(responses, response)
 		if event != nil {
-			eventDTO.Events = append(eventDTO.Events, *event)
+			events = append(events, *event)
 		}
 	}
 
@@ -201,7 +197,7 @@ func (b *Batcher) HandleBatch(
 		return nil, nil, fmt.Errorf("failed to commit changes using batchCacheStub: %w", err)
 	}
 
-	return responseDTO, eventDTO, nil
+	return responses, events, nil
 }
 
 func (b *Batcher) validatedTxSenderMethodAndArgs(
@@ -281,10 +277,10 @@ func (b *Batcher) HandleRequest(
 	}
 }
 
-func mapAccounting(sourceAccounting []*proto.AccountingRecord) []AccountTransaction {
-	var targetAccounting []AccountTransaction
+func mapAccounting(sourceAccounting []*proto.AccountingRecord) []AccountingRecord {
+	var targetAccounting []AccountingRecord
 	for _, record := range sourceAccounting {
-		targetAccounting = append(targetAccounting, AccountTransaction{
+		targetAccounting = append(targetAccounting, AccountingRecord{
 			Token:     record.Token,
 			Sender:    record.Sender,
 			Recipient: record.Recipient,

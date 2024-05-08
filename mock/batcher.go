@@ -53,10 +53,10 @@ func (w *Wallet) BatcherSignedInvokeWithTxEventReturned(
 		BatcherRequestType: core.TxBatcherRequestType,
 	}
 
-	requests := core.BatcherBatchRequestDTO{Requests: []core.BatcherRequest{r}}
+	requests := core.BatcherBatchExecuteRequest{Requests: []core.BatcherRequest{r}}
 	bytes, err := json.Marshal(requests)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to marshal requests BatcherBatchRequestDTO: %w", err)
+		return nil, nil, fmt.Errorf("failed to marshal requests BatcherBatchExecuteRequest: %w", err)
 	}
 
 	// do invoke chaincode
@@ -69,10 +69,10 @@ func (w *Wallet) BatcherSignedInvokeWithTxEventReturned(
 		return nil, nil, fmt.Errorf("failed to invoke method %s, status: '%v', message: '%s'", core.BatcherBatchExecute, peerResponse.GetStatus(), peerResponse.GetMessage())
 	}
 
-	var batchResponse core.BatcherBatchResponseDTO
+	var batchResponse core.BatcherBatchExecuteResponse
 	err = json.Unmarshal(peerResponse.GetPayload(), &batchResponse)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to unmarshal BatcherBatchResponseDTO: %w", err)
+		return nil, nil, fmt.Errorf("failed to unmarshal BatcherBatchExecuteResponse: %w", err)
 	}
 
 	requestEvent, err := w.getBatcherRequestEventFromChannelByRequestID(ch, r.BatcherRequestID)
@@ -100,8 +100,8 @@ func (w *Wallet) getBatcherRequestEventFromChannelByRequestID(
 	error,
 ) {
 	e := <-w.ledger.stubs[channel].ChaincodeEventsChannel
-	if e.GetEventName() == core.BatcherBatchExecuteEvent {
-		batcherBatchEventDTO := core.BatcherBatchEventDTO{}
+	if e.GetEventName() == core.EventBatcherBatchExecute {
+		batcherBatchEventDTO := core.BatcherBatchExecuteEvent{}
 		err := json.Unmarshal(e.GetPayload(), &batcherBatchEventDTO)
 		if err != nil {
 			return nil, fmt.Errorf("failed to unmarshal BatcherBatchEvent: %w", err)
@@ -115,13 +115,13 @@ func (w *Wallet) getBatcherRequestEventFromChannelByRequestID(
 	return nil,
 		fmt.Errorf(
 			"failed to find event %s for request %s",
-			core.BatcherBatchExecuteEvent,
+			core.EventBatcherBatchExecute,
 			requestID,
 		)
 }
 
 func getBatcherRequestResponseByRequestID(
-	batchResponse *core.BatcherBatchResponseDTO,
+	batchResponse *core.BatcherBatchExecuteResponse,
 	requestID string,
 ) (
 	*core.BatcherResponse,
