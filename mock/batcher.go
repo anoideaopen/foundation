@@ -10,8 +10,7 @@ import (
 	"strconv"
 
 	"github.com/anoideaopen/foundation/core"
-	"github.com/anoideaopen/foundation/proto"
-	pb "github.com/golang/protobuf/proto" //nolint:staticcheck
+	//nolint:staticcheck
 )
 
 func (w *Wallet) BatcherSignedInvoke(ch string, fn string, args ...string) ([]byte, error) {
@@ -20,7 +19,7 @@ func (w *Wallet) BatcherSignedInvoke(ch string, fn string, args ...string) ([]by
 		return nil, err
 	}
 
-	return response.GetResult(), nil
+	return response.Result, nil
 }
 
 func (w *Wallet) BatcherSignedInvokeWithTxEventReturned(
@@ -28,8 +27,8 @@ func (w *Wallet) BatcherSignedInvokeWithTxEventReturned(
 	fn string,
 	args ...string,
 ) (
-	*proto.BatcherRequestResponse,
-	*proto.BatcherRequestEvent,
+	*core.BatcherResponse,
+	*core.BatcherEvent,
 	error,
 ) {
 	err := w.verifyIncoming(ch, fn)
@@ -49,17 +48,15 @@ func (w *Wallet) BatcherSignedInvokeWithTxEventReturned(
 
 	r := core.BatcherRequest{
 		BatcherRequestID:   strconv.FormatInt(rand.Int63(), 10),
-		Chaincode:          ch,
-		Channel:            ch,
 		Method:             fn,
 		Args:               argsWithSign,
 		BatcherRequestType: core.TxBatcherRequestType,
 	}
 
-	requests := core.BatcherBatchExecuteRequestDTO{Requests: []core.BatcherRequest{r}}
+	requests := core.BatcherBatchRequestDTO{Requests: []core.BatcherRequest{r}}
 	bytes, err := json.Marshal(requests)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to marshal requests BatcherBatchExecuteRequestDTO: %w", err)
+		return nil, nil, fmt.Errorf("failed to marshal requests BatcherBatchRequestDTO: %w", err)
 	}
 
 	// do invoke chaincode
@@ -72,10 +69,10 @@ func (w *Wallet) BatcherSignedInvokeWithTxEventReturned(
 		return nil, nil, fmt.Errorf("failed to invoke method %s, status: '%v', message: '%s'", core.BatcherBatchExecute, peerResponse.GetStatus(), peerResponse.GetMessage())
 	}
 
-	var batchResponse proto.BatcherBatchResponse
+	var batchResponse core.BatcherBatchResponseDTO
 	err = json.Unmarshal(peerResponse.GetPayload(), &batchResponse)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to unmarshal BatcherBatchExecuteResponseDTO: %w", err)
+		return nil, nil, fmt.Errorf("failed to unmarshal BatcherBatchResponseDTO: %w", err)
 	}
 
 	requestEvent, err := w.getBatcherRequestEventFromChannelByRequestID(ch, r.BatcherRequestID)
@@ -88,8 +85,8 @@ func (w *Wallet) BatcherSignedInvokeWithTxEventReturned(
 		return nil, nil, err
 	}
 
-	if responseErr := requestResponse.GetError(); responseErr != nil {
-		return nil, nil, errors.New(responseErr.GetError())
+	if responseErr := requestResponse.Error; responseErr != nil {
+		return nil, nil, errors.New(responseErr.Error)
 	}
 
 	return requestResponse, requestEvent, nil
@@ -99,19 +96,19 @@ func (w *Wallet) getBatcherRequestEventFromChannelByRequestID(
 	channel string,
 	requestID string,
 ) (
-	*proto.BatcherRequestEvent,
+	*core.BatcherEvent,
 	error,
 ) {
 	e := <-w.ledger.stubs[channel].ChaincodeEventsChannel
 	if e.GetEventName() == core.BatcherBatchExecuteEvent {
-		events := &proto.BatcherBatchEvent{}
-		err := pb.Unmarshal(e.GetPayload(), events)
+		batcherBatchEventDTO := core.BatcherBatchEventDTO{}
+		err := json.Unmarshal(e.GetPayload(), &batcherBatchEventDTO)
 		if err != nil {
 			return nil, fmt.Errorf("failed to unmarshal BatcherBatchEvent: %w", err)
 		}
-		for _, ev := range events.GetEvents() {
-			if ev.GetBatcherRequestId() == requestID {
-				return ev, nil
+		for _, ev := range batcherBatchEventDTO.Events {
+			if ev.BatcherRequestId == requestID {
+				return &ev, nil
 			}
 		}
 	}
@@ -124,15 +121,15 @@ func (w *Wallet) getBatcherRequestEventFromChannelByRequestID(
 }
 
 func getBatcherRequestResponseByRequestID(
-	batchResponse *proto.BatcherBatchResponse,
+	batchResponse *core.BatcherBatchResponseDTO,
 	requestID string,
 ) (
-	*proto.BatcherRequestResponse,
+	*core.BatcherResponse,
 	error,
 ) {
-	for _, response := range batchResponse.GetRequestResponses() {
-		if response.GetBatcherRequestId() == requestID {
-			return response, nil
+	for _, response := range batchResponse.Responses {
+		if response.BatcherRequestId == requestID {
+			return &response, nil
 		}
 	}
 	return nil, fmt.Errorf("failed to find response of batch request %s", requestID)

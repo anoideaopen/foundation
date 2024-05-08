@@ -110,27 +110,6 @@ message BatchResponse {
     repeated MultiSwap created_multi_swap = 5;
 }
 
-message BatcherRequestResponse {
-    string batcher_request_id            = 1;
-    string method                        = 2;
-    ResponseError error                  = 3;
-    bytes result                         = 4;
-    repeated AccountingRecord accounting = 5;
-}
-
-message BatcherBatchResponse {
-    repeated BatcherRequestResponse requestResponses = 1;
-}
-
-message BatcherRequestEvent {
-    string batcher_request_id     = 1;
-    repeated Event events = 2;
-}
-
-message BatcherBatchEvent {
-    repeated BatcherRequestEvent events = 1;
-}
-
 message Nested {
     repeated string args = 1;
 }
