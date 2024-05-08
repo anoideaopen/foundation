@@ -10,7 +10,6 @@ import (
 	"strconv"
 
 	"github.com/anoideaopen/foundation/core"
-	//nolint:staticcheck
 )
 
 func (w *Wallet) BatcherSignedInvoke(ch string, fn string, args ...string) ([]byte, error) {
