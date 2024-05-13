@@ -38,7 +38,11 @@ func (cc *ChainCode) swapDoneHandler(
 		return shim.Error("handling swap done failed, " + ErrSwapDisabled.Error())
 	}
 
-	contract := copyContractWithConfig(traceCtx, cc.contract, stub, cfgBytes).(BaseContractInterface)
+	contract, ok := copyContractWithConfig(traceCtx, cc.contract, stub, cfgBytes).(BaseContractInterface)
+	if !ok {
+		return shim.Error("unsupported contract type")
+	}
+
 	return swap.UserDone(contract, args[0], args[1])
 }
 
