@@ -753,15 +753,17 @@ func (cc *ChainCode) callMethod(
 		return nil, err
 	}
 
-	if len(result) > 2 {
-		msg := fmt.Sprintf("too many return values when calling %s: %d", method.FName, len(result))
+	if len(result) < 1 || len(result) > 2 {
+		msg := fmt.Sprintf("invalid number of return values: %d", len(result))
 		span.SetStatus(codes.Error, msg)
 		return nil, errors.New(msg)
 	}
 
-	errValue := result[0]
-	if method.out {
-		errValue = result[1]
+	var errValue any
+	if !method.hasOutputValue {
+		errValue = result[0] // first value is the error
+	} else {
+		errValue = result[1] // second value is	the error
 	}
 
 	if errValue != nil {
@@ -775,13 +777,12 @@ func (cc *ChainCode) callMethod(
 		return nil, err
 	}
 
-	if method.out {
-		span.SetStatus(codes.Ok, "")
-		return json.Marshal(result[0])
+	span.SetStatus(codes.Ok, "")
+	if !method.hasOutputValue {
+		return nil, nil
 	}
 
-	span.SetStatus(codes.Ok, "")
-	return nil, nil
+	return json.Marshal(result[0])
 }
 
 // doConvertToCall prepares the arguments for a chaincode method call by converting each

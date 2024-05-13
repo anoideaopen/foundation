@@ -24,14 +24,14 @@ type In struct {
 
 // Fn is a struct for function
 type Fn struct {
-	Name      string
-	FName     string
-	fn        reflect.Value
-	query     bool
-	noBatch   bool
-	needsAuth bool
-	in        []In
-	out       bool
+	Name           string
+	FName          string
+	fn             reflect.Value
+	query          bool
+	noBatch        bool
+	needsAuth      bool
+	in             []In
+	hasOutputValue bool
 }
 
 func (f *Fn) getInputs(method reflect.Method) error {
@@ -211,7 +211,7 @@ func parseContractMethods(in BaseContractInterface) (ContractMethods, error) {
 			return nil, err
 		}
 
-		out[functionName].out, err = checkOut(method)
+		out[functionName].hasOutputValue, err = checkOut(method)
 		if err != nil {
 			return nil, err
 		}
