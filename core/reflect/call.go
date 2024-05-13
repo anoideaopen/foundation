@@ -93,7 +93,7 @@ func value(s string, t reflect.Type) (reflect.Value, error) {
 
 	argInterface := argValue.Interface()
 
-	// Trying to check if the agrument type is a string or *string.
+	// Trying to check if the argument type is a string or *string.
 	switch {
 	case argType.Kind() == reflect.String:
 		outValue.SetString(string(argRaw))

@@ -101,7 +101,7 @@ func TestSaveToBatchWithWrongArgs(t *testing.T) {
 	idBytes := [16]byte(uuid.New())
 	mockStub.MockInit(hex.EncodeToString(idBytes[:]), [][]byte{config})
 
-	err := applyConfig(&chainCode.contract, mockStub, config)
+	err := applyConfig(chainCode.contract, mockStub, config)
 	require.NoError(t, err)
 
 	mockStub.TxID = testEncodedTxID
@@ -155,7 +155,7 @@ func TestSaveToBatchWithSignedArgs(t *testing.T) {
 	idBytes := [16]byte(uuid.New())
 	mockStub.MockInit(hex.EncodeToString(idBytes[:]), [][]byte{config})
 
-	err := applyConfig(&chainCode.contract, mockStub, config)
+	err := applyConfig(chainCode.contract, mockStub, config)
 	require.NoError(t, err)
 
 	mockStub.TxID = testEncodedTxID
@@ -211,7 +211,7 @@ func TestSaveToBatchWithWrongSignedArgs(t *testing.T) {
 	idBytes := [16]byte(uuid.New())
 	mockStub.MockInit(hex.EncodeToString(idBytes[:]), [][]byte{[]byte(config)})
 
-	err := applyConfig(&chainCode.contract, mockStub, []byte(config))
+	err := applyConfig(chainCode.contract, mockStub, []byte(config))
 	require.NoError(t, err)
 
 	mockStub.TxID = testEncodedTxID
@@ -272,7 +272,7 @@ func TestSaveToBatchWrongFnName(t *testing.T) {
 	}
 	cfgBytes, _ := protojson.Marshal(cfg)
 
-	err = applyConfig(&chainCode.contract, ms, cfgBytes)
+	err = applyConfig(chainCode.contract, ms, cfgBytes)
 	require.NoError(t, err)
 
 	chainCode.methods, err = parseContractMethods(chainCode.contract)
@@ -320,7 +320,7 @@ func SaveAndLoadToBatchTest(t *testing.T, ser *serieBatches, args []string) {
 	rsp := ms.MockInit(hex.EncodeToString(idBytes[:]), [][]byte{cfgBytes})
 	require.Equal(t, int32(shim.OK), rsp.GetStatus(), rsp.GetMessage())
 
-	err = applyConfig(&chainCode.contract, ms, cfgBytes)
+	err = applyConfig(chainCode.contract, ms, cfgBytes)
 	require.NoError(t, err)
 
 	ms.TxID = testEncodedTxID
@@ -445,7 +445,7 @@ func BatchExecuteTest(t *testing.T, ser *serieBatchExecute, args []string) peer.
 	rsp := ms.MockInit(hex.EncodeToString(idBytes[:]), [][]byte{cfgBytes})
 	require.Equal(t, int32(shim.OK), rsp.GetStatus())
 
-	err = applyConfig(&chainCode.contract, ms, cfgBytes)
+	err = applyConfig(chainCode.contract, ms, cfgBytes)
 	require.NoError(t, err)
 
 	ms.TxID = testEncodedTxID
@@ -517,7 +517,7 @@ func TestBatchedTxExecute(t *testing.T) {
 	rsp := ms.MockInit(hex.EncodeToString(idBytes[:]), [][]byte{cfgBytes})
 	require.Equal(t, int32(shim.OK), rsp.GetStatus())
 
-	err = applyConfig(&chainCode.contract, ms, cfgBytes)
+	err = applyConfig(chainCode.contract, ms, cfgBytes)
 	require.NoError(t, err)
 
 	chainCode.methods, err = parseContractMethods(chainCode.contract)

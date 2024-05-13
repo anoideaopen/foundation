@@ -438,7 +438,7 @@ func (cc *ChainCode) Invoke(stub shim.ChaincodeStubInterface) (r peer.Response) 
 
 	// Apply config on all layers: base contract (SKI's & chaincode options),
 	// token base attributes and extended token parameters.
-	if err = applyConfig(&cc.contract, stub, cfgBytes); err != nil {
+	if err = applyConfig(cc.contract, stub, cfgBytes); err != nil {
 		return shim.Error("applying configutarion: " + err.Error())
 	}
 
@@ -745,7 +745,7 @@ func (cc *ChainCode) callMethod(
 	span.SetAttributes(attribute.StringSlice("args", args))
 
 	span.AddEvent("copy contract")
-	_, v := copyContractWithConfig(traceCtx, cc.contract, stub, cfgBytes)
+	v := copyContractWithConfig(traceCtx, cc.contract, stub, cfgBytes)
 
 	span.AddEvent("call")
 	result, err := corereflect.Call(v, method.Name, args...)
@@ -904,10 +904,10 @@ func doPrepareToSave(
 // an interface to the copied contract.
 func copyContractWithConfig(
 	traceCtx telemetry.TraceContext,
-	orig BaseContractInterface,
+	orig any,
 	stub shim.ChaincodeStubInterface,
 	cfgBytes []byte,
-) (reflect.Value, BaseContractInterface) {
+) any {
 	cp := reflect.New(reflect.ValueOf(orig).Elem().Type())
 	val := reflect.ValueOf(orig).Elem()
 	for i := 0; i < val.NumField(); i++ {
@@ -916,17 +916,15 @@ func copyContractWithConfig(
 		}
 	}
 
-	contract, ok := cp.Interface().(BaseContractInterface)
-	if !ok {
-		return cp, nil
+	iface := cp.Interface()
+
+	if contract, ok := iface.(BaseContractInterface); ok {
+		_ = applyConfig(contract, stub, cfgBytes)
+		contract.setTraceContext(traceCtx)
+		contract.setTracingHandler(contract.TracingHandler())
 	}
 
-	_ = applyConfig(&contract, stub, cfgBytes)
-
-	contract.setTraceContext(traceCtx)
-	contract.setTracingHandler(contract.TracingHandler())
-
-	return cp, contract
+	return iface
 }
 
 // Start begins the chaincode execution based on the environment configuration. It decides whether to
@@ -1012,15 +1010,15 @@ func readTLSConfigFromEnv() ([]byte, []byte, []byte, error) {
 // If any step in the configuration application process fails, an error is returned with details about
 // the specific error encountered.
 func applyConfig(
-	bci *BaseContractInterface,
+	bci BaseContractInterface,
 	stub shim.ChaincodeStubInterface,
 	cfgBytes []byte,
 ) error {
 	// WARN: if stub is not set,
 	// it should be thrown through it into all methods before CallMethod.
-	(*bci).setStub(stub)
+	bci.setStub(stub)
 
-	ccbc, ok := (*bci).(ContractConfigurable)
+	ccbc, ok := bci.(ContractConfigurable)
 	if !ok {
 		return errors.New("chaincode is not ContractConfigurable")
 	}
@@ -1038,7 +1036,7 @@ func applyConfig(
 		return fmt.Errorf("applying base config: %w", err)
 	}
 
-	if tc, ok := (*bci).(TokenConfigurable); ok {
+	if tc, ok := bci.(TokenConfigurable); ok {
 		tokenCfg, err := config.TokenConfigFromBytes(cfgBytes)
 		if err != nil {
 			return fmt.Errorf("parsing token config: %w", err)
@@ -1049,7 +1047,7 @@ func applyConfig(
 		}
 	}
 
-	if ec, ok := (*bci).(ExternalConfigurable); ok {
+	if ec, ok := bci.(ExternalConfigurable); ok {
 		if err = ec.ApplyExtConfig(cfgBytes); err != nil {
 			return err
 		}

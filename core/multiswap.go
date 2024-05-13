@@ -35,8 +35,7 @@ func (cc *ChainCode) multiSwapDoneHandler(
 		return shim.Error("handling multi-swap done failed, " + ErrMultiSwapDisabled.Error())
 	}
 
-	_, contract := copyContractWithConfig(traceCtx, cc.contract, stub, cfgBytes)
-
+	contract := copyContractWithConfig(traceCtx, cc.contract, stub, cfgBytes).(BaseContractInterface)
 	return multiswap.UserDone(contract, args[0], args[1])
 }
 
