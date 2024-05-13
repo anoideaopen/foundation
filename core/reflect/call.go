@@ -20,16 +20,49 @@ var (
 	ErrInvalidArgumentValue    = errors.New("invalid argument value")
 )
 
-// Call invokes a method on a given value with the provided arguments and returns the output of the method.
+// Call invokes a specified method on a given value using reflection. The method to be invoked is identified by its name.
+// It checks whether the specified method exists on the value 'v' and if the number of provided arguments matches the
+// method's expected input parameters. If the method is found and the arguments match, it attempts to convert
+// the string arguments into the method's expected argument types using various unmarshalers or decoders, such as JSON,
+// proto.Message, encoding.TextUnmarshaler, encoding.BinaryUnmarshaler, and gob.GobDecoder.
+//
+// The process follows these steps:
+//  1. Check if the input string arguments are valid JSON; if so, attempt to unmarshal into the expected types.
+//  2. If not valid JSON, attempt to decode the string using the aforementioned interfaces in sequential order based on
+//     the type compatibility.
+//  3. Call the method with the prepared arguments and capture the output.
+//
+// The function returns a slice of any type representing the output from the called method, and an error if the method
+// is not found, the number of arguments does not match, or if an error occurs during argument conversion or method invocation.
 //
 // Parameters:
-// - v: The value on which the method is invoked.
-// - method: The name of the method to be invoked.
-// - args: The arguments to be passed to the method.
+//   - v: The value on which the method is to be invoked.
+//   - method: The name of the method to invoke.
+//   - args: A slice of strings representing the arguments for the method.
 //
 // Returns:
-// - []any: The output of the method as a slice of any type.
-// - error: An error if the method is not found or if the number of arguments is incorrect.
+//   - []any: A slice containing the outputs of the method, or nil if an error occurs.
+//   - error: An error if the method is not found, the number of arguments is incorrect, or any other issue during invocation.
+//
+// Example:
+//
+//	type MyType struct {
+//	    Data string
+//	}
+//
+//	func (m *MyType) Update(data string) string {
+//	    m.Data = data
+//	    return fmt.Sprintf("Updated data to: %s", m.Data)
+//	}
+//
+//	func main() {
+//	    myInstance := &MyType{}
+//	    output, err := Call(myInstance, "Update", `"New data"`)
+//	    if err != nil {
+//	        log.Fatalf("Error invoking method: %v", err)
+//	    }
+//	    fmt.Println(output[0]) // Output: Updated data to: New data
+//	}
 func Call(v any, method string, args ...string) ([]any, error) {
 	inputVal := reflect.ValueOf(v)
 
@@ -54,7 +87,7 @@ func Call(v any, method string, args ...string) ([]any, error) {
 		err error
 	)
 	for i, arg := range args {
-		if in[i], err = value(arg, methodType.In(i)); err != nil {
+		if in[i], err = valueOf(arg, methodType.In(i)); err != nil {
 			return nil, fmt.Errorf("%w: call %s", err, method)
 		}
 	}
@@ -67,7 +100,7 @@ func Call(v any, method string, args ...string) ([]any, error) {
 	return output, nil
 }
 
-func value(s string, t reflect.Type) (reflect.Value, error) {
+func valueOf(s string, t reflect.Type) (reflect.Value, error) {
 	var (
 		argRaw     = []byte(s)
 		argType    = t

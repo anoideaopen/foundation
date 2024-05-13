@@ -12,47 +12,47 @@ import (
 	pb "google.golang.org/protobuf/proto"
 )
 
-type TestStruct2 struct{}
+type TestStructForCall struct{}
 
-func (t *TestStruct2) Method1(ts *time.Time) {
+func (t *TestStructForCall) Method1(ts *time.Time) {
 	fmt.Printf("ts: %v\n", ts)
 }
 
-func (t *TestStruct2) Method2(ts time.Time) {
+func (t *TestStructForCall) Method2(ts time.Time) {
 	fmt.Printf("ts: %v\n", ts)
 }
 
-func (t *TestStruct2) Method3(a *proto.Address) string {
+func (t *TestStructForCall) Method3(a *proto.Address) string {
 	fmt.Printf("a: %+v\n", a)
 	return a.AddrString()
 }
 
-func (t *TestStruct2) Method4(in float64) {
+func (t *TestStructForCall) Method4(in float64) {
 	fmt.Printf("in: %+v\n", in)
 }
 
-func (t *TestStruct2) Method5(in []float64) {
+func (t *TestStructForCall) Method5(in []float64) {
 	fmt.Printf("in: %+v\n", in)
 }
 
-func (t *TestStruct2) Method6(in *big.Int) {
+func (t *TestStructForCall) Method6(in *big.Int) {
 	fmt.Printf("in: %+v\n", in)
 }
 
-func (t *TestStruct2) Method7(in string) {
+func (t *TestStructForCall) Method7(in string) {
 	fmt.Printf("in: %+v\n", in)
 }
 
-func (t *TestStruct2) Method8(in *string) {
+func (t *TestStructForCall) Method8(in *string) {
 	fmt.Printf("in: %+v\n", in)
 }
 
-func (t *TestStruct2) Method9(in *int) {
+func (t *TestStructForCall) Method9(in *int) {
 	fmt.Printf("in: %+v\n", in)
 }
 
 func TestCall(t *testing.T) {
-	input := &TestStruct2{}
+	input := &TestStructForCall{}
 
 	a := &proto.Address{
 		UserID:       "1234",
