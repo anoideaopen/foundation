@@ -24,6 +24,8 @@ type In struct {
 
 // Fn is a struct for function
 type Fn struct {
+	Name      string
+	FName     string
 	fn        reflect.Value
 	query     bool
 	noBatch   bool
@@ -171,36 +173,45 @@ func parseContractMethods(in BaseContractInterface) (ContractMethods, error) {
 			continue
 		}
 
+		var (
+			methodName          = method.Name
+			methodNameTruncated string
+		)
+
 		switch {
-		case len(method.Name) > 4 && method.Name[0:4] == noBatchPrefix:
+		case len(methodName) > 4 && methodName[0:4] == noBatchPrefix:
 			nb = true
-			method.Name = method.Name[4:]
-		case len(method.Name) > 5 && method.Name[0:5] == queryPrefix:
+			methodNameTruncated = methodName[4:]
+		case len(methodName) > 5 && methodName[0:5] == queryPrefix:
 			query = true
 			nb = true
-			method.Name = method.Name[5:]
-		case len(method.Name) > 2 && method.Name[0:2] == txPrefix:
-			method.Name = method.Name[2:]
+			methodNameTruncated = methodName[5:]
+		case len(methodName) > 2 && methodName[0:2] == txPrefix:
+			methodNameTruncated = methodName[2:]
 		default:
 			continue
 		}
 
-		name := toLowerFirstLetter(method.Name)
+		functionName := toLowerFirstLetter(methodNameTruncated) // example: QuerySwapGet => swapGet
 
-		if _, ok := out[name]; ok {
-			return nil, fmt.Errorf("%w, method: %s", ErrMethodAlreadyDefined, name)
+		if _, ok := out[functionName]; ok {
+			return nil, fmt.Errorf("%w, method: %s", ErrMethodAlreadyDefined, functionName)
 		}
 
-		out[name] = &Fn{
+		out[functionName] = &Fn{
+			Name:    methodName,
+			FName:   functionName,
 			fn:      method.Func,
 			noBatch: nb,
 			query:   query,
 		}
-		if err := out[name].getInputs(method); err != nil {
+
+		err := out[functionName].getInputs(method)
+		if err != nil {
 			return nil, err
 		}
-		var err error
-		out[name].out, err = checkOut(method)
+
+		out[functionName].out, err = checkOut(method)
 		if err != nil {
 			return nil, err
 		}

@@ -98,6 +98,19 @@ func (a *Address) UnmarshalJSON(data []byte) error {
 	return err
 }
 
+func (a *Address) UnmarshalText(text []byte) error {
+	addr, err := AddrFromBase58Check(string(text))
+	if err != nil {
+		return err
+	}
+
+	a.UserID = addr.UserID
+	a.Address = addr.Address
+	a.IsIndustrial = addr.IsIndustrial
+	a.IsMultisig = addr.IsMultisig
+	return nil
+}
+
 // IsUserIDSame checks if userIDs are the same
 func (a *Address) IsUserIDSame(b *Address) bool {
 	if a.UserID == "" || b.UserID == "" {
@@ -109,6 +122,16 @@ func (a *Address) IsUserIDSame(b *Address) bool {
 // Sender is a wrapper for address
 type Sender struct {
 	addr *Address
+}
+
+func (s *Sender) UnmarshalText(text []byte) error {
+	addr, err := AddrFromBase58Check(string(text))
+	if err != nil {
+		return err
+	}
+
+	s.addr = addr
+	return nil
 }
 
 // NewSenderFromAddr creates sender from address
@@ -128,6 +151,16 @@ func (s *Sender) Equal(addr *Address) bool {
 
 // Hex is a wrapper for []byte
 type Hex []byte
+
+func (h *Hex) UnmarshalText(text []byte) error {
+	value, err := hex.DecodeString(string(text))
+	if err != nil {
+		return err
+	}
+
+	*h = value
+	return nil
+}
 
 // ConvertToCall converts string to hex
 func (h Hex) ConvertToCall(_ shim.ChaincodeStubInterface, in string) (Hex, error) { // stub

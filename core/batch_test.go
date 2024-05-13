@@ -29,7 +29,7 @@ const (
 var (
 	testChaincodeName = "chaincode"
 
-	argsForTestFnWithFive          = []string{"4aap@*", "hyexc566", "kiubfvr$", ";3vkpp", "g?otov;", "!djski", "gfgt^"}
+	argsForTestFnWithFive          = []string{"4aap@*", "hyexc566", "kiubfvr$", ";3vkpp", "g?otov;"}
 	argsForTestFnWithSignedTwoArgs = []string{"1", "arg1"}
 
 	sender = &proto.Address{

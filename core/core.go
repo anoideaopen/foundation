@@ -13,8 +13,8 @@ import (
 	"time"
 
 	"github.com/anoideaopen/foundation/core/balance"
+	corereflect "github.com/anoideaopen/foundation/core/reflect"
 	"github.com/anoideaopen/foundation/core/telemetry"
-	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/hlfcreator"
 	"github.com/anoideaopen/foundation/internal/config"
 	"github.com/anoideaopen/foundation/proto"
@@ -739,42 +739,47 @@ func (cc *ChainCode) callMethod(
 	traceCtx, span := cc.contract.TracingHandler().StartNewSpan(traceCtx, "chaincode.CallMethod")
 	defer span.End()
 
+	if sender != nil {
+		args = append([]string{sender.AddrString()}, args...) // prepend sender address
+	}
 	span.SetAttributes(attribute.StringSlice("args", args))
-	span.AddEvent("convert to call")
-	values, err := doConvertToCall(stub, method, args)
+
+	span.AddEvent("copy contract")
+	_, v := copyContractWithConfig(traceCtx, cc.contract, stub, cfgBytes)
+
+	span.AddEvent("call")
+	result, err := corereflect.Call(v, method.Name, args...)
 	if err != nil {
 		return nil, err
 	}
-	if sender != nil {
-		span.SetAttributes(attribute.String("sender addr", sender.AddrString()))
-		values = append([]reflect.Value{
-			reflect.ValueOf(types.NewSenderFromAddr((*types.Address)(sender))),
-		}, values...)
+
+	if len(result) > 2 {
+		msg := fmt.Sprintf("too many return values when calling %s: %d", method.FName, len(result))
+		span.SetStatus(codes.Error, msg)
+		return nil, errors.New(msg)
 	}
 
-	span.AddEvent("copy contract")
-	contract, _ := copyContractWithConfig(traceCtx, cc.contract, stub, cfgBytes)
-
-	span.AddEvent("call")
-	out := method.fn.Call(append([]reflect.Value{contract}, values...))
-	errInt := out[0].Interface()
+	errValue := result[0]
 	if method.out {
-		errInt = out[1].Interface()
+		errValue = result[1]
 	}
-	if errInt != nil {
-		err, ok := errInt.(error)
+
+	if errValue != nil {
+		err, ok := errValue.(error)
 		if !ok {
 			span.SetStatus(codes.Error, requireInterfaceErrMsg)
 			return nil, errors.New(requireInterfaceErrMsg)
 		}
+
 		span.SetStatus(codes.Error, err.Error())
 		return nil, err
 	}
 
 	if method.out {
 		span.SetStatus(codes.Ok, "")
-		return json.Marshal(out[0].Interface())
+		return json.Marshal(result[0])
 	}
+
 	span.SetStatus(codes.Ok, "")
 	return nil, nil
 }
