@@ -8,11 +8,22 @@ import (
 	"time"
 
 	"github.com/anoideaopen/foundation/core/types"
+	corebig "github.com/anoideaopen/foundation/core/types/big"
 	"github.com/anoideaopen/foundation/proto"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/encoding/protojson"
 	pb "google.golang.org/protobuf/proto"
 )
+
+type TestMultiSwapAsset struct {
+	Group   string       `json:"group,omitempty"`
+	Amount  *corebig.Int `json:"amount,omitempty"`
+	Amount2 *big.Int     `json:"amount2,omitempty"`
+}
+
+type TestMultiSwapAssets struct {
+	Assets []*TestMultiSwapAsset `json:"assets,omitempty"`
+}
 
 type TestStructForCall struct{}
 
@@ -67,6 +78,20 @@ func (t *TestStructForCall) Method11(in *types.MultiSwapAssets) *types.MultiSwap
 	return in
 }
 
+func (t *TestStructForCall) Method12(in TestMultiSwapAssets) TestMultiSwapAssets {
+	for _, a := range in.Assets {
+		fmt.Printf("a: %+v\n", a)
+	}
+	return in
+}
+
+func (t *TestStructForCall) Method13(in *TestMultiSwapAssets) *TestMultiSwapAssets {
+	for _, a := range in.Assets {
+		fmt.Printf("a: %+v\n", a)
+	}
+	return in
+}
+
 func TestCall(t *testing.T) {
 	input := &TestStructForCall{}
 
@@ -80,8 +105,10 @@ func TestCall(t *testing.T) {
 	aRaw, _ := pb.Marshal(a)
 
 	nowBinary, _ := time.Now().MarshalBinary()
+
 	valueGOB, _ := big.NewInt(42).GobEncode()
-	multiswapAssets := types.MultiSwapAssets{
+
+	multiSwapAssets := types.MultiSwapAssets{
 		Assets: []*types.MultiSwapAsset{
 			{
 				Group:  "A",
@@ -93,7 +120,23 @@ func TestCall(t *testing.T) {
 			},
 		},
 	}
-	multiswapAssetsJSON, _ := json.Marshal(multiswapAssets)
+	multiSwapAssetsJSON, _ := json.Marshal(multiSwapAssets)
+
+	testMultiSwapAssets := TestMultiSwapAssets{
+		Assets: []*TestMultiSwapAsset{
+			{
+				Group:   "C",
+				Amount:  corebig.NewInt(1),
+				Amount2: big.NewInt(2),
+			},
+			{
+				Group:   "D",
+				Amount:  corebig.NewInt(3),
+				Amount2: big.NewInt(4),
+			},
+		},
+	}
+	testMultiSwapAssetsJSON, _ := json.Marshal(testMultiSwapAssets)
 
 	tests := []struct {
 		name      string
@@ -219,18 +262,34 @@ func TestCall(t *testing.T) {
 		{
 			name:      "Method10 with a complex MultiSwapAssets input and output",
 			method:    "Method10",
-			args:      []string{string(multiswapAssetsJSON)},
+			args:      []string{string(multiSwapAssetsJSON)},
 			wantLen:   1,
 			wantErr:   false,
-			wantValue: multiswapAssets,
+			wantValue: multiSwapAssets,
 		},
 		{
 			name:      "Method11 with a complex MultiSwapAssets input and output",
 			method:    "Method11",
-			args:      []string{string(multiswapAssetsJSON)},
+			args:      []string{string(multiSwapAssetsJSON)},
 			wantLen:   1,
 			wantErr:   false,
-			wantValue: &multiswapAssets,
+			wantValue: &multiSwapAssets,
+		},
+		{
+			name:      "Method12 with a complex TestMultiSwapAssets input and output",
+			method:    "Method12",
+			args:      []string{string(testMultiSwapAssetsJSON)},
+			wantLen:   1,
+			wantErr:   false,
+			wantValue: testMultiSwapAssets,
+		},
+		{
+			name:      "Method13 with a complex TestMultiSwapAssets input and output",
+			method:    "Method13",
+			args:      []string{string(testMultiSwapAssetsJSON)},
+			wantLen:   1,
+			wantErr:   false,
+			wantValue: &testMultiSwapAssets,
 		},
 	}
 
