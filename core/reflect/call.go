@@ -14,10 +14,10 @@ import (
 
 // Error types.
 var (
-	ErrMethodNotFound          = errors.New("method not found")
 	ErrIncorrectArgumentCount  = errors.New("incorrect number of arguments")
-	ErrUnsupportedArgumentType = errors.New("unsupported argument type")
 	ErrInvalidArgumentValue    = errors.New("invalid argument value")
+	ErrMethodNotFound          = errors.New("method not found")
+	ErrUnsupportedArgumentType = errors.New("unsupported argument type")
 )
 
 // Call invokes a specified method on a given value using reflection. The method to be invoked is identified by its name.
@@ -124,8 +124,6 @@ func valueOf(s string, t reflect.Type) (reflect.Value, error) {
 		outValue = argValue.Elem() // assign the element of the pointer to the return value
 	}
 
-	argInterface := argValue.Interface()
-
 	// Trying to check if the argument type is a string or *string.
 	switch {
 	case argType.Kind() == reflect.String:
@@ -136,6 +134,8 @@ func valueOf(s string, t reflect.Type) (reflect.Value, error) {
 		argValue.Elem().SetString(string(argRaw))
 		return outValue, nil
 	}
+
+	argInterface := argValue.Interface()
 
 	// Check if the argument is a valid json string.
 	if json.Valid(argRaw) {
