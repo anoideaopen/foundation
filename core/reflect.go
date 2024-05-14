@@ -173,22 +173,25 @@ func parseContractMethods(in BaseContractInterface) (ContractMethods, error) {
 			continue
 		}
 
-		var (
-			methodName          = method.Name
-			methodNameTruncated string
-		)
-
+		var methodNameTruncated string
 		switch {
-		case len(methodName) > 4 && methodName[0:4] == noBatchPrefix:
+		case strings.HasPrefix(method.Name, txPrefix):
+			methodNameTruncated = strings.TrimPrefix(method.Name, txPrefix)
+
+		case strings.HasPrefix(method.Name, noBatchPrefix):
 			nb = true
-			methodNameTruncated = methodName[4:]
-		case len(methodName) > 5 && methodName[0:5] == queryPrefix:
+			methodNameTruncated = strings.TrimPrefix(method.Name, noBatchPrefix)
+
+		case strings.HasPrefix(method.Name, queryPrefix):
 			query = true
 			nb = true
-			methodNameTruncated = methodName[5:]
-		case len(methodName) > 2 && methodName[0:2] == txPrefix:
-			methodNameTruncated = methodName[2:]
+			methodNameTruncated = strings.TrimPrefix(method.Name, queryPrefix)
+
 		default:
+			continue
+		}
+
+		if len(methodNameTruncated) == 0 {
 			continue
 		}
 
@@ -199,7 +202,7 @@ func parseContractMethods(in BaseContractInterface) (ContractMethods, error) {
 		}
 
 		out[functionName] = &Fn{
-			Name:    methodName,
+			Name:    method.Name,
 			FName:   functionName,
 			fn:      method.Func,
 			noBatch: nb,
