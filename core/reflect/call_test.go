@@ -1,11 +1,13 @@
 package reflect
 
 import (
+	"encoding/json"
 	"fmt"
 	"math/big"
 	"testing"
 	"time"
 
+	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/proto"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -51,6 +53,20 @@ func (t *TestStructForCall) Method9(in *int) {
 	fmt.Printf("in: %+v\n", in)
 }
 
+func (t *TestStructForCall) Method10(in types.MultiSwapAssets) types.MultiSwapAssets {
+	for _, a := range in.Assets {
+		fmt.Printf("a: %+v\n", a)
+	}
+	return in
+}
+
+func (t *TestStructForCall) Method11(in *types.MultiSwapAssets) *types.MultiSwapAssets {
+	for _, a := range in.Assets {
+		fmt.Printf("a: %+v\n", a)
+	}
+	return in
+}
+
 func TestCall(t *testing.T) {
 	input := &TestStructForCall{}
 
@@ -65,6 +81,19 @@ func TestCall(t *testing.T) {
 
 	nowBinary, _ := time.Now().MarshalBinary()
 	valueGOB, _ := big.NewInt(42).GobEncode()
+	multiswapAssets := types.MultiSwapAssets{
+		Assets: []*types.MultiSwapAsset{
+			{
+				Group:  "A",
+				Amount: "1",
+			},
+			{
+				Group:  "B",
+				Amount: "2",
+			},
+		},
+	}
+	multiswapAssetsJSON, _ := json.Marshal(multiswapAssets)
 
 	tests := []struct {
 		name      string
@@ -186,6 +215,22 @@ func TestCall(t *testing.T) {
 			args:    []string{"1234"},
 			wantLen: 0,
 			wantErr: false,
+		},
+		{
+			name:      "Method10 with a complex MultiSwapAssets input and output",
+			method:    "Method10",
+			args:      []string{string(multiswapAssetsJSON)},
+			wantLen:   1,
+			wantErr:   false,
+			wantValue: multiswapAssets,
+		},
+		{
+			name:      "Method11 with a complex MultiSwapAssets input and output",
+			method:    "Method11",
+			args:      []string{string(multiswapAssetsJSON)},
+			wantLen:   1,
+			wantErr:   false,
+			wantValue: &multiswapAssets,
 		},
 	}
 
