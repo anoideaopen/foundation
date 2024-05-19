@@ -4,16 +4,20 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
-	"sort"
 	"strings"
-	"unicode"
 
+	"github.com/anoideaopen/foundation/core/reflectx"
+	stringsx "github.com/anoideaopen/foundation/core/stringsx"
 	"github.com/anoideaopen/foundation/core/types"
 )
 
-var ErrMethodAlreadyDefined = errors.New("pure method has already defined")
+var (
+	ErrMethodAlreadyDefined = errors.New("pure method has already defined")
+	ErrUnsupportedMethod    = errors.New("unsupported method")
+	ErrInvalidMethodName    = errors.New("invalid method name")
+)
 
-var funcPrefixes = []string{txPrefix, queryPrefix, noBatchPrefix}
+var allowedMethodPrefixes = []string{txPrefix, queryPrefix, noBatchPrefix}
 
 // In is a struct for input parameters
 type In struct {
@@ -22,11 +26,10 @@ type In struct {
 	convertToCall reflect.Value
 }
 
-// Fn is a struct for function
-type Fn struct {
+// Method is a struct for function
+type Method struct {
 	Name           string
-	FName          string
-	fn             reflect.Value
+	FunctionName   string
 	query          bool
 	noBatch        bool
 	needsAuth      bool
@@ -34,7 +37,58 @@ type Fn struct {
 	hasOutputValue bool
 }
 
-func (f *Fn) getInputs(method reflect.Method) error {
+func NewMethod(name string, of any) (*Method, error) {
+	m := &Method{
+		Name:           name,
+		FunctionName:   "",
+		query:          false,
+		noBatch:        false,
+		needsAuth:      false,
+		in:             []In{},
+		hasOutputValue: false,
+	}
+
+	switch {
+	case strings.HasPrefix(m.Name, txPrefix):
+		m.FunctionName = strings.TrimPrefix(m.Name, txPrefix)
+
+	case strings.HasPrefix(m.Name, noBatchPrefix):
+		m.noBatch = true
+		m.FunctionName = strings.TrimPrefix(m.Name, noBatchPrefix)
+
+	case strings.HasPrefix(m.Name, queryPrefix):
+		m.query = true
+		m.noBatch = true
+		m.FunctionName = strings.TrimPrefix(m.Name, queryPrefix)
+	default:
+		return nil, fmt.Errorf("%w: %s", ErrUnsupportedMethod, m.Name)
+	}
+
+	if len(m.FunctionName) == 0 {
+		return nil, fmt.Errorf("%w: %s", ErrInvalidMethodName, m.Name)
+	}
+
+	if err := m.parseInput(of); err != nil {
+		return nil, err
+	}
+
+	if err := m.parseOutput(of); err != nil {
+		return nil, err
+	}
+
+	m.FunctionName = stringsx.LowerFirstChar(m.FunctionName)
+
+	return m, nil
+}
+
+func (f *Method) parseInput(of any) error {
+	t := reflect.TypeOf(of)
+
+	method, ok := t.MethodByName(f.Name)
+	if !ok {
+		return fmt.Errorf("method '%s' not found", f.Name)
+	}
+
 	count := method.Type.NumIn()
 	begin := 1
 	if method.Type.NumIn() > 1 && method.Type.In(1).String() == "*types.Sender" {
@@ -74,6 +128,28 @@ func (f *Fn) getInputs(method reflect.Method) error {
 	return nil
 }
 
+func (f *Method) parseOutput(of any) error {
+	t := reflect.TypeOf(of)
+
+	method, ok := t.MethodByName(f.Name)
+	if !ok {
+		return fmt.Errorf("method '%s' not found", f.Name)
+	}
+
+	count := method.Type.NumOut()
+	if count == 1 && method.Type.Out(0).String() == "error" {
+		f.hasOutputValue = false
+		return nil
+	}
+
+	if count == 2 && method.Type.Out(1).String() == "error" {
+		f.hasOutputValue = true
+		return nil
+	}
+
+	return errors.New("unknown output types " + method.Name)
+}
+
 func checkConvertationMethod(method reflect.Method, in0, in1, in2, out0, out1 string) error {
 	tp := method.Type
 	if tp.In(0).String() != in0 || tp.In(1).String() != in1 ||
@@ -84,152 +160,60 @@ func checkConvertationMethod(method reflect.Method, in0, in1, in2, out0, out1 st
 	return nil
 }
 
-func checkOut(method reflect.Method) (bool, error) {
-	count := method.Type.NumOut()
-	if count == 1 && method.Type.Out(0).String() == "error" {
-		return false, nil
-	}
-	if count == 2 && method.Type.Out(1).String() == "error" {
-		return true, nil
-	}
-	return false, errors.New("unknown output types " + method.Name)
-}
-
-func toLowerFirstLetter(in string) string {
-	return string(unicode.ToLower(rune(in[0]))) + in[1:]
-}
-
-func contains(s []string, e string) bool {
-	for _, a := range s {
-		if a == e {
-			return true
-		}
-	}
-	return false
-}
-
 // validateContractMethods checks contract has duplicated method names with funcPrefixes.
 func validateContractMethods(bci BaseContractInterface) error {
-	t := reflect.TypeOf(bci)
-	methods := make([]string, len(funcPrefixes))
-	for methodIdx := 0; methodIdx < t.NumMethod(); methodIdx++ {
-		mn := t.Method(methodIdx).Name
+	methods := reflectx.Methods(bci)
 
-		for _, prefix := range funcPrefixes {
-			if !strings.HasPrefix(mn, prefix) {
-				continue
-			}
-
-			noPrefixFn := strings.TrimLeft(mn, prefix)
-
-			// We need to figure out if it's worth looking for duplicates with private methods.
-			methods = append(methods, mn)
-			for _, p := range funcPrefixes {
-				if p == prefix {
-					continue
-				}
-
-				method := strings.Join([]string{p, noPrefixFn}, "")
-				if _, found := t.MethodByName(method); found {
-					methods = append(methods, method)
-					sort.Strings(methods)
-				}
-			}
-
-			if len(methods) > 1 {
-				return fmt.Errorf(
-					"failed, %w, method: '%s', cc methods: %v",
-					ErrMethodAlreadyDefined,
-					toLowerFirstLetter(noPrefixFn),
-					methods,
-				)
-			}
+	duplicates := make(map[string]struct{})
+	for _, method := range methods {
+		if !stringsx.HasPrefix(method, allowedMethodPrefixes...) {
+			continue
 		}
 
-		methods = methods[:0]
+		method = stringsx.TrimFirstPrefix(method, allowedMethodPrefixes...)
+		method = stringsx.LowerFirstChar(method)
+
+		if _, ok := duplicates[method]; ok {
+			return fmt.Errorf("%w, method: '%s'", ErrMethodAlreadyDefined, method)
+		}
+
+		duplicates[method] = struct{}{}
 	}
 
 	return nil
 }
 
-func parseContractMethods(in BaseContractInterface) (ContractMethods, error) {
+var (
+	swapMethods      = []string{"QuerySwapGet", "TxSwapBegin", "TxSwapCancel"}
+	multiSwapMethods = []string{"QueryMultiSwapGet", "TxMultiSwapBegin", "TxMultiSwapCancel"}
+)
+
+func parseContractMethods(in BaseContractInterface) (map[string]*Method, error) {
 	cfgOptions := in.ContractConfig().GetOptions()
 
-	out := make(map[string]*Fn)
-	t := reflect.TypeOf(in)
-	for i := 0; i < t.NumMethod(); i++ {
-		method := t.Method(i)
-		nb := false
-		query := false
-		if contains(cfgOptions.GetDisabledFunctions(), method.Name) {
-			continue
-		}
-		if cfgOptions.GetDisableSwaps() && (method.Name == "QuerySwapGet" ||
-			method.Name == "TxSwapBegin" || method.Name == "TxSwapCancel") {
-			continue
-		}
-		if cfgOptions.GetDisableMultiSwaps() && (method.Name == "QueryMultiSwapGet" ||
-			method.Name == "TxMultiSwapBegin" || method.Name == "TxMultiSwapCancel") {
+	swapsDisabled := cfgOptions.GetDisableSwaps()
+	multiswapsDisabled := cfgOptions.GetDisableMultiSwaps()
+	disabledMethods := cfgOptions.GetDisabledFunctions()
+
+	out := make(map[string]*Method)
+	for _, method := range reflectx.Methods(in) {
+		if stringsx.OneOf(method, disabledMethods...) ||
+			(swapsDisabled && stringsx.OneOf(method, swapMethods...)) ||
+			(multiswapsDisabled && stringsx.OneOf(method, multiSwapMethods...)) {
 			continue
 		}
 
-		var methodNameTruncated string
-		switch {
-		case strings.HasPrefix(method.Name, txPrefix):
-			methodNameTruncated = strings.TrimPrefix(method.Name, txPrefix)
-
-		case strings.HasPrefix(method.Name, noBatchPrefix):
-			nb = true
-			methodNameTruncated = strings.TrimPrefix(method.Name, noBatchPrefix)
-
-		case strings.HasPrefix(method.Name, queryPrefix):
-			query = true
-			nb = true
-			methodNameTruncated = strings.TrimPrefix(method.Name, queryPrefix)
-
-		default:
-			continue
-		}
-
-		if len(methodNameTruncated) == 0 {
-			continue
-		}
-
-		functionName := toLowerFirstLetter(methodNameTruncated) // example: QuerySwapGet => swapGet
-
-		if _, ok := out[functionName]; ok {
-			return nil, fmt.Errorf("%w, method: %s", ErrMethodAlreadyDefined, functionName)
-		}
-
-		out[functionName] = &Fn{
-			Name:    method.Name,
-			FName:   functionName,
-			fn:      method.Func,
-			noBatch: nb,
-			query:   query,
-		}
-
-		err := out[functionName].getInputs(method)
+		m, err := NewMethod(method, in)
 		if err != nil {
+			if errors.Is(err, ErrUnsupportedMethod) {
+				continue
+			}
+
 			return nil, err
 		}
 
-		out[functionName].hasOutputValue, err = checkOut(method)
-		if err != nil {
-			return nil, err
-		}
+		out[m.FunctionName] = m
 	}
 
 	return out, nil
-}
-
-type ContractMethods map[string]*Fn
-
-func (cm *ContractMethods) Method(name string) (*Fn, error) {
-	method, exists := (*cm)[name]
-	if !exists {
-		return nil, fmt.Errorf("method '%s' not found", name)
-	}
-
-	return method, nil
 }

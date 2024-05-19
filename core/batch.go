@@ -29,7 +29,7 @@ func (cc *ChainCode) saveToBatch(
 	traceCtx telemetry.TraceContext,
 	stub shim.ChaincodeStubInterface,
 	funcName string,
-	fn *Fn,
+	fn *Method,
 	sender *proto.Address,
 	args []string,
 	nonce uint64,
@@ -121,7 +121,7 @@ func (cc *ChainCode) loadFromBatch(
 		return nil, key, err
 	}
 
-	method, err := cc.methods.Method(pending.GetMethod())
+	method, err := cc.Method(pending.GetMethod())
 	if err != nil {
 		logger.Errorf("unknown method %s in tx %s", pending.GetMethod(), txID)
 		return pending, key, fmt.Errorf("unknown method %s in tx %s", pending.GetMethod(), txID)
@@ -305,7 +305,7 @@ func (cc *ChainCode) batchedTxExecute(
 	}
 
 	txStub := stub.NewTxCacheStub(txID)
-	method, err := cc.methods.Method(pending.GetMethod())
+	method, err := cc.Method(pending.GetMethod())
 	if err != nil {
 		msg := fmt.Sprintf("parsing method '%s' in tx '%s': %s", pending.GetMethod(), txID, err.Error())
 		span.SetStatus(codes.Error, msg)

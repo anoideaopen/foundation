@@ -11,21 +11,6 @@ import (
 	pb "github.com/anoideaopen/foundation/proto"
 )
 
-func (bc *BaseContract) tokenBalanceSub( //nolint:unused
-	address *types.Address,
-	amount *big.Int,
-	token string,
-) error {
-	parts := strings.Split(token, "_")
-
-	tokenName := ""
-	if len(parts) > 1 {
-		tokenName = parts[len(parts)-1]
-	}
-
-	return balance.Sub(bc.stub, balance.BalanceTypeToken, address.String(), tokenName, &amount.Int)
-}
-
 func (bc *BaseContract) tokenBalanceAdd(
 	address *types.Address,
 	amount *big.Int,

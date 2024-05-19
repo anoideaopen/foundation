@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/anoideaopen/foundation/core/balance"
-	corereflect "github.com/anoideaopen/foundation/core/reflect"
+	"github.com/anoideaopen/foundation/core/reflectx"
 	"github.com/anoideaopen/foundation/core/telemetry"
 	"github.com/anoideaopen/foundation/hlfcreator"
 	"github.com/anoideaopen/foundation/internal/config"
@@ -157,7 +157,14 @@ type ChainCode struct {
 	contract BaseContractInterface // Contract interface containing the chaincode logic.
 	tls      shim.TLSProperties    // TLS configuration properties.
 	// methods stores contract public methods, filled through parseContractMethods.
-	methods ContractMethods
+	methods map[string]*Method
+}
+
+func (cc *ChainCode) Method(functionName string) (*Method, error) {
+	if method, ok := cc.methods[functionName]; ok {
+		return method, nil
+	}
+	return nil, fmt.Errorf("method '%s' not found", functionName)
 }
 
 // WithSrcFS is a ChaincodeOption that specifies the source file system to be used by the ChainCode.
@@ -557,7 +564,7 @@ func (cc *ChainCode) Invoke(stub shim.ChaincodeStubInterface) (r peer.Response) 
 		}
 	}
 
-	method, err := cc.methods.Method(functionName)
+	method, err := cc.Method(functionName)
 	if err != nil {
 		errMsg := "invoke: finding method: " + err.Error()
 		span.SetStatus(codes.Error, errMsg)
@@ -606,7 +613,7 @@ func (cc *ChainCode) BatchHandler(
 	traceCtx telemetry.TraceContext,
 	stub shim.ChaincodeStubInterface,
 	funcName string,
-	fn *Fn,
+	fn *Method,
 	args []string,
 ) peer.Response {
 	traceCtx, span := cc.contract.TracingHandler().StartNewSpan(traceCtx, "chaincode.BatchHandler")
@@ -647,7 +654,7 @@ func (cc *ChainCode) noBatchHandler(
 	traceCtx telemetry.TraceContext,
 	stub shim.ChaincodeStubInterface,
 	funcName string,
-	fn *Fn,
+	fn *Method,
 	args []string,
 	cfgBytes []byte,
 ) peer.Response {
@@ -731,7 +738,7 @@ func (cc *ChainCode) batchExecuteHandler(
 func (cc *ChainCode) callMethod(
 	traceCtx telemetry.TraceContext,
 	stub shim.ChaincodeStubInterface,
-	method *Fn,
+	method *Method,
 	sender *proto.Address,
 	args []string,
 	cfgBytes []byte,
@@ -748,7 +755,7 @@ func (cc *ChainCode) callMethod(
 	v := copyContractWithConfig(traceCtx, cc.contract, stub, cfgBytes)
 
 	span.AddEvent("call")
-	result, err := corereflect.Call(v, method.Name, args...)
+	result, err := reflectx.Call(v, method.Name, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -793,7 +800,7 @@ func (cc *ChainCode) callMethod(
 // the conversion fails or if there is an incorrect number of arguments.
 func doConvertToCall(
 	stub shim.ChaincodeStubInterface,
-	method *Fn,
+	method *Method,
 	args []string,
 ) ([]reflect.Value, error) {
 	found := len(args)
@@ -841,7 +848,7 @@ func doConvertToCall(
 // slice of strings, and an error if the conversion fails or if there is an incorrect number of arguments.
 func doPrepareToSave(
 	stub shim.ChaincodeStubInterface,
-	method *Fn,
+	method *Method,
 	args []string,
 ) ([]string, error) {
 	if len(args) < len(method.in) {

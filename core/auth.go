@@ -43,7 +43,7 @@ type invocationDetails struct {
 //   - User address, method call arguments, nonce and error, if any.
 func (cc *ChainCode) validateAndExtractInvocationContext(
 	stub shim.ChaincodeStubInterface,
-	fnMetadata *Fn,
+	fnMetadata *Method,
 	fn string,
 	args []string,
 ) (sender *pb.Address, invocationArgs []string, nonce uint64, err error) {
@@ -167,7 +167,7 @@ func checkACLSignerStatus(stub shim.ChaincodeStubInterface, signers []string) (*
 }
 
 func parseInvocationDetails(
-	fnMetadata *Fn,
+	fnMetadata *Method,
 	args []string,
 ) (*invocationDetails, error) {
 	// Calculating the positions of arguments in an array.

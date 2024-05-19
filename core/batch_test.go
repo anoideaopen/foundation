@@ -114,7 +114,7 @@ func TestSaveToBatchWithWrongArgs(t *testing.T) {
 	chainCode.methods, err = parseContractMethods(chainCode.contract)
 	require.NoError(t, err)
 
-	fn, err := chainCode.methods.Method(s.FnName)
+	fn, err := chainCode.Method(s.FnName)
 	require.NoError(t, err)
 
 	errSave := chainCode.saveToBatch(
@@ -168,7 +168,7 @@ func TestSaveToBatchWithSignedArgs(t *testing.T) {
 	chainCode.methods, err = parseContractMethods(chainCode.contract)
 	require.NoError(t, err)
 
-	fn, err := chainCode.methods.Method(s.FnName)
+	fn, err := chainCode.Method(s.FnName)
 	require.NoError(t, err)
 
 	err = chainCode.saveToBatch(
@@ -224,7 +224,7 @@ func TestSaveToBatchWithWrongSignedArgs(t *testing.T) {
 	chainCode.methods, err = parseContractMethods(chainCode.contract)
 	require.NoError(t, err)
 
-	fn, err := chainCode.methods.Method(s.FnName)
+	fn, err := chainCode.Method(s.FnName)
 	require.NoError(t, err)
 
 	err = chainCode.saveToBatch(
@@ -278,7 +278,7 @@ func TestSaveToBatchWrongFnName(t *testing.T) {
 	chainCode.methods, err = parseContractMethods(chainCode.contract)
 	require.NoError(t, err)
 
-	fn, err := chainCode.methods.Method(s.FnName)
+	fn, err := chainCode.Method(s.FnName)
 	require.ErrorContains(t, err, "method 'unknownFunctionName' not found")
 	require.Nil(t, fn)
 }
@@ -335,7 +335,7 @@ func SaveAndLoadToBatchTest(t *testing.T, ser *serieBatches, args []string) {
 	chainCode.methods, err = parseContractMethods(chainCode.contract)
 	require.NoError(t, err)
 
-	fn, err := chainCode.methods.Method(ser.FnName)
+	fn, err := chainCode.Method(ser.FnName)
 	require.NoError(t, err)
 
 	errSave := chainCode.saveToBatch(
@@ -459,7 +459,7 @@ func BatchExecuteTest(t *testing.T, ser *serieBatchExecute, args []string) peer.
 	chainCode.methods = methods
 	require.NoError(t, err)
 
-	method, err := chainCode.methods.Method(testFnWithFiveArgsMethod)
+	method, err := chainCode.Method(testFnWithFiveArgsMethod)
 	require.NoError(t, err)
 
 	err = chainCode.saveToBatch(
@@ -535,7 +535,7 @@ func TestBatchedTxExecute(t *testing.T) {
 	chainCode.methods, err = parseContractMethods(chainCode.contract)
 	require.NoError(t, err)
 
-	fn, err := chainCode.methods.Method(testFnWithFiveArgsMethod)
+	fn, err := chainCode.Method(testFnWithFiveArgsMethod)
 	require.NoError(t, err)
 
 	err = chainCode.saveToBatch(
