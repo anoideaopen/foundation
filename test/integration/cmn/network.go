@@ -21,9 +21,10 @@ import (
 // NetworkFoundation holds information about a fabric network.
 type NetworkFoundation struct {
 	*nwo.Network
-	Robot     *Robot
-	Templates *TemplatesFound
-	Channels  []string
+	Robot           *Robot
+	ChannelTransfer *ChannelTransfer
+	Templates       *TemplatesFound
+	Channels        []string
 
 	mutex      sync.Locker
 	colorIndex uint
@@ -37,17 +38,30 @@ func New(network *nwo.Network, channels []string) *NetworkFoundation {
 		},
 		Channels: channels,
 		Robot:    &Robot{Ports: nwo.Ports{}},
-		mutex:    &sync.Mutex{},
+		ChannelTransfer: &ChannelTransfer{
+			Ports: nwo.Ports{},
+		},
+		mutex: &sync.Mutex{},
 	}
 	for _, portName := range RobotPortNames() {
 		n.Robot.Ports[portName] = n.ReservePort()
 	}
 
+	for _, portName := range ChannelTransferPortNames() {
+		n.ChannelTransfer.Ports[portName] = n.ReservePort()
+	}
+
 	return n
 }
 
-// Robot defines an orderer instance and its owning organization.
+// Robot structure defines Robot service
 type Robot struct {
+	Ports          nwo.Ports `yaml:"ports,omitempty"`
+	RedisAddresses []string  `yaml:"redis_addresses,omitempty"`
+}
+
+// ChannelTransfer defines Channel Transfer service
+type ChannelTransfer struct {
 	Ports          nwo.Ports `yaml:"ports,omitempty"`
 	RedisAddresses []string  `yaml:"redis_addresses,omitempty"`
 }
@@ -58,6 +72,7 @@ func (n *NetworkFoundation) GenerateConfigTree() {
 	n.GenerateConnection(peer, "User1")
 	n.GenerateConnection(peer, "User2")
 	n.GenerateRobotConfig("User2")
+	n.GenerateChannelTransferConfig("User2")
 }
 
 // GenerateConnection creates the `connection.yaml` configuration file
@@ -103,6 +118,27 @@ func (n *NetworkFoundation) GenerateRobotConfig(u string) {
 	Expect(err).NotTo(HaveOccurred())
 }
 
+// GenerateChannelTransferConfig creates the `robot.yaml` configuration file
+// provided to config for Channel Transfer service. The path to the generated
+// file can be obtained from ChannelTransferPath.
+func (n *NetworkFoundation) GenerateChannelTransferConfig(user string) {
+	config, err := os.Create(n.ChannelTransferPath())
+	Expect(err).NotTo(HaveOccurred())
+	defer func() {
+		err := config.Close()
+		Expect(err).NotTo(HaveOccurred())
+	}()
+
+	t, err := template.New("channel_transfer").Funcs(template.FuncMap{
+		"User": func() string { return user },
+	}).Parse(n.Templates.ChannelTransferTemplate())
+	Expect(err).NotTo(HaveOccurred())
+
+	pw := gexec.NewPrefixedWriter("[channel_transfer.yaml] ", ginkgo.GinkgoWriter)
+	err = t.Execute(io.MultiWriter(config, pw), n)
+	Expect(err).NotTo(HaveOccurred())
+}
+
 // ConnectionPath returns the path to the generated connection profile file.
 func (n *NetworkFoundation) ConnectionPath(user string) string {
 	return filepath.Join(n.RootDir, user+"_connection.yaml")
@@ -111,6 +147,11 @@ func (n *NetworkFoundation) ConnectionPath(user string) string {
 // RobotPath returns the path to the generated robot profile file.
 func (n *NetworkFoundation) RobotPath() string {
 	return filepath.Join(n.RootDir, "robot.yaml")
+}
+
+// ChannelTransferPath returns the path to the generated connection profile
+func (n *NetworkFoundation) ChannelTransferPath() string {
+	return filepath.Join(n.RootDir, "channel_transfer.yaml")
 }
 
 // PeerUserKeyFound returns the path to the private key for the specified user in
@@ -140,6 +181,16 @@ func RobotPortNames() []nwo.PortName {
 	return []nwo.PortName{nwo.ListenPort}
 }
 
+// ChannelTransferPortNames returns the list of ports that need to be reserved for the Channel Transfer service
+func ChannelTransferPortNames() []nwo.PortName { return []nwo.PortName{nwo.ListenPort} }
+
+// ChannelTransferPort returns the named port reserved for the Channel Transfer instance
+func (n *NetworkFoundation) ChannelTransferPort(portName nwo.PortName) uint16 {
+	peerPorts := n.ChannelTransfer.Ports
+	Expect(peerPorts).NotTo(BeNil())
+	return peerPorts[portName]
+}
+
 // RobotPort returns the named port reserved for the Robot instance.
 func (n *NetworkFoundation) RobotPort(portName nwo.PortName) uint16 {
 	peerPorts := n.Robot.Ports
@@ -163,6 +214,22 @@ func (n *NetworkFoundation) RobotRunner(env ...string) *ginkgomon.Runner {
 	})
 }
 
+// ChannelTransferRunner returns an ifrit.Runner for the specified channel_transfer service. The runner can be
+// used to start and manage the channel_transfer process.
+func (n *NetworkFoundation) ChannelTransferRunner(env ...string) *ginkgomon.Runner {
+	cmd := exec.Command(n.Components.Build(ChannelTransferModulePath()), "-c", n.ChannelTransferPath())
+	cmd.Env = os.Environ()
+	cmd.Env = append(cmd.Env, env...)
+
+	return ginkgomon.New(ginkgomon.Config{
+		AnsiColorCode:     n.nextColor(),
+		Name:              "channel_transfer",
+		Command:           cmd,
+		StartCheck:        `Channel transfer started, time -`,
+		StartCheckTimeout: 15 * time.Second,
+	})
+}
+
 func (n *NetworkFoundation) nextColor() string {
 	n.mutex.Lock()
 	defer n.mutex.Unlock()
@@ -178,6 +245,10 @@ func (n *NetworkFoundation) nextColor() string {
 
 func RobotModulePath() string {
 	return "github.com/anoideaopen/robot"
+}
+
+func ChannelTransferModulePath() string {
+	return "github.com/anoideaopen/channel-transfer"
 }
 
 func AclModulePath() string {
