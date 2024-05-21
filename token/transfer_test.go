@@ -68,12 +68,12 @@ func TestTransferWithFee(t *testing.T) {
 
 	t.Run("[negative] trying to set empty fee", func(t *testing.T) {
 		err := feeSetter.RawSignedInvokeWithErrorReturned("vt", "setFee", currency, "", "1", "0")
-		require.EqualError(t, err, "couldn't convert  to bigint")
+		require.EqualError(t, err, "invalid argument value: '': for type '*big.Int': validate TxSetFee, argument 2")
 	})
 
 	t.Run("[negative] trying to set negative fee", func(t *testing.T) {
 		err := feeSetter.RawSignedInvokeWithErrorReturned("vt", "setFee", "", "-1", "1", "0")
-		require.EqualError(t, err, "value -1 should be positive")
+		require.EqualError(t, err, "invalid argument value: '-1': validation failed: 'negative number': validate TxSetFee, argument 2")
 	})
 
 	feeSetter.SignedInvoke("vt", "setFee", "VT", feeAmount, "1", "0")
@@ -86,7 +86,7 @@ func TestTransferWithFee(t *testing.T) {
 
 	t.Run("[negative] trying to transfer negative amount", func(t *testing.T) {
 		err = issuer.RawSignedInvokeWithErrorReturned("vt", "transfer", user.Address(), "-100", "")
-		require.EqualError(t, err, "value -100 should be positive")
+		require.EqualError(t, err, "invalid argument value: '-100': validation failed: 'negative number': validate TxTransfer, argument 2")
 	})
 
 	t.Run("[negative] trying to transfer zero amount", func(t *testing.T) {

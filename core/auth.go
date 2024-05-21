@@ -144,7 +144,7 @@ func (cc *ChainCode) validateAndExtractInvocationContext(
 	}
 
 	// Return the signer's address, method arguments, and nonce.
-	return acl.GetAddress().GetAddress(), args[3 : 3+len(fnMetadata.in)], nonce, nil
+	return acl.GetAddress().GetAddress(), args[3 : 3+fnMetadata.in], nonce, nil
 }
 
 func checkACLSignerStatus(stub shim.ChaincodeStubInterface, signers []string) (*pb.AclResponse, error) {
@@ -172,8 +172,8 @@ func parseInvocationDetails(
 ) (*invocationDetails, error) {
 	// Calculating the positions of arguments in an array.
 	var (
-		expectedArgsCount = len(fnMetadata.in) + 4 // +4 for reqId, cc, ch, nonce
-		authArgsStartPos  = expectedArgsCount      // Authorization arguments start position
+		expectedArgsCount = fnMetadata.in + 4 // +4 for reqId, cc, ch, nonce
+		authArgsStartPos  = expectedArgsCount // Authorization arguments start position
 	)
 
 	// We check that the number of arguments is not less than expected.

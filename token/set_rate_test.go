@@ -72,7 +72,7 @@ func TestSetRateToString(t *testing.T) {
 		dealType:  "distribute",
 		currency:  "",
 		rate:      "wonder",
-		errorMsg:  "couldn't convert wonder to bigint",
+		errorMsg:  "invalid argument value: 'wonder': for type '*big.Int'",
 	}
 
 	BaseTokenSetRateTest(t, s)
@@ -87,7 +87,7 @@ func TestSetRateMinusValue(t *testing.T) {
 		dealType:  "distribute",
 		currency:  "",
 		rate:      "-3",
-		errorMsg:  "value -3 should be positive",
+		errorMsg:  "validation failed: 'negative number'",
 	}
 
 	BaseTokenSetRateTest(t, s)
@@ -273,7 +273,7 @@ func BaseTokenSetRateTest(t *testing.T, ser *serieSetRate) {
 		ser.currency,
 		ser.rate,
 	); err != nil {
-		require.Equal(t, ser.errorMsg, err.Error())
+		require.Contains(t, err.Error(), ser.errorMsg)
 	} else {
 		require.NoError(t, err)
 

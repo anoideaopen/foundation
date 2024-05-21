@@ -1,6 +1,7 @@
 package core
 
 import (
+	"bytes"
 	"encoding/hex"
 	"fmt"
 	"testing"
@@ -33,8 +34,8 @@ var (
 	argsForTestFnWithSignedTwoArgs = []string{"1", "arg1"}
 
 	sender = &proto.Address{
-		UserID:  "UserId",
-		Address: []byte("Address"),
+		UserID:  "UserID",
+		Address: bytes.Repeat([]byte{0xF0}, 32),
 	}
 
 	txID            = "TestTxID"
@@ -126,7 +127,7 @@ func TestSaveToBatchWithWrongArgs(t *testing.T) {
 		wrongArgs,
 		uint64(batchTimestamp.Seconds),
 	)
-	require.ErrorContains(t, errSave, "incorrect number of arguments, found 2 but expected more than 5")
+	require.EqualError(t, errSave, "incorrect number of arguments: found 2 but expected 5: validate TxTestFnWithFiveArgsMethod")
 }
 
 // TestSaveToBatchWithSignedArgs - negative test with wrong Args in saveToBatch
@@ -236,8 +237,7 @@ func TestSaveToBatchWithWrongSignedArgs(t *testing.T) {
 		wrongArgs,
 		uint64(batchTimestamp.Seconds),
 	)
-	require.EqualError(t, err, "validate arguments. failed to convert arg value 'arg0' "+
-		"to type '<int64 Value>' on index '0': strconv.ParseInt: parsing \"arg0\": invalid syntax")
+	require.EqualError(t, err, "invalid argument value: 'arg0': for type 'int64': validate TxTestFnWithSignedTwoArgs, argument 1")
 }
 
 // TestSaveAndLoadToBatchWithWrongFnParameter - negative test with wrong Fn Name in saveToBatch

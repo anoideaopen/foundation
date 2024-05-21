@@ -8,7 +8,6 @@ import (
 
 	"github.com/anoideaopen/foundation/core/reflectx"
 	stringsx "github.com/anoideaopen/foundation/core/stringsx"
-	"github.com/anoideaopen/foundation/core/types"
 )
 
 var (
@@ -17,15 +16,6 @@ var (
 	ErrInvalidMethodName    = errors.New("invalid method name")
 )
 
-var allowedMethodPrefixes = []string{txPrefix, queryPrefix, noBatchPrefix}
-
-// In is a struct for input parameters
-type In struct {
-	kind          reflect.Type
-	prepareToSave reflect.Value
-	convertToCall reflect.Value
-}
-
 // Method is a struct for function
 type Method struct {
 	Name           string
@@ -33,8 +23,8 @@ type Method struct {
 	query          bool
 	noBatch        bool
 	needsAuth      bool
-	in             []In
 	hasOutputValue bool
+	in             int
 }
 
 func NewMethod(name string, of any) (*Method, error) {
@@ -44,22 +34,22 @@ func NewMethod(name string, of any) (*Method, error) {
 		query:          false,
 		noBatch:        false,
 		needsAuth:      false,
-		in:             []In{},
+		in:             0,
 		hasOutputValue: false,
 	}
 
 	switch {
-	case strings.HasPrefix(m.Name, txPrefix):
-		m.FunctionName = strings.TrimPrefix(m.Name, txPrefix)
+	case strings.HasPrefix(m.Name, batchedTransactionPrefix):
+		m.FunctionName = strings.TrimPrefix(m.Name, batchedTransactionPrefix)
 
-	case strings.HasPrefix(m.Name, noBatchPrefix):
+	case strings.HasPrefix(m.Name, transactionWithoutBatchPrefix):
 		m.noBatch = true
-		m.FunctionName = strings.TrimPrefix(m.Name, noBatchPrefix)
+		m.FunctionName = strings.TrimPrefix(m.Name, transactionWithoutBatchPrefix)
 
-	case strings.HasPrefix(m.Name, queryPrefix):
+	case strings.HasPrefix(m.Name, queryTransactionPrefix):
 		m.query = true
 		m.noBatch = true
-		m.FunctionName = strings.TrimPrefix(m.Name, queryPrefix)
+		m.FunctionName = strings.TrimPrefix(m.Name, queryTransactionPrefix)
 	default:
 		return nil, fmt.Errorf("%w: %s", ErrUnsupportedMethod, m.Name)
 	}
@@ -89,42 +79,12 @@ func (f *Method) parseInput(of any) error {
 		return fmt.Errorf("method '%s' not found", f.Name)
 	}
 
-	count := method.Type.NumIn()
-	begin := 1
+	f.in = method.Type.NumIn() - 1 // WTF? TODO: fix this
 	if method.Type.NumIn() > 1 && method.Type.In(1).String() == "*types.Sender" {
 		f.needsAuth = true
-		begin = 2
+		f.in--
 	}
-	f.in = make([]In, 0, count-1)
-	for j := begin; j < count; j++ {
-		inType := method.Type.In(j).String()
 
-		in := In{kind: method.Type.In(j)}
-
-		if m, ok := types.BaseTypes[inType]; ok {
-			r := reflect.ValueOf(m)
-			in.convertToCall = r
-			f.in = append(f.in, in)
-			continue
-		}
-
-		m, ok := method.Type.In(j).MethodByName("ConvertToCall")
-		if !ok {
-			return fmt.Errorf("unknown type: %s in method %s", method.Type.In(j).String(), method.Name)
-		}
-		if err := checkConvertationMethod(m, inType, "shim.ChaincodeStubInterface", "string", inType, "error"); err != nil {
-			return err
-		}
-		in.convertToCall = m.Func
-
-		if m, ok = method.Type.In(j).MethodByName("PrepareToSave"); ok {
-			if err := checkConvertationMethod(m, inType, "shim.ChaincodeStubInterface", "string", "string", "error"); err != nil {
-				return err
-			}
-			in.prepareToSave = m.Func
-		}
-		f.in = append(f.in, in)
-	}
 	return nil
 }
 
@@ -148,39 +108,6 @@ func (f *Method) parseOutput(of any) error {
 	}
 
 	return errors.New("unknown output types " + method.Name)
-}
-
-func checkConvertationMethod(method reflect.Method, in0, in1, in2, out0, out1 string) error {
-	tp := method.Type
-	if tp.In(0).String() != in0 || tp.In(1).String() != in1 ||
-		tp.In(2).String() != in2 || tp.Out(0).String() != out0 || //nolint:gomnd
-		tp.Out(1).String() != out1 {
-		return fmt.Errorf("method %s can not be convertor", method.Name)
-	}
-	return nil
-}
-
-// validateContractMethods checks contract has duplicated method names with funcPrefixes.
-func validateContractMethods(bci BaseContractInterface) error {
-	methods := reflectx.Methods(bci)
-
-	duplicates := make(map[string]struct{})
-	for _, method := range methods {
-		if !stringsx.HasPrefix(method, allowedMethodPrefixes...) {
-			continue
-		}
-
-		method = stringsx.TrimFirstPrefix(method, allowedMethodPrefixes...)
-		method = stringsx.LowerFirstChar(method)
-
-		if _, ok := duplicates[method]; ok {
-			return fmt.Errorf("%w, method: '%s'", ErrMethodAlreadyDefined, method)
-		}
-
-		duplicates[method] = struct{}{}
-	}
-
-	return nil
 }
 
 var (

@@ -14,6 +14,7 @@ import (
 
 	"github.com/anoideaopen/foundation/core/balance"
 	"github.com/anoideaopen/foundation/core/reflectx"
+	stringsx "github.com/anoideaopen/foundation/core/stringsx"
 	"github.com/anoideaopen/foundation/core/telemetry"
 	"github.com/anoideaopen/foundation/hlfcreator"
 	"github.com/anoideaopen/foundation/internal/config"
@@ -64,14 +65,12 @@ var (
 )
 
 const (
-	noBatchPrefix = "NBTx"
-	queryPrefix   = "Query"
-	txPrefix      = "Tx"
+	batchedTransactionPrefix      = "Tx"
+	transactionWithoutBatchPrefix = "NBTx"
+	queryTransactionPrefix        = "Query"
 )
 
 const (
-	CreateIndex          = "createIndex"
-	SetIndexCreatedFlag  = "setIndexCreatedFlag"
 	BatchExecute         = "batchExecute"
 	SwapDone             = "swapDone"
 	MultiSwapDone        = "multiSwapDone"
@@ -80,6 +79,7 @@ const (
 	CommitCCTransferFrom = "commitCCTransferFrom"
 	CancelCCTransferFrom = "cancelCCTransferFrom"
 	DeleteCCTransferFrom = "deleteCCTransferFrom"
+	CreateIndex          = "createIndex"
 )
 
 // TokenConfigurable is an interface that defines methods for validating, applying, and
@@ -147,7 +147,7 @@ type TLS struct {
 // chaincodeOptions is a structure that holds advanced options for configuring
 // a ChainCode instance.
 type chaincodeOptions struct {
-	SrcFs *embed.FS // SrcFs is a file system that contains the source files for the chaincode.
+	SrcFS *embed.FS // SrcFS is a file system that contains the source files for the chaincode.
 	TLS   *TLS      // TLS contains the TLS configuration for the chaincode.
 }
 
@@ -174,7 +174,7 @@ func (cc *ChainCode) Method(functionName string) (*Method, error) {
 // It returns a ChaincodeOption that sets the SrcFs field in the chaincodeOptions.
 func WithSrcFS(fs *embed.FS) ChaincodeOption {
 	return func(o *chaincodeOptions) error {
-		o.SrcFs = fs
+		o.SrcFS = fs
 		return nil
 	}
 }
@@ -344,7 +344,7 @@ func NewCC(
 	}
 
 	// Initialize the contract.
-	cc.setSrcFs(chOpts.SrcFs)
+	cc.setSrcFs(chOpts.SrcFS)
 
 	// Set up the ChainCode structure.
 	out := &ChainCode{
@@ -387,7 +387,7 @@ func (cc *ChainCode) Init(stub shim.ChaincodeStubInterface) peer.Response {
 		}
 	}
 
-	if err = validateContractMethods(cc.contract); err != nil {
+	if err = cc.checkForDuplicateContractMethods(); err != nil {
 		return shim.Error("init: validating contract methods: " + err.Error())
 	}
 
@@ -416,6 +416,35 @@ func (cc *ChainCode) Init(stub shim.ChaincodeStubInterface) peer.Response {
 	}
 
 	return shim.Success(nil)
+}
+
+// checkForDuplicateContractMethods checks if the contract has duplicated method names with the specified prefixes.
+func (cc *ChainCode) checkForDuplicateContractMethods() error {
+	allowedMethodPrefixes := []string{
+		batchedTransactionPrefix,
+		transactionWithoutBatchPrefix,
+		queryTransactionPrefix,
+	}
+
+	methods := reflectx.Methods(cc.contract)
+
+	duplicates := make(map[string]struct{})
+	for _, method := range methods {
+		if !stringsx.HasPrefix(method, allowedMethodPrefixes...) {
+			continue
+		}
+
+		method = stringsx.TrimFirstPrefix(method, allowedMethodPrefixes...)
+		method = stringsx.LowerFirstChar(method)
+
+		if _, ok := duplicates[method]; ok {
+			return fmt.Errorf("%w, method: '%s'", ErrMethodAlreadyDefined, method)
+		}
+
+		duplicates[method] = struct{}{}
+	}
+
+	return nil
 }
 
 // Invoke is called to update or query the ledger in a proposal transaction.
@@ -625,16 +654,21 @@ func (cc *ChainCode) BatchHandler(
 		span.SetStatus(codes.Error, "validating sender failed")
 		return shim.Error(err.Error())
 	}
-	span.AddEvent("prepare to save")
-	args, err = doPrepareToSave(stub, fn, args)
-	if err != nil {
-		span.SetStatus(codes.Error, "prepare to save failed")
+
+	argsToValidate := args
+	if fn.needsAuth {
+		argsToValidate = append([]string{sender.AddrString()}, args...)
+	}
+
+	span.AddEvent("validating arguments")
+	if err := reflectx.ValidateArguments(cc.contract, fn.Name, stub, argsToValidate...); err != nil {
+		span.SetStatus(codes.Error, "validating arguments failed")
 		return shim.Error(err.Error())
 	}
 
 	span.SetAttributes(attribute.String("preimage_tx_id", stub.GetTxID()))
 	span.AddEvent("save to batch")
-	if err = cc.saveToBatch(traceCtx, stub, funcName, fn, sender, args[:len(fn.in)], nonce); err != nil {
+	if err = cc.saveToBatch(traceCtx, stub, funcName, fn, sender, args[:fn.in], nonce); err != nil {
 		span.SetStatus(codes.Error, "save to batch failed")
 		return shim.Error(err.Error())
 	}
@@ -671,10 +705,16 @@ func (cc *ChainCode) noBatchHandler(
 		span.SetStatus(codes.Error, "validating sender failed")
 		return shim.Error(err.Error())
 	}
-	span.AddEvent("prepare to save")
-	args, err = doPrepareToSave(stub, fn, args)
-	if err != nil {
-		span.SetStatus(codes.Error, "prepare to save failed")
+
+	// TODO: remove duplicated code
+	argsToValidate := args
+	if fn.needsAuth {
+		argsToValidate = append([]string{sender.AddrString()}, args...)
+	}
+
+	span.AddEvent("validating arguments")
+	if err := reflectx.ValidateArguments(cc.contract, fn.Name, stub, argsToValidate...); err != nil {
+		span.SetStatus(codes.Error, "validating arguments failed")
 		return shim.Error(err.Error())
 	}
 
@@ -746,16 +786,18 @@ func (cc *ChainCode) callMethod(
 	traceCtx, span := cc.contract.TracingHandler().StartNewSpan(traceCtx, "chaincode.CallMethod")
 	defer span.End()
 
-	if sender != nil {
-		args = append([]string{sender.AddrString()}, args...) // prepend sender address
+	// TODO: remove duplicated code
+	argsToCall := args
+	if method.needsAuth {
+		argsToCall = append([]string{sender.AddrString()}, args...) // prepend sender address
 	}
-	span.SetAttributes(attribute.StringSlice("args", args))
+	span.SetAttributes(attribute.StringSlice("args", argsToCall))
 
 	span.AddEvent("copy contract")
 	v := copyContractWithConfig(traceCtx, cc.contract, stub, cfgBytes)
 
 	span.AddEvent("call")
-	result, err := reflectx.Call(v, method.Name, args...)
+	result, err := reflectx.Call(v, method.Name, argsToCall...)
 	if err != nil {
 		return nil, err
 	}
@@ -790,120 +832,6 @@ func (cc *ChainCode) callMethod(
 	}
 
 	return json.Marshal(result[0])
-}
-
-// doConvertToCall prepares the arguments for a chaincode method call by converting each
-// string argument to its expected Go type as defined in the method's 'in' field. It uses reflection
-// to dynamically convert arguments and checks if the number of provided arguments matches the expectation.
-//
-// It returns a slice of reflect.Value representing the converted arguments, and an error if
-// the conversion fails or if there is an incorrect number of arguments.
-func doConvertToCall(
-	stub shim.ChaincodeStubInterface,
-	method *Method,
-	args []string,
-) ([]reflect.Value, error) {
-	found := len(args)
-	expected := len(method.in)
-	if found < expected {
-		return nil, fmt.Errorf(
-			"incorrect number of arguments, found %d but expected more than %d",
-			found,
-			expected,
-		)
-	}
-	// todo check is args enough
-	vArgs := make([]reflect.Value, len(method.in))
-	for i := range method.in {
-		var impl reflect.Value
-		if method.in[i].kind.Kind().String() == "ptr" {
-			impl = reflect.New(method.in[i].kind.Elem())
-		} else {
-			impl = reflect.New(method.in[i].kind).Elem()
-		}
-
-		res := method.in[i].convertToCall.Call([]reflect.Value{
-			impl,
-			reflect.ValueOf(stub), reflect.ValueOf(args[i]),
-		})
-
-		if res[1].Interface() != nil {
-			err, ok := res[1].Interface().(error)
-			if !ok {
-				return nil, errors.New(requireInterfaceErrMsg)
-			}
-			return nil, fmt.Errorf(
-				"failed to convert arg value '%s' to type '%s' on index '%d': %w",
-				args[i], impl.String(), i, err,
-			)
-		}
-		vArgs[i] = res[0]
-	}
-	return vArgs, nil
-}
-
-// doPrepareToSave prepares the arguments for storage by ensuring they are in the correct format.
-// It checks if there are enough arguments and uses either a custom 'prepareToSave' or 'convertToCall'
-// method defined in the method's 'in' field for conversion. It returns the processed arguments as a
-// slice of strings, and an error if the conversion fails or if there is an incorrect number of arguments.
-func doPrepareToSave(
-	stub shim.ChaincodeStubInterface,
-	method *Method,
-	args []string,
-) ([]string, error) {
-	if len(args) < len(method.in) {
-		return nil, fmt.Errorf(
-			"incorrect number of arguments. current count of args is %d but expected more than %d",
-			len(args),
-			len(method.in),
-		)
-	}
-	as := make([]string, len(method.in))
-	for i := range method.in {
-		var impl reflect.Value
-		if method.in[i].kind.Kind().String() == "ptr" {
-			impl = reflect.New(method.in[i].kind.Elem())
-		} else {
-			impl = reflect.New(method.in[i].kind).Elem()
-		}
-
-		var ok bool
-		if method.in[i].prepareToSave.IsValid() {
-			res := method.in[i].prepareToSave.Call([]reflect.Value{
-				impl,
-				reflect.ValueOf(stub), reflect.ValueOf(args[i]),
-			})
-			if res[1].Interface() != nil {
-				err, ok := res[1].Interface().(error)
-				if !ok {
-					return nil, errors.New(requireInterfaceErrMsg)
-				}
-				return nil, err
-			}
-			as[i], ok = res[0].Interface().(string)
-			if !ok {
-				return nil, errors.New(requireInterfaceErrMsg)
-			}
-			continue
-		}
-
-		// if method PrepareToSave don't have exists
-		// use ConvertToCall to check converting
-		res := method.in[i].convertToCall.Call([]reflect.Value{
-			impl,
-			reflect.ValueOf(stub), reflect.ValueOf(args[i]),
-		})
-		if res[1].Interface() != nil {
-			err, ok := res[1].Interface().(error)
-			if !ok {
-				return nil, errors.New(requireInterfaceErrMsg)
-			}
-			return nil, err
-		}
-
-		as[i] = args[i] // in this case we don't convert argument
-	}
-	return as, nil
 }
 
 // copyContract creates a deep copy of a contract's interface. It uses reflection to copy each field

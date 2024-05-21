@@ -10,6 +10,7 @@ import (
 
 	"github.com/anoideaopen/foundation/core/cachestub"
 	"github.com/anoideaopen/foundation/core/multiswap"
+	"github.com/anoideaopen/foundation/core/reflectx"
 	"github.com/anoideaopen/foundation/core/swap"
 	"github.com/anoideaopen/foundation/core/telemetry"
 	"github.com/anoideaopen/foundation/core/types"
@@ -37,9 +38,13 @@ func (cc *ChainCode) saveToBatch(
 	logger := Logger()
 	txID := stub.GetTxID()
 
-	_, err := doConvertToCall(stub, fn, args)
-	if err != nil {
-		return fmt.Errorf("validate arguments. %w", err)
+	argsToValidate := args
+	if fn.needsAuth {
+		argsToValidate = append([]string{sender.AddrString()}, args...)
+	}
+
+	if err := reflectx.ValidateArguments(cc.contract, fn.Name, stub, argsToValidate...); err != nil {
+		return err
 	}
 
 	key, err := stub.CreateCompositeKey(config.BatchPrefix, []string{txID})

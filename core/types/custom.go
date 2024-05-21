@@ -65,22 +65,19 @@ func (a *Address) MarshalJSON() ([]byte, error) {
 	return json.Marshal(a.String())
 }
 
-// PrepareToSave checks if address is blacklisted
-func (a *Address) PrepareToSave(stub shim.ChaincodeStubInterface, in string) (string, error) {
-	accInfo, err := helpers.GetAccountInfo(stub, in)
+// Validate checks if the address is blacklisted by querying the account
+// information from the provided ChaincodeStubInterface.
+func (a *Address) Validate(stub shim.ChaincodeStubInterface) error {
+	accInfo, err := helpers.GetAccountInfo(stub, a.String())
 	if err != nil {
-		return "", err
+		return err
 	}
-	if accInfo.GetBlackListed() {
-		return "", fmt.Errorf("address %s is blacklisted", in)
-	}
-	return in, nil
-}
 
-// ConvertToCall converts string to address
-func (a *Address) ConvertToCall(_ shim.ChaincodeStubInterface, in string) (*Address, error) { // stub
-	// only this called in batch
-	return AddrFromBase58Check(in)
+	if accInfo.GetBlackListed() {
+		return fmt.Errorf("address %s is blacklisted", a.String())
+	}
+
+	return nil
 }
 
 // UnmarshalJSON unmarshals address from json
@@ -162,12 +159,6 @@ func (h *Hex) UnmarshalText(text []byte) error {
 	return nil
 }
 
-// ConvertToCall converts string to hex
-func (h Hex) ConvertToCall(_ shim.ChaincodeStubInterface, in string) (Hex, error) { // stub
-	value, err := hex.DecodeString(in)
-	return value, err
-}
-
 // MultiSwapAssets is a wrapper for asset
 type MultiSwapAssets struct {
 	Assets []*MultiSwapAsset
@@ -201,16 +192,6 @@ func ConvertToAsset(in []*MultiSwapAsset) ([]*pb.Asset, error) {
 		assets = append(assets, &asset)
 	}
 
-	return assets, nil
-}
-
-// ConvertToCall converts string to MultiSwapAssets
-func (n MultiSwapAssets) ConvertToCall(_ shim.ChaincodeStubInterface, in string) (MultiSwapAssets, error) { // stub
-	assets := MultiSwapAssets{}
-	err := json.Unmarshal([]byte(in), &assets)
-	if err != nil {
-		return assets, err
-	}
 	return assets, nil
 }
 

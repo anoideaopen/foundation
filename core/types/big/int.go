@@ -1,8 +1,11 @@
 package big
 
 import (
+	"errors"
 	"math/big"
 	"math/rand"
+
+	"github.com/hyperledger/fabric-chaincode-go/shim"
 )
 
 // Int steams math/big/Int with custom Marshall Unmarshall methods,
@@ -11,6 +14,15 @@ import (
 // Added for nodejs-backend to work with large numbers.
 type Int struct {
 	big.Int
+}
+
+// Validate checks if the Int value is negative and returns an error if it is.
+func (z *Int) Validate(_ shim.ChaincodeStubInterface) error {
+	if z.Int.Sign() < 0 {
+		return errors.New("negative number")
+	}
+
+	return nil
 }
 
 // SetInt64 sets z to x and returns z.

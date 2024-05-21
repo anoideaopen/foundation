@@ -29,7 +29,7 @@ type disabledFnContract struct {
 	core.BaseContract
 }
 
-func (*disabledFnContract) TxTestFunction() error {
+func (*disabledFnContract) TxTestFunction(_ *types.Sender) error {
 	return nil
 }
 

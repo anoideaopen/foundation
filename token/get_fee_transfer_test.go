@@ -66,7 +66,7 @@ func TestBaseToken_QueryGetFeeTransfer(t *testing.T) {
 			want:           nil,
 			wantErr:        require.NoError,
 			wantRespStatus: shim.ERROR,
-			wantRespMsg:    "failed to validate fee transfer request argument: recipient address can't be empty",
+			wantRespMsg:    "validation failed: 'recipient address can't be empty'",
 		},
 		{
 			name: "sender is empty",
@@ -83,7 +83,7 @@ func TestBaseToken_QueryGetFeeTransfer(t *testing.T) {
 			want:           nil,
 			wantErr:        require.NoError,
 			wantRespStatus: shim.ERROR,
-			wantRespMsg:    "failed to validate fee transfer request argument: sender address can't be empty",
+			wantRespMsg:    "validation failed: 'sender address can't be empty'",
 		},
 		{
 			name: "amount is empty",
@@ -100,7 +100,7 @@ func TestBaseToken_QueryGetFeeTransfer(t *testing.T) {
 			want:           nil,
 			wantErr:        require.NoError,
 			wantRespStatus: shim.ERROR,
-			wantRespMsg:    "failed to validate fee transfer request argument: amount must be non-negative",
+			wantRespMsg:    "validation failed: 'amount must be non-negative'",
 		},
 	}
 	for testNumber, tt := range tests {
@@ -129,7 +129,7 @@ func TestBaseToken_QueryGetFeeTransfer(t *testing.T) {
 			tt.wantErr(t, err, fmt.Sprintf("QueryGetFeeTransfer(%v, %v, %v)", tt.args.chaincodeArgs.SenderAddress, tt.args.chaincodeArgs.RecipientAddress, tt.args.chaincodeArgs.Amount))
 
 			require.Equal(t, tt.wantRespStatus, resp.Status)
-			require.Equal(t, tt.wantRespMsg, resp.Message)
+			require.Contains(t, resp.Message, tt.wantRespMsg)
 
 			if tt.want != nil {
 				feeTransferRespDTO := FeeTransferResponseDTO{}

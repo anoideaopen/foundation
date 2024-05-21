@@ -1,7 +1,6 @@
 package token
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -16,16 +15,7 @@ type FeeTransferRequestDTO struct {
 	Amount           *big.Int       `json:"amount,omitempty"`
 }
 
-func (r FeeTransferRequestDTO) ConvertToCall(_ shim.ChaincodeStubInterface, in string) (FeeTransferRequestDTO, error) {
-	dto := FeeTransferRequestDTO{}
-	err := json.Unmarshal([]byte(in), &dto)
-	if err != nil {
-		return dto, fmt.Errorf("failed unmarshal fee transfer request dto %w", err)
-	}
-	return dto, nil
-}
-
-func (r FeeTransferRequestDTO) Validate() error {
+func (r FeeTransferRequestDTO) Validate(_ shim.ChaincodeStubInterface) error {
 	if r.SenderAddress == nil || r.SenderAddress.String() == "" {
 		return errors.New("sender address can't be empty")
 	}
@@ -45,10 +35,6 @@ type FeeTransferResponseDTO struct {
 }
 
 func (bt *BaseToken) QueryGetFeeTransfer(req FeeTransferRequestDTO) (*FeeTransferResponseDTO, error) {
-	if err := req.Validate(); err != nil {
-		return nil, fmt.Errorf("failed to validate fee transfer request argument: %w", err)
-	}
-
 	if err := bt.loadConfigUnlessLoaded(); err != nil {
 		return nil, fmt.Errorf("failed to load config: %w", err)
 	}

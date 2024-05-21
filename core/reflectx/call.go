@@ -1,23 +1,16 @@
 package reflectx
 
 import (
-	"encoding"
-	"encoding/gob"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
-
-	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/proto"
 )
 
 // Error types.
 var (
-	ErrIncorrectArgumentCount  = errors.New("incorrect number of arguments")
-	ErrInvalidArgumentValue    = errors.New("invalid argument value")
-	ErrMethodNotFound          = errors.New("method not found")
-	ErrUnsupportedArgumentType = errors.New("unsupported argument type")
+	ErrIncorrectArgumentCount = errors.New("incorrect number of arguments")
+	ErrInvalidArgumentValue   = errors.New("invalid argument value")
+	ErrMethodNotFound         = errors.New("method not found")
 )
 
 // Call invokes a specified method on a given value using reflection. The method to be invoked is identified by its name.
@@ -88,7 +81,7 @@ func Call(v any, method string, args ...string) ([]any, error) {
 	)
 	for i, arg := range args {
 		if in[i], err = valueOf(arg, methodType.In(i)); err != nil {
-			return nil, fmt.Errorf("%w: call %s", err, method)
+			return nil, fmt.Errorf("%w: call %s, argument %d", err, method, i)
 		}
 	}
 
@@ -98,86 +91,4 @@ func Call(v any, method string, args ...string) ([]any, error) {
 	}
 
 	return output, nil
-}
-
-func valueOf(s string, t reflect.Type) (reflect.Value, error) {
-	var (
-		argRaw     = []byte(s)
-		argType    = t
-		argPointer = t.Kind() == reflect.Pointer
-	)
-
-	// If the type is a pointer, create a new instance of the element type
-	// and assign it to the pointer. Otherwise, create a new instance of the
-	// type and assign it to the element of the newly created pointer.
-	// This is necessary because we can't call json.Unmarshal directly on a
-	// pointer.
-	var (
-		argValue reflect.Value
-		outValue reflect.Value
-	)
-	if argPointer {
-		argValue = reflect.New(t.Elem()) // create a new instance of the element type
-		outValue = argValue              // assign the pointer to the return value
-	} else {
-		argValue = reflect.New(t)  // create a new instance of the type
-		outValue = argValue.Elem() // assign the element of the pointer to the return value
-	}
-
-	// Trying to check if the argument type is a string or *string.
-	switch {
-	case argType.Kind() == reflect.String:
-		outValue.SetString(string(argRaw))
-		return outValue, nil
-
-	case argPointer && argType.Elem().Kind() == reflect.String:
-		argValue.Elem().SetString(string(argRaw))
-		return outValue, nil
-	}
-
-	argInterface := argValue.Interface()
-
-	// Check if the argument is a valid json string.
-	if json.Valid(argRaw) {
-		var err error
-		if protoMessage, ok := argInterface.(proto.Message); ok {
-			err = protojson.Unmarshal(argRaw, protoMessage)
-		} else {
-			err = json.Unmarshal(argRaw, argInterface)
-		}
-		if err == nil {
-			return outValue, nil
-		}
-	}
-
-	// Trying to use the encoding.TextUnmarshaler interface.
-	if unmarshaler, ok := argInterface.(encoding.TextUnmarshaler); ok {
-		if err := unmarshaler.UnmarshalText(argRaw); err == nil {
-			return outValue, nil
-		}
-	}
-
-	// Trying to use the proto.Message interface.
-	if protoMessage, ok := argInterface.(proto.Message); ok {
-		if err := proto.Unmarshal(argRaw, protoMessage); err == nil {
-			return outValue, nil
-		}
-	}
-
-	// Trying to use the encoding.BinaryUnmarshaler interface.
-	if unmarshaler, ok := argInterface.(encoding.BinaryUnmarshaler); ok {
-		if err := unmarshaler.UnmarshalBinary(argRaw); err == nil {
-			return outValue, nil
-		}
-	}
-
-	// Trying to use the gob.GobDecoder interface.
-	if decoder, ok := argInterface.(gob.GobDecoder); ok {
-		if err := decoder.GobDecode(argRaw); err == nil {
-			return outValue, nil
-		}
-	}
-
-	// Unsupported type.
-	return outValue, fmt.Errorf("%w: type %s", ErrUnsupportedArgumentType, argType.String())
 }
