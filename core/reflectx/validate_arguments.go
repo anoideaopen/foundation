@@ -57,7 +57,14 @@ func ValidateArguments(v any, method string, stub shim.ChaincodeStubInterface, a
 
 		if validator, ok := value.Interface().(Validator); ok {
 			if err := validator.Validate(stub); err != nil {
-				return fmt.Errorf("%w: '%s': validation failed: '%v': validate %s, argument %d", ErrInvalidArgumentValue, arg, err, method, i)
+				return fmt.Errorf(
+					"%w: '%s': validation failed: '%v': validate %s, argument %d",
+					ErrInvalidArgumentValue,
+					arg,
+					err.Error(),
+					method,
+					i,
+				)
 			}
 		}
 	}
