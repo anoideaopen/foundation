@@ -61,7 +61,7 @@ func Answer(stub *cachestub.BatchCacheStub, swap *proto.MultiSwap, robotSideTime
 		// nothing to do
 	case swap.GetToken() == swap.GetTo():
 		for _, asset := range swap.GetAssets() {
-			if err = balance.Sub(txStub, balance.BalanceTypeGiven, swap.GetFrom(), "", new(mathbig.Int).SetBytes(asset.GetAmount())); err != nil {
+			if err = balance.Sub(txStub, balance.BalanceTypeGiven, strings.ToUpper(swap.GetFrom()), "", new(mathbig.Int).SetBytes(asset.GetAmount())); err != nil {
 				return &proto.SwapResponse{Id: swap.GetId(), Error: &proto.ResponseError{Error: err.Error()}}
 			}
 		}
@@ -96,7 +96,7 @@ func RobotDone(stub *cachestub.BatchCacheStub, swapID []byte, key string) (r *pr
 
 	if swap.GetToken() == swap.GetFrom() {
 		for _, asset := range swap.GetAssets() {
-			if err = balance.Add(txStub, balance.BalanceTypeGiven, swap.GetTo(), "", new(mathbig.Int).SetBytes(asset.GetAmount())); err != nil {
+			if err = balance.Add(txStub, balance.BalanceTypeGiven, strings.ToUpper(swap.GetTo()), "", new(mathbig.Int).SetBytes(asset.GetAmount())); err != nil {
 				return &proto.SwapResponse{Id: swapID, Error: &proto.ResponseError{Error: err.Error()}}
 			}
 		}

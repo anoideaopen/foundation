@@ -362,7 +362,7 @@ func (bc *BaseContract) ccTransferChangeBalance( //nolint:gocognit
 				return err
 			}
 
-			if err = balance.Add(bc.GetStub(), balance.BalanceTypeGiven, to, "", &amount.Int); err != nil {
+			if err = balance.Add(bc.GetStub(), balance.BalanceTypeGiven, strings.ToUpper(to), "", &amount.Int); err != nil {
 				return err
 			}
 		} else {
@@ -379,7 +379,7 @@ func (bc *BaseContract) ccTransferChangeBalance( //nolint:gocognit
 			if err = bc.TokenBalanceAddWithTicker(user, amount, token, reason); err != nil {
 				return err
 			}
-			if err = balance.Sub(bc.GetStub(), balance.BalanceTypeGiven, from, "", &amount.Int); err != nil {
+			if err = balance.Sub(bc.GetStub(), balance.BalanceTypeGiven, strings.ToUpper(from), "", &amount.Int); err != nil {
 				return err
 			}
 		}
@@ -388,7 +388,7 @@ func (bc *BaseContract) ccTransferChangeBalance( //nolint:gocognit
 			if err = bc.TokenBalanceAddWithTicker(user, amount, token, reason); err != nil {
 				return err
 			}
-			if err = balance.Sub(bc.GetStub(), balance.BalanceTypeGiven, to, "", &amount.Int); err != nil {
+			if err = balance.Sub(bc.GetStub(), balance.BalanceTypeGiven, strings.ToUpper(to), "", &amount.Int); err != nil {
 				return err
 			}
 		} else {

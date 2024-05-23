@@ -57,7 +57,7 @@ func CreateIndex(
 			return err
 		}
 
-		if err := stub.PutState(inverseCompositeKey, balance); err != nil {
+		if err = stub.PutState(inverseCompositeKey, balance); err != nil {
 			return err
 		}
 	}

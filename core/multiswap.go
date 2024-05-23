@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	mathbig "math/big"
+	"strings"
 
 	"github.com/anoideaopen/foundation/core/balance"
 	"github.com/anoideaopen/foundation/core/cachestub"
@@ -139,7 +140,7 @@ func (bc *BaseContract) TxMultiSwapCancel(sender *types.Sender, swapID string) e
 		}
 	case bytes.Equal(swap.GetCreator(), []byte("0000")) && swap.GetToken() == swap.GetTo():
 		for _, asset := range swap.GetAssets() {
-			if err = balance.Add(bc.GetStub(), balance.BalanceTypeGiven, swap.GetFrom(), "", new(mathbig.Int).SetBytes(asset.GetAmount())); err != nil {
+			if err = balance.Add(bc.GetStub(), balance.BalanceTypeGiven, strings.ToUpper(swap.GetFrom()), "", new(mathbig.Int).SetBytes(asset.GetAmount())); err != nil {
 				return err
 			}
 		}

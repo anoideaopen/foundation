@@ -60,7 +60,7 @@ func Answer(stub *cachestub.BatchCacheStub, swap *proto.Swap, robotSideTimeout i
 	case swap.TokenSymbol() == swap.GetFrom():
 		// nothing to do
 	case swap.TokenSymbol() == swap.GetTo():
-		if err = balance.Sub(txStub, balance.BalanceTypeGiven, swap.GetFrom(), "", new(mathbig.Int).SetBytes(swap.GetAmount())); err != nil {
+		if err = balance.Sub(txStub, balance.BalanceTypeGiven, strings.ToUpper(swap.GetFrom()), "", new(mathbig.Int).SetBytes(swap.GetAmount())); err != nil {
 			return &proto.SwapResponse{Id: swap.GetId(), Error: &proto.ResponseError{Error: err.Error()}}
 		}
 	default:
@@ -93,7 +93,7 @@ func RobotDone(stub *cachestub.BatchCacheStub, swapID []byte, key string) (r *pr
 	}
 
 	if s.TokenSymbol() == s.GetFrom() {
-		if err = balance.Add(txStub, balance.BalanceTypeGiven, s.GetTo(), "", new(mathbig.Int).SetBytes(s.GetAmount())); err != nil {
+		if err = balance.Add(txStub, balance.BalanceTypeGiven, strings.ToUpper(s.GetTo()), "", new(mathbig.Int).SetBytes(s.GetAmount())); err != nil {
 			return &proto.SwapResponse{Id: swapID, Error: &proto.ResponseError{Error: err.Error()}}
 		}
 	}

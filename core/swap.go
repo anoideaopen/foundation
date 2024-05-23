@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	mathbig "math/big"
+	"strings"
 
 	"github.com/anoideaopen/foundation/core/balance"
 	"github.com/anoideaopen/foundation/core/cachestub"
@@ -140,7 +141,7 @@ func (bc *BaseContract) TxSwapCancel(_ *types.Sender, swapID string) error { // 
 			return err
 		}
 	case bytes.Equal(s.GetCreator(), []byte("0000")) && s.TokenSymbol() == s.GetTo():
-		if err = balance.Add(bc.GetStub(), balance.BalanceTypeGiven, s.GetFrom(), "", new(mathbig.Int).SetBytes(s.GetAmount())); err != nil {
+		if err = balance.Add(bc.GetStub(), balance.BalanceTypeGiven, strings.ToUpper(s.GetFrom()), "", new(mathbig.Int).SetBytes(s.GetAmount())); err != nil {
 			return err
 		}
 	}
