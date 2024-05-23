@@ -28,7 +28,7 @@ const (
 //
 // Returns a shim.Success response if the swap done logic executes successfully.
 // Otherwise, it returns a shim.Error response.
-func (cc *ChainCode) swapDoneHandler(
+func (cc *Chaincode) swapDoneHandler(
 	traceCtx telemetry.TraceContext,
 	stub shim.ChaincodeStubInterface,
 	args []string,
@@ -38,12 +38,7 @@ func (cc *ChainCode) swapDoneHandler(
 		return shim.Error("handling swap done failed, " + ErrSwapDisabled.Error())
 	}
 
-	contract, ok := copyContractWithConfig(traceCtx, cc.contract, stub, cfgBytes).(BaseContractInterface)
-	if !ok {
-		return shim.Error("unsupported contract type")
-	}
-
-	return swap.UserDone(contract, args[0], args[1])
+	return swap.UserDone(cc.contract, args[0], args[1])
 }
 
 // QuerySwapGet returns swap by id

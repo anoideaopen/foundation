@@ -8,6 +8,7 @@ import (
 
 	"github.com/anoideaopen/foundation/core/gost"
 	"github.com/anoideaopen/foundation/core/helpers"
+	"github.com/anoideaopen/foundation/core/routing"
 	"github.com/anoideaopen/foundation/core/types"
 	pb "github.com/anoideaopen/foundation/proto"
 	"github.com/btcsuite/btcutil/base58"
@@ -27,32 +28,16 @@ type invocationDetails struct {
 	signersCount     int
 }
 
-// validateAndExtractInvocationContext verifies authorization and extracts the context of the chincode method call.
-// This function makes sure that the number of arguments matches the expected number of arguments,
-// verifies that the chancode name and channel match, authenticates signatures,
-// updates the address if necessary, and verifies the nonce.
-// Returns the user's address, a list of method arguments and nonce if successful, or an error.
-//
-// Parameters:
-//   - stub - interface to interact with the blockchain.
-//   - fnMetadata - metadata of the called method.
-//   - fn - name of the called method.
-//   - args - arguments of the call.
-//
-// Return values:
-//   - User address, method call arguments, nonce and error, if any.
-func (cc *ChainCode) validateAndExtractInvocationContext(
+func (cc *Chaincode) validateAndExtractInvocationContext(
 	stub shim.ChaincodeStubInterface,
-	fnMetadata *Method,
-	fn string,
+	endpoint routing.Endpoint,
 	args []string,
 ) (sender *pb.Address, invocationArgs []string, nonce uint64, err error) {
-	// If authorization is not required, return the arguments unchanged.
-	if !fnMetadata.needsAuth {
+	if endpoint.Type != routing.EndpointTypeTransaction {
 		return nil, args, 0, nil
 	}
 
-	invocationDetails, err := parseInvocationDetails(fnMetadata, args)
+	invocationDetails, err := parseInvocationDetails(endpoint, args)
 	if err != nil {
 		return nil, nil, 0, err
 	}
@@ -86,7 +71,7 @@ func (cc *ChainCode) validateAndExtractInvocationContext(
 
 	// Form a message to verify the signature.
 	var (
-		message = []byte(fn + strings.Join(args[:len(args)-invocationDetails.signersCount], ""))
+		message = []byte(endpoint.ChaincodeFunc + strings.Join(args[:len(args)-invocationDetails.signersCount], ""))
 
 		digestSHA3 []byte
 		digestGOST []byte
@@ -144,7 +129,7 @@ func (cc *ChainCode) validateAndExtractInvocationContext(
 	}
 
 	// Return the signer's address, method arguments, and nonce.
-	return acl.GetAddress().GetAddress(), args[3 : 3+fnMetadata.in], nonce, nil
+	return acl.GetAddress().GetAddress(), args[3 : 3+endpoint.NumArgs], nonce, nil
 }
 
 func checkACLSignerStatus(stub shim.ChaincodeStubInterface, signers []string) (*pb.AclResponse, error) {
@@ -167,13 +152,13 @@ func checkACLSignerStatus(stub shim.ChaincodeStubInterface, signers []string) (*
 }
 
 func parseInvocationDetails(
-	fnMetadata *Method,
+	endpoint routing.Endpoint,
 	args []string,
 ) (*invocationDetails, error) {
 	// Calculating the positions of arguments in an array.
 	var (
-		expectedArgsCount = fnMetadata.in + 4 // +4 for reqId, cc, ch, nonce
-		authArgsStartPos  = expectedArgsCount // Authorization arguments start position
+		expectedArgsCount = endpoint.NumArgs + 4 // +4 for reqId, cc, ch, nonce
+		authArgsStartPos  = expectedArgsCount    // Authorization arguments start position
 	)
 
 	// We check that the number of arguments is not less than expected.

@@ -3,14 +3,14 @@ package industrialtoken
 import (
 	"fmt"
 
-	"github.com/anoideaopen/foundation/core"
+	"github.com/anoideaopen/foundation/core/config"
 	"github.com/anoideaopen/foundation/proto"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
-var _ core.ExternalConfigurable = &IndustrialToken{}
+var _ config.ExternalConfigurable = &IndustrialToken{}
 
-func (it *IndustrialToken) ValidateExtConfig(cfgBytes []byte) error {
+func (it *IndustrialToken) ValidateExternalConfig(cfgBytes []byte) error {
 	var (
 		ec      ExtConfig
 		cfgFull proto.Config
@@ -33,7 +33,7 @@ func (it *IndustrialToken) ValidateExtConfig(cfgBytes []byte) error {
 	return nil
 }
 
-func (it *IndustrialToken) ApplyExtConfig(cfgBytes []byte) error {
+func (it *IndustrialToken) ApplyExternalConfig(cfgBytes []byte) error {
 	var (
 		ec      ExtConfig
 		cfgFull proto.Config

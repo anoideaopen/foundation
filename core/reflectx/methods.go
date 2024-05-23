@@ -27,3 +27,16 @@ func Methods(v any) []string {
 
 	return methodNames
 }
+
+// TODO: Add description and tests.
+func InOut(v any, method string) (in int, out int) {
+	inputVal := reflect.ValueOf(v)
+
+	methodVal := inputVal.MethodByName(method)
+	if !methodVal.IsValid() {
+		return -1, -1
+	}
+
+	methodType := methodVal.Type()
+	return methodType.NumIn(), methodType.NumOut()
+}

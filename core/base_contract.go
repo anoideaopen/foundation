@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strconv"
 
+	"github.com/anoideaopen/foundation/core/config"
 	"github.com/anoideaopen/foundation/core/telemetry"
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/core/types/big"
@@ -58,7 +59,7 @@ func (bc *BaseContract) GetMethods(bci BaseContractInterface) []string {
 	return methods
 }
 
-func (bc *BaseContract) setStub(stub shim.ChaincodeStubInterface) {
+func (bc *BaseContract) SetStub(stub shim.ChaincodeStubInterface) {
 	bc.stub = stub
 	bc.noncePrefix = StateKeyNonce
 }
@@ -211,7 +212,7 @@ func (bc *BaseContract) GetID() string {
 	return bc.config.GetSymbol()
 }
 
-func (bc *BaseContract) ValidateConfig(config []byte) error {
+func (bc *BaseContract) ValidateContractConfig(config []byte) error {
 	var cfg pb.Config
 	if err := protojson.Unmarshal(config, &cfg); err != nil {
 		return fmt.Errorf("unmarshalling base config data failed: %w", err)
@@ -288,12 +289,12 @@ type BaseContractInterface interface { //nolint:interfacebloat
 	// Bad practice. Can only be used to embed the necessary structure
 	// and no more. Needs refactoring in the future.
 
-	setStub(stub shim.ChaincodeStubInterface)
 	setSrcFs(*embed.FS)
 	tokenBalanceAdd(address *types.Address, amount *big.Int, token string) error
 
 	// ------------------------------------------------------------------
 
+	SetStub(stub shim.ChaincodeStubInterface)
 	GetStub() shim.ChaincodeStubInterface
 	GetID() string
 
@@ -328,11 +329,5 @@ type BaseContractInterface interface { //nolint:interfacebloat
 	setTracingHandler(th *telemetry.TracingHandler)
 	TracingHandler() *telemetry.TracingHandler
 
-	ContractConfigurable
-}
-
-type ContractConfigurable interface {
-	ValidateConfig(config []byte) error
-	ApplyContractConfig(config *pb.ContractConfig) error
-	ContractConfig() *pb.ContractConfig
+	config.ContractConfigurable
 }

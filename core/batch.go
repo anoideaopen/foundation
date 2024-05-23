@@ -10,7 +10,7 @@ import (
 
 	"github.com/anoideaopen/foundation/core/cachestub"
 	"github.com/anoideaopen/foundation/core/multiswap"
-	"github.com/anoideaopen/foundation/core/reflectx"
+	"github.com/anoideaopen/foundation/core/routing"
 	"github.com/anoideaopen/foundation/core/swap"
 	"github.com/anoideaopen/foundation/core/telemetry"
 	"github.com/anoideaopen/foundation/core/types"
@@ -26,26 +26,16 @@ import (
 
 const robotSideTimeout = 300 // 5 minutes
 
-func (cc *ChainCode) saveToBatch(
+func (cc *Chaincode) saveToBatch(
 	traceCtx telemetry.TraceContext,
 	stub shim.ChaincodeStubInterface,
-	funcName string,
-	fn *Method,
+	endpoint routing.Endpoint,
 	sender *proto.Address,
 	args []string,
 	nonce uint64,
 ) error {
 	logger := Logger()
 	txID := stub.GetTxID()
-
-	argsToValidate := args
-	if fn.needsAuth {
-		argsToValidate = append([]string{sender.AddrString()}, args...)
-	}
-
-	if err := reflectx.ValidateArguments(cc.contract, fn.Name, stub, argsToValidate...); err != nil {
-		return err
-	}
 
 	key, err := stub.CreateCompositeKey(config.BatchPrefix, []string{txID})
 	if err != nil {
@@ -60,7 +50,7 @@ func (cc *ChainCode) saveToBatch(
 	}
 
 	pending := &proto.PendingTx{
-		Method:    funcName,
+		Method:    endpoint.ChaincodeFunc,
 		Sender:    sender,
 		Args:      args,
 		Timestamp: txTimestamp.GetSeconds(),
@@ -93,7 +83,7 @@ func (cc *ChainCode) saveToBatch(
 	return stub.PutState(key, data)
 }
 
-func (cc *ChainCode) loadFromBatch(
+func (cc *Chaincode) loadFromBatch(
 	stub shim.ChaincodeStubInterface,
 	txID string,
 ) (*proto.PendingTx, string, error) {
@@ -126,13 +116,13 @@ func (cc *ChainCode) loadFromBatch(
 		return nil, key, err
 	}
 
-	method, err := cc.Method(pending.GetMethod())
+	endpoint, err := cc.router.Endpoint(pending.GetMethod())
 	if err != nil {
 		logger.Errorf("unknown method %s in tx %s", pending.GetMethod(), txID)
 		return pending, key, fmt.Errorf("unknown method %s in tx %s", pending.GetMethod(), txID)
 	}
 
-	if !method.needsAuth {
+	if endpoint.Type != routing.EndpointTypeTransaction {
 		return pending, key, nil
 	}
 
@@ -151,11 +141,10 @@ func (cc *ChainCode) loadFromBatch(
 }
 
 //nolint:funlen
-func (cc *ChainCode) batchExecute(
+func (cc *Chaincode) batchExecute(
 	traceCtx telemetry.TraceContext,
 	stub shim.ChaincodeStubInterface,
 	dataIn string,
-	cfgBytes []byte,
 ) peer.Response {
 	traceCtx, span := cc.contract.TracingHandler().StartNewSpan(traceCtx, BatchExecute)
 	defer span.End()
@@ -180,7 +169,7 @@ func (cc *ChainCode) batchExecute(
 	ids := make([]string, 0, len(batch.GetTxIDs()))
 	for _, txID := range batch.GetTxIDs() {
 		ids = append(ids, hex.EncodeToString(txID))
-		resp, event := cc.batchedTxExecute(traceCtx, btchStub, txID, cfgBytes)
+		resp, event := cc.batchedTxExecute(traceCtx, btchStub, txID)
 		response.TxResponses = append(response.TxResponses, resp)
 		events.Events = append(events.Events, event)
 	}
@@ -249,11 +238,10 @@ type TxResponse struct {
 	Accounting []*proto.AccountingRecord `json:"accounting"`
 }
 
-func (cc *ChainCode) batchedTxExecute(
+func (cc *Chaincode) batchedTxExecute(
 	traceCtx telemetry.TraceContext,
 	stub *cachestub.BatchCacheStub,
 	binaryTxID []byte,
-	cfgBytes []byte,
 ) (r *proto.TxResponse, e *proto.BatchTxEvent) {
 	traceCtx, span := cc.contract.TracingHandler().StartNewSpan(traceCtx, "batchTxExecute")
 	defer span.End()
@@ -310,7 +298,7 @@ func (cc *ChainCode) batchedTxExecute(
 	}
 
 	txStub := stub.NewTxCacheStub(txID)
-	method, err := cc.Method(pending.GetMethod())
+	endpoint, err := cc.router.Endpoint(pending.GetMethod())
 	if err != nil {
 		msg := fmt.Sprintf("parsing method '%s' in tx '%s': %s", pending.GetMethod(), txID, err.Error())
 		span.SetStatus(codes.Error, msg)
@@ -341,7 +329,7 @@ func (cc *ChainCode) batchedTxExecute(
 	}
 
 	span.AddEvent("calling method")
-	response, err := cc.callMethod(traceCtx, txStub, method, pending.GetSender(), pending.GetArgs(), cfgBytes)
+	response, err := cc.callEndpoint(traceCtx, txStub, endpoint, pending.GetArgs())
 	if err != nil {
 		_ = stub.ChaincodeStubInterface.DelState(key)
 		ee := proto.ResponseError{Error: err.Error()}

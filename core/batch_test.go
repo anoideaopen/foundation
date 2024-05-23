@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/anoideaopen/foundation/core/cachestub"
+	"github.com/anoideaopen/foundation/core/config"
 	"github.com/anoideaopen/foundation/core/telemetry"
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/mock/stub"
@@ -74,62 +75,6 @@ type serieBatches struct {
 	timestamp *timestamp.Timestamp
 }
 
-// TestSaveToBatchWithWrongArgs - negative test with wrong Args in saveToBatch
-func TestSaveToBatchWithWrongArgs(t *testing.T) {
-	t.Parallel()
-
-	s := &serieBatches{
-		FnName:    testFnWithFiveArgsMethod,
-		testID:    testEncodedTxID,
-		errorMsg:  "",
-		timestamp: createUtcTimestamp(),
-	}
-
-	wrongArgs := []string{"arg0", "arg1"}
-	chainCode, errChainCode := NewCC(&testBatchContract{})
-	require.NoError(t, errChainCode)
-
-	mockStub := stub.NewMockStub(testChaincodeName, chainCode)
-
-	cfgEtl := &proto.Config{
-		Contract: &proto.ContractConfig{
-			Symbol:   "CC",
-			RobotSKI: fixtures_test.RobotHashedCert,
-		},
-	}
-	config, _ := protojson.Marshal(cfgEtl)
-
-	idBytes := [16]byte(uuid.New())
-	mockStub.MockInit(hex.EncodeToString(idBytes[:]), [][]byte{config})
-
-	err := applyConfig(chainCode.contract, mockStub, config)
-	require.NoError(t, err)
-
-	mockStub.TxID = testEncodedTxID
-	mockStub.MockTransactionStart(testEncodedTxID)
-	mockStub.TxTimestamp = s.timestamp
-
-	batchTimestamp, err := mockStub.GetTxTimestamp()
-	require.NoError(t, err)
-
-	chainCode.methods, err = parseContractMethods(chainCode.contract)
-	require.NoError(t, err)
-
-	fn, err := chainCode.Method(s.FnName)
-	require.NoError(t, err)
-
-	errSave := chainCode.saveToBatch(
-		telemetry.TraceContext{},
-		mockStub,
-		s.FnName,
-		fn,
-		sender,
-		wrongArgs,
-		uint64(batchTimestamp.Seconds),
-	)
-	require.EqualError(t, errSave, "incorrect number of arguments: found 2 but expected 5: validate TxTestFnWithFiveArgsMethod")
-}
-
 // TestSaveToBatchWithSignedArgs - negative test with wrong Args in saveToBatch
 func TestSaveToBatchWithSignedArgs(t *testing.T) {
 	t.Parallel()
@@ -151,12 +96,12 @@ func TestSaveToBatchWithSignedArgs(t *testing.T) {
 			RobotSKI: fixtures_test.RobotHashedCert,
 		},
 	}
-	config, _ := protojson.Marshal(cfgEtl)
+	cfg, _ := protojson.Marshal(cfgEtl)
 
 	idBytes := [16]byte(uuid.New())
-	mockStub.MockInit(hex.EncodeToString(idBytes[:]), [][]byte{config})
+	mockStub.MockInit(hex.EncodeToString(idBytes[:]), [][]byte{cfg})
 
-	err := applyConfig(chainCode.contract, mockStub, config)
+	err := config.Apply(chainCode.contract, mockStub, cfg)
 	require.NoError(t, err)
 
 	mockStub.TxID = testEncodedTxID
@@ -166,121 +111,18 @@ func TestSaveToBatchWithSignedArgs(t *testing.T) {
 	batchTimestamp, err := mockStub.GetTxTimestamp()
 	require.NoError(t, err)
 
-	chainCode.methods, err = parseContractMethods(chainCode.contract)
-	require.NoError(t, err)
-
-	fn, err := chainCode.Method(s.FnName)
+	fn, err := chainCode.router.Endpoint(s.FnName)
 	require.NoError(t, err)
 
 	err = chainCode.saveToBatch(
 		telemetry.TraceContext{},
 		mockStub,
-		s.FnName,
 		fn,
 		sender,
 		argsForTestFnWithSignedTwoArgs,
 		uint64(batchTimestamp.Seconds),
 	)
 	require.NoError(t, err)
-}
-
-// TestSaveToBatchWithWrongSignedArgs - negative test with wrong Args in saveToBatch
-func TestSaveToBatchWithWrongSignedArgs(t *testing.T) {
-	t.Parallel()
-
-	s := &serieBatches{
-		FnName:    testFnWithSignedTwoArgs,
-		testID:    testEncodedTxID,
-		errorMsg:  "",
-		timestamp: createUtcTimestamp(),
-	}
-
-	wrongArgs := []string{"arg0", "arg1"}
-	chainCode, errChainCode := NewCC(&testBatchContract{})
-	require.NoError(t, errChainCode)
-
-	mockStub := stub.NewMockStub(testChaincodeName, chainCode)
-
-	cfgEtl := &proto.Config{
-		Contract: &proto.ContractConfig{
-			Symbol:   "CC",
-			RobotSKI: fixtures_test.RobotHashedCert,
-		},
-	}
-	config, _ := protojson.Marshal(cfgEtl)
-
-	idBytes := [16]byte(uuid.New())
-	mockStub.MockInit(hex.EncodeToString(idBytes[:]), [][]byte{[]byte(config)})
-
-	err := applyConfig(chainCode.contract, mockStub, []byte(config))
-	require.NoError(t, err)
-
-	mockStub.TxID = testEncodedTxID
-	mockStub.MockTransactionStart(testEncodedTxID)
-	mockStub.TxTimestamp = s.timestamp
-
-	batchTimestamp, err := mockStub.GetTxTimestamp()
-	require.NoError(t, err)
-
-	chainCode.methods, err = parseContractMethods(chainCode.contract)
-	require.NoError(t, err)
-
-	fn, err := chainCode.Method(s.FnName)
-	require.NoError(t, err)
-
-	err = chainCode.saveToBatch(
-		telemetry.TraceContext{},
-		mockStub,
-		s.FnName,
-		fn,
-		sender,
-		wrongArgs,
-		uint64(batchTimestamp.Seconds),
-	)
-	require.EqualError(t, err, "invalid argument value: 'arg0': for type 'int64': validate TxTestFnWithSignedTwoArgs, argument 1")
-}
-
-// TestSaveAndLoadToBatchWithWrongFnParameter - negative test with wrong Fn Name in saveToBatch
-func TestSaveToBatchWrongFnName(t *testing.T) {
-	t.Parallel()
-
-	s := &serieBatches{
-		FnName:    "unknownFunctionName",
-		testID:    testEncodedTxID,
-		errorMsg:  "",
-		timestamp: createUtcTimestamp(),
-	}
-
-	chainCode, errChainCode := NewCC(&testBatchContract{})
-	require.NoError(t, errChainCode)
-
-	ms := stub.NewMockStub(testChaincodeName, chainCode)
-
-	ms.TxID = testEncodedTxID
-	ms.MockTransactionStart(testEncodedTxID)
-	ms.TxTimestamp = s.timestamp
-
-	_, err := ms.GetTxTimestamp()
-	require.NoError(t, err)
-
-	cfg := &proto.Config{
-		Contract: &proto.ContractConfig{
-			Symbol:   "CC",
-			RobotSKI: fixtures_test.RobotHashedCert,
-			Admin:    fixtures_test.Admin,
-		},
-	}
-	cfgBytes, _ := protojson.Marshal(cfg)
-
-	err = applyConfig(chainCode.contract, ms, cfgBytes)
-	require.NoError(t, err)
-
-	chainCode.methods, err = parseContractMethods(chainCode.contract)
-	require.NoError(t, err)
-
-	fn, err := chainCode.Method(s.FnName)
-	require.ErrorContains(t, err, "method 'unknownFunctionName' not found")
-	require.Nil(t, fn)
 }
 
 // TestSaveAndLoadToBatchWithWrongID - negative test with wrong ID for loadToBatch
@@ -320,7 +162,7 @@ func SaveAndLoadToBatchTest(t *testing.T, ser *serieBatches, args []string) {
 	rsp := ms.MockInit(hex.EncodeToString(idBytes[:]), [][]byte{cfgBytes})
 	require.Equal(t, int32(shim.OK), rsp.GetStatus(), rsp.GetMessage())
 
-	err = applyConfig(chainCode.contract, ms, cfgBytes)
+	err = config.Apply(chainCode.contract, ms, cfgBytes)
 	require.NoError(t, err)
 
 	ms.TxID = testEncodedTxID
@@ -332,16 +174,12 @@ func SaveAndLoadToBatchTest(t *testing.T, ser *serieBatches, args []string) {
 	batchTimestamp, err := ms.GetTxTimestamp()
 	require.NoError(t, err)
 
-	chainCode.methods, err = parseContractMethods(chainCode.contract)
-	require.NoError(t, err)
-
-	fn, err := chainCode.Method(ser.FnName)
+	fn, err := chainCode.router.Endpoint(ser.FnName)
 	require.NoError(t, err)
 
 	errSave := chainCode.saveToBatch(
 		telemetry.TraceContext{},
 		ms,
-		ser.FnName,
 		fn,
 		sender,
 		args,
@@ -445,7 +283,7 @@ func BatchExecuteTest(t *testing.T, ser *serieBatchExecute, args []string) peer.
 	rsp := ms.MockInit(hex.EncodeToString(idBytes[:]), [][]byte{cfgBytes})
 	require.Equal(t, int32(shim.OK), rsp.GetStatus())
 
-	err = applyConfig(chainCode.contract, ms, cfgBytes)
+	err = config.Apply(chainCode.contract, ms, cfgBytes)
 	require.NoError(t, err)
 
 	ms.TxID = testEncodedTxID
@@ -454,22 +292,16 @@ func BatchExecuteTest(t *testing.T, ser *serieBatchExecute, args []string) peer.
 	batchTimestamp, err := ms.GetTxTimestamp()
 	require.NoError(t, err)
 
-	methods, err := parseContractMethods(chainCode.contract)
-	require.NoError(t, err)
-	chainCode.methods = methods
-	require.NoError(t, err)
-
-	method, err := chainCode.Method(testFnWithFiveArgsMethod)
+	method, err := chainCode.router.Endpoint(testFnWithFiveArgsMethod)
 	require.NoError(t, err)
 
 	err = chainCode.saveToBatch(
 		telemetry.TraceContext{},
 		ms,
-		testFnWithFiveArgsMethod,
 		method,
-		nil,
+		sender,
 		args,
-		uint64(batchTimestamp.Seconds),
+		uint64(batchTimestamp.Seconds*int64(time.Microsecond)),
 	)
 	require.NoError(t, err)
 	ms.MockTransactionEnd(testEncodedTxID)
@@ -488,7 +320,9 @@ func BatchExecuteTest(t *testing.T, ser *serieBatchExecute, args []string) peer.
 	dataIn, err := pb.Marshal(&proto.Batch{TxIDs: [][]byte{ser.testIDBytes}})
 	require.NoError(t, err)
 
-	return chainCode.batchExecute(telemetry.TraceContext{}, ms, string(dataIn), nil)
+	ms.MockTransactionStart(testEncodedTxID)
+	defer ms.MockTransactionEnd(testEncodedTxID)
+	return chainCode.batchExecute(telemetry.TraceContext{}, ms, string(dataIn))
 }
 
 // TestBatchedTxExecute tests positive test for batchedTxExecute
@@ -517,10 +351,7 @@ func TestBatchedTxExecute(t *testing.T) {
 	rsp := ms.MockInit(hex.EncodeToString(idBytes[:]), [][]byte{cfgBytes})
 	require.Equal(t, int32(shim.OK), rsp.GetStatus())
 
-	err = applyConfig(chainCode.contract, ms, cfgBytes)
-	require.NoError(t, err)
-
-	chainCode.methods, err = parseContractMethods(chainCode.contract)
+	err = config.Apply(chainCode.contract, ms, cfgBytes)
 	require.NoError(t, err)
 
 	ms.TxID = testEncodedTxID
@@ -532,20 +363,17 @@ func TestBatchedTxExecute(t *testing.T) {
 	batchTimestamp, err := ms.GetTxTimestamp()
 	require.NoError(t, err)
 
-	chainCode.methods, err = parseContractMethods(chainCode.contract)
-	require.NoError(t, err)
-
-	fn, err := chainCode.Method(testFnWithFiveArgsMethod)
+	fn, err := chainCode.router.Endpoint(testFnWithFiveArgsMethod)
 	require.NoError(t, err)
 
 	err = chainCode.saveToBatch(
 		telemetry.TraceContext{},
 		ms,
-		testFnWithFiveArgsMethod,
 		fn,
-		nil,
+		sender,
 		argsForTestFnWithFive,
-		uint64(batchTimestamp.Seconds))
+		uint64(batchTimestamp.Seconds*int64(time.Microsecond)),
+	)
 	require.NoError(t, err)
 	ms.MockTransactionEnd(testEncodedTxID)
 
@@ -553,7 +381,6 @@ func TestBatchedTxExecute(t *testing.T) {
 		telemetry.TraceContext{},
 		btchStub,
 		txIDBytes,
-		nil,
 	)
 	require.NotNil(t, resp)
 	require.NotNil(t, event)

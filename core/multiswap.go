@@ -25,7 +25,7 @@ import (
 //
 // Returns a shim.Success response if the multi-swap done logic executes successfully.
 // Otherwise, it returns a shim.Error response.
-func (cc *ChainCode) multiSwapDoneHandler(
+func (cc *Chaincode) multiSwapDoneHandler(
 	traceCtx telemetry.TraceContext,
 	stub shim.ChaincodeStubInterface,
 	args []string,
@@ -35,12 +35,7 @@ func (cc *ChainCode) multiSwapDoneHandler(
 		return shim.Error("handling multi-swap done failed, " + ErrMultiSwapDisabled.Error())
 	}
 
-	contract, ok := copyContractWithConfig(traceCtx, cc.contract, stub, cfgBytes).(BaseContractInterface)
-	if !ok {
-		return shim.Error("unsupported contract type")
-	}
-
-	return multiswap.UserDone(contract, args[0], args[1])
+	return multiswap.UserDone(cc.contract, args[0], args[1])
 }
 
 // QueryMultiSwapGet - returns multiswap by id
