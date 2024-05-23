@@ -89,10 +89,7 @@ func BatcherHandler(
 		return nil, batcherHandlerError(span, err)
 	}
 
-	batcher, err := NewBatcher(stub, cfgBytes, cc, tracingHandler)
-	if err != nil {
-		return nil, batcherHandlerError(span, fmt.Errorf("creating batcher %s: %w", batchID, err))
-	}
+	batcher := NewBatcher(stub, cfgBytes, cc, tracingHandler)
 
 	batchResponse, batchEvent, err := batcher.HandleBatch(traceCtx, executeBatchRequest.Requests)
 	if err != nil {
@@ -117,13 +114,13 @@ func BatcherHandler(
 	return data, nil
 }
 
-func NewBatcher(stub shim.ChaincodeStubInterface, cfgBytes []byte, cc *ChainCode, tracingHandler *telemetry.TracingHandler) (Batcher, error) {
-	return Batcher{
+func NewBatcher(stub shim.ChaincodeStubInterface, cfgBytes []byte, cc *ChainCode, tracingHandler *telemetry.TracingHandler) *Batcher {
+	return &Batcher{
 		BatchCacheStub: cachestub.NewBatchCacheStub(stub),
 		CfgBytes:       cfgBytes,
 		ChainCode:      cc,
 		TracingHandler: tracingHandler,
-	}, nil
+	}
 }
 
 func (b *Batcher) HandleBatch(
