@@ -244,8 +244,7 @@ func (b *Batcher) HandleTxRequest(
 	span.AddEvent("calling method")
 	response, err := b.ChainCode.callMethod(traceCtx, txCacheStub, method, senderAddress, args, cfgBytes)
 	if err != nil {
-		errorMessage := "calling method: " + err.Error()
-		return handleTxRequestError(span, request, errorMessage)
+		return handleTxRequestError(span, request, err.Error())
 	}
 
 	span.AddEvent("commit")
