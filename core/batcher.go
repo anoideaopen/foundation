@@ -37,8 +37,6 @@ type (
 
 	BatcherRequest struct {
 		BatcherRequestID   string   `json:"batcher_request_id"`   // BatcherRequestID batcher request id
-		Channel            string   `json:"channel"`              // Channel on which the chaincode will be invoked
-		Chaincode          string   `json:"chaincode"`            // Chaincode of the chaincode to invoke
 		Method             string   `json:"function"`             // Method of the chaincode function to invoke
 		Args               []string `json:"args"`                 // Args to pass to the chaincode function
 		BatcherRequestType string   `json:"batcher_request_type"` // BatcherRequestType for choose method to handling request. for example tx, swaps, swaps_keys, multi_swaps, multi_swaps_keys

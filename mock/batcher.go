@@ -20,7 +20,7 @@ func (w *Wallet) BatcherSignedInvoke(ch string, fn string, args ...string) ([]by
 		return nil, err
 	}
 
-	return requestEvent.Result, nil
+	return requestEvent.GetResult(), nil
 }
 
 func (w *Wallet) BatcherSignedInvokeWithTxEventReturned(
