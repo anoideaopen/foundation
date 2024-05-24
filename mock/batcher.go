@@ -14,6 +14,15 @@ import (
 	proto2 "google.golang.org/protobuf/proto"
 )
 
+func (w *Wallet) BatcherSignedInvoke(ch string, fn string, args ...string) ([]byte, error) {
+	_, requestEvent, err := w.BatcherSignedInvokeWithTxEventReturned(ch, fn, args...)
+	if err != nil {
+		return nil, err
+	}
+
+	return requestEvent.Result, nil
+}
+
 func (w *Wallet) BatcherSignedInvokeWithTxEventReturned(
 	ch string,
 	fn string,
