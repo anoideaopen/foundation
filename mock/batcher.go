@@ -48,10 +48,9 @@ func (w *Wallet) BatcherSignedInvokeWithTxEventReturned(
 	argsWithSign, _ := w.sign(fn, ch, args...)
 
 	r := core.BatcherRequest{
-		BatcherRequestID:   strconv.FormatInt(rand.Int63(), 10),
-		Method:             fn,
-		Args:               argsWithSign,
-		BatcherRequestType: core.TxBatcherRequestType,
+		BatcherRequestID: strconv.FormatInt(rand.Int63(), 10),
+		Method:           fn,
+		Args:             argsWithSign,
 	}
 
 	requests := core.ExecuteBatchRequest{Requests: []core.BatcherRequest{r}}

@@ -22,8 +22,6 @@ import (
 
 const (
 	ExecuteBatchEvent = "executeBatch"
-	// TxBatcherRequestType type for execute batcher requests similar with "batchExecute" preimage
-	TxBatcherRequestType = "tx"
 	// BatcherRequestIDCompositeKey is a composite key for store batcherRequestID in hlf
 	BatcherRequestIDCompositeKey = "batcherRequestID"
 )
@@ -36,10 +34,9 @@ type (
 	}
 
 	BatcherRequest struct {
-		BatcherRequestID   string   `json:"batcher_request_id"`   // BatcherRequestID batcher request id
-		Method             string   `json:"function"`             // Method of the chaincode function to invoke
-		Args               []string `json:"args"`                 // Args to pass to the chaincode function
-		BatcherRequestType string   `json:"batcher_request_type"` // BatcherRequestType for choose method to handling request. for example tx, swaps, swaps_keys, multi_swaps, multi_swaps_keys
+		BatcherRequestID string   `json:"batcher_request_id"` // BatcherRequestID batcher request id
+		Method           string   `json:"function"`           // Method of the chaincode function to invoke
+		Args             []string `json:"args"`               // Args to pass to the chaincode function
 	}
 
 	Batcher struct {
@@ -136,17 +133,7 @@ func (b *Batcher) HandleBatch(
 	batchEvent := &proto.BatchEvent{}
 
 	for _, request := range requests {
-		var (
-			txResponse *proto.TxResponse
-			txEvent    *proto.BatchTxEvent
-		)
-		switch request.BatcherRequestType {
-		case TxBatcherRequestType:
-			txResponse, txEvent = b.HandleTxRequest(traceCtx, request, b.BatchCacheStub, b.CfgBytes)
-		default:
-			errorMessage := fmt.Sprintf("unsupported batcher request type %s request.BatcherRequestID %s", request.BatcherRequestType, request.BatcherRequestID)
-			txResponse, txEvent = handleTxRequestError(span, request, errorMessage)
-		}
+		txResponse, txEvent := b.HandleTxRequest(traceCtx, request, b.BatchCacheStub, b.CfgBytes)
 		batchResponse.TxResponses = append(batchResponse.TxResponses, txResponse)
 		batchEvent.Events = append(batchEvent.Events, txEvent)
 	}
@@ -218,7 +205,6 @@ func (b *Batcher) HandleTxRequest(
 	span.SetAttributes(attribute.String("method", request.Method))
 	span.SetAttributes(attribute.StringSlice("args", request.Args))
 	span.SetAttributes(attribute.String("batcher_request_id", request.BatcherRequestID))
-	span.SetAttributes(attribute.String("batcher_request_type", request.BatcherRequestType))
 	defer func() {
 		logger.Infof("batched method %s BatcherRequestID %s elapsed time %d ms", request.Method, request.BatcherRequestID, time.Since(start).Milliseconds())
 	}()
