@@ -24,7 +24,7 @@ const (
 	ExecuteGroupTxEvent = "executeGroupTx"
 )
 
-var ErrRequestsNotFound = errors.New("requests not found")
+var ErrTxRequestsNotFound = errors.New("requests not found")
 
 type (
 	ExecuteGroupTxRequest struct {
@@ -46,7 +46,7 @@ type (
 	}
 )
 
-// GroupTxExecutorHandler allow to execute few sub transaction (batch request) in single transaction in hlf using cache state between requests to solbe mcc problem
+// GroupTxExecutorHandler allow to execute few sub transaction (tx request) in single transaction in hlf using cache state between requests to solbe mcc problem
 // The arguments of this method contains array of requests for execution each request contain own arguments for call method
 func GroupTxExecutorHandler(
 	traceCtx telemetry.TraceContext,
@@ -78,7 +78,7 @@ func GroupTxExecutorHandler(
 		return nil, groupTxError(span, err)
 	}
 	if len(groupTxRequest.Requests) == 0 {
-		err := fmt.Errorf("validating argument ExecuteGroupTxRequest %s: %w", groupTxID, ErrRequestsNotFound)
+		err := fmt.Errorf("validating argument ExecuteGroupTxRequest %s: %w", groupTxID, ErrTxRequestsNotFound)
 		return nil, groupTxError(span, err)
 	}
 
@@ -155,33 +155,33 @@ func (e *GroupTxExecutor) validatedTxSenderMethodAndArgs(
 	method, err := e.ChainCode.Method(request.Method)
 	if err != nil {
 		span.SetStatus(codes.Error, "parsing method failed")
-		return nil, nil, nil, fmt.Errorf("parsing method '%s', batch request id %s: %w", request.Method, request.RequestID, err)
+		return nil, nil, nil, fmt.Errorf("parsing method '%s', request id %s: %w", request.Method, request.RequestID, err)
 	}
 
 	span.AddEvent("validating and extracting invocation context")
 	senderAddress, args, nonce, err := e.ChainCode.validateAndExtractInvocationContext(batchCacheStub, method, request.Method, request.Args)
 	if err != nil {
 		span.SetStatus(codes.Error, "validating and extracting invocation context failed")
-		return nil, nil, nil, fmt.Errorf("validating and extracting invocation context, batch request id %s: %w", request.RequestID, err)
+		return nil, nil, nil, fmt.Errorf("validating and extracting invocation context, request id %s: %w", request.RequestID, err)
 	}
 
 	if !method.needsAuth || senderAddress == nil {
-		span.SetStatus(codes.Error, "batch request required auth with senderAddreess failed")
-		return nil, nil, nil, fmt.Errorf("batch request required auth with senderAddreess, batch request id %s", request.RequestID)
+		span.SetStatus(codes.Error, "tx request required auth with senderAddreess failed")
+		return nil, nil, nil, fmt.Errorf("tx request required auth with senderAddreess, request id %s", request.RequestID)
 	}
 	argsToValidate := append([]string{senderAddress.AddrString()}, args...)
 
 	span.AddEvent("validating arguments")
 	if err := reflectx.ValidateArguments(e.ChainCode.contract, method.Name, batchCacheStub, argsToValidate...); err != nil {
 		span.SetStatus(codes.Error, "validating arguments failed")
-		return nil, nil, nil, fmt.Errorf("validating arguments, batch request id %s: %w", request.RequestID, err)
+		return nil, nil, nil, fmt.Errorf("validating arguments, request id %s: %w", request.RequestID, err)
 	}
 
 	span.AddEvent("check nonce")
 	sender := types.NewSenderFromAddr((*types.Address)(senderAddress))
 	if err = checkNonce(batchCacheStub, sender, nonce); err != nil {
 		span.SetStatus(codes.Error, "check nonce failed")
-		return nil, nil, nil, fmt.Errorf("check nonce, batch request id %s, nonce %d: %w", request.RequestID, nonce, err)
+		return nil, nil, nil, fmt.Errorf("check nonce, request id %s, nonce %d: %w", request.RequestID, nonce, err)
 	}
 	return senderAddress, method, args[:method.in], nil
 }
@@ -204,7 +204,7 @@ func (e *GroupTxExecutor) ExecuteTx(
 	span.SetAttributes(attribute.StringSlice("args", request.Args))
 	span.SetAttributes(attribute.String("request_id", request.RequestID))
 	defer func() {
-		logger.Infof("batched method %s RequestID %s elapsed time %d ms", request.Method, request.RequestID, time.Since(start).Milliseconds())
+		logger.Infof("request method %s request id %s elapsed time %d ms", request.Method, request.RequestID, time.Since(start).Milliseconds())
 	}()
 
 	txCacheStub := batchCacheStub.NewTxCacheStub(request.RequestID)
