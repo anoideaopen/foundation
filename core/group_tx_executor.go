@@ -151,38 +151,47 @@ func (e *GroupTxExecutor) validatedTxSenderMethodAndArgs(
 	_, span := e.TracingHandler.StartNewSpan(traceCtx, "GroupTxExecutor.validatedTxSenderMethodAndArgs")
 	defer span.End()
 
-	span.AddEvent("parsing method")
+	span.AddEvent("parsing chaincode method")
 	method, err := e.ChainCode.Method(request.Method)
 	if err != nil {
-		span.SetStatus(codes.Error, "parsing method failed")
-		return nil, nil, nil, fmt.Errorf("parsing method '%s', request id %s: %w", request.Method, request.RequestID, err)
+		err = fmt.Errorf("parsing chaincode method '%s', request id %s: %w", request.Method, request.RequestID, err)
+		span.SetStatus(codes.Error, err.Error())
+		return nil, nil, nil, err
 	}
 
 	span.AddEvent("validating and extracting invocation context")
 	senderAddress, args, nonce, err := e.ChainCode.validateAndExtractInvocationContext(batchCacheStub, method, request.Method, request.Args)
 	if err != nil {
-		span.SetStatus(codes.Error, "validating and extracting invocation context failed")
-		return nil, nil, nil, fmt.Errorf("validating and extracting invocation context, request id %s: %w", request.RequestID, err)
+		err = fmt.Errorf("validating and extracting invocation context, request id %s: %w", request.RequestID, err)
+		span.SetStatus(codes.Error, err.Error())
+		return nil, nil, nil, err
 	}
 
+	span.AddEvent("validating authorization")
 	if !method.needsAuth || senderAddress == nil {
-		span.SetStatus(codes.Error, "tx request required auth with senderAddreess failed")
-		return nil, nil, nil, fmt.Errorf("tx request required auth with senderAddreess, request id %s", request.RequestID)
+		err = fmt.Errorf("validating authorization: sender address is missing for request id %s", request.RequestID)
+		span.SetStatus(codes.Error, err.Error())
+		return nil, nil, nil, err
 	}
 	argsToValidate := append([]string{senderAddress.AddrString()}, args...)
 
 	span.AddEvent("validating arguments")
-	if err := reflectx.ValidateArguments(e.ChainCode.contract, method.Name, batchCacheStub, argsToValidate...); err != nil {
-		span.SetStatus(codes.Error, "validating arguments failed")
-		return nil, nil, nil, fmt.Errorf("validating arguments, request id %s: %w", request.RequestID, err)
+	err = reflectx.ValidateArguments(e.ChainCode.contract, method.Name, batchCacheStub, argsToValidate...)
+	if err != nil {
+		err = fmt.Errorf("validating arguments: request id %s: %w", request.RequestID, err)
+		span.SetStatus(codes.Error, err.Error())
+		return nil, nil, nil, err
 	}
 
-	span.AddEvent("check nonce")
+	span.AddEvent("validating nonce")
 	sender := types.NewSenderFromAddr((*types.Address)(senderAddress))
-	if err = checkNonce(batchCacheStub, sender, nonce); err != nil {
-		span.SetStatus(codes.Error, "check nonce failed")
-		return nil, nil, nil, fmt.Errorf("check nonce, request id %s, nonce %d: %w", request.RequestID, nonce, err)
+	err = checkNonce(batchCacheStub, sender, nonce)
+	if err != nil {
+		err = fmt.Errorf("validating nonce: request id %s, nonce %d: %w", request.RequestID, nonce, err)
+		span.SetStatus(codes.Error, err.Error())
+		return nil, nil, nil, err
 	}
+
 	return senderAddress, method, args[:method.in], nil
 }
 
