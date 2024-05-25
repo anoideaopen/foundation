@@ -22,8 +22,6 @@ import (
 
 const (
 	ExecuteBatchEvent = "executeBatch"
-	// BatcherRequestIDCompositeKey is a composite key for store batcherRequestID in hlf
-	BatcherRequestIDCompositeKey = "batcherRequestID"
 )
 
 var ErrRequestsNotFound = errors.New("requests not found")
@@ -211,13 +209,6 @@ func (b *Batcher) HandleTxRequest(
 
 	txCacheStub := batchCacheStub.NewTxCacheStub(request.BatcherRequestID)
 
-	span.AddEvent("saving batch request id")
-	err := b.saveBatcherRequestID(request.BatcherRequestID)
-	if err != nil {
-		errorMessage := "saving batch request id: " + err.Error()
-		return handleTxRequestError(span, request, errorMessage)
-	}
-
 	span.AddEvent("validating tx sender method and args")
 	senderAddress, method, args, err := b.validatedTxSenderMethodAndArgs(traceCtx, batchCacheStub, request)
 	if err != nil {
@@ -273,26 +264,4 @@ func handleTxRequestError(span trace.Span, request BatcherRequest, errorMessage 
 			Method: request.Method,
 			Error:  &ee,
 		}
-}
-
-func (b *Batcher) saveBatcherRequestID(requestID string) error {
-	compositeKey, err := b.BatchCacheStub.CreateCompositeKey(BatcherRequestIDCompositeKey, []string{requestID})
-	if err != nil {
-		return fmt.Errorf("creating composite key batcher request id %s: %w", requestID, err)
-	}
-
-	existing, err := b.BatchCacheStub.GetState(compositeKey)
-	if err != nil {
-		return fmt.Errorf("validating batcher request id %s: %w", requestID, err)
-	}
-	if len(existing) > 0 {
-		return fmt.Errorf("validating batcher request id %s: already exists", requestID)
-	}
-
-	err = b.BatchCacheStub.PutState(compositeKey, []byte(requestID))
-	if err != nil {
-		return fmt.Errorf("saving batch request ID %s: %w", requestID, err)
-	}
-
-	return nil
 }
