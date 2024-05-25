@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestBatcherEmitTransfer(t *testing.T) {
+func TestGroupTxExecutorEmitAndTransfer(t *testing.T) {
 	t.Parallel()
 
 	ledger := mock.NewLedger(t)
@@ -26,14 +26,14 @@ func TestBatcherEmitTransfer(t *testing.T) {
 
 	user1 := ledger.NewWallet()
 
-	_, _, err := owner.BatcherSignedInvokeWithTxEventReturned("fiat", "emit", user1.Address(), "1000")
+	_, err := owner.ExecuteSignedInvoke("fiat", "emit", user1.Address(), "1000")
 	require.NoError(t, err)
 
 	user1.BalanceShouldBe("fiat", 1000)
 
-	_, _, err = feeAddressSetter.BatcherSignedInvokeWithTxEventReturned("fiat", "setFeeAddress", feeAggregator.Address())
+	_, err = feeAddressSetter.ExecuteSignedInvoke("fiat", "setFeeAddress", feeAggregator.Address())
 	require.NoError(t, err)
-	_, _, err = feeSetter.BatcherSignedInvokeWithTxEventReturned("fiat", "setFee", "FIAT", "500000", "100", "100000")
+	_, err = feeSetter.ExecuteSignedInvoke("fiat", "setFee", "FIAT", "500000", "100", "100000")
 	require.NoError(t, err)
 
 	rawMD := feeSetter.Invoke("fiat", "metadata")
@@ -47,7 +47,7 @@ func TestBatcherEmitTransfer(t *testing.T) {
 	require.Equal(t, feeAggregator.Address(), md.Fee.Address)
 
 	user2 := ledger.NewWallet()
-	_, _, err = user1.BatcherSignedInvokeWithTxEventReturned("fiat", "transfer", user2.Address(), "400", "")
+	_, err = user1.ExecuteSignedInvoke("fiat", "transfer", user2.Address(), "400", "")
 	require.NoError(t, err)
 	user1.BalanceShouldBe("fiat", 500)
 	user2.BalanceShouldBe("fiat", 400)
