@@ -55,10 +55,10 @@ func NewTaskExecutor(stub shim.ChaincodeStubInterface, cfgBytes []byte, cc *Chai
 	}
 }
 
-// TaskExecutorHandler executes multiple sub-transactions (tasks) within a single transaction in Hyperledger Fabric,
+// TasksExecutorHandler executes multiple sub-transactions (tasks) within a single transaction in Hyperledger Fabric,
 // using cached state between tasks to solve the MVCC problem. Each request in the arguments contains its own set of
 // arguments for the respective chaincode method calls.
-func TaskExecutorHandler(
+func TasksExecutorHandler(
 	traceCtx telemetry.TraceContext,
 	stub shim.ChaincodeStubInterface,
 	cfgBytes []byte,

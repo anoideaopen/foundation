@@ -594,7 +594,7 @@ func (cc *ChainCode) Invoke(stub shim.ChaincodeStubInterface) (r peer.Response) 
 		}
 
 	case ExecuteTasks:
-		bytes, err := TaskExecutorHandler(
+		bytes, err := TasksExecutorHandler(
 			traceCtx,
 			stub,
 			cfgBytes,
