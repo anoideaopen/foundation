@@ -68,9 +68,9 @@ func (w *Wallet) TaskExecutor(r ExecutorRequest) (*ExecutorResponse, error) {
 		Args:   args,
 	}
 
-	bytes, err := json.Marshal(core.ExecuteTaskRequest{Tasks: []core.Task{task}})
+	bytes, err := json.Marshal(core.ExecuteTasksRequest{Tasks: []core.Task{task}})
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal tasks ExecuteTaskRequest: %w", err)
+		return nil, fmt.Errorf("failed to marshal tasks ExecuteTasksRequest: %w", err)
 	}
 
 	// do invoke chaincode

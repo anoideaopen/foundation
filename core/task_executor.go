@@ -24,8 +24,8 @@ const ExecuteTasksEvent = "executeTasks"
 
 var ErrTasksNotFound = errors.New("no tasks found")
 
-// ExecuteTaskRequest represents a request to execute a group of tasks.
-type ExecuteTaskRequest struct {
+// ExecuteTasksRequest represents a request to execute a group of tasks.
+type ExecuteTasksRequest struct {
 	Tasks []Task `json:"tasks"`
 }
 
@@ -82,13 +82,13 @@ func TaskExecutorHandler(
 		return nil, handleTasksError(span, err)
 	}
 
-	var executeTaskRequest ExecuteTaskRequest
+	var executeTaskRequest ExecuteTasksRequest
 	if err := json.Unmarshal([]byte(args[0]), &executeTaskRequest); err != nil {
-		err = fmt.Errorf("failed to unmarshal argument to ExecuteTaskRequest for transaction %s, argument: %s", txID, args[0])
+		err = fmt.Errorf("failed to unmarshal argument to ExecuteTasksRequest for transaction %s, argument: %s", txID, args[0])
 		return nil, handleTasksError(span, err)
 	}
 	if len(executeTaskRequest.Tasks) == 0 {
-		err := fmt.Errorf("failed to validate argument: no tasks found in ExecuteTaskRequest for transaction %s: %w", txID, ErrTasksNotFound)
+		err := fmt.Errorf("failed to validate argument: no tasks found in ExecuteTasksRequest for transaction %s: %w", txID, ErrTasksNotFound)
 		return nil, handleTasksError(span, err)
 	}
 
