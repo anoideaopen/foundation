@@ -22,9 +22,9 @@ import (
 
 const ExecuteTasksEvent = "executeTasks"
 
-var ErrTasksNotFound = errors.New("no tasks found in the request")
+var ErrTasksNotFound = errors.New("no tasks found")
 
-// ExecuteTaskRequest represents a request to execute a batch of tasks.
+// ExecuteTaskRequest represents a request to execute a group of tasks.
 type ExecuteTaskRequest struct {
 	Tasks []Task `json:"tasks"`
 }
@@ -36,7 +36,7 @@ type Task struct {
 	Args   []string `json:"args"`   // Args arguments for the chaincode function
 }
 
-// TaskExecutor handles the execution of a batch of tasks.
+// TaskExecutor handles the execution of a group of tasks.
 type TaskExecutor struct {
 	BatchCacheStub *cachestub.BatchCacheStub
 	ChainCode      *ChainCode
@@ -117,7 +117,7 @@ func TaskExecutorHandler(
 	return data, nil
 }
 
-// ExecuteTasks processes a batch of tasks, returning a batch response and event.
+// ExecuteTasks processes a group of tasks, returning a group response and event.
 func (e *TaskExecutor) ExecuteTasks(
 	traceCtx telemetry.TraceContext,
 	tasks []Task,
