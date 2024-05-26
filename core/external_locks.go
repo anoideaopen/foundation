@@ -460,7 +460,7 @@ func (bc *BaseContract) verifyLockedArgs(
 		return fmt.Errorf("creating admin address: %w", err)
 	}
 
-	// Request verification
+	// Task verification
 	if req.GetId() == "" {
 		return ErrEmptyLockID
 	}

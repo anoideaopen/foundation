@@ -15,37 +15,37 @@ import (
 )
 
 type ExecutorRequest struct {
-	Channel        string   `json:"ch"`
-	Function       string   `json:"fn"`
-	Args           []string `json:"args"`
-	IsSignedInvoke bool     `json:"isSignedInvoke"`
+	Channel        string
+	Method         string
+	Args           []string
+	IsSignedInvoke bool
 }
 
 type ExecutorResponse struct {
 	TxResponse   *proto.TxResponse
-	RequestEvent *proto.BatchTxEvent
+	BatchTxEvent *proto.BatchTxEvent
 }
 
 func NewExecutorRequest(ch string, fn string, args []string, isSignedInvoke bool) ExecutorRequest {
 	return ExecutorRequest{
 		Channel:        ch,
-		Function:       fn,
+		Method:         fn,
 		Args:           args,
 		IsSignedInvoke: isSignedInvoke,
 	}
 }
 
 func (w *Wallet) ExecuteSignedInvoke(ch string, fn string, args ...string) ([]byte, error) {
-	resp, err := w.GroupTxExecutor(NewExecutorRequest(ch, fn, args, true))
+	resp, err := w.TaskExecutor(NewExecutorRequest(ch, fn, args, true))
 	if err != nil {
 		return nil, err
 	}
 
-	return resp.RequestEvent.GetResult(), nil
+	return resp.BatchTxEvent.GetResult(), nil
 }
 
-func (w *Wallet) GroupTxExecutor(r ExecutorRequest) (*ExecutorResponse, error) {
-	err := w.verifyIncoming(r.Channel, r.Function)
+func (w *Wallet) TaskExecutor(r ExecutorRequest) (*ExecutorResponse, error) {
+	err := w.verifyIncoming(r.Channel, r.Method)
 	if err != nil {
 		return nil, fmt.Errorf("failed to verify incoming args: %w", err)
 	}
@@ -59,28 +59,28 @@ func (w *Wallet) GroupTxExecutor(r ExecutorRequest) (*ExecutorResponse, error) {
 
 	var args []string
 	if r.IsSignedInvoke {
-		args, _ = w.sign(r.Function, r.Channel, r.Args...)
+		args, _ = w.sign(r.Method, r.Channel, r.Args...)
 	}
 
-	txRequest := core.TxRequest{
-		RequestID: strconv.FormatInt(rand.Int63(), 10),
-		Method:    r.Function,
-		Args:      args,
+	task := core.Task{
+		ID:     strconv.FormatInt(rand.Int63(), 10),
+		Method: r.Method,
+		Args:   args,
 	}
 
-	bytes, err := json.Marshal(core.ExecuteGroupTxRequest{Requests: []core.TxRequest{txRequest}})
+	bytes, err := json.Marshal(core.ExecuteTaskRequest{Tasks: []core.Task{task}})
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal requests ExecuteGroupTxRequest: %w", err)
+		return nil, fmt.Errorf("failed to marshal tasks ExecuteTaskRequest: %w", err)
 	}
 
 	// do invoke chaincode
-	peerResponse, err := w.ledger.doInvokeWithPeerResponse(r.Channel, txIDGen(), core.ExecuteGroupTx, string(bytes))
+	peerResponse, err := w.ledger.doInvokeWithPeerResponse(r.Channel, txIDGen(), core.ExecuteTasks, string(bytes))
 	if err != nil {
-		return nil, fmt.Errorf("failed to invoke method %s: %w", core.ExecuteGroupTx, err)
+		return nil, fmt.Errorf("failed to invoke method %s: %w", core.ExecuteTasks, err)
 	}
 
 	if peerResponse.GetStatus() != http.StatusOK {
-		return nil, fmt.Errorf("failed to invoke method %s, status: '%v', message: '%s'", core.ExecuteGroupTx, peerResponse.GetStatus(), peerResponse.GetMessage())
+		return nil, fmt.Errorf("failed to invoke method %s, status: '%v', message: '%s'", core.ExecuteTasks, peerResponse.GetStatus(), peerResponse.GetMessage())
 	}
 
 	var batchResponse proto.BatchResponse
@@ -89,12 +89,12 @@ func (w *Wallet) GroupTxExecutor(r ExecutorRequest) (*ExecutorResponse, error) {
 		return nil, fmt.Errorf("failed to unmarshal BatchResponse: %w", err)
 	}
 
-	requestEvent, err := w.getEventByRequestID(r.Channel, txRequest.RequestID)
+	batchTxEvent, err := w.getEventByID(r.Channel, task.ID)
 	if err != nil {
 		return nil, err
 	}
 
-	txResponse, err := getTxResponseByRequestID(&batchResponse, txRequest.RequestID)
+	txResponse, err := getTxResponseByID(&batchResponse, task.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -105,38 +105,38 @@ func (w *Wallet) GroupTxExecutor(r ExecutorRequest) (*ExecutorResponse, error) {
 
 	return &ExecutorResponse{
 		TxResponse:   txResponse,
-		RequestEvent: requestEvent,
+		BatchTxEvent: batchTxEvent,
 	}, nil
 }
 
-func (w *Wallet) getEventByRequestID(channel string, requestID string) (*proto.BatchTxEvent, error) {
+func (w *Wallet) getEventByID(channel string, id string) (*proto.BatchTxEvent, error) {
 	e := <-w.ledger.stubs[channel].ChaincodeEventsChannel
-	if e.GetEventName() == core.ExecuteGroupTxEvent {
+	if e.GetEventName() == core.ExecuteTasksEvent {
 		batchEvent := proto.BatchEvent{}
 		err := proto2.Unmarshal(e.GetPayload(), &batchEvent)
 		if err != nil {
 			return nil, fmt.Errorf("failed to unmarshal BatchEvent: %w", err)
 		}
 		for _, ev := range batchEvent.GetEvents() {
-			if string(ev.GetId()) == requestID {
+			if string(ev.GetId()) == id {
 				return ev, nil
 			}
 		}
 	}
-	return nil, fmt.Errorf("failed to find event %s for request %s", core.ExecuteGroupTxEvent, requestID)
+	return nil, fmt.Errorf("failed to find event %s by id %s", core.ExecuteTasksEvent, id)
 }
 
-func getTxResponseByRequestID(
+func getTxResponseByID(
 	batchResponse *proto.BatchResponse,
-	requestID string,
+	id string,
 ) (
 	*proto.TxResponse,
 	error,
 ) {
 	for _, response := range batchResponse.GetTxResponses() {
-		if string(response.GetId()) == requestID {
+		if string(response.GetId()) == id {
 			return response, nil
 		}
 	}
-	return nil, fmt.Errorf("failed to find response of batch request %s", requestID)
+	return nil, fmt.Errorf("failed to find response by id %s", id)
 }

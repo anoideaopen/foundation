@@ -80,7 +80,7 @@ const (
 	CancelCCTransferFrom = "cancelCCTransferFrom"
 	DeleteCCTransferFrom = "deleteCCTransferFrom"
 	CreateIndex          = "createIndex"
-	ExecuteGroupTx       = "executeGroupTx"
+	ExecuteTasks         = "executeTask"
 )
 
 // TokenConfigurable is an interface that defines methods for validating, applying, and
@@ -593,8 +593,8 @@ func (cc *ChainCode) Invoke(stub shim.ChaincodeStubInterface) (r peer.Response) 
 			return shim.Error(errMsg)
 		}
 
-	case ExecuteGroupTx:
-		bytes, err := GroupTxExecutorHandler(
+	case ExecuteTasks:
+		bytes, err := TaskExecutorHandler(
 			traceCtx,
 			stub,
 			cfgBytes,
@@ -602,7 +602,7 @@ func (cc *ChainCode) Invoke(stub shim.ChaincodeStubInterface) (r peer.Response) 
 			cc,
 		)
 		if err != nil {
-			errMsg := fmt.Sprintf("failed to execute method %s: txID %s: %s", ExecuteGroupTx, stub.GetTxID(), err)
+			errMsg := fmt.Sprintf("failed to execute method %s: txID %s: %s", ExecuteTasks, stub.GetTxID(), err)
 			Logger().Error(errMsg)
 			span.SetStatus(codes.Error, errMsg)
 			return shim.Error(errMsg)
