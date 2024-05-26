@@ -157,7 +157,7 @@ func (e *TaskExecutor) validatedTxSenderMethodAndArgs(
 	span.AddEvent("parsing chaincode method")
 	method, err := e.ChainCode.Method(task.Method)
 	if err != nil {
-		err = fmt.Errorf("failed to parse chaincode method '%s' for task id %s: %w", task.Method, task.ID, err)
+		err = fmt.Errorf("failed to parse chaincode method '%s' for task %s: %w", task.Method, task.ID, err)
 		span.SetStatus(codes.Error, err.Error())
 		return nil, nil, nil, err
 	}
@@ -165,14 +165,14 @@ func (e *TaskExecutor) validatedTxSenderMethodAndArgs(
 	span.AddEvent("validating and extracting invocation context")
 	senderAddress, args, nonce, err := e.ChainCode.validateAndExtractInvocationContext(batchCacheStub, method, task.Method, task.Args)
 	if err != nil {
-		err = fmt.Errorf("failed to validate and extract invocation context for task id %s: %w", task.ID, err)
+		err = fmt.Errorf("failed to validate and extract invocation context for task %s: %w", task.ID, err)
 		span.SetStatus(codes.Error, err.Error())
 		return nil, nil, nil, err
 	}
 
 	span.AddEvent("validating authorization")
 	if !method.needsAuth || senderAddress == nil {
-		err = fmt.Errorf("failed to validate authorization for task id %s: sender address is missing", task.ID)
+		err = fmt.Errorf("failed to validate authorization for task %s: sender address is missing", task.ID)
 		span.SetStatus(codes.Error, err.Error())
 		return nil, nil, nil, err
 	}
@@ -181,7 +181,7 @@ func (e *TaskExecutor) validatedTxSenderMethodAndArgs(
 	span.AddEvent("validating arguments")
 	err = reflectx.ValidateArguments(e.ChainCode.contract, method.Name, batchCacheStub, argsToValidate...)
 	if err != nil {
-		err = fmt.Errorf("failed to validate arguments for task id %s: %w", task.ID, err)
+		err = fmt.Errorf("failed to validate arguments for task %s: %w", task.ID, err)
 		span.SetStatus(codes.Error, err.Error())
 		return nil, nil, nil, err
 	}
@@ -190,7 +190,7 @@ func (e *TaskExecutor) validatedTxSenderMethodAndArgs(
 	sender := types.NewSenderFromAddr((*types.Address)(senderAddress))
 	err = checkNonce(batchCacheStub, sender, nonce)
 	if err != nil {
-		err = fmt.Errorf("failed to validate nonce for task id %s, nonce %d: %w", task.ID, nonce, err)
+		err = fmt.Errorf("failed to validate nonce for task %s, nonce %d: %w", task.ID, nonce, err)
 		span.SetStatus(codes.Error, err.Error())
 		return nil, nil, nil, err
 	}
@@ -217,7 +217,7 @@ func (e *TaskExecutor) ExecuteTask(
 	span.SetAttributes(attribute.StringSlice("task_args", task.Args))
 	span.SetAttributes(attribute.String("task_id", task.ID))
 	defer func() {
-		logger.Infof("task method %s task id %s elapsed time %d ms", task.Method, task.ID, time.Since(start).Milliseconds())
+		logger.Infof("task method %s task %s elapsed time %d ms", task.Method, task.ID, time.Since(start).Milliseconds())
 	}()
 
 	txCacheStub := batchCacheStub.NewTxCacheStub(task.ID)
@@ -225,7 +225,7 @@ func (e *TaskExecutor) ExecuteTask(
 	span.AddEvent("validating tx sender method and args")
 	senderAddress, method, args, err := e.validatedTxSenderMethodAndArgs(traceCtx, batchCacheStub, task)
 	if err != nil {
-		err = fmt.Errorf("failed to validate transaction sender, method, and arguments for task ID %s: %s", task.ID, err)
+		err = fmt.Errorf("failed to validate transaction sender, method, and arguments for task %s: %w", task.ID, err)
 		return handleTaskError(span, task, err)
 	}
 
