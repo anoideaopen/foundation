@@ -80,7 +80,7 @@ const (
 	CancelCCTransferFrom = "cancelCCTransferFrom"
 	DeleteCCTransferFrom = "deleteCCTransferFrom"
 	CreateIndex          = "createIndex"
-	ExecuteTasks         = "executeTask"
+	ExecuteTasks         = "executeTasks"
 )
 
 // TokenConfigurable is an interface that defines methods for validating, applying, and
