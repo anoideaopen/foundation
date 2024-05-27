@@ -6,11 +6,11 @@ logType: console
 profilePath: {{ .ConnectionPath User }}
 userName: backend
 listenAPI:
-  accessToken: ea135929105c4f29a0f5117d2980926f
-  addressHTTP: localhost:5678
-  addressGRPC: localhost:1234
+  accessToken: test
+  addressHTTP: 0.0.0.0:5080
+  addressGRPC: 0.0.0.0:5081
 service:
-  address: {{ .ChannelTransferPort "Listen" }}
+  address: :{{ .ChannelTransferPort "Listen" }}
 options:
   batchTxPreimagePrefix: batchTransactions
   collectorsBufSize: 1

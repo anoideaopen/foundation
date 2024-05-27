@@ -1,6 +1,21 @@
 package integration
 
 import (
+	"context"
+	cligrpc "github.com/anoideaopen/channel-transfer/proto"
+	"github.com/btcsuite/btcutil/base58"
+	"github.com/google/uuid"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/protobuf/types/known/anypb"
+	"google.golang.org/protobuf/types/known/typepb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
+	"os"
+	"path/filepath"
+	"syscall"
+	"time"
+
 	"github.com/anoideaopen/foundation/test/integration/cmn"
 	"github.com/anoideaopen/foundation/test/integration/cmn/client"
 	"github.com/anoideaopen/foundation/test/integration/cmn/runner"
@@ -13,10 +28,6 @@ import (
 	"github.com/onsi/gomega/gbytes"
 	"github.com/tedsuo/ifrit"
 	ginkgomon "github.com/tedsuo/ifrit/ginkgomon_v2"
-	"os"
-	"path/filepath"
-	"syscall"
-	"time"
 )
 
 var _ = Describe("Channel transfer foundation Tests", func() {
@@ -72,7 +83,7 @@ var _ = Describe("Channel transfer foundation Tests", func() {
 		skiBackend          string
 		skiRobot            string
 		peer                *nwo.Peer
-		admin               *client.UserFoundation
+		issuer              *client.UserFoundation
 		feeSetter           *client.UserFoundation
 		feeAddressSetter    *client.UserFoundation
 	)
@@ -161,19 +172,19 @@ var _ = Describe("Channel transfer foundation Tests", func() {
 		skiRobot, err = cmn.ReadSKI(pathToPrivateKeyRobot)
 		Expect(err).NotTo(HaveOccurred())
 
-		admin = client.NewUserFoundation()
-		Expect(admin.PrivateKey).NotTo(Equal(nil))
+		issuer = client.NewUserFoundation()
+		Expect(issuer.PrivateKey).NotTo(Equal(nil))
 		feeSetter = client.NewUserFoundation()
 		Expect(feeSetter.PrivateKey).NotTo(Equal(nil))
 		feeAddressSetter = client.NewUserFoundation()
 		Expect(feeAddressSetter.PrivateKey).NotTo(Equal(nil))
 
-		cmn.DeployACL(network, components, peer, testDir, skiBackend, admin.PublicKeyBase58)
-		cmn.DeployCC(network, components, peer, testDir, skiRobot, admin.AddressBase58Check)
+		cmn.DeployACL(network, components, peer, testDir, skiBackend, issuer.PublicKeyBase58)
+		cmn.DeployCC(network, components, peer, testDir, skiRobot, issuer.AddressBase58Check)
 		cmn.DeployFiat(network, components, peer, testDir, skiRobot,
-			admin.AddressBase58Check, feeSetter.AddressBase58Check, feeAddressSetter.AddressBase58Check)
+			issuer.AddressBase58Check, feeSetter.AddressBase58Check, feeAddressSetter.AddressBase58Check)
 		cmn.DeployIndustrial(network, components, peer, testDir, skiRobot,
-			admin.AddressBase58Check, feeSetter.AddressBase58Check, feeAddressSetter.AddressBase58Check)
+			issuer.AddressBase58Check, feeSetter.AddressBase58Check, feeAddressSetter.AddressBase58Check)
 	})
 	BeforeEach(func() {
 		By("start robot")
@@ -201,16 +212,16 @@ var _ = Describe("Channel transfer foundation Tests", func() {
 	})
 	It("example test", func() {
 		By("add admin to acl")
-		client.AddUser(network, peer, network.Orderers[0], admin)
+		client.AddUser(network, peer, network.Orderers[0], issuer)
 
 		By("add user to acl")
 		user1 := client.NewUserFoundation()
 		client.AddUser(network, peer, network.Orderers[0], user1)
 
 		By("emit tokens")
-		emitAmount := "1"
+		emitAmount := "1000"
 		client.TxInvokeWithSign(network, peer, network.Orderers[0],
-			cmn.ChannelFiat, cmn.ChannelFiat, admin,
+			cmn.ChannelFiat, cmn.ChannelFiat, issuer,
 			"emit", "", client.NewNonceByTime().Get(), user1.AddressBase58Check, emitAmount)
 
 		By("emit check")
@@ -218,66 +229,82 @@ var _ = Describe("Channel transfer foundation Tests", func() {
 			checkResult(checkBalance(emitAmount), nil),
 			"balanceOf", user1.AddressBase58Check)
 
-		/*
-			targetGrpc := os.Getenv("CHANNEL_TRANSFER_GRPC")
+		By("creating grpc connection")
+		clientCtx := metadata.NewOutgoingContext(context.Background(), metadata.Pairs("authorization", networkFound.ChTrAuthToken))
 
-			transportCredentials := insecure.NewCredentials()
-			conn, err := grpc.Dial(targetGrpc, grpc.WithTransportCredentials(transportCredentials))
+		transportCredentials := insecure.NewCredentials()
+		conn, err := grpc.Dial(networkFound.ChTrTargetGrpc, grpc.WithTransportCredentials(transportCredentials))
+		Expect(err).NotTo(HaveOccurred())
+		defer func() {
+			err := conn.Close()
 			Expect(err).NotTo(HaveOccurred())
-			defer conn.Close()
+		}()
 
-			c := cligrpc.NewAPIClient(conn)
+		By("creating channel transfer API client")
+		c := cligrpc.NewAPIClient(conn)
 
-			transferID := uuid.NewString()
-			channelTransferArgs := []string{transferID, "CC", user.UserAddressBase58Check, "FIAT", "250"}
+		By("creating channel transfer request")
+		transferID := uuid.NewString()
+		channelTransferArgs := []string{transferID, "CC", user1.AddressBase58Check, "FIAT", "250"}
 
-			sa, err := utils.SignExpand(issuer.IssuerEd25519PrivateKey, issuer.IssuerEd25519PublicKey, channelFrom, channelFrom, channelTransferByAdminMethod, channelTransferArgs, utils.GetNonce(), uuid.NewString())
-			sCtx.Require().NoError(err)
+		requestID := uuid.NewString()
+		nonce := client.NewNonceByTime().Get()
+		signArgs := append(append([]string{"channelTransferByAdmin", requestID, cmn.ChannelFiat, cmn.ChannelFiat}, channelTransferArgs...), nonce)
+		publicKey, sign, err := issuer.Sign(signArgs...)
+		Expect(err).NotTo(HaveOccurred())
 
-			transfer := &cligrpc.TransferBeginAdminRequest{
-				Generals: &cligrpc.GeneralParams{
-					MethodName: channelTransferByAdminMethod,
-					RequestId:  sa[0],
-					Chaincode:  sa[1],
-					Channel:    sa[2],
-					Nonce:      sa[len(sa)-3],
-					PublicKey:  sa[len(sa)-2],
-					Sign:       sa[len(sa)-1],
-				},
-				IdTransfer: channelTransferArgs[0],
-				ChannelTo:  channelTransferArgs[1],
-				Address:    channelTransferArgs[2],
-				Token:      channelTransferArgs[3],
-				Amount:     channelTransferArgs[4],
-			}
+		transfer := &cligrpc.TransferBeginAdminRequest{
+			Generals: &cligrpc.GeneralParams{
+				MethodName: "channelTransferByAdmin",
+				RequestId:  requestID,
+				Chaincode:  cmn.ChannelFiat,
+				Channel:    cmn.ChannelFiat,
+				Nonce:      nonce,
+				PublicKey:  publicKey,
+				Sign:       base58.Encode(sign),
+			},
+			IdTransfer: channelTransferArgs[0],
+			ChannelTo:  channelTransferArgs[1],
+			Address:    channelTransferArgs[2],
+			Token:      channelTransferArgs[3],
+			Amount:     channelTransferArgs[4],
+		}
 
-			r, err := c.TransferByAdmin(clientCtx, transfer)
-			sCtx.Require().NoError(err)
-			sCtx.Require().Equal(cligrpc.TransferStatusResponse_STATUS_IN_PROCESS, r.Status)
+		By("sending transfer request")
+		r, err := c.TransferByAdmin(clientCtx, transfer)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(r.Status).To(Equal(cligrpc.TransferStatusResponse_STATUS_IN_PROCESS))
 
-			transferStatusRequest := &cligrpc.TransferStatusRequest{
-				IdTransfer: transferID,
-			}
+		transferStatusRequest := &cligrpc.TransferStatusRequest{
+			IdTransfer: transferID,
+		}
 
-			excludeStatus := cligrpc.TransferStatusResponse_STATUS_IN_PROCESS.String()
-			value, err := anypb.New(wrapperspb.String(excludeStatus))
-			sCtx.Require().NoError(err)
+		excludeStatus := cligrpc.TransferStatusResponse_STATUS_IN_PROCESS.String()
+		value, err := anypb.New(wrapperspb.String(excludeStatus))
+		Expect(err).NotTo(HaveOccurred())
 
-			transferStatusRequest.Options = append(transferStatusRequest.Options, &typepb.Option{
-				Name:  "excludeStatus",
-				Value: value,
-			})
+		transferStatusRequest.Options = append(transferStatusRequest.Options, &typepb.Option{
+			Name:  "excludeStatus",
+			Value: value,
+		})
 
-			ctx, cancel := context.WithTimeout(clientCtx, 120*time.Second)
-			defer cancel()
+		ctx, cancel := context.WithTimeout(clientCtx, 120*time.Second)
+		defer cancel()
 
-			statusResponce, err := c.TransferStatus(ctx, transferStatusRequest)
-			t.Require().NoError(err)
-			sCtx.Require().Equal(cligrpc.TransferStatusResponse_STATUS_COMPLETED, statusResponce.Status)
+		By("awaiting for channel transfer to respond")
+		statusResponse, err := c.TransferStatus(ctx, transferStatusRequest)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(statusResponse.Status).To(Equal(cligrpc.TransferStatusResponse_STATUS_COMPLETED))
 
-			utils.CheckBalanceEqual(t, *hlfProxy, user.UserAddressBase58Check, "fiat", "750")
-			tr.CheckAllowedBalanceEqual(t, hlfProxy, user.UserAddressBase58Check, "cc", "FIAT", "250")
-		*/
+		By("checking result balances")
+		client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
+			checkResult(checkBalance("750"), nil),
+			"balanceOf", user1.AddressBase58Check)
+
+		client.Query(network, peer, cmn.ChannelCC, cmn.ChannelFiat,
+			checkResult(checkBalance("250"), nil),
+			"allowedBalanceOf", user1.AddressBase58Check)
+
 	})
 
 })
