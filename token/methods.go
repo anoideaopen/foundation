@@ -96,7 +96,7 @@ func (bt *BaseToken) QueryLockedBalanceOf(address *types.Address) (*big.Int, err
 	return bt.TokenBalanceGetLocked(address)
 }
 
-func (bt *BaseToken) QueryAllowedLockedBalanceOf(address *types.Address, token string) (*big.Int, error) {
+func (bt *BaseToken) QueryLockedAllowedBalanceOf(address *types.Address, token string) (*big.Int, error) {
 	return bt.AllowedBalanceGetLocked(token, address)
 }
 

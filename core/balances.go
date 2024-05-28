@@ -264,11 +264,6 @@ func (bc *BaseContract) TokenBalanceGetLocked(address *types.Address) (*big.Int,
 	return new(big.Int).SetBytes(balance.Bytes()), err
 }
 
-func (bc *BaseContract) AllowedBalanceGetLocked(token string, address *types.Address) (*big.Int, error) {
-	balanceValue, err := balance.Get(bc.stub, balance.BalanceTypeAllowedLocked, address.String(), token)
-	return new(big.Int).SetBytes(balanceValue.Bytes()), err
-}
-
 func (bc *BaseContract) TokenBalanceLock(address *types.Address, amount *big.Int) error {
 	return balance.Move(
 		bc.stub,
@@ -452,6 +447,11 @@ func (bc *BaseContract) AllowedIndustrialBalanceSub(
 	}
 
 	return nil
+}
+
+func (bc *BaseContract) AllowedBalanceGetLocked(token string, address *types.Address) (*big.Int, error) {
+	balanceValue, err := balance.Get(bc.stub, balance.BalanceTypeAllowedLocked, address.String(), token)
+	return new(big.Int).SetBytes(balanceValue.Bytes()), err
 }
 
 func (bc *BaseContract) AllowedBalanceLock(

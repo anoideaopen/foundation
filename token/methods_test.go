@@ -4,9 +4,8 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/stretchr/testify/require"
-
 	ma "github.com/anoideaopen/foundation/mock"
+	"github.com/stretchr/testify/require"
 )
 
 func TestBaseTokenSetLimits(t *testing.T) {
