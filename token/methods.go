@@ -91,6 +91,15 @@ func (bt *BaseToken) QueryAllowedBalanceOf(address *types.Address, token string)
 	return bt.AllowedBalanceGet(token, address)
 }
 
+// QueryLockedBalanceOf returns locked balance
+func (bt *BaseToken) QueryLockedBalanceOf(address *types.Address) (*big.Int, error) {
+	return bt.TokenBalanceGetLocked(address)
+}
+
+func (bt *BaseToken) QueryAllowedLockedBalanceOf(address *types.Address, token string) (*big.Int, error) {
+	return bt.AllowedBalanceGetLocked(token, address)
+}
+
 // QueryDocumentsList - returns list of emission documents
 func (bt *BaseToken) QueryDocumentsList() ([]core.Doc, error) {
 	return core.DocumentsList(bt.GetStub())
