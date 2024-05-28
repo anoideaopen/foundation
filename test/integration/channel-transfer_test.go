@@ -2,24 +2,18 @@ package integration
 
 import (
 	"context"
-	cligrpc "github.com/anoideaopen/channel-transfer/proto"
-	"github.com/btcsuite/btcutil/base58"
-	"github.com/google/uuid"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/metadata"
-	"google.golang.org/protobuf/types/known/anypb"
-	"google.golang.org/protobuf/types/known/typepb"
-	"google.golang.org/protobuf/types/known/wrapperspb"
 	"os"
 	"path/filepath"
 	"syscall"
 	"time"
 
+	cligrpc "github.com/anoideaopen/channel-transfer/proto"
 	"github.com/anoideaopen/foundation/test/integration/cmn"
 	"github.com/anoideaopen/foundation/test/integration/cmn/client"
 	"github.com/anoideaopen/foundation/test/integration/cmn/runner"
+	"github.com/btcsuite/btcutil/base58"
 	docker "github.com/fsouza/go-dockerclient"
+	"github.com/google/uuid"
 	"github.com/hyperledger/fabric/integration/nwo"
 	"github.com/hyperledger/fabric/integration/nwo/fabricconfig"
 	runnerFbk "github.com/hyperledger/fabric/integration/nwo/runner"
@@ -28,6 +22,12 @@ import (
 	"github.com/onsi/gomega/gbytes"
 	"github.com/tedsuo/ifrit"
 	ginkgomon "github.com/tedsuo/ifrit/ginkgomon_v2"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/protobuf/types/known/anypb"
+	"google.golang.org/protobuf/types/known/typepb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 var _ = Describe("Channel transfer foundation Tests", func() {
@@ -83,7 +83,7 @@ var _ = Describe("Channel transfer foundation Tests", func() {
 		skiBackend          string
 		skiRobot            string
 		peer                *nwo.Peer
-		issuer              *client.UserFoundation
+		admin               *client.UserFoundation
 		feeSetter           *client.UserFoundation
 		feeAddressSetter    *client.UserFoundation
 	)
@@ -172,19 +172,19 @@ var _ = Describe("Channel transfer foundation Tests", func() {
 		skiRobot, err = cmn.ReadSKI(pathToPrivateKeyRobot)
 		Expect(err).NotTo(HaveOccurred())
 
-		issuer = client.NewUserFoundation()
-		Expect(issuer.PrivateKey).NotTo(Equal(nil))
+		admin = client.NewUserFoundation()
+		Expect(admin.PrivateKey).NotTo(Equal(nil))
 		feeSetter = client.NewUserFoundation()
 		Expect(feeSetter.PrivateKey).NotTo(Equal(nil))
 		feeAddressSetter = client.NewUserFoundation()
 		Expect(feeAddressSetter.PrivateKey).NotTo(Equal(nil))
 
-		cmn.DeployACL(network, components, peer, testDir, skiBackend, issuer.PublicKeyBase58)
-		cmn.DeployCC(network, components, peer, testDir, skiRobot, issuer.AddressBase58Check)
+		cmn.DeployACL(network, components, peer, testDir, skiBackend, admin.PublicKeyBase58)
+		cmn.DeployCC(network, components, peer, testDir, skiRobot, admin.AddressBase58Check)
 		cmn.DeployFiat(network, components, peer, testDir, skiRobot,
-			issuer.AddressBase58Check, feeSetter.AddressBase58Check, feeAddressSetter.AddressBase58Check)
+			admin.AddressBase58Check, feeSetter.AddressBase58Check, feeAddressSetter.AddressBase58Check)
 		cmn.DeployIndustrial(network, components, peer, testDir, skiRobot,
-			issuer.AddressBase58Check, feeSetter.AddressBase58Check, feeAddressSetter.AddressBase58Check)
+			admin.AddressBase58Check, feeSetter.AddressBase58Check, feeAddressSetter.AddressBase58Check)
 	})
 	BeforeEach(func() {
 		By("start robot")
@@ -212,7 +212,7 @@ var _ = Describe("Channel transfer foundation Tests", func() {
 	})
 	It("example test", func() {
 		By("add admin to acl")
-		client.AddUser(network, peer, network.Orderers[0], issuer)
+		client.AddUser(network, peer, network.Orderers[0], admin)
 
 		By("add user to acl")
 		user1 := client.NewUserFoundation()
@@ -221,7 +221,7 @@ var _ = Describe("Channel transfer foundation Tests", func() {
 		By("emit tokens")
 		emitAmount := "1000"
 		client.TxInvokeWithSign(network, peer, network.Orderers[0],
-			cmn.ChannelFiat, cmn.ChannelFiat, issuer,
+			cmn.ChannelFiat, cmn.ChannelFiat, admin,
 			"emit", "", client.NewNonceByTime().Get(), user1.AddressBase58Check, emitAmount)
 
 		By("emit check")
@@ -230,10 +230,10 @@ var _ = Describe("Channel transfer foundation Tests", func() {
 			"balanceOf", user1.AddressBase58Check)
 
 		By("creating grpc connection")
-		clientCtx := metadata.NewOutgoingContext(context.Background(), metadata.Pairs("authorization", networkFound.ChTrAuthToken))
+		clientCtx := metadata.NewOutgoingContext(context.Background(), metadata.Pairs("authorization", networkFound.ChannelTransfer.AccessToken))
 
 		transportCredentials := insecure.NewCredentials()
-		conn, err := grpc.Dial(networkFound.ChTrTargetGrpc, grpc.WithTransportCredentials(transportCredentials))
+		conn, err := grpc.Dial(networkFound.ChannelTransfer.HostAddress+":"+networkFound.ChannelTransfer.PortGrpc, grpc.WithTransportCredentials(transportCredentials))
 		Expect(err).NotTo(HaveOccurred())
 		defer func() {
 			err := conn.Close()
@@ -250,7 +250,7 @@ var _ = Describe("Channel transfer foundation Tests", func() {
 		requestID := uuid.NewString()
 		nonce := client.NewNonceByTime().Get()
 		signArgs := append(append([]string{"channelTransferByAdmin", requestID, cmn.ChannelFiat, cmn.ChannelFiat}, channelTransferArgs...), nonce)
-		publicKey, sign, err := issuer.Sign(signArgs...)
+		publicKey, sign, err := admin.Sign(signArgs...)
 		Expect(err).NotTo(HaveOccurred())
 
 		transfer := &cligrpc.TransferBeginAdminRequest{

@@ -6,11 +6,11 @@ logType: console
 profilePath: {{ .ConnectionPath User }}
 userName: backend
 listenAPI:
-  accessToken: test
-  addressHTTP: 0.0.0.0:5080
-  addressGRPC: 0.0.0.0:5081
+  accessToken: {{ .ChannelTransferAccessToken }}
+  addressHTTP: {{ .ChannelTransferHostAddress }}:{{ .ChannelTransferPortHttp }}
+  addressGRPC: {{ .ChannelTransferHostAddress }}:{{ .ChannelTransferPortGrpc }}
 service:
-  address: :{{ .ChannelTransferPort "Listen" }}
+  address: {{ .ChannelTransferHostAddress }}:{{ .ChannelTransferPort "Listen" }}
 options:
   batchTxPreimagePrefix: batchTransactions
   collectorsBufSize: 1
@@ -18,7 +18,7 @@ options:
   retryExecuteAttempts: 3
   retryExecuteMaxDelay: 2s
   retryExecuteDelay: 500ms
-  ttl: 10800s
+  ttl: {{ .ChannelTransferTTL }}s
   transfersInHandleOnChannel: 50
   newestRequestStreamBufferSize: 50
 channels:{{ range .Channels }}
