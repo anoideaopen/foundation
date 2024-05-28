@@ -25,8 +25,6 @@ type NetworkFoundation struct {
 	ChannelTransfer *ChannelTransfer
 	Templates       *TemplatesFound
 	Channels        []string
-	ChTrAuthToken   string
-	ChTrTargetGrpc  string
 
 	mutex      sync.Locker
 	colorIndex uint
@@ -41,11 +39,14 @@ func New(network *nwo.Network, channels []string) *NetworkFoundation {
 		Channels: channels,
 		Robot:    &Robot{Ports: nwo.Ports{}},
 		ChannelTransfer: &ChannelTransfer{
-			Ports: nwo.Ports{},
+			HostAddress: "0.0.0.0",
+			PortGrpc:    "5081",
+			PortHttp:    "5080",
+			AccessToken: "test",
+			Ports:       nwo.Ports{},
+			TTL:         10800,
 		},
-		ChTrAuthToken:  "test",
-		ChTrTargetGrpc: "0.0.0.0:5081",
-		mutex:          &sync.Mutex{},
+		mutex: &sync.Mutex{},
 	}
 	for _, portName := range RobotPortNames() {
 		n.Robot.Ports[portName] = n.ReservePort()
@@ -66,8 +67,13 @@ type Robot struct {
 
 // ChannelTransfer defines Channel Transfer service
 type ChannelTransfer struct {
+	HostAddress    string    `yaml:"host_address,omitempty"`
 	Ports          nwo.Ports `yaml:"ports,omitempty"`
+	PortGrpc       string    `yaml:"port_grpc,omitempty"`
+	PortHttp       string    `yaml:"port_http,omitempty"`
 	RedisAddresses []string  `yaml:"redis_addresses,omitempty"`
+	AccessToken    string    `yaml:"access_token,omitempty"`
+	TTL            uint16    `yaml:"ttl,omitempty"`
 }
 
 func (n *NetworkFoundation) GenerateConfigTree() {
@@ -190,9 +196,44 @@ func ChannelTransferPortNames() []nwo.PortName { return []nwo.PortName{nwo.Liste
 
 // ChannelTransferPort returns the named port reserved for the Channel Transfer instance
 func (n *NetworkFoundation) ChannelTransferPort(portName nwo.PortName) uint16 {
-	peerPorts := n.ChannelTransfer.Ports
-	Expect(peerPorts).NotTo(BeNil())
-	return peerPorts[portName]
+	ports := n.ChannelTransfer.Ports
+	Expect(ports).NotTo(BeNil())
+	return ports[portName]
+}
+
+// ChannelTransferHostAddress returns Channel Transfer address
+func (n *NetworkFoundation) ChannelTransferHostAddress() string {
+	address := n.ChannelTransfer.HostAddress
+	Expect(address).NotTo(BeNil())
+	return address
+}
+
+// ChannelTransferPortGrpc returns Channel Transfer GRPC port
+func (n *NetworkFoundation) ChannelTransferPortGrpc() string {
+	portGrpc := n.ChannelTransfer.PortGrpc
+	Expect(portGrpc).NotTo(BeNil())
+	return portGrpc
+}
+
+// ChannelTransferPortHttp returns Channel Transfer GRPC port
+func (n *NetworkFoundation) ChannelTransferPortHttp() string {
+	portHttp := n.ChannelTransfer.PortHttp
+	Expect(portHttp).NotTo(BeNil())
+	return portHttp
+}
+
+// ChannelTransferAccessToken returns Channel Transfer GRPC port
+func (n *NetworkFoundation) ChannelTransferAccessToken() string {
+	token := n.ChannelTransfer.AccessToken
+	Expect(token).NotTo(BeNil())
+	return token
+}
+
+// ChannelTransferTTL returns Channel Transfer TTL value
+func (n *NetworkFoundation) ChannelTransferTTL() uint16 {
+	ttl := n.ChannelTransfer.TTL
+	Expect(ttl).NotTo(BeNil())
+	return ttl
 }
 
 // RobotPort returns the named port reserved for the Robot instance.
