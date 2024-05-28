@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -233,7 +234,8 @@ var _ = Describe("Channel transfer foundation Tests", func() {
 		clientCtx := metadata.NewOutgoingContext(context.Background(), metadata.Pairs("authorization", networkFound.ChannelTransfer.AccessToken))
 
 		transportCredentials := insecure.NewCredentials()
-		conn, err := grpc.Dial(networkFound.ChannelTransfer.HostAddress+":"+networkFound.ChannelTransfer.PortGrpc, grpc.WithTransportCredentials(transportCredentials))
+		grpcAddress := networkFound.ChannelTransfer.HostAddress + ":" + strconv.FormatUint(uint64(networkFound.ChannelTransfer.Ports[cmn.GrpcPort]), 10)
+		conn, err := grpc.Dial(grpcAddress, grpc.WithTransportCredentials(transportCredentials))
 		Expect(err).NotTo(HaveOccurred())
 		defer func() {
 			err := conn.Close()

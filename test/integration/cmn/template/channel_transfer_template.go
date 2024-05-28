@@ -7,8 +7,8 @@ profilePath: {{ .ConnectionPath User }}
 userName: backend
 listenAPI:
   accessToken: {{ .ChannelTransferAccessToken }}
-  addressHTTP: {{ .ChannelTransferHostAddress }}:{{ .ChannelTransferPortHttp }}
-  addressGRPC: {{ .ChannelTransferHostAddress }}:{{ .ChannelTransferPortGrpc }}
+  addressHTTP: {{ .ChannelTransferHostAddress }}:{{ .ChannelTransferPort "HttpPort" }}
+  addressGRPC: {{ .ChannelTransferHostAddress }}:{{ .ChannelTransferPort "GrpcPort" }}
 service:
   address: {{ .ChannelTransferHostAddress }}:{{ .ChannelTransferPort "Listen" }}
 options:

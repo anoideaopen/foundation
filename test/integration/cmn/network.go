@@ -18,6 +18,11 @@ import (
 	ginkgomon "github.com/tedsuo/ifrit/ginkgomon_v2"
 )
 
+const (
+	HttpPort nwo.PortName = "HttpPort"
+	GrpcPort nwo.PortName = "GrpcPort"
+)
+
 // NetworkFoundation holds information about a fabric network.
 type NetworkFoundation struct {
 	*nwo.Network
@@ -40,8 +45,6 @@ func New(network *nwo.Network, channels []string) *NetworkFoundation {
 		Robot:    &Robot{Ports: nwo.Ports{}},
 		ChannelTransfer: &ChannelTransfer{
 			HostAddress: "0.0.0.0",
-			PortGrpc:    "5081",
-			PortHttp:    "5080",
 			AccessToken: "test",
 			Ports:       nwo.Ports{},
 			TTL:         10800,
@@ -69,8 +72,6 @@ type Robot struct {
 type ChannelTransfer struct {
 	HostAddress    string    `yaml:"host_address,omitempty"`
 	Ports          nwo.Ports `yaml:"ports,omitempty"`
-	PortGrpc       string    `yaml:"port_grpc,omitempty"`
-	PortHttp       string    `yaml:"port_http,omitempty"`
 	RedisAddresses []string  `yaml:"redis_addresses,omitempty"`
 	AccessToken    string    `yaml:"access_token,omitempty"`
 	TTL            uint16    `yaml:"ttl,omitempty"`
@@ -192,7 +193,9 @@ func RobotPortNames() []nwo.PortName {
 }
 
 // ChannelTransferPortNames returns the list of ports that need to be reserved for the Channel Transfer service
-func ChannelTransferPortNames() []nwo.PortName { return []nwo.PortName{nwo.ListenPort} }
+func ChannelTransferPortNames() []nwo.PortName {
+	return []nwo.PortName{nwo.ListenPort, GrpcPort, HttpPort}
+}
 
 // ChannelTransferPort returns the named port reserved for the Channel Transfer instance
 func (n *NetworkFoundation) ChannelTransferPort(portName nwo.PortName) uint16 {
@@ -206,20 +209,6 @@ func (n *NetworkFoundation) ChannelTransferHostAddress() string {
 	address := n.ChannelTransfer.HostAddress
 	Expect(address).NotTo(BeNil())
 	return address
-}
-
-// ChannelTransferPortGrpc returns Channel Transfer GRPC port
-func (n *NetworkFoundation) ChannelTransferPortGrpc() string {
-	portGrpc := n.ChannelTransfer.PortGrpc
-	Expect(portGrpc).NotTo(BeNil())
-	return portGrpc
-}
-
-// ChannelTransferPortHttp returns Channel Transfer GRPC port
-func (n *NetworkFoundation) ChannelTransferPortHttp() string {
-	portHttp := n.ChannelTransfer.PortHttp
-	Expect(portHttp).NotTo(BeNil())
-	return portHttp
 }
 
 // ChannelTransferAccessToken returns Channel Transfer GRPC port
