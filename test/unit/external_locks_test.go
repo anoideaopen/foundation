@@ -293,6 +293,8 @@ func TestFailedUnlock(t *testing.T) {
 	idToken := owner.SignedInvoke("cc", "lockTokenBalance", string(data1))
 	idAllowed := owner.SignedInvoke("cc", "lockAllowedBalance", string(data2))
 
+	require.Equal(t, owner.Invoke("cc", "lockedAllowedBalanceOf", user1.Address(), "vt"), `"`+request2.Amount+`"`)
+
 	request1.Id = idToken
 	request1.Amount = "610"
 	request2.Id = idAllowed
