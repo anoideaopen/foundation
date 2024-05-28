@@ -43,7 +43,7 @@ func (bc *BaseContract) GetStub() shim.ChaincodeStubInterface {
 
 // GetMethods returns list of methods
 func (bc *BaseContract) GetMethods(bci BaseContractInterface) []string {
-	contractMethods, err := parseContractMethods(bci)
+	contractMethods, err := parseContractEndpoints(bci)
 	if err != nil {
 		panic(err)
 	}

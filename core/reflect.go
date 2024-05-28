@@ -3,11 +3,12 @@ package core
 import (
 	"errors"
 	"fmt"
-	"reflect"
 	"strings"
 
 	"github.com/anoideaopen/foundation/core/reflectx"
+	"github.com/anoideaopen/foundation/core/routing"
 	stringsx "github.com/anoideaopen/foundation/core/stringsx"
+	"github.com/anoideaopen/foundation/core/types"
 )
 
 var (
@@ -16,98 +17,42 @@ var (
 	ErrInvalidMethodName    = errors.New("invalid method name")
 )
 
-// Method is a struct for function
-type Method struct {
-	Name           string
-	FunctionName   string
-	query          bool
-	noBatch        bool
-	needsAuth      bool
-	hasOutputValue bool
-	in             int
-}
-
-func NewMethod(name string, of any) (*Method, error) {
-	m := &Method{
-		Name:           name,
-		FunctionName:   "",
-		query:          false,
-		noBatch:        false,
-		needsAuth:      false,
-		in:             0,
-		hasOutputValue: false,
+func NewEndpoint(name string, of any) (*routing.Endpoint, error) {
+	ep := &routing.Endpoint{
+		Type:          0,
+		ChaincodeFunc: "",
+		MethodName:    name,
+		NumArgs:       0,
+		NumReturns:    0,
+		RequiresAuth:  false,
 	}
 
 	switch {
-	case strings.HasPrefix(m.Name, batchedTransactionPrefix):
-		m.FunctionName = strings.TrimPrefix(m.Name, batchedTransactionPrefix)
+	case strings.HasPrefix(ep.MethodName, batchedTransactionPrefix):
+		ep.Type = routing.EndpointTypeTransaction
+		ep.ChaincodeFunc = strings.TrimPrefix(ep.MethodName, batchedTransactionPrefix)
 
-	case strings.HasPrefix(m.Name, transactionWithoutBatchPrefix):
-		m.noBatch = true
-		m.FunctionName = strings.TrimPrefix(m.Name, transactionWithoutBatchPrefix)
+	case strings.HasPrefix(ep.MethodName, transactionWithoutBatchPrefix):
+		ep.Type = routing.EndpointTypeInvoke
+		ep.ChaincodeFunc = strings.TrimPrefix(ep.MethodName, transactionWithoutBatchPrefix)
 
-	case strings.HasPrefix(m.Name, queryTransactionPrefix):
-		m.query = true
-		m.noBatch = true
-		m.FunctionName = strings.TrimPrefix(m.Name, queryTransactionPrefix)
+	case strings.HasPrefix(ep.MethodName, queryTransactionPrefix):
+		ep.Type = routing.EndpointTypeQuery
+		ep.ChaincodeFunc = strings.TrimPrefix(ep.MethodName, queryTransactionPrefix)
+
 	default:
-		return nil, fmt.Errorf("%w: %s", ErrUnsupportedMethod, m.Name)
+		return nil, fmt.Errorf("%w: %s", ErrUnsupportedMethod, ep.MethodName)
 	}
 
-	if len(m.FunctionName) == 0 {
-		return nil, fmt.Errorf("%w: %s", ErrInvalidMethodName, m.Name)
+	if len(ep.ChaincodeFunc) == 0 {
+		return nil, fmt.Errorf("%w: %s", ErrInvalidMethodName, ep.MethodName)
 	}
 
-	if err := m.parseInput(of); err != nil {
-		return nil, err
-	}
+	ep.ChaincodeFunc = stringsx.LowerFirstChar(ep.ChaincodeFunc)
+	ep.NumArgs, ep.NumReturns = reflectx.MethodParamCounts(of, ep.MethodName)
+	ep.RequiresAuth = reflectx.IsArgOfType(of, ep.MethodName, 0, &types.Sender{})
 
-	if err := m.parseOutput(of); err != nil {
-		return nil, err
-	}
-
-	m.FunctionName = stringsx.LowerFirstChar(m.FunctionName)
-
-	return m, nil
-}
-
-func (f *Method) parseInput(of any) error {
-	t := reflect.TypeOf(of)
-
-	method, ok := t.MethodByName(f.Name)
-	if !ok {
-		return fmt.Errorf("method '%s' not found", f.Name)
-	}
-
-	f.in = method.Type.NumIn() - 1 // WTF? TODO: fix this
-	if method.Type.NumIn() > 1 && method.Type.In(1).String() == "*types.Sender" {
-		f.needsAuth = true
-		f.in--
-	}
-
-	return nil
-}
-
-func (f *Method) parseOutput(of any) error {
-	t := reflect.TypeOf(of)
-
-	method, ok := t.MethodByName(f.Name)
-	if !ok {
-		return fmt.Errorf("method '%s' not found", f.Name)
-	}
-
-	count := method.Type.NumOut()
-	if count == 1 && method.Type.Out(0).String() == "error" {
-		f.hasOutputValue = false
-		return nil
-	}
-
-	if count == 2 && method.Type.Out(1).String() == "error" {
-		f.hasOutputValue = true
-		return nil
-	}
-
-	return errors.New("unknown output types " + method.Name)
+	return ep, nil
 }
 
 var (
@@ -115,14 +60,14 @@ var (
 	multiSwapMethods = []string{"QueryMultiSwapGet", "TxMultiSwapBegin", "TxMultiSwapCancel"}
 )
 
-func parseContractMethods(in BaseContractInterface) (map[string]*Method, error) {
+func parseContractEndpoints(in BaseContractInterface) (map[string]*routing.Endpoint, error) {
 	cfgOptions := in.ContractConfig().GetOptions()
 
 	swapsDisabled := cfgOptions.GetDisableSwaps()
 	multiswapsDisabled := cfgOptions.GetDisableMultiSwaps()
 	disabledMethods := cfgOptions.GetDisabledFunctions()
 
-	out := make(map[string]*Method)
+	out := make(map[string]*routing.Endpoint)
 	for _, method := range reflectx.Methods(in) {
 		if stringsx.OneOf(method, disabledMethods...) ||
 			(swapsDisabled && stringsx.OneOf(method, swapMethods...)) ||
@@ -130,7 +75,7 @@ func parseContractMethods(in BaseContractInterface) (map[string]*Method, error) 
 			continue
 		}
 
-		m, err := NewMethod(method, in)
+		ep, err := NewEndpoint(method, in)
 		if err != nil {
 			if errors.Is(err, ErrUnsupportedMethod) {
 				continue
@@ -139,7 +84,7 @@ func parseContractMethods(in BaseContractInterface) (map[string]*Method, error) 
 			return nil, err
 		}
 
-		out[m.FunctionName] = m
+		out[ep.ChaincodeFunc] = ep
 	}
 
 	return out, nil

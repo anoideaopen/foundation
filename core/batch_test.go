@@ -112,17 +112,16 @@ func TestSaveToBatchWithWrongArgs(t *testing.T) {
 	batchTimestamp, err := mockStub.GetTxTimestamp()
 	require.NoError(t, err)
 
-	chainCode.methods, err = parseContractMethods(chainCode.contract)
+	chainCode.endpoints, err = parseContractEndpoints(chainCode.contract)
 	require.NoError(t, err)
 
-	fn, err := chainCode.Method(s.FnName)
+	ep, err := chainCode.Endpoint(s.FnName)
 	require.NoError(t, err)
 
 	errSave := chainCode.saveToBatch(
 		telemetry.TraceContext{},
 		mockStub,
-		s.FnName,
-		fn,
+		ep,
 		sender,
 		wrongArgs,
 		uint64(batchTimestamp.Seconds),
@@ -166,17 +165,16 @@ func TestSaveToBatchWithSignedArgs(t *testing.T) {
 	batchTimestamp, err := mockStub.GetTxTimestamp()
 	require.NoError(t, err)
 
-	chainCode.methods, err = parseContractMethods(chainCode.contract)
+	chainCode.endpoints, err = parseContractEndpoints(chainCode.contract)
 	require.NoError(t, err)
 
-	fn, err := chainCode.Method(s.FnName)
+	ep, err := chainCode.Endpoint(s.FnName)
 	require.NoError(t, err)
 
 	err = chainCode.saveToBatch(
 		telemetry.TraceContext{},
 		mockStub,
-		s.FnName,
-		fn,
+		ep,
 		sender,
 		argsForTestFnWithSignedTwoArgs,
 		uint64(batchTimestamp.Seconds),
@@ -222,17 +220,16 @@ func TestSaveToBatchWithWrongSignedArgs(t *testing.T) {
 	batchTimestamp, err := mockStub.GetTxTimestamp()
 	require.NoError(t, err)
 
-	chainCode.methods, err = parseContractMethods(chainCode.contract)
+	chainCode.endpoints, err = parseContractEndpoints(chainCode.contract)
 	require.NoError(t, err)
 
-	fn, err := chainCode.Method(s.FnName)
+	ep, err := chainCode.Endpoint(s.FnName)
 	require.NoError(t, err)
 
 	err = chainCode.saveToBatch(
 		telemetry.TraceContext{},
 		mockStub,
-		s.FnName,
-		fn,
+		ep,
 		sender,
 		wrongArgs,
 		uint64(batchTimestamp.Seconds),
@@ -275,10 +272,10 @@ func TestSaveToBatchWrongFnName(t *testing.T) {
 	err = applyConfig(chainCode.contract, ms, cfgBytes)
 	require.NoError(t, err)
 
-	chainCode.methods, err = parseContractMethods(chainCode.contract)
+	chainCode.endpoints, err = parseContractEndpoints(chainCode.contract)
 	require.NoError(t, err)
 
-	fn, err := chainCode.Method(s.FnName)
+	fn, err := chainCode.Endpoint(s.FnName)
 	require.ErrorContains(t, err, "method 'unknownFunctionName' not found")
 	require.Nil(t, fn)
 }
@@ -332,17 +329,16 @@ func SaveAndLoadToBatchTest(t *testing.T, ser *serieBatches, args []string) {
 	batchTimestamp, err := ms.GetTxTimestamp()
 	require.NoError(t, err)
 
-	chainCode.methods, err = parseContractMethods(chainCode.contract)
+	chainCode.endpoints, err = parseContractEndpoints(chainCode.contract)
 	require.NoError(t, err)
 
-	fn, err := chainCode.Method(ser.FnName)
+	ep, err := chainCode.Endpoint(ser.FnName)
 	require.NoError(t, err)
 
 	errSave := chainCode.saveToBatch(
 		telemetry.TraceContext{},
 		ms,
-		ser.FnName,
-		fn,
+		ep,
 		sender,
 		args,
 		uint64(batchTimestamp.Seconds),
@@ -454,19 +450,18 @@ func BatchExecuteTest(t *testing.T, ser *serieBatchExecute, args []string) peer.
 	batchTimestamp, err := ms.GetTxTimestamp()
 	require.NoError(t, err)
 
-	methods, err := parseContractMethods(chainCode.contract)
+	endpoints, err := parseContractEndpoints(chainCode.contract)
 	require.NoError(t, err)
-	chainCode.methods = methods
+	chainCode.endpoints = endpoints
 	require.NoError(t, err)
 
-	method, err := chainCode.Method(testFnWithFiveArgsMethod)
+	ep, err := chainCode.Endpoint(testFnWithFiveArgsMethod)
 	require.NoError(t, err)
 
 	err = chainCode.saveToBatch(
 		telemetry.TraceContext{},
 		ms,
-		testFnWithFiveArgsMethod,
-		method,
+		ep,
 		nil,
 		args,
 		uint64(batchTimestamp.Seconds),
@@ -520,7 +515,7 @@ func TestBatchedTxExecute(t *testing.T) {
 	err = applyConfig(chainCode.contract, ms, cfgBytes)
 	require.NoError(t, err)
 
-	chainCode.methods, err = parseContractMethods(chainCode.contract)
+	chainCode.endpoints, err = parseContractEndpoints(chainCode.contract)
 	require.NoError(t, err)
 
 	ms.TxID = testEncodedTxID
@@ -532,17 +527,16 @@ func TestBatchedTxExecute(t *testing.T) {
 	batchTimestamp, err := ms.GetTxTimestamp()
 	require.NoError(t, err)
 
-	chainCode.methods, err = parseContractMethods(chainCode.contract)
+	chainCode.endpoints, err = parseContractEndpoints(chainCode.contract)
 	require.NoError(t, err)
 
-	fn, err := chainCode.Method(testFnWithFiveArgsMethod)
+	ep, err := chainCode.Endpoint(testFnWithFiveArgsMethod)
 	require.NoError(t, err)
 
 	err = chainCode.saveToBatch(
 		telemetry.TraceContext{},
 		ms,
-		testFnWithFiveArgsMethod,
-		fn,
+		ep,
 		nil,
 		argsForTestFnWithFive,
 		uint64(batchTimestamp.Seconds))

@@ -29,7 +29,7 @@ const (
 //
 // Returns a shim.Success response if the swap done logic executes successfully.
 // Otherwise, it returns a shim.Error response.
-func (cc *ChainCode) swapDoneHandler(
+func (cc *Chaincode) swapDoneHandler(
 	traceCtx telemetry.TraceContext,
 	stub shim.ChaincodeStubInterface,
 	args []string,

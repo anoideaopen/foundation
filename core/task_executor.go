@@ -10,6 +10,7 @@ import (
 
 	"github.com/anoideaopen/foundation/core/cachestub"
 	"github.com/anoideaopen/foundation/core/reflectx"
+	"github.com/anoideaopen/foundation/core/routing"
 	"github.com/anoideaopen/foundation/core/telemetry"
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/proto"
@@ -39,18 +40,18 @@ type Task struct {
 // TaskExecutor handles the execution of a group of tasks.
 type TaskExecutor struct {
 	BatchCacheStub *cachestub.BatchCacheStub
-	ChainCode      *ChainCode
+	Chaincode      *Chaincode
 	CfgBytes       []byte
 	SKI            string
 	TracingHandler *telemetry.TracingHandler
 }
 
 // NewTaskExecutor initializes a new TaskExecutor.
-func NewTaskExecutor(stub shim.ChaincodeStubInterface, cfgBytes []byte, cc *ChainCode, tracingHandler *telemetry.TracingHandler) *TaskExecutor {
+func NewTaskExecutor(stub shim.ChaincodeStubInterface, cfgBytes []byte, cc *Chaincode, tracingHandler *telemetry.TracingHandler) *TaskExecutor {
 	return &TaskExecutor{
 		BatchCacheStub: cachestub.NewBatchCacheStub(stub),
 		CfgBytes:       cfgBytes,
-		ChainCode:      cc,
+		Chaincode:      cc,
 		TracingHandler: tracingHandler,
 	}
 }
@@ -63,7 +64,7 @@ func TasksExecutorHandler(
 	stub shim.ChaincodeStubInterface,
 	cfgBytes []byte,
 	args []string,
-	cc *ChainCode,
+	cc *Chaincode,
 ) ([]byte, error) {
 	tracingHandler := cc.contract.TracingHandler()
 	traceCtx, span := tracingHandler.StartNewSpan(traceCtx, ExecuteTasks)
@@ -150,12 +151,12 @@ func (e *TaskExecutor) validatedTxSenderMethodAndArgs(
 	traceCtx telemetry.TraceContext,
 	batchCacheStub *cachestub.BatchCacheStub,
 	task Task,
-) (*proto.Address, *Method, []string, error) {
+) (*proto.Address, *routing.Endpoint, []string, error) {
 	_, span := e.TracingHandler.StartNewSpan(traceCtx, "TaskExecutor.validatedTxSenderMethodAndArgs")
 	defer span.End()
 
 	span.AddEvent("parsing chaincode method")
-	method, err := e.ChainCode.Method(task.Method)
+	ep, err := e.Chaincode.Endpoint(task.Method)
 	if err != nil {
 		err = fmt.Errorf("failed to parse chaincode method '%s' for task %s: %w", task.Method, task.ID, err)
 		span.SetStatus(codes.Error, err.Error())
@@ -163,7 +164,7 @@ func (e *TaskExecutor) validatedTxSenderMethodAndArgs(
 	}
 
 	span.AddEvent("validating and extracting invocation context")
-	senderAddress, args, nonce, err := e.ChainCode.validateAndExtractInvocationContext(batchCacheStub, method, task.Method, task.Args)
+	senderAddress, args, nonce, err := e.Chaincode.validateAndExtractInvocationContext(batchCacheStub, ep, task.Args)
 	if err != nil {
 		err = fmt.Errorf("failed to validate and extract invocation context for task %s: %w", task.ID, err)
 		span.SetStatus(codes.Error, err.Error())
@@ -171,7 +172,7 @@ func (e *TaskExecutor) validatedTxSenderMethodAndArgs(
 	}
 
 	span.AddEvent("validating authorization")
-	if !method.needsAuth || senderAddress == nil {
+	if !ep.RequiresAuth || senderAddress == nil {
 		err = fmt.Errorf("failed to validate authorization for task %s: sender address is missing", task.ID)
 		span.SetStatus(codes.Error, err.Error())
 		return nil, nil, nil, err
@@ -179,7 +180,7 @@ func (e *TaskExecutor) validatedTxSenderMethodAndArgs(
 	argsToValidate := append([]string{senderAddress.AddrString()}, args...)
 
 	span.AddEvent("validating arguments")
-	err = reflectx.ValidateArguments(e.ChainCode.contract, method.Name, batchCacheStub, argsToValidate...)
+	err = reflectx.ValidateArguments(e.Chaincode.contract, ep.MethodName, batchCacheStub, argsToValidate...)
 	if err != nil {
 		err = fmt.Errorf("failed to validate arguments for task %s: %w", task.ID, err)
 		span.SetStatus(codes.Error, err.Error())
@@ -195,7 +196,7 @@ func (e *TaskExecutor) validatedTxSenderMethodAndArgs(
 		return nil, nil, nil, err
 	}
 
-	return senderAddress, method, args[:method.in], nil
+	return senderAddress, ep, args[:ep.NumArgs-1], nil
 }
 
 // ExecuteTask processes an individual task, returning a transaction response and event.
@@ -230,7 +231,7 @@ func (e *TaskExecutor) ExecuteTask(
 	}
 
 	span.AddEvent("calling method")
-	response, err := e.ChainCode.callMethod(traceCtx, txCacheStub, method, senderAddress, args, cfgBytes)
+	response, err := e.Chaincode.call(traceCtx, txCacheStub, method, senderAddress, args, cfgBytes)
 	if err != nil {
 		return handleTaskError(span, task, err)
 	}

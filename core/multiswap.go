@@ -26,7 +26,7 @@ import (
 //
 // Returns a shim.Success response if the multi-swap done logic executes successfully.
 // Otherwise, it returns a shim.Error response.
-func (cc *ChainCode) multiSwapDoneHandler(
+func (cc *Chaincode) multiSwapDoneHandler(
 	traceCtx telemetry.TraceContext,
 	stub shim.ChaincodeStubInterface,
 	args []string,
