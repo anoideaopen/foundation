@@ -840,7 +840,13 @@ func (cc *Chaincode) call(
 		return nil, errors.New(requireInterfaceErrMsg)
 	}
 
-	cc.contract = v.(BaseContractInterface)
+	bci, ok := v.(BaseContractInterface)
+	if !ok {
+		span.SetStatus(codes.Error, requireInterfaceErrMsg)
+		return nil, errors.New(requireInterfaceErrMsg)
+	}
+
+	cc.contract = bci
 
 	span.SetStatus(codes.Ok, "")
 	switch len(result) {
