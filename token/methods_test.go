@@ -4,8 +4,9 @@ import (
 	"encoding/json"
 	"testing"
 
-	ma "github.com/anoideaopen/foundation/mock"
 	"github.com/stretchr/testify/require"
+
+	ma "github.com/anoideaopen/foundation/mock"
 )
 
 func TestBaseTokenSetLimits(t *testing.T) {
@@ -101,8 +102,9 @@ func TestMetadataMethods(t *testing.T) {
 	err := json.Unmarshal([]byte(rsp), &meta)
 	require.NoError(t, err)
 
-	var tokenMethods = []string{"addDocs", "allowedBalanceOf", "allowedIndustrialBalanceTransfer",
-		"balanceOf", "buildInfo", "buyBack", "buyToken", "cancelCCTransferFrom",
+	var tokenMethods = []string{"addDocs", "allowedBalanceOf", "allowedLockedBalanceOf",
+		"allowedIndustrialBalanceTransfer",
+		"balanceOf", "lockedBalanceOf", "buildInfo", "buyBack", "buyToken", "cancelCCTransferFrom",
 		"channelTransferByAdmin", "channelTransferByCustomer", "channelTransferFrom",
 		"channelTransferTo", "channelTransfersFrom", "commitCCTransferFrom", "coreChaincodeIDName",
 		"createCCTransferTo", "deleteCCTransferFrom", "deleteCCTransferTo", "deleteDoc",
