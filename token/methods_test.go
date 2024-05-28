@@ -115,3 +115,15 @@ func TestMetadataMethods(t *testing.T) {
 		"unlockAllowedBalance", "healthCheckNb", "unlockTokenBalance"}
 	require.ElementsMatch(t, tokenMethods, meta.Methods)
 }
+
+func TestBaseTokenAllowedBalance(t *testing.T) {
+	ledger := ma.NewLedger(t)
+	issuer := ledger.NewWallet()
+	tt := &BaseToken{}
+	config := makeBaseTokenConfig("Test Token", "TT", 8,
+		issuer.Address(), "", "")
+	ledger.NewCC("tt", tt, config)
+
+	require.Equal(t, issuer.Invoke("tt", "lockedBalanceOf", issuer.Address()), `"0"`)
+	require.Equal(t, issuer.Invoke("tt", "lockedAllowedBalanceOf", issuer.Address(), "01"), `"0"`)
+}
