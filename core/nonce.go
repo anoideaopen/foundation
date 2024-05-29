@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/anoideaopen/foundation/core/logger"
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/core/types/big"
 	pb "github.com/anoideaopen/foundation/proto"
@@ -44,8 +45,8 @@ func checkNonce(
 	lastNonce := new(pb.Nonce)
 	if len(data) > 0 {
 		if err = proto.Unmarshal(data, lastNonce); err != nil {
-			logger := Logger()
-			logger.Warningf("error unmarshal nonce, maybe old nonce. error: %v", err)
+			log := logger.Logger()
+			log.Warningf("error unmarshal nonce, maybe old nonce. error: %v", err)
 			// let's just say it's an old nonse
 			lastNonce.Nonce = []uint64{new(big.Int).SetBytes(data).Uint64()}
 		}
