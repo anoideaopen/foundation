@@ -290,7 +290,7 @@ var _ = Describe("Channel transfer foundation Tests", func() {
 			Value: value,
 		})
 
-		ctx, cancel := context.WithTimeout(clientCtx, 120*time.Second)
+		ctx, cancel := context.WithTimeout(clientCtx, network.EventuallyTimeout*2)
 		defer cancel()
 
 		By("awaiting for channel transfer to respond")
@@ -303,10 +303,8 @@ var _ = Describe("Channel transfer foundation Tests", func() {
 			checkResult(checkBalance("750"), nil),
 			"balanceOf", user1.AddressBase58Check)
 
-		client.Query(network, peer, cmn.ChannelCC, cmn.ChannelFiat,
+		client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC,
 			checkResult(checkBalance("250"), nil),
-			"allowedBalanceOf", user1.AddressBase58Check)
-
+			"allowedBalanceOf", user1.AddressBase58Check, "FIAT")
 	})
-
 })
