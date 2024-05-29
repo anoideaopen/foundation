@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/anoideaopen/foundation/core/balance"
+	"github.com/anoideaopen/foundation/core/logger"
 	"github.com/anoideaopen/foundation/core/reflectx"
 	"github.com/anoideaopen/foundation/core/stringsx"
 	"github.com/anoideaopen/foundation/core/telemetry"
@@ -21,6 +22,7 @@ import (
 	"github.com/anoideaopen/foundation/proto"
 	"github.com/hyperledger/fabric-chaincode-go/shim"
 	"github.com/hyperledger/fabric-protos-go/peer"
+	"github.com/op/go-logging"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 )
@@ -603,7 +605,7 @@ func (cc *ChainCode) Invoke(stub shim.ChaincodeStubInterface) (r peer.Response) 
 		)
 		if err != nil {
 			errMsg := fmt.Sprintf("failed to execute method %s: txID %s: %s", ExecuteTasks, stub.GetTxID(), err)
-			Logger().Error(errMsg)
+			logger.Logger().Error(errMsg)
 			span.SetStatus(codes.Error, errMsg)
 			return shim.Error(errMsg)
 		}
@@ -1008,4 +1010,9 @@ func applyConfig(
 	}
 
 	return nil
+}
+
+// Deprecated: added only for backward compatibility.
+func Logger() *logging.Logger {
+	return logger.Logger()
 }

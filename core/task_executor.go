@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/anoideaopen/foundation/core/cachestub"
+	"github.com/anoideaopen/foundation/core/logger"
 	"github.com/anoideaopen/foundation/core/reflectx"
 	"github.com/anoideaopen/foundation/core/telemetry"
 	"github.com/anoideaopen/foundation/core/types"
@@ -69,12 +70,12 @@ func TasksExecutorHandler(
 	traceCtx, span := tracingHandler.StartNewSpan(traceCtx, ExecuteTasks)
 	defer span.End()
 
-	logger := Logger()
+	log := logger.Logger()
 	txID := stub.GetTxID()
 	span.SetAttributes(attribute.String("tx_id", txID))
 	start := time.Now()
 	defer func() {
-		logger.Infof("tx id %s elapsed time %d ms", txID, time.Since(start).Milliseconds())
+		log.Infof("tx id %s elapsed time %d ms", txID, time.Since(start).Milliseconds())
 	}()
 
 	if len(args) != 1 {
@@ -211,13 +212,13 @@ func (e *TaskExecutor) ExecuteTask(
 	traceCtx, span := e.TracingHandler.StartNewSpan(traceCtx, "TaskExecutor.ExecuteTasks")
 	defer span.End()
 
-	logger := Logger()
+	log := logger.Logger()
 	start := time.Now()
 	span.SetAttributes(attribute.String("task_method", task.Method))
 	span.SetAttributes(attribute.StringSlice("task_args", task.Args))
 	span.SetAttributes(attribute.String("task_id", task.ID))
 	defer func() {
-		logger.Infof("task method %s task %s elapsed time %d ms", task.Method, task.ID, time.Since(start).Milliseconds())
+		log.Infof("task method %s task %s elapsed time %d ms", task.Method, task.ID, time.Since(start).Milliseconds())
 	}()
 
 	txCacheStub := batchCacheStub.NewTxCacheStub(task.ID)
@@ -258,13 +259,13 @@ func (e *TaskExecutor) ExecuteTask(
 }
 
 func handleTasksError(span trace.Span, err error) error {
-	Logger().Error(err)
+	logger.Logger().Error(err)
 	span.SetStatus(codes.Error, err.Error())
 	return err
 }
 
 func handleTaskError(span trace.Span, task Task, err error) (*proto.TxResponse, *proto.BatchTxEvent) {
-	Logger().Errorf("%s: %s: %s", task.Method, task.ID, err)
+	logger.Logger().Errorf("%s: %s: %s", task.Method, task.ID, err)
 	span.SetStatus(codes.Error, err.Error())
 
 	ee := proto.ResponseError{Error: err.Error()}
