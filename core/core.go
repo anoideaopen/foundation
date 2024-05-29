@@ -22,7 +22,6 @@ import (
 	"github.com/anoideaopen/foundation/proto"
 	"github.com/hyperledger/fabric-chaincode-go/shim"
 	"github.com/hyperledger/fabric-protos-go/peer"
-	"github.com/op/go-logging"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 )
@@ -1010,9 +1009,4 @@ func applyConfig(
 	}
 
 	return nil
-}
-
-// Deprecated: added only for backward compatibility.
-func Logger() *logging.Logger {
-	return logger.Logger()
 }
