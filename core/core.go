@@ -715,7 +715,9 @@ func (cc *Chaincode) InvokeContractMethod(
 
 	span.SetAttributes(attribute.StringSlice("args", args))
 	if method.NumArgs != len(args) {
-		return nil, fmt.Errorf("expected %d arguments, got %d", method.NumArgs, len(args))
+		err := fmt.Errorf("expected %d arguments, got %d", method.NumArgs, len(args))
+		span.SetStatus(codes.Error, err.Error())
+		return nil, err
 	}
 
 	span.AddEvent("applying config")
@@ -730,7 +732,9 @@ func (cc *Chaincode) InvokeContractMethod(
 	}
 
 	if len(result) != method.NumReturns {
-		return nil, fmt.Errorf("expected %d return values, got %d", method.NumReturns, len(result))
+		err := fmt.Errorf("expected %d return values, got %d", method.NumReturns, len(result))
+		span.SetStatus(codes.Error, err.Error())
+		return nil, err
 	}
 
 	if method.ReturnsError {

@@ -306,7 +306,7 @@ func (cc *Chaincode) batchedTxExecute(
 	}
 
 	txStub := stub.NewTxCacheStub(txID)
-	ep, err := cc.Method(pending.GetMethod())
+	method, err := cc.Method(pending.GetMethod())
 	if err != nil {
 		msg := fmt.Sprintf("parsing method '%s' in tx '%s': %s", pending.GetMethod(), txID, err.Error())
 		span.SetStatus(codes.Error, msg)
@@ -337,7 +337,7 @@ func (cc *Chaincode) batchedTxExecute(
 	}
 
 	span.AddEvent("calling method")
-	response, err := cc.InvokeContractMethod(traceCtx, txStub, ep, pending.GetSender(), pending.GetArgs(), cfgBytes)
+	response, err := cc.InvokeContractMethod(traceCtx, txStub, method, pending.GetSender(), pending.GetArgs(), cfgBytes)
 	if err != nil {
 		_ = stub.ChaincodeStubInterface.DelState(key)
 		ee := proto.ResponseError{Error: err.Error()}
