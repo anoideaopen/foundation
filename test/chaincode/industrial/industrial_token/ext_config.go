@@ -3,12 +3,12 @@ package industrialtoken
 import (
 	"fmt"
 
-	"github.com/anoideaopen/foundation/core"
+	"github.com/anoideaopen/foundation/core/contract"
 	"github.com/anoideaopen/foundation/proto"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
-var _ core.ExternalConfigurable = &IndustrialToken{}
+var _ contract.ExternalConfigurator = &IndustrialToken{}
 
 func (it *IndustrialToken) ValidateExtConfig(cfgBytes []byte) error {
 	var (

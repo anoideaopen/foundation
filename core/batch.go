@@ -9,10 +9,9 @@ import (
 	"time"
 
 	"github.com/anoideaopen/foundation/core/cachestub"
+	"github.com/anoideaopen/foundation/core/contract"
 	"github.com/anoideaopen/foundation/core/logger"
 	"github.com/anoideaopen/foundation/core/multiswap"
-	"github.com/anoideaopen/foundation/core/reflectx"
-	"github.com/anoideaopen/foundation/core/routing"
 	"github.com/anoideaopen/foundation/core/swap"
 	"github.com/anoideaopen/foundation/core/telemetry"
 	"github.com/anoideaopen/foundation/core/types"
@@ -31,7 +30,7 @@ const robotSideTimeout = 300 // 5 minutes
 func (cc *Chaincode) saveToBatch(
 	traceCtx telemetry.TraceContext,
 	stub shim.ChaincodeStubInterface,
-	ep *routing.Endpoint,
+	method contract.Method,
 	sender *proto.Address,
 	args []string,
 	nonce uint64,
@@ -39,12 +38,8 @@ func (cc *Chaincode) saveToBatch(
 	log := logger.Logger()
 	txID := stub.GetTxID()
 
-	argsToValidate := args
-	if ep.RequiresAuth {
-		argsToValidate = append([]string{sender.AddrString()}, args...)
-	}
-
-	if err := reflectx.ValidateArguments(cc.contract, ep.MethodName, stub, argsToValidate...); err != nil {
+	err := cc.Router().Check(method.MethodName, cc.PrependSender(method, sender, args)...)
+	if err != nil {
 		return err
 	}
 
@@ -61,7 +56,7 @@ func (cc *Chaincode) saveToBatch(
 	}
 
 	pending := &proto.PendingTx{
-		Method:    ep.ChaincodeFunc,
+		Method:    method.ChaincodeFunc,
 		Sender:    sender,
 		Args:      args,
 		Timestamp: txTimestamp.GetSeconds(),
@@ -127,7 +122,7 @@ func (cc *Chaincode) loadFromBatch(
 		return nil, key, err
 	}
 
-	method, err := cc.Endpoint(pending.GetMethod())
+	method, err := cc.Method(pending.GetMethod())
 	if err != nil {
 		log.Errorf("unknown method %s in tx %s", pending.GetMethod(), txID)
 		return pending, key, fmt.Errorf("unknown method %s in tx %s", pending.GetMethod(), txID)
@@ -311,7 +306,7 @@ func (cc *Chaincode) batchedTxExecute(
 	}
 
 	txStub := stub.NewTxCacheStub(txID)
-	ep, err := cc.Endpoint(pending.GetMethod())
+	ep, err := cc.Method(pending.GetMethod())
 	if err != nil {
 		msg := fmt.Sprintf("parsing method '%s' in tx '%s': %s", pending.GetMethod(), txID, err.Error())
 		span.SetStatus(codes.Error, msg)
@@ -342,7 +337,7 @@ func (cc *Chaincode) batchedTxExecute(
 	}
 
 	span.AddEvent("calling method")
-	response, err := cc.call(traceCtx, txStub, ep, pending.GetSender(), pending.GetArgs(), cfgBytes)
+	response, err := cc.InvokeContractMethod(traceCtx, txStub, ep, pending.GetSender(), pending.GetArgs(), cfgBytes)
 	if err != nil {
 		_ = stub.ChaincodeStubInterface.DelState(key)
 		ee := proto.ResponseError{Error: err.Error()}

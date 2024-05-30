@@ -78,7 +78,7 @@ type TestValidator struct {
 	Value string
 }
 
-func (v *TestValidator) Validate(stub shim.ChaincodeStubInterface) error {
+func (v *TestValidator) Validate() error {
 	if v.Value == "" {
 		return fmt.Errorf("invalid value")
 	}

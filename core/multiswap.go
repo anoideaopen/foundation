@@ -11,7 +11,6 @@ import (
 	"github.com/anoideaopen/foundation/core/balance"
 	"github.com/anoideaopen/foundation/core/cachestub"
 	"github.com/anoideaopen/foundation/core/multiswap"
-	"github.com/anoideaopen/foundation/core/telemetry"
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/core/types/big"
 	"github.com/anoideaopen/foundation/proto"
@@ -27,21 +26,13 @@ import (
 // Returns a shim.Success response if the multi-swap done logic executes successfully.
 // Otherwise, it returns a shim.Error response.
 func (cc *Chaincode) multiSwapDoneHandler(
-	traceCtx telemetry.TraceContext,
-	stub shim.ChaincodeStubInterface,
 	args []string,
-	cfgBytes []byte,
 ) peer.Response {
 	if cc.contract.ContractConfig().GetOptions().GetDisableMultiSwaps() {
 		return shim.Error("handling multi-swap done failed, " + ErrMultiSwapDisabled.Error())
 	}
 
-	contract, ok := copyContractWithConfig(traceCtx, cc.contract, stub, cfgBytes).(BaseContractInterface)
-	if !ok {
-		return shim.Error("unsupported contract type")
-	}
-
-	return multiswap.UserDone(contract, args[0], args[1])
+	return multiswap.UserDone(cc.contract, args[0], args[1])
 }
 
 // QueryMultiSwapGet - returns multiswap by id

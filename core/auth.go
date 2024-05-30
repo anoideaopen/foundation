@@ -6,9 +6,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/anoideaopen/foundation/core/contract"
 	"github.com/anoideaopen/foundation/core/gost"
 	"github.com/anoideaopen/foundation/core/helpers"
-	"github.com/anoideaopen/foundation/core/routing"
 	"github.com/anoideaopen/foundation/core/types"
 	pb "github.com/anoideaopen/foundation/proto"
 	"github.com/btcsuite/btcutil/base58"
@@ -44,15 +44,15 @@ type invocationDetails struct {
 //   - User address, method call arguments, nonce and error, if any.
 func (cc *Chaincode) validateAndExtractInvocationContext(
 	stub shim.ChaincodeStubInterface,
-	ep *routing.Endpoint,
+	method contract.Method,
 	args []string,
 ) (sender *pb.Address, invocationArgs []string, nonce uint64, err error) {
 	// If authorization is not required, return the arguments unchanged.
-	if !ep.RequiresAuth {
+	if !method.RequiresAuth {
 		return nil, args, 0, nil
 	}
 
-	invocationDetails, err := parseInvocationDetails(ep, args)
+	invocationDetails, err := parseInvocationDetails(method, args)
 	if err != nil {
 		return nil, nil, 0, err
 	}
@@ -86,7 +86,7 @@ func (cc *Chaincode) validateAndExtractInvocationContext(
 
 	// Form a message to verify the signature.
 	var (
-		message = []byte(ep.ChaincodeFunc + strings.Join(args[:len(args)-invocationDetails.signersCount], ""))
+		message = []byte(method.ChaincodeFunc + strings.Join(args[:len(args)-invocationDetails.signersCount], ""))
 
 		digestSHA3 []byte
 		digestGOST []byte
@@ -144,7 +144,7 @@ func (cc *Chaincode) validateAndExtractInvocationContext(
 	}
 
 	// Return the signer's address, method arguments, and nonce.
-	return acl.GetAddress().GetAddress(), args[3 : 3+(ep.NumArgs-1)], nonce, nil
+	return acl.GetAddress().GetAddress(), args[3 : 3+(method.NumArgs-1)], nonce, nil
 }
 
 func checkACLSignerStatus(stub shim.ChaincodeStubInterface, signers []string) (*pb.AclResponse, error) {
@@ -167,13 +167,13 @@ func checkACLSignerStatus(stub shim.ChaincodeStubInterface, signers []string) (*
 }
 
 func parseInvocationDetails(
-	ep *routing.Endpoint,
+	method contract.Method,
 	args []string,
 ) (*invocationDetails, error) {
 	// Calculating the positions of arguments in an array.
 	var (
-		expectedArgsCount = (ep.NumArgs - 1) + 4 // +4 for reqId, cc, ch, nonce
-		authArgsStartPos  = expectedArgsCount    // Authorization arguments start position
+		expectedArgsCount = (method.NumArgs - 1) + 4 // +4 for reqId, cc, ch, nonce
+		authArgsStartPos  = expectedArgsCount        // Authorization arguments start position
 	)
 
 	// We check that the number of arguments is not less than expected.

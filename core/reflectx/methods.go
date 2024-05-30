@@ -76,3 +76,28 @@ func IsArgOfType(v any, method string, i int, argType any) bool {
 	expectedType := reflect.TypeOf(argType)
 	return methodType.In(i) == expectedType
 }
+
+// MethodReturnsError checks if the last return value of the specified method on value 'v' is of type error.
+//
+// Parameters:
+//   - v: The value whose method's return value is to be checked.
+//   - method: The name of the method to inspect.
+//
+// Returns:
+//   - bool: True if the last return value is of type error, false otherwise.
+func MethodReturnsError(v any, method string) bool {
+	inputVal := reflect.ValueOf(v)
+
+	methodVal := inputVal.MethodByName(method)
+	if !methodVal.IsValid() {
+		return false
+	}
+
+	methodType := methodVal.Type()
+	numOut := methodType.NumOut()
+	if numOut == 0 {
+		return false
+	}
+
+	return methodType.Out(numOut-1) == reflect.TypeOf((*error)(nil)).Elem()
+}

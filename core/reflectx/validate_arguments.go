@@ -9,15 +9,20 @@ import (
 
 // Validator is an interface that can be implemented by types that can validate themselves.
 type Validator interface {
-	Validate(stub shim.ChaincodeStubInterface) error
+	Validate() error
+}
+
+// ValidatorWithStub is an interface that can be implemented by types that can validate themselves.
+type ValidatorWithStub interface {
+	ValidateWithStub(stub shim.ChaincodeStubInterface) error
 }
 
 // ValidateArguments validates the arguments for the specified method on the given value using reflection.
 // It checks whether the specified method exists on the value 'v' and if the number of provided arguments matches
 // the method's expected input parameters. Additionally, it attempts to convert the string arguments into the
 // expected types using various unmarshaling or decoding interfaces such as JSON, proto.Message,
-// encoding.TextUnmarshaler, encoding.BinaryUnmarshaler, and gob.GobDecoder. If an argument implements the Validator
-// interface, its Validate method is called with the provided stub.
+// encoding.TextUnmarshaler, encoding.BinaryUnmarshaler. If an argument implements the Validator or ValidatorWithStub
+// interfaces, its Validate method is called (with the provided stub if available).
 //
 // The function returns an error if the method is not found, the number of arguments is incorrect, or if an error
 // occurs during argument conversion or validation.
@@ -25,7 +30,7 @@ type Validator interface {
 // Parameters:
 //   - v: The value on which the method is to be validated.
 //   - method: The name of the method to validate.
-//   - stub: The ChaincodeStubInterface used for access control checks.
+//   - stub: The ChaincodeStubInterface used for access control checks (optional).
 //   - args: A slice of strings representing the arguments for the method.
 //
 // Returns:
@@ -55,8 +60,26 @@ func ValidateArguments(v any, method string, stub shim.ChaincodeStubInterface, a
 			return fmt.Errorf("%w: validate %s, argument %d", err, method, i)
 		}
 
-		if validator, ok := value.Interface().(Validator); ok {
-			if err := validator.Validate(stub); err != nil {
+		iface := value.Interface()
+
+		if validator, ok := iface.(Validator); ok {
+			if err := validator.Validate(); err != nil {
+				return fmt.Errorf(
+					"%w: '%s': validation failed: '%v': validate %s, argument %d",
+					ErrInvalidArgumentValue,
+					arg,
+					err.Error(),
+					method,
+					i,
+				)
+			}
+		}
+
+		if stub == nil {
+			continue
+		}
+		if validator, ok := iface.(ValidatorWithStub); ok {
+			if err := validator.ValidateWithStub(stub); err != nil {
 				return fmt.Errorf(
 					"%w: '%s': validation failed: '%v': validate %s, argument %d",
 					ErrInvalidArgumentValue,

@@ -9,6 +9,8 @@ import (
 	"sort"
 	"strconv"
 
+	"github.com/anoideaopen/foundation/core/contract"
+	"github.com/anoideaopen/foundation/core/reflectx"
 	"github.com/anoideaopen/foundation/core/telemetry"
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/core/types/big"
@@ -43,10 +45,12 @@ func (bc *BaseContract) GetStub() shim.ChaincodeStubInterface {
 
 // GetMethods returns list of methods
 func (bc *BaseContract) GetMethods(bci BaseContractInterface) []string {
-	contractMethods, err := parseContractEndpoints(bci)
+	router, err := buildRouter(bci)
 	if err != nil {
 		panic(err)
 	}
+
+	contractMethods := router.Methods()
 
 	methods := make([]string, 0, len(contractMethods))
 	for name := range contractMethods {
@@ -58,7 +62,7 @@ func (bc *BaseContract) GetMethods(bci BaseContractInterface) []string {
 	return methods
 }
 
-func (bc *BaseContract) setStub(stub shim.ChaincodeStubInterface) {
+func (bc *BaseContract) SetStub(stub shim.ChaincodeStubInterface) {
 	bc.stub = stub
 	bc.noncePrefix = StateKeyNonce
 }
@@ -207,7 +211,11 @@ func (bc *BaseContract) TxHealthCheck(_ *types.Sender) error {
 	return nil
 }
 
-func (bc *BaseContract) GetID() string {
+func (bc *BaseContract) ID() string {
+	return bc.GetID()
+}
+
+func (bc *BaseContract) GetID() string { // deprecated
 	return bc.config.GetSymbol()
 }
 
@@ -281,20 +289,31 @@ func (bc *BaseContract) setupTracing() {
 	bc.setTracingHandler(th)
 }
 
+func buildRouter(in contract.Base) (contract.Router, error) {
+	if router, ok := in.(contract.Router); ok {
+		return router, nil
+	}
+
+	return reflectx.NewRouter(in, reflectx.RouterConfig{
+		SwapsDisabled:      in.ContractConfig().GetOptions().GetDisableSwaps(),
+		MultiSwapsDisabled: in.ContractConfig().GetOptions().GetDisableMultiSwaps(),
+		DisabledMethods:    in.ContractConfig().GetOptions().GetDisabledFunctions(),
+	})
+}
+
 // BaseContractInterface represents BaseContract interface
 type BaseContractInterface interface { //nolint:interfacebloat
+	contract.Base
+
 	// WARNING!
 	// Private interface methods can only be implemented in this package.
 	// Bad practice. Can only be used to embed the necessary structure
 	// and no more. Needs refactoring in the future.
 
-	setStub(stub shim.ChaincodeStubInterface)
 	setSrcFs(*embed.FS)
 	tokenBalanceAdd(address *types.Address, amount *big.Int, token string) error
 
 	// ------------------------------------------------------------------
-
-	GetStub() shim.ChaincodeStubInterface
 	GetID() string
 
 	TokenBalanceTransfer(from *types.Address, to *types.Address, amount *big.Int, reason string) error
@@ -327,12 +346,4 @@ type BaseContractInterface interface { //nolint:interfacebloat
 
 	setTracingHandler(th *telemetry.TracingHandler)
 	TracingHandler() *telemetry.TracingHandler
-
-	ContractConfigurable
-}
-
-type ContractConfigurable interface {
-	ValidateConfig(config []byte) error
-	ApplyContractConfig(config *pb.ContractConfig) error
-	ContractConfig() *pb.ContractConfig
 }

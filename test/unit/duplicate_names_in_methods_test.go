@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/anoideaopen/foundation/core"
+	"github.com/anoideaopen/foundation/core/reflectx"
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/core/types/big"
 	"github.com/anoideaopen/foundation/mock/stub"
@@ -49,17 +50,17 @@ func TestDuplicateNames(t *testing.T) {
 		{
 			name: "variant #1",
 			bci:  &DuplicateNamesT1{},
-			err:  fmt.Errorf("%w, method: '%s'", core.ErrMethodAlreadyDefined, "allowedBalanceAdd"),
+			err:  fmt.Errorf("init: validating contract methods: %w, method: '%s'", reflectx.ErrMethodAlreadyDefined, "allowedBalanceAdd"),
 		},
 		{
 			name: "variant #2",
 			bci:  &DuplicateNamesT2{},
-			err:  fmt.Errorf("%w, method: '%s'", core.ErrMethodAlreadyDefined, "allowedBalanceAdd"),
+			err:  fmt.Errorf("init: validating contract methods: %w, method: '%s'", reflectx.ErrMethodAlreadyDefined, "allowedBalanceAdd"),
 		},
 		{
 			name: "variant #3",
 			bci:  &DuplicateNamesT3{},
-			err:  fmt.Errorf("%w, method: '%s'", core.ErrMethodAlreadyDefined, "allowedBalanceAdd"),
+			err:  fmt.Errorf("init: validating contract methods: %w, method: '%s'", reflectx.ErrMethodAlreadyDefined, "allowedBalanceAdd"),
 		},
 	}
 

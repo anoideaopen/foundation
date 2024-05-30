@@ -6,7 +6,6 @@ import (
 
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/core/types/big"
-	"github.com/hyperledger/fabric-chaincode-go/shim"
 )
 
 type FeeTransferRequestDTO struct {
@@ -15,7 +14,7 @@ type FeeTransferRequestDTO struct {
 	Amount           *big.Int       `json:"amount,omitempty"`
 }
 
-func (r FeeTransferRequestDTO) Validate(_ shim.ChaincodeStubInterface) error {
+func (r FeeTransferRequestDTO) Validate() error {
 	if r.SenderAddress == nil || r.SenderAddress.String() == "" {
 		return errors.New("sender address can't be empty")
 	}

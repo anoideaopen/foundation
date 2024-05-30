@@ -133,7 +133,7 @@ func TestBaseToken_QueryGetFeeTransfer(t *testing.T) {
 
 			if tt.want != nil {
 				feeTransferRespDTO := FeeTransferResponseDTO{}
-				err = json.Unmarshal(resp.Payload, &feeTransferRespDTO)
+				_ = json.Unmarshal(resp.Payload, &feeTransferRespDTO)
 				require.Equal(t, tt.want.Currency, feeTransferRespDTO.Currency)
 				require.Equal(t, tt.want.Amount, feeTransferRespDTO.Amount)
 				require.Equal(t, feeAggregator.Address(), feeTransferRespDTO.FeeAddress.String())

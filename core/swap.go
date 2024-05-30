@@ -10,7 +10,6 @@ import (
 	"github.com/anoideaopen/foundation/core/balance"
 	"github.com/anoideaopen/foundation/core/cachestub"
 	"github.com/anoideaopen/foundation/core/swap"
-	"github.com/anoideaopen/foundation/core/telemetry"
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/core/types/big"
 	"github.com/anoideaopen/foundation/proto"
@@ -30,21 +29,13 @@ const (
 // Returns a shim.Success response if the swap done logic executes successfully.
 // Otherwise, it returns a shim.Error response.
 func (cc *Chaincode) swapDoneHandler(
-	traceCtx telemetry.TraceContext,
-	stub shim.ChaincodeStubInterface,
 	args []string,
-	cfgBytes []byte,
 ) peer.Response {
 	if cc.contract.ContractConfig().GetOptions().GetDisableSwaps() {
 		return shim.Error("handling swap done failed, " + ErrSwapDisabled.Error())
 	}
 
-	contract, ok := copyContractWithConfig(traceCtx, cc.contract, stub, cfgBytes).(BaseContractInterface)
-	if !ok {
-		return shim.Error("unsupported contract type")
-	}
-
-	return swap.UserDone(contract, args[0], args[1])
+	return swap.UserDone(cc.contract, args[0], args[1])
 }
 
 // QuerySwapGet returns swap by id
