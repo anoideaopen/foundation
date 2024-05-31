@@ -5,9 +5,9 @@ type MethodType int
 
 // Constants representing the different types of methods.
 const (
-	MethodTypeTransaction MethodType = iota
-	MethodTypeInvoke
-	MethodTypeQuery
+	MethodTypeTransaction MethodType = iota // Tx-prefixed transaction when using reflectx.Router.
+	MethodTypeInvoke                        // NBTx-prefixed transaction when using reflectx.Router.
+	MethodTypeQuery                         // Query-prefixed transaction when using reflectx.Router.
 )
 
 // Function represents the name of a chaincode function.

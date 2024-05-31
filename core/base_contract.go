@@ -212,11 +212,11 @@ func (bc *BaseContract) TxHealthCheck(_ *types.Sender) error {
 }
 
 func (bc *BaseContract) ID() string {
-	return bc.GetID()
+	return bc.config.GetSymbol()
 }
 
 func (bc *BaseContract) GetID() string { // deprecated
-	return bc.config.GetSymbol()
+	return bc.ID()
 }
 
 func (bc *BaseContract) ValidateConfig(config []byte) error {
