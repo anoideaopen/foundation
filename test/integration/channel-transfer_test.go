@@ -2,6 +2,8 @@ package integration
 
 import (
 	"context"
+	"github.com/btcsuite/btcutil/base58"
+	"github.com/google/uuid"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -12,9 +14,7 @@ import (
 	"github.com/anoideaopen/foundation/test/integration/cmn"
 	"github.com/anoideaopen/foundation/test/integration/cmn/client"
 	"github.com/anoideaopen/foundation/test/integration/cmn/runner"
-	"github.com/btcsuite/btcutil/base58"
 	docker "github.com/fsouza/go-dockerclient"
-	"github.com/google/uuid"
 	"github.com/hyperledger/fabric/integration/nwo"
 	"github.com/hyperledger/fabric/integration/nwo/fabricconfig"
 	runnerFbk "github.com/hyperledger/fabric/integration/nwo/runner"
@@ -85,8 +85,13 @@ var _ = Describe("Channel transfer foundation Tests", func() {
 		skiRobot            string
 		peer                *nwo.Peer
 		admin               *client.UserFoundation
+		user                *client.UserFoundation
 		feeSetter           *client.UserFoundation
 		feeAddressSetter    *client.UserFoundation
+
+		clientCtx context.Context
+		apiClient cligrpc.APIClient
+		conn      *grpc.ClientConn
 	)
 	BeforeEach(func() {
 		By("start redis")
@@ -211,31 +216,74 @@ var _ = Describe("Channel transfer foundation Tests", func() {
 			Eventually(channelTransferProc.Wait(), network.EventuallyTimeout).Should(Receive())
 		}
 	})
-	It("example test", func() {
+	/*
+		BeforeEach(func() {
+			By("add admin to acl")
+			client.AddUser(network, peer, network.Orderers[0], admin)
+
+			By("add user to acl")
+			user = client.NewUserFoundation()
+			client.AddUser(network, peer, network.Orderers[0], user)
+
+			By("emit tokens")
+			emitAmount := "1000"
+			client.TxInvokeWithSign(network, peer, network.Orderers[0],
+				cmn.ChannelFiat, cmn.ChannelFiat, admin,
+				"emit", "", client.NewNonceByTime().Get(), user.AddressBase58Check, emitAmount)
+
+			By("emit check")
+			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
+				checkResult(checkBalance(emitAmount), nil),
+				"balanceOf", user.AddressBase58Check)
+
+			By("creating grpc connection")
+			clientCtx = metadata.NewOutgoingContext(context.Background(), metadata.Pairs("authorization", networkFound.ChannelTransfer.AccessToken))
+
+			transportCredentials := insecure.NewCredentials()
+			grpcAddress := networkFound.ChannelTransfer.HostAddress + ":" + strconv.FormatUint(uint64(networkFound.ChannelTransfer.Ports[cmn.GrpcPort]), 10)
+
+			var err error
+
+			conn, err = grpc.Dial(grpcAddress, grpc.WithTransportCredentials(transportCredentials))
+			Expect(err).NotTo(HaveOccurred())
+
+			By("creating channel transfer API client")
+			apiClient = cligrpc.NewAPIClient(conn)
+		})
+		AfterEach(func() {
+			err := conn.Close()
+			Expect(err).NotTo(HaveOccurred())
+		})
+	*/
+
+	It("transfer by admin test", func() {
 		By("add admin to acl")
 		client.AddUser(network, peer, network.Orderers[0], admin)
 
 		By("add user to acl")
-		user1 := client.NewUserFoundation()
-		client.AddUser(network, peer, network.Orderers[0], user1)
+		user = client.NewUserFoundation()
+		client.AddUser(network, peer, network.Orderers[0], user)
 
 		By("emit tokens")
 		emitAmount := "1000"
 		client.TxInvokeWithSign(network, peer, network.Orderers[0],
 			cmn.ChannelFiat, cmn.ChannelFiat, admin,
-			"emit", "", client.NewNonceByTime().Get(), user1.AddressBase58Check, emitAmount)
+			"emit", "", client.NewNonceByTime().Get(), user.AddressBase58Check, emitAmount)
 
 		By("emit check")
 		client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
 			checkResult(checkBalance(emitAmount), nil),
-			"balanceOf", user1.AddressBase58Check)
+			"balanceOf", user.AddressBase58Check)
 
 		By("creating grpc connection")
-		clientCtx := metadata.NewOutgoingContext(context.Background(), metadata.Pairs("authorization", networkFound.ChannelTransfer.AccessToken))
+		clientCtx = metadata.NewOutgoingContext(context.Background(), metadata.Pairs("authorization", networkFound.ChannelTransfer.AccessToken))
 
 		transportCredentials := insecure.NewCredentials()
 		grpcAddress := networkFound.ChannelTransfer.HostAddress + ":" + strconv.FormatUint(uint64(networkFound.ChannelTransfer.Ports[cmn.GrpcPort]), 10)
-		conn, err := grpc.Dial(grpcAddress, grpc.WithTransportCredentials(transportCredentials))
+
+		var err error
+
+		conn, err = grpc.Dial(grpcAddress, grpc.WithTransportCredentials(transportCredentials))
 		Expect(err).NotTo(HaveOccurred())
 		defer func() {
 			err := conn.Close()
@@ -243,11 +291,11 @@ var _ = Describe("Channel transfer foundation Tests", func() {
 		}()
 
 		By("creating channel transfer API client")
-		c := cligrpc.NewAPIClient(conn)
+		apiClient = cligrpc.NewAPIClient(conn)
 
 		By("creating channel transfer request")
 		transferID := uuid.NewString()
-		channelTransferArgs := []string{transferID, "CC", user1.AddressBase58Check, "FIAT", "250"}
+		channelTransferArgs := []string{transferID, "CC", user.AddressBase58Check, "FIAT", "250"}
 
 		requestID := uuid.NewString()
 		nonce := client.NewNonceByTime().Get()
@@ -273,10 +321,11 @@ var _ = Describe("Channel transfer foundation Tests", func() {
 		}
 
 		By("sending transfer request")
-		r, err := c.TransferByAdmin(clientCtx, transfer)
+		r, err := apiClient.TransferByAdmin(clientCtx, transfer)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(r.Status).To(Equal(cligrpc.TransferStatusResponse_STATUS_IN_PROCESS))
 
+		By("checking transfer status")
 		transferStatusRequest := &cligrpc.TransferStatusRequest{
 			IdTransfer: transferID,
 		}
@@ -294,17 +343,391 @@ var _ = Describe("Channel transfer foundation Tests", func() {
 		defer cancel()
 
 		By("awaiting for channel transfer to respond")
-		statusResponse, err := c.TransferStatus(ctx, transferStatusRequest)
+		statusResponse, err := apiClient.TransferStatus(ctx, transferStatusRequest)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(statusResponse.Status).To(Equal(cligrpc.TransferStatusResponse_STATUS_COMPLETED))
 
 		By("checking result balances")
 		client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
 			checkResult(checkBalance("750"), nil),
-			"balanceOf", user1.AddressBase58Check)
+			"balanceOf", user.AddressBase58Check)
 
 		client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC,
 			checkResult(checkBalance("250"), nil),
-			"allowedBalanceOf", user1.AddressBase58Check, "FIAT")
+			"allowedBalanceOf", user.AddressBase58Check, "FIAT")
+	})
+	It("transfer by customer test", func() {
+		By("add admin to acl")
+		client.AddUser(network, peer, network.Orderers[0], admin)
+
+		By("add user to acl")
+		user = client.NewUserFoundation()
+		client.AddUser(network, peer, network.Orderers[0], user)
+
+		By("emit tokens")
+		emitAmount := "1000"
+		client.TxInvokeWithSign(network, peer, network.Orderers[0],
+			cmn.ChannelFiat, cmn.ChannelFiat, admin,
+			"emit", "", client.NewNonceByTime().Get(), user.AddressBase58Check, emitAmount)
+
+		By("emit check")
+		client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
+			checkResult(checkBalance(emitAmount), nil),
+			"balanceOf", user.AddressBase58Check)
+
+		By("creating grpc connection")
+		clientCtx = metadata.NewOutgoingContext(context.Background(), metadata.Pairs("authorization", networkFound.ChannelTransfer.AccessToken))
+
+		transportCredentials := insecure.NewCredentials()
+		grpcAddress := networkFound.ChannelTransfer.HostAddress + ":" + strconv.FormatUint(uint64(networkFound.ChannelTransfer.Ports[cmn.GrpcPort]), 10)
+
+		var err error
+
+		conn, err = grpc.Dial(grpcAddress, grpc.WithTransportCredentials(transportCredentials))
+		Expect(err).NotTo(HaveOccurred())
+		defer func() {
+			err := conn.Close()
+			Expect(err).NotTo(HaveOccurred())
+		}()
+
+		By("creating channel transfer API client")
+		apiClient = cligrpc.NewAPIClient(conn)
+
+		By("creating channel transfer request")
+		transferID := uuid.NewString()
+		channelTransferArgs := []string{transferID, "CC", "FIAT", "250"}
+
+		requestID := uuid.NewString()
+		nonce := client.NewNonceByTime().Get()
+		signArgs := append(append([]string{"channelTransferByCustomer", requestID, cmn.ChannelFiat, cmn.ChannelFiat}, channelTransferArgs...), nonce)
+		publicKey, sign, err := user.Sign(signArgs...)
+		Expect(err).NotTo(HaveOccurred())
+
+		transfer := &cligrpc.TransferBeginCustomerRequest{
+			Generals: &cligrpc.GeneralParams{
+				MethodName: "channelTransferByCustomer",
+				RequestId:  requestID,
+				Chaincode:  cmn.ChannelFiat,
+				Channel:    cmn.ChannelFiat,
+				Nonce:      nonce,
+				PublicKey:  publicKey,
+				Sign:       base58.Encode(sign),
+			},
+			IdTransfer: channelTransferArgs[0],
+			ChannelTo:  channelTransferArgs[1],
+			Token:      channelTransferArgs[2],
+			Amount:     channelTransferArgs[3],
+		}
+
+		By("sending transfer request")
+		r, err := apiClient.TransferByCustomer(clientCtx, transfer)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(r.Status).To(Equal(cligrpc.TransferStatusResponse_STATUS_IN_PROCESS))
+
+		By("checking transfer status")
+		transferStatusRequest := &cligrpc.TransferStatusRequest{
+			IdTransfer: transferID,
+		}
+
+		excludeStatus := cligrpc.TransferStatusResponse_STATUS_IN_PROCESS.String()
+		value, err := anypb.New(wrapperspb.String(excludeStatus))
+		Expect(err).NotTo(HaveOccurred())
+
+		transferStatusRequest.Options = append(transferStatusRequest.Options, &typepb.Option{
+			Name:  "excludeStatus",
+			Value: value,
+		})
+
+		ctx, cancel := context.WithTimeout(clientCtx, network.EventuallyTimeout*2)
+		defer cancel()
+
+		By("awaiting for channel transfer to respond")
+		statusResponse, err := apiClient.TransferStatus(ctx, transferStatusRequest)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(statusResponse.Status).To(Equal(cligrpc.TransferStatusResponse_STATUS_COMPLETED))
+
+		By("checking result balances")
+		client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
+			checkResult(checkBalance("750"), nil),
+			"balanceOf", user.AddressBase58Check)
+
+		client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC,
+			checkResult(checkBalance("250"), nil),
+			"allowedBalanceOf", user.AddressBase58Check, "FIAT")
+	})
+
+	It("transfer status with wrong transfer id test", func() {
+		By("creating grpc connection")
+		clientCtx = metadata.NewOutgoingContext(context.Background(), metadata.Pairs("authorization", networkFound.ChannelTransfer.AccessToken))
+
+		transportCredentials := insecure.NewCredentials()
+		grpcAddress := networkFound.ChannelTransfer.HostAddress + ":" + strconv.FormatUint(uint64(networkFound.ChannelTransfer.Ports[cmn.GrpcPort]), 10)
+
+		var err error
+
+		conn, err = grpc.Dial(grpcAddress, grpc.WithTransportCredentials(transportCredentials))
+		Expect(err).NotTo(HaveOccurred())
+		defer func() {
+			err := conn.Close()
+			Expect(err).NotTo(HaveOccurred())
+		}()
+
+		By("creating channel transfer API client")
+		apiClient = cligrpc.NewAPIClient(conn)
+
+		By("requesting status of transfer with id = 1")
+		transferStatusRequest := &cligrpc.TransferStatusRequest{
+			IdTransfer: "1",
+		}
+		_, err = apiClient.TransferStatus(clientCtx, transferStatusRequest)
+		Expect(err).To(MatchError(ContainSubstring("object not found")))
+	})
+
+	It("transfer status filter test", func() {
+		By("add admin to acl")
+		client.AddUser(network, peer, network.Orderers[0], admin)
+
+		By("add user to acl")
+		user = client.NewUserFoundation()
+		client.AddUser(network, peer, network.Orderers[0], user)
+
+		By("emit tokens")
+		emitAmount := "1000"
+		client.TxInvokeWithSign(network, peer, network.Orderers[0],
+			cmn.ChannelFiat, cmn.ChannelFiat, admin,
+			"emit", "", client.NewNonceByTime().Get(), user.AddressBase58Check, emitAmount)
+
+		By("emit check")
+		client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
+			checkResult(checkBalance(emitAmount), nil),
+			"balanceOf", user.AddressBase58Check)
+
+		By("creating grpc connection")
+		clientCtx = metadata.NewOutgoingContext(context.Background(), metadata.Pairs("authorization", networkFound.ChannelTransfer.AccessToken))
+
+		transportCredentials := insecure.NewCredentials()
+		grpcAddress := networkFound.ChannelTransfer.HostAddress + ":" + strconv.FormatUint(uint64(networkFound.ChannelTransfer.Ports[cmn.GrpcPort]), 10)
+
+		var err error
+
+		conn, err = grpc.Dial(grpcAddress, grpc.WithTransportCredentials(transportCredentials))
+		Expect(err).NotTo(HaveOccurred())
+		defer func() {
+			err := conn.Close()
+			Expect(err).NotTo(HaveOccurred())
+		}()
+
+		By("creating channel transfer API client")
+		apiClient = cligrpc.NewAPIClient(conn)
+
+		By("creating channel transfer request")
+		transferID := uuid.NewString()
+		channelTransferArgs := []string{transferID, "CC", "FIAT", "250"}
+
+		requestID := uuid.NewString()
+		nonce := client.NewNonceByTime().Get()
+		signArgs := append(append([]string{"channelTransferByCustomer", requestID, cmn.ChannelFiat, cmn.ChannelFiat}, channelTransferArgs...), nonce)
+		publicKey, sign, err := user.Sign(signArgs...)
+		Expect(err).NotTo(HaveOccurred())
+
+		transfer := &cligrpc.TransferBeginCustomerRequest{
+			Generals: &cligrpc.GeneralParams{
+				MethodName: "channelTransferByCustomer",
+				RequestId:  requestID,
+				Chaincode:  cmn.ChannelFiat,
+				Channel:    cmn.ChannelFiat,
+				Nonce:      nonce,
+				PublicKey:  publicKey,
+				Sign:       base58.Encode(sign),
+			},
+			IdTransfer: channelTransferArgs[0],
+			ChannelTo:  channelTransferArgs[1],
+			Token:      channelTransferArgs[2],
+			Amount:     channelTransferArgs[3],
+		}
+
+		By("sending transfer request")
+		r, err := apiClient.TransferByCustomer(clientCtx, transfer)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(r.Status).To(Equal(cligrpc.TransferStatusResponse_STATUS_IN_PROCESS))
+
+		By("checking transfer status")
+		transferStatusRequest := &cligrpc.TransferStatusRequest{
+			IdTransfer: transferID,
+		}
+
+		excludeStatus := cligrpc.TransferStatusResponse_STATUS_IN_PROCESS.String()
+		value, err := anypb.New(wrapperspb.String(excludeStatus))
+		Expect(err).NotTo(HaveOccurred())
+
+		transferStatusRequest.Options = append(transferStatusRequest.Options, &typepb.Option{
+			Name:  "excludeStatus",
+			Value: value,
+		})
+
+		ctx, cancel := context.WithTimeout(clientCtx, network.EventuallyTimeout*2)
+		defer cancel()
+
+		By("awaiting for channel transfer to respond")
+		statusResponse, err := apiClient.TransferStatus(ctx, transferStatusRequest)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(statusResponse.Status).To(Equal(cligrpc.TransferStatusResponse_STATUS_COMPLETED))
+
+	})
+
+	It("transfer wrong STATUS_CANCELLED filter test", func() {
+		By("creating grpc connection")
+		clientCtx = metadata.NewOutgoingContext(context.Background(), metadata.Pairs("authorization", networkFound.ChannelTransfer.AccessToken))
+
+		transportCredentials := insecure.NewCredentials()
+		grpcAddress := networkFound.ChannelTransfer.HostAddress + ":" + strconv.FormatUint(uint64(networkFound.ChannelTransfer.Ports[cmn.GrpcPort]), 10)
+
+		var err error
+
+		conn, err = grpc.Dial(grpcAddress, grpc.WithTransportCredentials(transportCredentials))
+		Expect(err).NotTo(HaveOccurred())
+		defer func() {
+			err := conn.Close()
+			Expect(err).NotTo(HaveOccurred())
+		}()
+
+		By("creating channel transfer API client")
+		apiClient = cligrpc.NewAPIClient(conn)
+
+		By("requesting status of transfer with id = 1")
+		transferStatusRequest := &cligrpc.TransferStatusRequest{
+			IdTransfer: "1",
+		}
+
+		By("setting STATUS_CANCELLED filter")
+		excludeStatus := cligrpc.TransferStatusResponse_STATUS_CANCELED.String()
+		value, err := anypb.New(wrapperspb.String(excludeStatus))
+		Expect(err).NotTo(HaveOccurred())
+
+		transferStatusRequest.Options = append(transferStatusRequest.Options, &typepb.Option{
+			Name:  "excludeStatus",
+			Value: value,
+		})
+
+		By("checking status")
+		_, err = apiClient.TransferStatus(clientCtx, transferStatusRequest)
+		Expect(err).To(MatchError(ContainSubstring("exclude status not valid")))
+	})
+
+	It("transfer wrong STATUS_COMPLETED filter test", func() {
+		By("creating grpc connection")
+		clientCtx = metadata.NewOutgoingContext(context.Background(), metadata.Pairs("authorization", networkFound.ChannelTransfer.AccessToken))
+
+		transportCredentials := insecure.NewCredentials()
+		grpcAddress := networkFound.ChannelTransfer.HostAddress + ":" + strconv.FormatUint(uint64(networkFound.ChannelTransfer.Ports[cmn.GrpcPort]), 10)
+
+		var err error
+
+		conn, err = grpc.Dial(grpcAddress, grpc.WithTransportCredentials(transportCredentials))
+		Expect(err).NotTo(HaveOccurred())
+		defer func() {
+			err := conn.Close()
+			Expect(err).NotTo(HaveOccurred())
+		}()
+
+		By("creating channel transfer API client")
+		apiClient = cligrpc.NewAPIClient(conn)
+
+		By("requesting status of transfer with id = 1")
+		transferStatusRequest := &cligrpc.TransferStatusRequest{
+			IdTransfer: "1",
+		}
+
+		By("setting STATUS_COMPLETED filter")
+		excludeStatus := cligrpc.TransferStatusResponse_STATUS_COMPLETED.String()
+		value, err := anypb.New(wrapperspb.String(excludeStatus))
+		Expect(err).NotTo(HaveOccurred())
+
+		transferStatusRequest.Options = append(transferStatusRequest.Options, &typepb.Option{
+			Name:  "excludeStatus",
+			Value: value,
+		})
+
+		By("checking status")
+		_, err = apiClient.TransferStatus(clientCtx, transferStatusRequest)
+		Expect(err).To(MatchError(ContainSubstring("exclude status not valid")))
+	})
+
+	It("transfer wrong STATUS_ERROR filter test", func() {
+		By("creating grpc connection")
+		clientCtx = metadata.NewOutgoingContext(context.Background(), metadata.Pairs("authorization", networkFound.ChannelTransfer.AccessToken))
+
+		transportCredentials := insecure.NewCredentials()
+		grpcAddress := networkFound.ChannelTransfer.HostAddress + ":" + strconv.FormatUint(uint64(networkFound.ChannelTransfer.Ports[cmn.GrpcPort]), 10)
+
+		var err error
+
+		conn, err = grpc.Dial(grpcAddress, grpc.WithTransportCredentials(transportCredentials))
+		Expect(err).NotTo(HaveOccurred())
+		defer func() {
+			err := conn.Close()
+			Expect(err).NotTo(HaveOccurred())
+		}()
+
+		By("creating channel transfer API client")
+		apiClient = cligrpc.NewAPIClient(conn)
+
+		By("requesting status of transfer with id = 1")
+		transferStatusRequest := &cligrpc.TransferStatusRequest{
+			IdTransfer: "1",
+		}
+
+		By("setting STATUS_ERROR filter")
+		excludeStatus := cligrpc.TransferStatusResponse_STATUS_ERROR.String()
+		value, err := anypb.New(wrapperspb.String(excludeStatus))
+		Expect(err).NotTo(HaveOccurred())
+
+		transferStatusRequest.Options = append(transferStatusRequest.Options, &typepb.Option{
+			Name:  "excludeStatus",
+			Value: value,
+		})
+
+		By("checking status")
+		_, err = apiClient.TransferStatus(clientCtx, transferStatusRequest)
+		Expect(err).To(MatchError(ContainSubstring("exclude status not valid")))
+	})
+
+	It("transfer undefined status filter test", func() {
+		By("creating grpc connection")
+		clientCtx = metadata.NewOutgoingContext(context.Background(), metadata.Pairs("authorization", networkFound.ChannelTransfer.AccessToken))
+
+		transportCredentials := insecure.NewCredentials()
+		grpcAddress := networkFound.ChannelTransfer.HostAddress + ":" + strconv.FormatUint(uint64(networkFound.ChannelTransfer.Ports[cmn.GrpcPort]), 10)
+
+		var err error
+
+		conn, err = grpc.Dial(grpcAddress, grpc.WithTransportCredentials(transportCredentials))
+		Expect(err).NotTo(HaveOccurred())
+		defer func() {
+			err := conn.Close()
+			Expect(err).NotTo(HaveOccurred())
+		}()
+
+		By("creating channel transfer API client")
+		apiClient = cligrpc.NewAPIClient(conn)
+
+		By("requesting status of transfer with id = 1")
+		transferStatusRequest := &cligrpc.TransferStatusRequest{
+			IdTransfer: "1",
+		}
+
+		By("setting not defined status filter")
+		excludeStatus := "9999999"
+		value, err := anypb.New(wrapperspb.String(excludeStatus))
+		Expect(err).NotTo(HaveOccurred())
+
+		transferStatusRequest.Options = append(transferStatusRequest.Options, &typepb.Option{
+			Name:  "excludeStatus",
+			Value: value,
+		})
+
+		By("checking status")
+		_, err = apiClient.TransferStatus(clientCtx, transferStatusRequest)
+		Expect(err).To(MatchError(ContainSubstring("exclude status not found")))
 	})
 })
