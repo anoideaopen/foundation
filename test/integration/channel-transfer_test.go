@@ -407,7 +407,7 @@ var _ = Describe("Channel transfer foundation Tests", func() {
 		clientCtx = metadata.NewOutgoingContext(context.Background(), metadata.Pairs("authorization", networkFound.ChannelTransfer.AccessToken))
 
 		transportCredentials := insecure.NewCredentials()
-		grpcAddress := networkFound.ChannelTransfer.HostAddress + ":" + strconv.FormatUint(uint64(networkFound.ChannelTransfer.Ports[cmn.GrpcPort]), 10)
+		grpcAddress := networkFound.ChannelTransferGRPCAddress()
 
 		var err error
 

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"html/template"
 	"io"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -47,7 +48,7 @@ func New(network *nwo.Network, channels []string) *NetworkFoundation {
 			HostAddress: "localhost",
 			AccessToken: "test",
 			Ports:       nwo.Ports{},
-			TTL:         10800,
+			TTL:         "10800s",
 		},
 		mutex: &sync.Mutex{},
 	}
@@ -74,7 +75,7 @@ type ChannelTransfer struct {
 	Ports          nwo.Ports `yaml:"ports,omitempty"`
 	RedisAddresses []string  `yaml:"redis_addresses,omitempty"`
 	AccessToken    string    `yaml:"access_token,omitempty"`
-	TTL            uint16    `yaml:"ttl,omitempty"`
+	TTL            string    `yaml:"ttl,omitempty"`
 }
 
 func (n *NetworkFoundation) GenerateConfigTree() {
@@ -194,21 +195,42 @@ func RobotPortNames() []nwo.PortName {
 
 // ChannelTransferPortNames returns the list of ports that need to be reserved for the Channel Transfer service
 func ChannelTransferPortNames() []nwo.PortName {
-	return []nwo.PortName{nwo.ListenPort, GrpcPort, HttpPort}
+	return []nwo.PortName{nwo.HostPort, GrpcPort, HttpPort}
 }
 
 // ChannelTransferPort returns the named port reserved for the Channel Transfer instance
-func (n *NetworkFoundation) ChannelTransferPort(portName nwo.PortName) uint16 {
+func (n *NetworkFoundation) ChannelTransferPort(portName nwo.PortName) string {
 	ports := n.ChannelTransfer.Ports
 	Expect(ports).NotTo(BeNil())
-	return ports[portName]
+	return fmt.Sprintf("%d", ports[portName])
 }
 
-// ChannelTransferHostAddress returns Channel Transfer address
-func (n *NetworkFoundation) ChannelTransferHostAddress() string {
+// channelTransferHost returns Channel Transfer host
+func (n *NetworkFoundation) channelTransferHost() string {
 	address := n.ChannelTransfer.HostAddress
 	Expect(address).NotTo(BeNil())
 	return address
+}
+
+// ChannelTransferHostAddress returns channel transfer host & port as a string
+func (n *NetworkFoundation) ChannelTransferHostAddress() string {
+	host := n.channelTransferHost()
+	port := n.ChannelTransferPort(nwo.HostPort)
+	return net.JoinHostPort(host, port)
+}
+
+// ChannelTransferGRPCAddress returns channel transfer GRPC host & port as a string
+func (n *NetworkFoundation) ChannelTransferGRPCAddress() string {
+	host := n.channelTransferHost()
+	port := n.ChannelTransferPort(GrpcPort)
+	return net.JoinHostPort(host, port)
+}
+
+// ChannelTransferHTTPAddress returns channel transfer GRPC host & port as a string
+func (n *NetworkFoundation) ChannelTransferHTTPAddress() string {
+	host := n.channelTransferHost()
+	port := n.ChannelTransferPort(HttpPort)
+	return net.JoinHostPort(host, port)
 }
 
 // ChannelTransferAccessToken returns Channel Transfer GRPC port
@@ -219,7 +241,7 @@ func (n *NetworkFoundation) ChannelTransferAccessToken() string {
 }
 
 // ChannelTransferTTL returns Channel Transfer TTL value
-func (n *NetworkFoundation) ChannelTransferTTL() uint16 {
+func (n *NetworkFoundation) ChannelTransferTTL() string {
 	ttl := n.ChannelTransfer.TTL
 	Expect(ttl).NotTo(BeNil())
 	return ttl

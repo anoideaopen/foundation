@@ -7,10 +7,10 @@ profilePath: {{ .ConnectionPath User }}
 userName: backend
 listenAPI:
   accessToken: {{ .ChannelTransferAccessToken }}
-  addressHTTP: {{ .ChannelTransferHostAddress }}:{{ .ChannelTransferPort "HttpPort" }}
-  addressGRPC: {{ .ChannelTransferHostAddress }}:{{ .ChannelTransferPort "GrpcPort" }}
+  addressHTTP: {{ .ChannelTransferHTTPAddress }}
+  addressGRPC: {{ .ChannelTransferGRPCAddress }}
 service:
-  address: {{ .ChannelTransferHostAddress }}:{{ .ChannelTransferPort "Listen" }}
+  address: {{ .ChannelTransferHostAddress }}
 options:
   batchTxPreimagePrefix: batchTransactions
   collectorsBufSize: 1
@@ -18,7 +18,7 @@ options:
   retryExecuteAttempts: 3
   retryExecuteMaxDelay: 2s
   retryExecuteDelay: 500ms
-  ttl: {{ .ChannelTransferTTL }}s
+  ttl: {{ .ChannelTransferTTL }}
   transfersInHandleOnChannel: 50
   newestRequestStreamBufferSize: 50
 channels:{{ range .Channels }}
