@@ -216,47 +216,8 @@ var _ = Describe("Channel transfer foundation Tests", func() {
 			Eventually(channelTransferProc.Wait(), network.EventuallyTimeout).Should(Receive())
 		}
 	})
-	/*
-		BeforeEach(func() {
-			By("add admin to acl")
-			client.AddUser(network, peer, network.Orderers[0], admin)
 
-			By("add user to acl")
-			user = client.NewUserFoundation()
-			client.AddUser(network, peer, network.Orderers[0], user)
-
-			By("emit tokens")
-			emitAmount := "1000"
-			client.TxInvokeWithSign(network, peer, network.Orderers[0],
-				cmn.ChannelFiat, cmn.ChannelFiat, admin,
-				"emit", "", client.NewNonceByTime().Get(), user.AddressBase58Check, emitAmount)
-
-			By("emit check")
-			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
-				checkResult(checkBalance(emitAmount), nil),
-				"balanceOf", user.AddressBase58Check)
-
-			By("creating grpc connection")
-			clientCtx = metadata.NewOutgoingContext(context.Background(), metadata.Pairs("authorization", networkFound.ChannelTransfer.AccessToken))
-
-			transportCredentials := insecure.NewCredentials()
-			grpcAddress := networkFound.ChannelTransfer.HostAddress + ":" + strconv.FormatUint(uint64(networkFound.ChannelTransfer.Ports[cmn.GrpcPort]), 10)
-
-			var err error
-
-			conn, err = grpc.Dial(grpcAddress, grpc.WithTransportCredentials(transportCredentials))
-			Expect(err).NotTo(HaveOccurred())
-
-			By("creating channel transfer API client")
-			apiClient = cligrpc.NewAPIClient(conn)
-		})
-		AfterEach(func() {
-			err := conn.Close()
-			Expect(err).NotTo(HaveOccurred())
-		})
-	*/
-
-	It("transfer by admin test", func() {
+	BeforeEach(func() {
 		By("add admin to acl")
 		client.AddUser(network, peer, network.Orderers[0], admin)
 
@@ -275,6 +236,9 @@ var _ = Describe("Channel transfer foundation Tests", func() {
 			checkResult(checkBalance(emitAmount), nil),
 			"balanceOf", user.AddressBase58Check)
 
+	})
+
+	It("transfer by admin test", func() {
 		By("creating grpc connection")
 		clientCtx = metadata.NewOutgoingContext(context.Background(), metadata.Pairs("authorization", networkFound.ChannelTransfer.AccessToken))
 
@@ -357,24 +321,6 @@ var _ = Describe("Channel transfer foundation Tests", func() {
 			"allowedBalanceOf", user.AddressBase58Check, "FIAT")
 	})
 	It("transfer by customer test", func() {
-		By("add admin to acl")
-		client.AddUser(network, peer, network.Orderers[0], admin)
-
-		By("add user to acl")
-		user = client.NewUserFoundation()
-		client.AddUser(network, peer, network.Orderers[0], user)
-
-		By("emit tokens")
-		emitAmount := "1000"
-		client.TxInvokeWithSign(network, peer, network.Orderers[0],
-			cmn.ChannelFiat, cmn.ChannelFiat, admin,
-			"emit", "", client.NewNonceByTime().Get(), user.AddressBase58Check, emitAmount)
-
-		By("emit check")
-		client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
-			checkResult(checkBalance(emitAmount), nil),
-			"balanceOf", user.AddressBase58Check)
-
 		By("creating grpc connection")
 		clientCtx = metadata.NewOutgoingContext(context.Background(), metadata.Pairs("authorization", networkFound.ChannelTransfer.AccessToken))
 
@@ -484,24 +430,6 @@ var _ = Describe("Channel transfer foundation Tests", func() {
 	})
 
 	It("transfer status filter test", func() {
-		By("add admin to acl")
-		client.AddUser(network, peer, network.Orderers[0], admin)
-
-		By("add user to acl")
-		user = client.NewUserFoundation()
-		client.AddUser(network, peer, network.Orderers[0], user)
-
-		By("emit tokens")
-		emitAmount := "1000"
-		client.TxInvokeWithSign(network, peer, network.Orderers[0],
-			cmn.ChannelFiat, cmn.ChannelFiat, admin,
-			"emit", "", client.NewNonceByTime().Get(), user.AddressBase58Check, emitAmount)
-
-		By("emit check")
-		client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
-			checkResult(checkBalance(emitAmount), nil),
-			"balanceOf", user.AddressBase58Check)
-
 		By("creating grpc connection")
 		clientCtx = metadata.NewOutgoingContext(context.Background(), metadata.Pairs("authorization", networkFound.ChannelTransfer.AccessToken))
 

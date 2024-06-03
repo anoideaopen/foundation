@@ -44,7 +44,7 @@ func New(network *nwo.Network, channels []string) *NetworkFoundation {
 		Channels: channels,
 		Robot:    &Robot{Ports: nwo.Ports{}},
 		ChannelTransfer: &ChannelTransfer{
-			HostAddress: "0.0.0.0",
+			HostAddress: "localhost",
 			AccessToken: "test",
 			Ports:       nwo.Ports{},
 			TTL:         10800,
