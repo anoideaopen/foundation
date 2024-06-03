@@ -1,4 +1,4 @@
-package integration
+package channel_transfer
 
 import (
 	"encoding/json"
@@ -11,9 +11,9 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func TestFoundation(t *testing.T) {
+func TestChannelTransfer(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Foundation Suite")
+	RunSpecs(t, "Channel Transfer Suite")
 }
 
 var (
@@ -43,5 +43,5 @@ var _ = SynchronizedAfterSuite(func() {
 })
 
 func StartPort() int {
-	return integration.SmartBFTBasePort.StartPortForNode()
+	return integration.GossipBasePort.StartPortForNode()
 }

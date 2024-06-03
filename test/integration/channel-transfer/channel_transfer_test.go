@@ -1,9 +1,7 @@
-package integration
+package channel_transfer
 
 import (
 	"context"
-	"github.com/btcsuite/btcutil/base58"
-	"github.com/google/uuid"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -13,8 +11,11 @@ import (
 	cligrpc "github.com/anoideaopen/channel-transfer/proto"
 	"github.com/anoideaopen/foundation/test/integration/cmn"
 	"github.com/anoideaopen/foundation/test/integration/cmn/client"
+	"github.com/anoideaopen/foundation/test/integration/cmn/fabricnetwork"
 	"github.com/anoideaopen/foundation/test/integration/cmn/runner"
+	"github.com/btcsuite/btcutil/base58"
 	docker "github.com/fsouza/go-dockerclient"
+	"github.com/google/uuid"
 	"github.com/hyperledger/fabric/integration/nwo"
 	"github.com/hyperledger/fabric/integration/nwo/fabricconfig"
 	runnerFbk "github.com/hyperledger/fabric/integration/nwo/runner"
@@ -149,13 +150,13 @@ var _ = Describe("Channel transfer foundation Tests", func() {
 			Eventually(proc.Ready(), network.EventuallyTimeout).Should(BeClosed())
 		}
 
-		peerGroupRunner, _ := peerGroupRunners(network)
+		peerGroupRunner, _ := fabricnetwork.PeerGroupRunners(network)
 		peerProcesses = ifrit.Invoke(peerGroupRunner)
 		Eventually(peerProcesses.Ready(), network.EventuallyTimeout).Should(BeClosed())
 
 		By("Joining orderers to channels")
 		for _, channel := range channels {
-			joinChannel(network, channel)
+			fabricnetwork.JoinChannel(network, channel)
 		}
 
 		By("Waiting for followers to see the leader")
@@ -233,7 +234,7 @@ var _ = Describe("Channel transfer foundation Tests", func() {
 
 		By("emit check")
 		client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
-			checkResult(checkBalance(emitAmount), nil),
+			fabricnetwork.CheckResult(fabricnetwork.CheckBalance(emitAmount), nil),
 			"balanceOf", user.AddressBase58Check)
 
 	})
@@ -313,11 +314,11 @@ var _ = Describe("Channel transfer foundation Tests", func() {
 
 		By("checking result balances")
 		client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
-			checkResult(checkBalance("750"), nil),
+			fabricnetwork.CheckResult(fabricnetwork.CheckBalance("750"), nil),
 			"balanceOf", user.AddressBase58Check)
 
 		client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC,
-			checkResult(checkBalance("250"), nil),
+			fabricnetwork.CheckResult(fabricnetwork.CheckBalance("250"), nil),
 			"allowedBalanceOf", user.AddressBase58Check, "FIAT")
 	})
 	It("transfer by customer test", func() {
@@ -394,11 +395,11 @@ var _ = Describe("Channel transfer foundation Tests", func() {
 
 		By("checking result balances")
 		client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
-			checkResult(checkBalance("750"), nil),
+			fabricnetwork.CheckResult(fabricnetwork.CheckBalance("750"), nil),
 			"balanceOf", user.AddressBase58Check)
 
 		client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC,
-			checkResult(checkBalance("250"), nil),
+			fabricnetwork.CheckResult(fabricnetwork.CheckBalance("250"), nil),
 			"allowedBalanceOf", user.AddressBase58Check, "FIAT")
 	})
 

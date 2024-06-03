@@ -107,6 +107,10 @@ jobs:
   go-test-integration:
     needs:
       - golangci-lint
+    strategy:
+      fail-fast: false
+      matrix:
+        INTEGRATION_TEST_SUITE: [ "general basic","swap","version-and-nonce","channel-transfer-only-tx","channel-transfer" ]
     runs-on: 'ubuntu-20.04'
     steps:
       - uses: actions/checkout@v4
@@ -124,4 +128,4 @@ jobs:
       - name: integration test
         working-directory: ./test/integration
         run: |
-          ginkgo --keep-going --poll-progress-after 60s --timeout 24h ./...
+          ginkgo --keep-going --poll-progress-after 60s --timeout 24h ${{matrix.INTEGRATION_TEST_SUITE}}
