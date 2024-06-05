@@ -7,7 +7,6 @@ SPDX-License-Identifier: Apache-2.0
 package template
 
 const DefaultRobot = `{{ with $w := . -}}
-cryptoSrc: local
 defaultBatchLimits:
   batchBlocksCountLimit: 10
   batchLenLimit: 1000
@@ -16,10 +15,6 @@ defaultBatchLimits:
 defaultRobotExecOpts:
   executeTimeout: 30s
 delayAfterChRobotError: 3s
-googleCryptoSettings:
-  gcloudCreds: null
-  gcloudProject: null
-  userCert: null
 logLevel: debug
 logType: lr-json-dev
 profilePath: {{ .ConnectionPath User }}
@@ -48,14 +43,5 @@ txMultiSwapPrefix: multi_swap
 txPreimagePrefix: batchTransactions
 txSwapPrefix: swaps
 userName: backend
-vaultCryptoSettings:
-  useRenewableVaultTokens: false
-  userCert: ""
-  vaultAddress: http://vault.vault:8200
-  vaultAuthPath: /v1/auth/kubernetes/login
-  vaultNamespace: atomyze/robot/
-  vaultRole: ""
-  vaultServiceTokenPath: null
-  vaultToken: ""
 {{ end }}
 `

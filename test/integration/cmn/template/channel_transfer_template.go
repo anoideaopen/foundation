@@ -26,20 +26,6 @@ channels:{{ range .Channels }}
   - {{ . }}
   {{- end }}
 {{- end }}
-cryptoSrc: local
-vaultCryptoSettings:
-  useRenewableVaultTokens: false
-  userCert: ""
-  vaultAddress: http://vault.vault:8200
-  vaultAuthPath: /v1/auth/kubernetes/login
-  vaultNamespace: atomyze/transfer/
-  vaultRole: ""
-  vaultServiceTokenPath: null
-  vaultToken: ""
-googleCryptoSettings:
-  gcloudCreds: null
-  gcloudProject: null
-  userCert: null
 redisStorage:
   addr:{{ range .ChannelTransfer.RedisAddresses }}
     - {{ . }}
