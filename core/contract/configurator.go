@@ -8,6 +8,20 @@ import (
 	"github.com/hyperledger/fabric-chaincode-go/shim"
 )
 
+// ConfigMapper defines a method for mapping Init arguments to a Config instance.
+type ConfigMapper interface {
+	// MapConfig maps the provided arguments to a proto.Config instance.
+	MapConfig(args []string) (*proto.Config, error)
+}
+
+// ConfigMapperFunc is a function type that implements the ConfigMapper interface.
+type ConfigMapperFunc func(args []string) (*proto.Config, error)
+
+// MapConfig calls the underlying function to map the provided arguments to a proto.Config instance.
+func (c ConfigMapperFunc) MapConfig(args []string) (*proto.Config, error) {
+	return c(args)
+}
+
 // Configurator defines methods for validating, applying, and retrieving contract configuration.
 type Configurator interface {
 	// ValidateConfig validates the provided contract configuration data.

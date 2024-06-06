@@ -23,6 +23,7 @@ import (
 	"github.com/hyperledger/fabric-protos-go/peer"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 const (
@@ -96,16 +97,18 @@ type TLS struct {
 // chaincodeOptions is a structure that holds advanced options for configuring
 // a ChainCode instance.
 type chaincodeOptions struct {
-	SrcFS *embed.FS // SrcFS is a file system that contains the source files for the chaincode.
-	TLS   *TLS      // TLS contains the TLS configuration for the chaincode.
+	SrcFS        *embed.FS             // SrcFS is a file system that contains the source files for the chaincode.
+	TLS          *TLS                  // TLS contains the TLS configuration for the chaincode.
+	ConfigMapper contract.ConfigMapper // ConfigMapper maps the arguments to a proto.Config instance.
 }
 
 // Chaincode defines the structure for a chaincode instance, with methods,
 // configuration, and options for transaction processing.
 type Chaincode struct {
-	contract BaseContractInterface // Contract interface containing the chaincode logic.
-	tls      shim.TLSProperties    // TLS configuration properties.
-	router   contract.Router       // Router for routing contract calls.
+	contract     BaseContractInterface // Contract interface containing the chaincode logic.
+	tls          shim.TLSProperties    // TLS configuration properties.
+	router       contract.Router       // Router for routing contract calls.
+	configMapper contract.ConfigMapper // ConfigMapper maps the arguments to a proto.Config instance.
 }
 
 func (cc *Chaincode) Router() contract.Router {
@@ -134,6 +137,30 @@ func (cc *Chaincode) Method(functionName string) (contract.Method, error) {
 	}
 
 	return contract.Method{}, fmt.Errorf("method '%s' not found", functionName)
+}
+
+// WithConfigMapper is a ChaincodeOption that specifies the ConfigMapper for the ChainCode.
+//
+// cm: An instance of the ConfigMapper interface.
+//
+// It returns a ChaincodeOption that sets the ConfigMapper field in the chaincodeOptions.
+func WithConfigMapper(cm contract.ConfigMapper) ChaincodeOption {
+	return func(o *chaincodeOptions) error {
+		o.ConfigMapper = cm
+		return nil
+	}
+}
+
+// WithConfigMapperFunc is a ChaincodeOption that specifies the ConfigMapper for the ChainCode.
+//
+// cmf: An instance of the ConfigMapper interface.
+//
+// It returns a ChaincodeOption that sets the ConfigMapper field in the chaincodeOptions.
+func WithConfigMapperFunc(cmf contract.ConfigMapperFunc) ChaincodeOption {
+	return func(o *chaincodeOptions) error {
+		o.ConfigMapper = cmf
+		return nil
+	}
 }
 
 // WithSrcFS is a ChaincodeOption that specifies the source file system to be used by the ChainCode.
@@ -317,8 +344,9 @@ func NewCC(
 
 	// Set up the ChainCode structure.
 	out := &Chaincode{
-		contract: cc,
-		tls:      tlsProps,
+		contract:     cc,
+		tls:          tlsProps,
+		configMapper: chOpts.ConfigMapper,
 	}
 
 	return out, nil
@@ -345,9 +373,22 @@ func (cc *Chaincode) Init(stub shim.ChaincodeStubInterface) peer.Response {
 	args := stub.GetStringArgs()
 
 	var cfgBytes []byte
-	if config.IsJSONConfig(args) {
+	switch {
+	case config.IsJSONConfig(args):
 		cfgBytes = []byte(args[0])
-	} else {
+
+	case cc.configMapper != nil:
+		cfg, err := cc.configMapper.MapConfig(args)
+		if err != nil {
+			return shim.Error("init: mapping config: " + err.Error())
+		}
+
+		cfgBytes, err = protojson.Marshal(cfg)
+		if err != nil {
+			return shim.Error("init: marshaling config: " + err.Error())
+		}
+
+	default:
 		// handle args as position parameters and fill config structure.
 		// TODO: remove this code when all users moved to json-config initialization.
 		cfgBytes, err = config.ParseArgsArr(stub.GetChannelID(), args)

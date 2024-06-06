@@ -193,18 +193,18 @@ func (w *Wallet) RawSignedMultiSwapInvokeTraced(ctx context.Context, ch, fn stri
 	return txID, TxResponse{}, out.GetCreatedSwaps(), out.GetCreatedMultiSwap()
 }
 
-func (ledger *Ledger) doInvokeTraced(ctx context.Context, ch, txID, fn string, args ...string) string {
+func (l *Ledger) doInvokeTraced(ctx context.Context, ch, txID, fn string, args ...string) string {
 	var (
 		resp peer.Response
 		err  error
 	)
 	if ctx == nil {
-		resp, err = ledger.doInvokeWithPeerResponse(ch, txID, fn, args...)
+		resp, err = l.doInvokeWithPeerResponse(ch, txID, fn, args...)
 	} else {
-		resp, err = ledger.doInvokeWithPeerResponseTraced(ctx, ch, txID, fn, args...)
+		resp, err = l.doInvokeWithPeerResponseTraced(ctx, ch, txID, fn, args...)
 	}
-	require.NoError(ledger.t, err)
-	require.Equal(ledger.t, int32(200), resp.GetStatus(), resp.GetMessage()) //nolint:gomnd
+	require.NoError(l.t, err)
+	require.Equal(l.t, int32(200), resp.GetStatus(), resp.GetMessage()) //nolint:gomnd
 	return string(resp.GetPayload())
 }
 
@@ -232,15 +232,15 @@ func (w *Wallet) NbInvokeTraced(ctx context.Context, ch string, fn string, args 
 	return base58.Encode(nested), hash
 }
 
-func (ledger *Ledger) doInvokeTracedWithErrorReturned(ctx context.Context, ch, txID, fn string, args ...string) error {
+func (l *Ledger) doInvokeTracedWithErrorReturned(ctx context.Context, ch, txID, fn string, args ...string) error {
 	var (
 		resp peer.Response
 		err  error
 	)
 	if ctx == nil {
-		resp, err = ledger.doInvokeWithPeerResponse(ch, txID, fn, args...)
+		resp, err = l.doInvokeWithPeerResponse(ch, txID, fn, args...)
 	} else {
-		resp, err = ledger.doInvokeWithPeerResponseTraced(ctx, ch, txID, fn, args...)
+		resp, err = l.doInvokeWithPeerResponseTraced(ctx, ch, txID, fn, args...)
 	}
 	if err != nil {
 		return err
@@ -251,8 +251,8 @@ func (ledger *Ledger) doInvokeTracedWithErrorReturned(ctx context.Context, ch, t
 	return nil
 }
 
-func (ledger *Ledger) doInvokeWithPeerResponseTraced(ctx context.Context, ch, txID, fn string, args ...string) (peer.Response, error) {
-	if err := ledger.verifyIncoming(ch, fn); err != nil {
+func (l *Ledger) doInvokeWithPeerResponseTraced(ctx context.Context, ch, txID, fn string, args ...string) (peer.Response, error) {
+	if err := l.verifyIncoming(ch, fn); err != nil {
 		return peer.Response{}, err
 	}
 	vArgs := make([][]byte, len(args)+1)
@@ -261,11 +261,11 @@ func (ledger *Ledger) doInvokeWithPeerResponseTraced(ctx context.Context, ch, tx
 		vArgs[i+1] = []byte(x)
 	}
 
-	creator, err := ledger.stubs[ch].GetCreator()
-	require.NoError(ledger.t, err)
+	creator, err := l.stubs[ch].GetCreator()
+	require.NoError(l.t, err)
 
 	if len(creator) == 0 {
-		_ = ledger.stubs[ch].SetDefaultCreatorCert("platformMSP")
+		_ = l.stubs[ch].SetDefaultCreatorCert("platformMSP")
 	}
 
 	input, err := pb.Marshal(&peer.ChaincodeInvocationSpec{
@@ -274,7 +274,7 @@ func (ledger *Ledger) doInvokeWithPeerResponseTraced(ctx context.Context, ch, tx
 			Input:       &peer.ChaincodeInput{Args: vArgs},
 		},
 	})
-	require.NoError(ledger.t, err)
+	require.NoError(l.t, err)
 
 	carrier := propagation.MapCarrier{}
 
@@ -282,13 +282,13 @@ func (ledger *Ledger) doInvokeWithPeerResponseTraced(ctx context.Context, ch, tx
 	otel.GetTextMapPropagator().Inject(ctx, carrier)
 
 	transientDataMap, err := telemetry.PackToTransientMap(carrier)
-	require.NoError(ledger.t, err)
+	require.NoError(l.t, err)
 
 	payload, err := pb.Marshal(&peer.ChaincodeProposalPayload{Input: input, TransientMap: transientDataMap})
-	require.NoError(ledger.t, err)
+	require.NoError(l.t, err)
 	proposal, err := pb.Marshal(&peer.Proposal{Payload: payload})
-	require.NoError(ledger.t, err)
-	result := ledger.stubs[ch].MockInvokeWithSignedProposal(txID, vArgs, &peer.SignedProposal{
+	require.NoError(l.t, err)
+	result := l.stubs[ch].MockInvokeWithSignedProposal(txID, vArgs, &peer.SignedProposal{
 		ProposalBytes: proposal,
 	})
 	return result, nil
