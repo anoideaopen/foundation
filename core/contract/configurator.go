@@ -3,7 +3,7 @@ package contract
 import (
 	"fmt"
 
-	"github.com/anoideaopen/foundation/internal/config"
+	"github.com/anoideaopen/foundation/core/config"
 	"github.com/anoideaopen/foundation/proto"
 	"github.com/hyperledger/fabric-chaincode-go/shim"
 )
@@ -86,26 +86,17 @@ func Configure(contract Base, stub shim.ChaincodeStubInterface, rawCfg []byte) e
 		return nil
 	}
 
-	contractCfg, err := config.ContractConfigFromBytes(rawCfg)
+	cfg, err := config.FromBytes(rawCfg)
 	if err != nil {
-		return fmt.Errorf("parsing contract config: %w", err)
+		return fmt.Errorf("parsing config: %w", err)
 	}
 
-	if contractCfg.GetOptions() == nil {
-		contractCfg.Options = new(proto.ChaincodeOptions)
-	}
-
-	if err = contract.ApplyContractConfig(contractCfg); err != nil {
+	if err = contract.ApplyContractConfig(cfg.GetContract()); err != nil {
 		return fmt.Errorf("applying contract config: %w", err)
 	}
 
 	if tc, ok := contract.(TokenConfigurator); ok {
-		tokenCfg, err := config.TokenConfigFromBytes(rawCfg)
-		if err != nil {
-			return fmt.Errorf("parsing token config: %w", err)
-		}
-
-		if err = tc.ApplyTokenConfig(tokenCfg); err != nil {
+		if err = tc.ApplyTokenConfig(cfg.GetToken()); err != nil {
 			return fmt.Errorf("applying token config: %w", err)
 		}
 	}

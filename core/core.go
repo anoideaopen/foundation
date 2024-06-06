@@ -12,12 +12,12 @@ import (
 	"time"
 
 	"github.com/anoideaopen/foundation/core/balance"
+	"github.com/anoideaopen/foundation/core/config"
 	"github.com/anoideaopen/foundation/core/contract"
 	"github.com/anoideaopen/foundation/core/logger"
 	"github.com/anoideaopen/foundation/core/reflectx"
 	"github.com/anoideaopen/foundation/core/telemetry"
 	"github.com/anoideaopen/foundation/hlfcreator"
-	"github.com/anoideaopen/foundation/internal/config"
 	"github.com/anoideaopen/foundation/proto"
 	"github.com/hyperledger/fabric-chaincode-go/shim"
 	"github.com/hyperledger/fabric-protos-go/peer"
@@ -374,7 +374,7 @@ func (cc *Chaincode) Init(stub shim.ChaincodeStubInterface) peer.Response {
 
 	var cfgBytes []byte
 	switch {
-	case config.IsJSONConfig(args):
+	case config.IsJSON(args):
 		cfgBytes = []byte(args[0])
 
 	case cc.configMapper != nil:
@@ -391,7 +391,7 @@ func (cc *Chaincode) Init(stub shim.ChaincodeStubInterface) peer.Response {
 	default:
 		// handle args as position parameters and fill config structure.
 		// TODO: remove this code when all users moved to json-config initialization.
-		cfgBytes, err = config.ParseArgsArr(stub.GetChannelID(), args)
+		cfgBytes, err = config.FromInitArgs(stub.GetChannelID(), args)
 		if err != nil {
 			return shim.Error(fmt.Sprintf("init: parsing args old way: %s", err))
 		}
@@ -401,7 +401,7 @@ func (cc *Chaincode) Init(stub shim.ChaincodeStubInterface) peer.Response {
 		return shim.Error("init: validating config: " + err.Error())
 	}
 
-	if err = config.SaveConfig(stub, cfgBytes); err != nil {
+	if err = config.Save(stub, cfgBytes); err != nil {
 		return shim.Error("init: saving config: " + err.Error())
 	}
 
@@ -412,16 +412,16 @@ func (cc *Chaincode) Init(stub shim.ChaincodeStubInterface) peer.Response {
 
 	// If the contract does not implement the Router interface, check if it
 	// is possible to create a router based on reflection.
-	cfg, err := config.ContractConfigFromBytes(cfgBytes)
+	cfg, err := config.FromBytes(cfgBytes)
 	if err != nil {
 		return shim.Error("init: unmarshalling config: " + err.Error())
 	}
 
 	// Check for duplicate methods.
 	if _, err = reflectx.NewRouter(cc.contract, reflectx.RouterConfig{
-		SwapsDisabled:      cfg.GetOptions().GetDisableSwaps(),
-		MultiSwapsDisabled: cfg.GetOptions().GetDisableMultiSwaps(),
-		DisabledMethods:    cfg.GetOptions().GetDisabledFunctions(),
+		SwapsDisabled:      cfg.GetContract().GetOptions().GetDisableSwaps(),
+		MultiSwapsDisabled: cfg.GetContract().GetOptions().GetDisableMultiSwaps(),
+		DisabledMethods:    cfg.GetContract().GetOptions().GetDisabledFunctions(),
 	}); err != nil {
 		return shim.Error("init: validating contract methods: " + err.Error())
 	}
@@ -449,7 +449,7 @@ func (cc *Chaincode) Invoke(stub shim.ChaincodeStubInterface) (r peer.Response) 
 	start := time.Now()
 
 	// getting contract config
-	cfgBytes, err := config.LoadRawConfig(stub)
+	cfgBytes, err := config.Load(stub)
 	if err != nil {
 		return shim.Error("invoke: loading raw config: " + err.Error())
 	}
@@ -531,14 +531,14 @@ func (cc *Chaincode) Invoke(stub shim.ChaincodeStubInterface) (r peer.Response) 
 		CommitCCTransferFrom,
 		CancelCCTransferFrom,
 		DeleteCCTransferFrom:
-		contractCfg, err := config.ContractConfigFromBytes(cfgBytes)
+		cfg, err := config.FromBytes(cfgBytes)
 		if err != nil {
 			errMsg := "loading base config " + err.Error()
 			span.SetStatus(codes.Error, errMsg)
 			return shim.Error(errMsg)
 		}
 
-		robotSKIBytes, _ := hex.DecodeString(contractCfg.GetRobotSKI())
+		robotSKIBytes, _ := hex.DecodeString(cfg.GetContract().GetRobotSKI())
 		err = hlfcreator.ValidateSKI(robotSKIBytes, creatorSKI, hashedCert)
 		if err != nil {
 			errMsg := "invoke:unauthorized: robotSKI is not equal creatorSKI and hashedCert: " + err.Error()
@@ -703,12 +703,12 @@ func (cc *Chaincode) batchExecuteHandler(
 	args []string,
 	cfgBytes []byte,
 ) peer.Response {
-	contractCfg, err := config.ContractConfigFromBytes(cfgBytes)
+	cfg, err := config.FromBytes(cfgBytes)
 	if err != nil {
 		return peer.Response{}
 	}
 
-	robotSKIBytes, _ := hex.DecodeString(contractCfg.GetRobotSKI())
+	robotSKIBytes, _ := hex.DecodeString(cfg.GetContract().GetRobotSKI())
 
 	err = hlfcreator.ValidateSKI(robotSKIBytes, creatorSKI, hashedCert)
 	if err != nil {
