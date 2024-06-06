@@ -30,15 +30,15 @@ func FromInitArgs(channel string, args []string) ([]byte, error) {
 
 	switch channel {
 	case "nft", "dcdac", "ndm", "rub", "it":
-		cfg, err = ConfigWithAdmin(symbol, args)
+		cfg, err = FromArgsWithAdmin(symbol, args)
 	case "ct", "hermitage", "dcrsb", "minetoken", "invclass", "vote":
-		cfg, err = ConfigWithIssuerAndAdmin(symbol, args)
+		cfg, err = FromArgsWithIssuerAndAdmin(symbol, args)
 	case "nmmmulti", "invmulti", "dcmulti":
-		cfg, err = ConfigWithAdmin(symbol, args)
+		cfg, err = FromArgsWithAdmin(symbol, args)
 	case "curaed", "curbhd", "curtry", "currub", "curusd":
-		cfg, err = ConfigWithIssuerFeeSetterAndFeeAddressSetter(symbol, args)
+		cfg, err = FromArgsWithIssuerFeeSetterAndFeeAddressSetter(symbol, args)
 	case "otf":
-		cfg, err = ConfigWithIssuerAndFeeSetter(symbol, args)
+		cfg, err = FromArgsWithIssuerAndFeeSetter(symbol, args)
 	default:
 		return nil, fmt.Errorf(
 			"chaincode '%s' does not have positional args initialization, args: %v",
@@ -59,9 +59,9 @@ func FromInitArgs(channel string, args []string) ([]byte, error) {
 	return cfgBytes, nil
 }
 
-// ConfigWithAdmin configures the proto.Config with an admin address.
+// FromArgsWithAdmin configures the proto.Config with an admin address.
 // Args: [platformSKI (deprecated), robotSKI, adminAddress]
-func ConfigWithAdmin(symbol string, args []string) (*proto.Config, error) {
+func FromArgsWithAdmin(symbol string, args []string) (*proto.Config, error) {
 	const requiredArgsCount = 3
 	if len(args) != requiredArgsCount {
 		return nil, fmt.Errorf("required args length is '%d', passed %d",
@@ -89,9 +89,9 @@ func ConfigWithAdmin(symbol string, args []string) (*proto.Config, error) {
 	return cfg, nil
 }
 
-// ConfigWithIssuerAndAdmin configures the proto.Config with an issuer and admin address.
+// FromArgsWithIssuerAndAdmin configures the proto.Config with an issuer and admin address.
 // Args: [platformSKI (deprecated), robotSKI, issuerAddress, adminAddress]
-func ConfigWithIssuerAndAdmin(symbol string, args []string) (*proto.Config, error) {
+func FromArgsWithIssuerAndAdmin(symbol string, args []string) (*proto.Config, error) {
 	const requiredArgsCount = 4
 	if len(args) != requiredArgsCount {
 		return nil, fmt.Errorf("required args length is '%d', passed %d",
@@ -123,9 +123,9 @@ func ConfigWithIssuerAndAdmin(symbol string, args []string) (*proto.Config, erro
 	return cfg, nil
 }
 
-// ConfigWithIssuerFeeSetterAndFeeAddressSetter configures the proto.Config with an issuer, fee setter, and fee admin setter address.
+// FromArgsWithIssuerFeeSetterAndFeeAddressSetter configures the proto.Config with an issuer, fee setter, and fee admin setter address.
 // Args: [platformSKI (deprecated), robotSKI, issuerAddress, feeSetter, feeAddressSetter]
-func ConfigWithIssuerFeeSetterAndFeeAddressSetter(symbol string, args []string) (*proto.Config, error) {
+func FromArgsWithIssuerFeeSetterAndFeeAddressSetter(symbol string, args []string) (*proto.Config, error) {
 	const requiredArgsCount = 5
 	if len(args) != requiredArgsCount {
 		return nil, fmt.Errorf("required args length is '%d', passed %d",
@@ -163,9 +163,9 @@ func ConfigWithIssuerFeeSetterAndFeeAddressSetter(symbol string, args []string) 
 	return cfg, nil
 }
 
-// ConfigWithIssuerAndFeeSetter configures the proto.Config with an issuer and fee setter address.
+// FromArgsWithIssuerAndFeeSetter configures the proto.Config with an issuer and fee setter address.
 // Args: [platformSKI (deprecated), robotSKI, issuerAddress, feeSetter]
-func ConfigWithIssuerAndFeeSetter(symbol string, args []string) (*proto.Config, error) {
+func FromArgsWithIssuerAndFeeSetter(symbol string, args []string) (*proto.Config, error) {
 	const requiredArgsCount = 4
 	if len(args) != requiredArgsCount {
 		return nil, fmt.Errorf("required args length is '%d', passed %d",
