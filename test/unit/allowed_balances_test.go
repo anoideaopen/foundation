@@ -22,12 +22,12 @@ func (tt *TestToken) QueryAllowedBalanceSub(token string, address *types.Address
 	return tt.AllowedBalanceSub(token, address, amount, reason)
 }
 
-func (tt *TestToken) QueryAllowedBalanceLock(token string, address *types.Address, amount *big.Int) error {
-	return tt.AllowedBalanceLock(token, address, amount)
+func (tt *TestToken) QueryAllowedBalanceLock(token string, address *types.Address, amount *big.Int, _ string) error {
+	return tt.AllowedBalanceLock(token, address, amount, "allowed balance lock")
 }
 
-func (tt *TestToken) QueryAllowedBalanceUnLock(token string, address *types.Address, amount *big.Int) error {
-	return tt.AllowedBalanceUnLock(token, address, amount)
+func (tt *TestToken) QueryAllowedBalanceUnLock(token string, address *types.Address, amount *big.Int, _ string) error {
+	return tt.AllowedBalanceUnLock(token, address, amount, "allowed balance unlock")
 }
 
 func (tt *TestToken) QueryAllowedBalanceTransferLocked(token string, from *types.Address, to *types.Address, amount *big.Int, reason string) error {

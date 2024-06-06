@@ -27,16 +27,16 @@ func (tt *TestToken) TxIndustrialBalanceTransfer(_ *types.Sender, token string, 
 	return tt.IndustrialBalanceTransfer(token, from, to, amount, reason)
 }
 
-func (tt *TestToken) TxIndustrialBalanceLock(_ *types.Sender, token string, address *types.Address, amount *big.Int) error {
-	return tt.IndustrialBalanceLock(token, address, amount)
+func (tt *TestToken) TxIndustrialBalanceLock(_ *types.Sender, token string, address *types.Address, amount *big.Int, _ string) error {
+	return tt.IndustrialBalanceLock(token, address, amount, "industrial balance lock")
 }
 
 func (tt *TestToken) QueryIndustrialBalanceGetLocked(address *types.Address) (map[string]string, error) {
 	return tt.IndustrialBalanceGetLocked(address)
 }
 
-func (tt *TestToken) TxIndustrialBalanceUnLock(_ *types.Sender, token string, address *types.Address, amount *big.Int) error {
-	return tt.IndustrialBalanceUnLock(token, address, amount)
+func (tt *TestToken) TxIndustrialBalanceUnLock(_ *types.Sender, token string, address *types.Address, amount *big.Int, _ string) error {
+	return tt.IndustrialBalanceUnLock(token, address, amount, "industrial balance unlock")
 }
 
 func (tt *TestToken) TxIndustrialBalanceTransferLocked(_ *types.Sender, token string, from *types.Address, to *types.Address, amount *big.Int, reason string) error {

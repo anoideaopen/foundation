@@ -264,7 +264,10 @@ func (bc *BaseContract) TokenBalanceGetLocked(address *types.Address) (*big.Int,
 	return new(big.Int).SetBytes(balance.Bytes()), err
 }
 
-func (bc *BaseContract) TokenBalanceLock(address *types.Address, amount *big.Int) error {
+func (bc *BaseContract) TokenBalanceLock(address *types.Address, amount *big.Int, reason string) error {
+	if stub, ok := bc.GetStub().(*cachestub.TxCacheStub); ok {
+		stub.AddAccountingRecord(bc.config.GetSymbol(), address, address, amount, reason)
+	}
 	return balance.Move(
 		bc.stub,
 		balance.BalanceTypeToken,
@@ -276,7 +279,10 @@ func (bc *BaseContract) TokenBalanceLock(address *types.Address, amount *big.Int
 	)
 }
 
-func (bc *BaseContract) TokenBalanceUnlock(address *types.Address, amount *big.Int) error {
+func (bc *BaseContract) TokenBalanceUnlock(address *types.Address, amount *big.Int, reason string) error {
+	if stub, ok := bc.GetStub().(*cachestub.TxCacheStub); ok {
+		stub.AddAccountingRecord(bc.config.GetSymbol(), address, address, amount, reason)
+	}
 	return balance.Move(
 		bc.stub,
 		balance.BalanceTypeTokenLocked,
@@ -458,7 +464,12 @@ func (bc *BaseContract) AllowedBalanceLock(
 	token string,
 	address *types.Address,
 	amount *big.Int,
+	reason string,
 ) error {
+	if stub, ok := bc.GetStub().(*cachestub.TxCacheStub); ok {
+		stub.AddAccountingRecord(bc.config.GetSymbol(), address, address, amount, reason)
+	}
+
 	return balance.Move(
 		bc.stub,
 		balance.BalanceTypeAllowed,
@@ -474,7 +485,12 @@ func (bc *BaseContract) AllowedBalanceUnLock(
 	token string,
 	address *types.Address,
 	amount *big.Int,
+	reason string,
 ) error {
+	if stub, ok := bc.GetStub().(*cachestub.TxCacheStub); ok {
+		stub.AddAccountingRecord(bc.config.GetSymbol(), address, address, amount, reason)
+	}
+
 	return balance.Move(
 		bc.stub,
 		balance.BalanceTypeAllowedLocked,
@@ -546,7 +562,12 @@ func (bc *BaseContract) IndustrialBalanceLock(
 	token string,
 	address *types.Address,
 	amount *big.Int,
+	reason string,
 ) error {
+	if stub, ok := bc.GetStub().(*cachestub.TxCacheStub); ok {
+		stub.AddAccountingRecord(bc.config.GetSymbol(), address, address, amount, reason)
+	}
+
 	parts := strings.Split(token, "_")
 	token = parts[len(parts)-1]
 
@@ -565,7 +586,12 @@ func (bc *BaseContract) IndustrialBalanceUnLock(
 	token string,
 	address *types.Address,
 	amount *big.Int,
+	reason string,
 ) error {
+	if stub, ok := bc.GetStub().(*cachestub.TxCacheStub); ok {
+		stub.AddAccountingRecord(bc.config.GetSymbol(), address, address, amount, reason)
+	}
+
 	parts := strings.Split(token, "_")
 	token = parts[len(parts)-1]
 

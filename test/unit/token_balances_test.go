@@ -9,12 +9,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func (tt *TestToken) TxTokenBalanceLock(_ *types.Sender, address *types.Address, amount *big.Int) error {
-	return tt.TokenBalanceLock(address, amount)
+func (tt *TestToken) TxTokenBalanceLock(_ *types.Sender, address *types.Address, amount *big.Int, _ string) error {
+	return tt.TokenBalanceLock(address, amount, "token balance lock")
 }
 
-func (tt *TestToken) TxTokenBalanceUnlock(_ *types.Sender, address *types.Address, amount *big.Int) error {
-	return tt.TokenBalanceUnlock(address, amount)
+func (tt *TestToken) TxTokenBalanceUnlock(_ *types.Sender, address *types.Address, amount *big.Int, _ string) error {
+	return tt.TokenBalanceUnlock(address, amount, "token balance unlock")
 }
 
 func (tt *TestToken) TxTokenBalanceTransferLocked(_ *types.Sender, from *types.Address, to *types.Address, amount *big.Int, reason string) error {

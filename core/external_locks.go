@@ -53,6 +53,7 @@ const (
 func (bc *BaseContract) TxLockTokenBalance(
 	sender *types.Sender,
 	req *proto.BalanceLockRequest,
+	_ string, // reason
 ) error {
 	if req.GetId() == "" {
 		req.Id = bc.stub.GetTxID()
@@ -79,7 +80,7 @@ func (bc *BaseContract) TxLockTokenBalance(
 		return ErrBigIntFromString
 	}
 
-	if err = bc.TokenBalanceLock(address, amount); err != nil {
+	if err = bc.TokenBalanceLock(address, amount, "token balance lock"); err != nil {
 		return err
 	}
 
@@ -132,6 +133,7 @@ func (bc *BaseContract) TxLockTokenBalance(
 func (bc *BaseContract) TxUnlockTokenBalance( //nolint:funlen
 	sender *types.Sender,
 	req *proto.BalanceLockRequest,
+	_ string, // reason
 ) error {
 	err := bc.verifyLockedArgs(sender, req)
 	if err != nil {
@@ -168,7 +170,7 @@ func (bc *BaseContract) TxUnlockTokenBalance( //nolint:funlen
 		isDelete = true
 	}
 
-	if err = bc.TokenBalanceUnlock(address, amount); err != nil {
+	if err = bc.TokenBalanceUnlock(address, amount, "token balance unlock"); err != nil {
 		return err
 	}
 
@@ -224,6 +226,7 @@ func (bc *BaseContract) QueryGetLockedTokenBalance(
 func (bc *BaseContract) TxLockAllowedBalance(
 	sender *types.Sender,
 	req *proto.BalanceLockRequest,
+	_ string, // reason
 ) error {
 	if req.GetId() == "" {
 		req.Id = bc.stub.GetTxID()
@@ -250,7 +253,7 @@ func (bc *BaseContract) TxLockAllowedBalance(
 		return ErrBigIntFromString
 	}
 
-	if err = bc.AllowedBalanceLock(req.GetToken(), address, amount); err != nil {
+	if err = bc.AllowedBalanceLock(req.GetToken(), address, amount, "allowed balance lock"); err != nil {
 		return err
 	}
 
@@ -303,6 +306,7 @@ func (bc *BaseContract) TxLockAllowedBalance(
 func (bc *BaseContract) TxUnlockAllowedBalance( //nolint:funlen
 	sender *types.Sender,
 	req *proto.BalanceLockRequest,
+	_ string, // reason
 ) error {
 	err := bc.verifyLockedArgs(sender, req)
 	if err != nil {
@@ -339,7 +343,7 @@ func (bc *BaseContract) TxUnlockAllowedBalance( //nolint:funlen
 		isDelete = true
 	}
 
-	if err = bc.AllowedBalanceUnLock(balanceLock.GetToken(), address, amount); err != nil {
+	if err = bc.AllowedBalanceUnLock(balanceLock.GetToken(), address, amount, "allowed balance unlock"); err != nil {
 		return err
 	}
 
