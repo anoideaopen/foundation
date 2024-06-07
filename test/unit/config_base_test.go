@@ -3,6 +3,7 @@ package unit
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/anoideaopen/foundation/core"
@@ -222,7 +223,7 @@ func TestWithConfigMapperFuncFromArgs(t *testing.T) {
 	user1 := ledgerMock.NewWallet()
 	issuer := ledgerMock.NewWallet()
 
-	ttSymbol := "TT"
+	ttSymbol := "tt"
 	step(t, "Init new chaincode", false, func() {
 		initArgs := []string{
 			"",                            // PlatformSKI (backend) - deprecated
@@ -248,7 +249,7 @@ func TestWithConfigMapperFuncFromArgs(t *testing.T) {
 	})
 
 	step(t, "Validate contract config", false, func() {
-		require.Equal(t, ttSymbol, cfg.Contract.Symbol)
+		require.Equal(t, strings.ToUpper(ttSymbol), cfg.Contract.Symbol)
 		require.Equal(t, fixtures_test.RobotHashedCert, cfg.Contract.RobotSKI)
 		require.Equal(t, false, cfg.Contract.Options.DisableSwaps)
 		require.Equal(t, false, cfg.Contract.Options.DisableMultiSwaps)
