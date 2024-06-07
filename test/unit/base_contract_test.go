@@ -97,7 +97,7 @@ func TestBytesEncoder(t *testing.T) {
 	initMsg := ledgerMock.NewCC(testTokenCCName, tt, config)
 	require.Empty(t, initMsg)
 
-	t.Run("Get nonce with new wallet", func(t *testing.T) {
+	t.Run("Get bytes encoded response", func(t *testing.T) {
 		helloWorld := owner.Invoke(testTokenCCName, testHelloWorldFnName)
 		require.Equal(t, helloWorld, "Hello World")
 	})
