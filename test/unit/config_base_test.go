@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/anoideaopen/foundation/core"
+	"github.com/anoideaopen/foundation/core/config"
 	"github.com/anoideaopen/foundation/core/contract"
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/mock"
@@ -211,6 +212,46 @@ func TestWithConfigMapperFunc(t *testing.T) {
 		require.Equal(t, ttName, cfg.Token.Name)
 		require.Equal(t, ttDecimals, cfg.Token.Decimals)
 		require.Equal(t, issuer.Address(), cfg.Token.Issuer.Address)
+	})
+}
+
+func TestWithConfigMapperFuncFromArgs(t *testing.T) {
+	t.Parallel()
+
+	ledgerMock := mock.NewLedger(t)
+	user1 := ledgerMock.NewWallet()
+	issuer := ledgerMock.NewWallet()
+
+	ttSymbol := "TT"
+	step(t, "Init new chaincode", false, func() {
+		initArgs := []string{
+			"",                            // PlatformSKI (backend) - deprecated
+			fixtures_test.RobotHashedCert, // RobotSKI
+			issuer.Address(),              // IssuerAddress
+			fixtures_test.AdminAddr,       // AdminAddress
+		}
+		message := ledgerMock.NewCCArgsArr(ttSymbol, &TestConfigToken{}, initArgs, core.WithConfigMapperFunc(
+			func(args []string) (*proto.Config, error) {
+				return config.FromArgsWithIssuerAndAdmin(ttSymbol, args)
+			}),
+		)
+		require.Empty(t, message)
+	})
+
+	var cfg proto.Config
+	step(t, "Fetch config", false, func() {
+		data := user1.Invoke("tt", "config")
+		require.NotEmpty(t, data)
+
+		err := json.Unmarshal([]byte(data), &cfg)
+		require.NoError(t, err)
+	})
+
+	step(t, "Validate contract config", false, func() {
+		require.Equal(t, ttSymbol, cfg.Contract.Symbol)
+		require.Equal(t, fixtures_test.RobotHashedCert, cfg.Contract.RobotSKI)
+		require.Equal(t, false, cfg.Contract.Options.DisableSwaps)
+		require.Equal(t, false, cfg.Contract.Options.DisableMultiSwaps)
 	})
 }
 
