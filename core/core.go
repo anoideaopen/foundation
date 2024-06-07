@@ -144,6 +144,11 @@ func (cc *Chaincode) Method(functionName string) (contract.Method, error) {
 // cm: An instance of the ConfigMapper interface.
 //
 // It returns a ChaincodeOption that sets the ConfigMapper field in the chaincodeOptions.
+//
+// Example:
+//
+//	configMapper := myCustomConfigMapper{}
+//	chaincode := core.NewCC(cc, core.WithConfigMapper(configMapper))
 func WithConfigMapper(cm contract.ConfigMapper) ChaincodeOption {
 	return func(o *chaincodeOptions) error {
 		o.ConfigMapper = cm
@@ -153,9 +158,47 @@ func WithConfigMapper(cm contract.ConfigMapper) ChaincodeOption {
 
 // WithConfigMapperFunc is a ChaincodeOption that specifies the ConfigMapper for the ChainCode.
 //
-// cmf: An instance of the ConfigMapper interface.
+// cmf: A function implementing the ConfigMapper interface.
 //
 // It returns a ChaincodeOption that sets the ConfigMapper field in the chaincodeOptions.
+//
+// Example using FromArgsWithAdmin:
+//
+//	chaincode := core.NewCC(cc, core.WithConfigMapperFunc(func(args []string) (*proto.Config, error) {
+//	    return config.FromArgsWithAdmin("ndm", args)
+//	}))
+//
+// Example with manual mapping:
+//
+//	chaincode := core.NewCC(cc, core.WithConfigMapperFunc(func(args []string) (*proto.Config, error) {
+//	    const requiredArgsCount = 4
+//	    if len(args) != requiredArgsCount {
+//	        return nil, fmt.Errorf("required args length is '%d', passed %d", requiredArgsCount, len(args))
+//	    }
+//	    robotSKI := args[1]
+//	    if robotSKI == "" {
+//	        return nil, fmt.Errorf("robot ski is empty")
+//	    }
+//	    issuerAddress := args[2]
+//	    if issuerAddress == "" {
+//	        return nil, fmt.Errorf("issuer address is empty")
+//	    }
+//	    adminAddress := args[3]
+//	    if adminAddress == "" {
+//	        return nil, fmt.Errorf("admin address is empty")
+//	    }
+//	    return &proto.Config{
+//	        Contract: &proto.ContractConfig{
+//	            Symbol: "TT",
+//	            Admin:  &proto.Wallet{Address: adminAddress},
+//	            RobotSKI: robotSKI,
+//	        },
+//	        Token: &proto.TokenConfig{
+//	            Name: "Test Token",
+//	            Issuer: &proto.Wallet{Address: issuerAddress},
+//	        },
+//	    }, nil
+//	}))
 func WithConfigMapperFunc(cmf contract.ConfigMapperFunc) ChaincodeOption {
 	return func(o *chaincodeOptions) error {
 		o.ConfigMapper = cmf
