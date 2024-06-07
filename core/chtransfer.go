@@ -1,7 +1,6 @@
 package core
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 	"unicode/utf8"
@@ -12,6 +11,7 @@ import (
 	"github.com/anoideaopen/foundation/core/types/big"
 	pb "github.com/anoideaopen/foundation/proto"
 	"github.com/golang/protobuf/proto" //nolint:staticcheck
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 type typeOperation int
@@ -152,7 +152,7 @@ func (bc *BaseContract) createCCTransferFrom(
 func (bc *BaseContract) TxCreateCCTransferTo(dataIn string) (string, error) {
 	var tr pb.CCTransfer
 	if err := proto.Unmarshal([]byte(dataIn), &tr); err != nil {
-		if err = json.Unmarshal([]byte(dataIn), &tr); err != nil {
+		if err = protojson.Unmarshal([]byte(dataIn), &tr); err != nil {
 			return "", err
 		}
 	}

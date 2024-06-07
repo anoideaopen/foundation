@@ -24,6 +24,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"google.golang.org/protobuf/encoding/protojson"
+	pb "google.golang.org/protobuf/proto"
 )
 
 const (
@@ -840,6 +841,9 @@ func (cc *Chaincode) InvokeContractMethod(
 	case 0:
 		return json.Marshal(nil)
 	case 1:
+		if protoMessage, ok := result[0].(pb.Message); ok {
+			return protojson.Marshal(protoMessage)
+		}
 		return json.Marshal(result[0])
 	default:
 		return json.Marshal(result)

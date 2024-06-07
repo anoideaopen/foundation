@@ -1,7 +1,6 @@
 package unit
 
 import (
-	"encoding/json"
 	"testing"
 	"time"
 
@@ -337,7 +336,7 @@ func TestQueryAllTransfersFrom(t *testing.T) {
 	for {
 		resStr := user1.Invoke("cc", "channelTransfersFrom", "2", b)
 		res := new(pb.CCTransfers)
-		err := json.Unmarshal([]byte(resStr), &res)
+		err := protojson.Unmarshal([]byte(resStr), res)
 		require.NoError(t, err)
 		for _, tr := range res.Ccts {
 			_, ok := ids[tr.Id]
@@ -436,7 +435,7 @@ func TestFailCreateTransferTo(t *testing.T) {
 
 	cctRaw := user1.Invoke("cc", "channelTransferFrom", id)
 	cct := new(pb.CCTransfer)
-	err = json.Unmarshal([]byte(cctRaw), &cct)
+	err = protojson.Unmarshal([]byte(cctRaw), cct)
 	require.NoError(t, err)
 
 	// TESTS
@@ -448,7 +447,7 @@ func TestFailCreateTransferTo(t *testing.T) {
 	// the transfer went into the wrong channel
 	tempTo := cct.To
 	cct.To = "FIAT"
-	b, err := json.Marshal(cct)
+	b, err := protojson.Marshal(cct)
 	require.NoError(t, err)
 	cct.To = tempTo
 	_, _, err = user1.RawChTransferInvokeWithBatch("vt", "createCCTransferTo", string(b))
@@ -457,7 +456,7 @@ func TestFailCreateTransferTo(t *testing.T) {
 	// From and To channels are equal
 	tempFrom := cct.From
 	cct.From = cct.To
-	b, err = json.Marshal(cct)
+	b, err = protojson.Marshal(cct)
 	require.NoError(t, err)
 	cct.From = tempFrom
 	_, _, err = user1.RawChTransferInvokeWithBatch("vt", "createCCTransferTo", string(b))
@@ -466,7 +465,7 @@ func TestFailCreateTransferTo(t *testing.T) {
 	// token is not equal to one of the channels
 	tempToken := cct.Token
 	cct.Token = "FIAT"
-	b, err = json.Marshal(cct)
+	b, err = protojson.Marshal(cct)
 	require.NoError(t, err)
 	cct.Token = tempToken
 	_, _, err = user1.RawChTransferInvokeWithBatch("vt", "createCCTransferTo", string(b))
@@ -475,7 +474,7 @@ func TestFailCreateTransferTo(t *testing.T) {
 	// misdirection of changes in balances
 	tempDirect := cct.ForwardDirection
 	cct.ForwardDirection = !tempDirect
-	b, err = json.Marshal(cct)
+	b, err = protojson.Marshal(cct)
 	require.NoError(t, err)
 	cct.ForwardDirection = tempDirect
 	_, _, err = user1.RawChTransferInvokeWithBatch("vt", "createCCTransferTo", string(b))
@@ -626,7 +625,7 @@ func TestFailQueryAllTransfersFrom(t *testing.T) {
 	b := ""
 	resStr := user1.Invoke("cc", "channelTransfersFrom", "2", b)
 	res := new(pb.CCTransfers)
-	err := json.Unmarshal([]byte(resStr), &res)
+	err := protojson.Unmarshal([]byte(resStr), res)
 	require.NoError(t, err)
 	require.NotEmpty(t, res.Bookmark)
 

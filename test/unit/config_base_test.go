@@ -108,7 +108,7 @@ func TestInitWithCommonConfig(t *testing.T) {
 		data := user1.Invoke("tt", "config")
 		require.NotEmpty(t, data)
 
-		err := json.Unmarshal([]byte(data), &cfg)
+		err := protojson.Unmarshal([]byte(data), &cfg)
 		require.NoError(t, err)
 	})
 
@@ -198,7 +198,7 @@ func TestWithConfigMapperFunc(t *testing.T) {
 		data := user1.Invoke("tt", "config")
 		require.NotEmpty(t, data)
 
-		err := json.Unmarshal([]byte(data), &cfg)
+		err := protojson.Unmarshal([]byte(data), &cfg)
 		require.NoError(t, err)
 	})
 
