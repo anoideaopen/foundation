@@ -391,8 +391,7 @@ func (cc *Chaincode) Init(stub shim.ChaincodeStubInterface) peer.Response {
 	default:
 		// Handle args as positional parameters and fill the config structure.
 		// TODO: Remove this code when all users have moved to JSON-config initialization.
-		// nolint:staticcheck // SA1019: Using deprecated function for backward compatibility.
-		cfgBytes, err = config.FromInitArgs(stub.GetChannelID(), args)
+		cfgBytes, err = config.FromInitArgs(stub.GetChannelID(), args) //nolint:staticcheck
 		if err != nil {
 			return shim.Error(fmt.Sprintf("init: parsing args old way: %s", err))
 		}
