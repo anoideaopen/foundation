@@ -3,7 +3,6 @@ package core
 import (
 	"embed"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -759,91 +758,6 @@ func (cc *Chaincode) batchExecuteHandler(
 	}
 
 	return cc.batchExecute(traceCtx, stub, args[0], cfgBytes)
-}
-
-// InvokeContractMethod invokes a method on the Chaincode contract using reflection.
-// It converts the arguments from strings to their expected types, handles the sender address if provided,
-// creates a copy of the contract with the provided initialization arguments, and then
-// calls the specified method on the contract.
-//
-// Parameters:
-//   - traceCtx: The telemetry trace context for tracing the method invocation.
-//   - stub: The ChaincodeStubInterface instance used for invoking the method.
-//   - method: The contract.Method instance representing the method to be invoked.
-//   - sender: The sender's address, if the method requires authentication.
-//   - args: A slice of strings representing the arguments to be passed to the method.
-//   - cfgBytes: A byte slice containing the configuration data for the contract.
-//
-// Returns:
-//   - A byte slice containing the JSON-marshaled return value of the method, if method.ReturnsError is true.
-//   - An error if there is any issue with argument conversion, contract configuration, or method invocation.
-//
-// If 'sender' is non-nil, it is converted to a types.Sender and prepended to the argument list.
-// If 'method.ReturnsError' is true, the return value of the method is JSON-marshaled and returned as a byte slice.
-// If the method returns an error or the return value cannot be converted to an error, it is returned as is.
-//
-// Errors from the method invocation are converted to Go errors and returned. If the conversion is not possible,
-// a generic error with the message requireInterfaceErrMsg is returned.
-func (cc *Chaincode) InvokeContractMethod(
-	traceCtx telemetry.TraceContext,
-	stub shim.ChaincodeStubInterface,
-	method contract.Method,
-	sender *proto.Address,
-	args []string,
-	cfgBytes []byte,
-) ([]byte, error) {
-	_, span := cc.contract.TracingHandler().StartNewSpan(traceCtx, "chaincode.CallMethod")
-	defer span.End()
-
-	args = cc.PrependSender(method, sender, args)
-
-	span.SetAttributes(attribute.StringSlice("args", args))
-	if method.NumArgs != len(args) {
-		err := fmt.Errorf("expected %d arguments, got %d", method.NumArgs, len(args))
-		span.SetStatus(codes.Error, err.Error())
-		return nil, err
-	}
-
-	span.AddEvent("applying config")
-	if err := contract.Configure(cc.contract, stub, cfgBytes); err != nil {
-		return nil, err
-	}
-
-	span.AddEvent("call")
-	result, err := cc.Router().Invoke(method.MethodName, args...)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(result) != method.NumReturns {
-		err := fmt.Errorf("expected %d return values, got %d", method.NumReturns, len(result))
-		span.SetStatus(codes.Error, err.Error())
-		return nil, err
-	}
-
-	if method.ReturnsError {
-		if errorValue := result[len(result)-1]; errorValue != nil {
-			if err, ok := errorValue.(error); ok {
-				span.SetStatus(codes.Error, err.Error())
-				return nil, err
-			}
-
-			span.SetStatus(codes.Error, requireInterfaceErrMsg)
-			return nil, errors.New(requireInterfaceErrMsg)
-		}
-
-		result = result[:len(result)-1]
-	}
-
-	span.SetStatus(codes.Ok, "")
-	switch len(result) {
-	case 0:
-		return json.Marshal(nil)
-	case 1:
-		return json.Marshal(result[0])
-	default:
-		return json.Marshal(result)
-	}
 }
 
 // Start begins the chaincode execution based on the environment configuration. It decides whether to
