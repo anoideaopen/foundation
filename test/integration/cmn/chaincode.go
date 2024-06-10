@@ -4,7 +4,6 @@ import (
 	"path/filepath"
 
 	aclpb "github.com/anoideaopen/acl/proto"
-	aclcommon "github.com/anoideaopen/acl/tests/common"
 	pb "github.com/anoideaopen/foundation/proto"
 	industrialtoken "github.com/anoideaopen/foundation/test/chaincode/industrial/industrial_token"
 	"github.com/hyperledger/fabric/integration/nwo"
@@ -32,7 +31,7 @@ func DeployACL(network *nwo.Network, components *nwo.Components, peer *nwo.Peer,
 		Validators: []*aclpb.ACLValidator{
 			{
 				PublicKey: publicKeyBase58,
-				KeyType:   aclcommon.KeyTypeEd25519,
+				KeyType:   pb.KeyType_ed25519.String(),
 			},
 		},
 	}
