@@ -189,6 +189,28 @@ func (m *TransferRequest) validate(all bool) error {
 		errors = append(errors, err)
 	}
 
+	if _, ok := BalanceType_name[int32(m.GetFromBalanceType())]; !ok {
+		err := TransferRequestValidationError{
+			field:  "FromBalanceType",
+			reason: "value must be one of the defined enum values",
+		}
+		if !all {
+			return err
+		}
+		errors = append(errors, err)
+	}
+
+	if _, ok := BalanceType_name[int32(m.GetToBalanceType())]; !ok {
+		err := TransferRequestValidationError{
+			field:  "ToBalanceType",
+			reason: "value must be one of the defined enum values",
+		}
+		if !all {
+			return err
+		}
+		errors = append(errors, err)
+	}
+
 	if all {
 		switch v := interface{}(m.GetAdditionalInfo()).(type) {
 		case interface{ ValidateAll() error }:
