@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/anoideaopen/foundation/core"
-	"github.com/anoideaopen/foundation/internal/config"
+	"github.com/anoideaopen/foundation/core/config"
 	"github.com/anoideaopen/foundation/mock"
 	"github.com/anoideaopen/foundation/test/unit/fixtures_test"
 	"github.com/anoideaopen/foundation/token"
@@ -104,26 +104,24 @@ func TestInitWithPositionalParameters(t *testing.T) {
 
 			stub := ledger.GetStubByKey(test.channel)
 
-			cfgBytes, err := config.LoadRawConfig(stub)
+			cfgBytes, err := config.Load(stub)
 			require.NoError(t, err)
 
-			bc, err := config.ContractConfigFromBytes(cfgBytes)
+			cfg, err := config.FromBytes(cfgBytes)
 			require.NoError(t, err)
 
 			symbolExpected := strings.ToUpper(test.channel)
 
-			require.Equal(t, symbolExpected, bc.Symbol)
-			require.Equal(t, robotSKI, bc.RobotSKI)
+			require.Equal(t, symbolExpected, cfg.GetContract().Symbol)
+			require.Equal(t, robotSKI, cfg.GetContract().RobotSKI)
 			if test.adminIsIssuer {
-				require.Equal(t, fixtures_test.IssuerAddr, bc.Admin.Address)
+				require.Equal(t, fixtures_test.IssuerAddr, cfg.GetContract().GetAdmin().GetAddress())
 			} else {
-				require.Equal(t, fixtures_test.AdminAddr, bc.Admin.Address)
+				require.Equal(t, fixtures_test.AdminAddr, cfg.GetContract().GetAdmin().GetAddress())
 			}
 
 			if _, ok := test.bci.(token.Tokener); ok {
-				tc, err := config.TokenConfigFromBytes(cfgBytes)
-				require.NoError(t, err)
-				require.Equal(t, fixtures_test.IssuerAddr, tc.Issuer.Address)
+				require.Equal(t, fixtures_test.IssuerAddr, cfg.GetToken().GetIssuer().GetAddress())
 			}
 		})
 	}

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	cligrpc "github.com/anoideaopen/channel-transfer/proto"
+	pbfound "github.com/anoideaopen/foundation/proto"
 	"github.com/anoideaopen/foundation/test/integration/cmn"
 	"github.com/anoideaopen/foundation/test/integration/cmn/client"
 	"github.com/anoideaopen/foundation/test/integration/cmn/fabricnetwork"
@@ -179,14 +180,14 @@ var _ = Describe("Channel transfer foundation Tests", func() {
 		skiRobot, err = cmn.ReadSKI(pathToPrivateKeyRobot)
 		Expect(err).NotTo(HaveOccurred())
 
-		admin = client.NewUserFoundation()
-		Expect(admin.PrivateKey).NotTo(Equal(nil))
-		feeSetter = client.NewUserFoundation()
-		Expect(feeSetter.PrivateKey).NotTo(Equal(nil))
-		feeAddressSetter = client.NewUserFoundation()
-		Expect(feeAddressSetter.PrivateKey).NotTo(Equal(nil))
+		admin = client.NewUserFoundation(pbfound.KeyType_ed25519.String())
+		Expect(admin.PrivateKeyBytes).NotTo(Equal(nil))
+		feeSetter = client.NewUserFoundation(pbfound.KeyType_ed25519.String())
+		Expect(feeSetter.PrivateKeyBytes).NotTo(Equal(nil))
+		feeAddressSetter = client.NewUserFoundation(pbfound.KeyType_ed25519.String())
+		Expect(feeAddressSetter.PrivateKeyBytes).NotTo(Equal(nil))
 
-		cmn.DeployACL(network, components, peer, testDir, skiBackend, admin.PublicKeyBase58)
+		cmn.DeployACL(network, components, peer, testDir, skiBackend, admin.PublicKeyBase58, admin.PublicKeyType)
 		cmn.DeployCC(network, components, peer, testDir, skiRobot, admin.AddressBase58Check)
 		cmn.DeployFiat(network, components, peer, testDir, skiRobot,
 			admin.AddressBase58Check, feeSetter.AddressBase58Check, feeAddressSetter.AddressBase58Check)
@@ -223,7 +224,7 @@ var _ = Describe("Channel transfer foundation Tests", func() {
 		client.AddUser(network, peer, network.Orderers[0], admin)
 
 		By("add user to acl")
-		user = client.NewUserFoundation()
+		user = client.NewUserFoundation(pbfound.KeyType_ed25519.String())
 		client.AddUser(network, peer, network.Orderers[0], user)
 
 		By("emit tokens")

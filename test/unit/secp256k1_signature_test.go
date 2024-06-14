@@ -22,7 +22,7 @@ const (
 	ExpectedAmount    = 1000
 )
 
-func Test_ECDSASignatures(t *testing.T) {
+func Test_Secp256k1Signatures(t *testing.T) {
 	var (
 		m                = mock.NewLedger(t)
 		owner            = m.NewWallet()
@@ -32,7 +32,7 @@ func Test_ECDSASignatures(t *testing.T) {
 		fiat             = NewFiatTestToken(token.BaseToken{})
 	)
 
-	owner.UseECDSAKey()
+	owner.UseSecp256k1Key()
 
 	config := makeBaseTokenConfig(
 		TestTokenName,

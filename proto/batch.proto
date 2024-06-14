@@ -218,7 +218,7 @@ message SignaturePolicy {
 
 enum KeyType {
     ed25519 = 0;
-    ecdsa = 1;
+    secp256k1 = 1;
     gost = 2;
 }
 

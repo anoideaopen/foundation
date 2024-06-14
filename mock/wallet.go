@@ -91,16 +91,16 @@ type Wallet struct {
 	pKey ed25519.PublicKey
 	sKey ed25519.PrivateKey
 
-	pKeyECDSA *ecdsa.PublicKey
-	sKeyECDSA *ecdsa.PrivateKey
+	pKeySecp256k1 *ecdsa.PublicKey
+	sKeySecp256k1 *ecdsa.PrivateKey
 
 	// Additional GOST Keys.
 	pKeyGOST *gost3410.PublicKey
 	sKeyGOST *gost3410.PrivateKey
 
-	addr      string
-	addrECDSA string
-	addrGOST  string
+	addr          string
+	addrSecp256k1 string
+	addrGOST      string
 }
 
 func getWalletKeyType(stub shim.ChaincodeStubInterface, address string) proto.KeyType {
@@ -128,8 +128,8 @@ func (w *Wallet) saveKeyType() {
 	stubACL.MockTransactionStart(txID)
 	address := w.addr
 	switch w.keyType {
-	case proto.KeyType_ecdsa:
-		address = w.addrECDSA
+	case proto.KeyType_secp256k1:
+		address = w.addrSecp256k1
 	case proto.KeyType_gost:
 		address = w.addrGOST
 	}
@@ -143,8 +143,8 @@ func (w *Wallet) saveKeyType() {
 	stubACL.MockTransactionEnd(txID)
 }
 
-func (w *Wallet) UseECDSAKey() {
-	w.keyType = proto.KeyType_ecdsa
+func (w *Wallet) UseSecp256k1Key() {
+	w.keyType = proto.KeyType_secp256k1
 	w.saveKeyType()
 }
 
@@ -169,8 +169,8 @@ func (w *Wallet) Address() string {
 	switch w.keyType {
 	case proto.KeyType_gost:
 		return w.addrGOST
-	case proto.KeyType_ecdsa:
-		return w.addrECDSA
+	case proto.KeyType_secp256k1:
+		return w.addrSecp256k1
 	default:
 		return w.addr
 	}
@@ -377,8 +377,8 @@ func (w *Wallet) publicKeyBytes() []byte {
 	switch w.keyType {
 	case proto.KeyType_gost:
 		return w.pKeyGOST.Raw()
-	case proto.KeyType_ecdsa:
-		return append(w.pKeyECDSA.X.Bytes(), w.pKeyECDSA.Y.Bytes()...)
+	case proto.KeyType_secp256k1:
+		return append(w.pKeySecp256k1.X.Bytes(), w.pKeySecp256k1.Y.Bytes()...)
 	default:
 		return w.pKey
 	}
@@ -418,10 +418,10 @@ func (w *Wallet) sign(fn, ch string, args ...string) ([]string, string) {
 
 		signature, _ = w.sKeyGOST.SignDigest(digest, rand.Reader)
 		signature = reverseBytes(signature)
-	case proto.KeyType_ecdsa:
+	case proto.KeyType_secp256k1:
 		digestRawSHA3 := sha3.Sum256(message)
 		digest = digestRawSHA3[:]
-		signature, err = ecdsa.SignASN1(rand.Reader, w.sKeyECDSA, digest)
+		signature, err = ecdsa.SignASN1(rand.Reader, w.sKeySecp256k1, digest)
 		require.NoError(w.ledger.t, err)
 	default:
 		digestRawSHA3 := sha3.Sum256(message)
