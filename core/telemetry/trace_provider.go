@@ -3,7 +3,6 @@ package telemetry
 import (
 	"context"
 	"fmt"
-
 	"github.com/anoideaopen/foundation/proto"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
@@ -13,6 +12,13 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
 	"go.opentelemetry.io/otel/trace"
+	"os"
+)
+
+const (
+	tracingCollectorEndpointEnv     = "CHAINCODE_TRACING_COLLECTOR_ENDPOINT"
+	tracingCollectorAuthHeaderKey   = "CHAINCODE_TRACING_COLLECTOR_AUTH_HEADER_KEY"
+	tracingCollectorAuthHeaderValue = "CHAINCODE_TRACING_COLLECTOR_AUTH_HEADER_VALUE"
 )
 
 // InstallTraceProvider returns trace provider based on http otlp exporter .
@@ -27,15 +33,27 @@ func InstallTraceProvider(
 		otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}))
 	}()
 
-	if settings == nil || len(settings.GetEndpoint()) == 0 {
+	isEnvFromConfig := os.Getenv(tracingCollectorAuthHeaderKey) != "" && os.Getenv(tracingCollectorAuthHeaderValue) != ""
+
+	if (settings == nil || len(settings.GetEndpoint()) == 0) && !isEnvFromConfig {
 		tracerProvider = trace.NewNoopTracerProvider()
 		return
 	}
 
-	client := otlptracehttp.NewClient(
-		otlptracehttp.WithEndpoint(settings.GetEndpoint()),
-		otlptracehttp.WithInsecure(),
-	)
+	var client otlptrace.Client
+	if isEnvFromConfig {
+		client = otlptracehttp.NewClient(
+			otlptracehttp.WithHeaders(map[string]string{
+				tracingCollectorAuthHeaderKey: tracingCollectorAuthHeaderValue,
+			}),
+			otlptracehttp.WithEndpoint(os.Getenv(tracingCollectorEndpointEnv)),
+		)
+	} else {
+		client = otlptracehttp.NewClient(
+			otlptracehttp.WithEndpoint(settings.GetEndpoint()),
+			otlptracehttp.WithInsecure(),
+		)
+	}
 
 	exporter, err := otlptrace.New(context.Background(), client)
 	if err != nil {
