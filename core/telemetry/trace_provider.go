@@ -3,6 +3,8 @@ package telemetry
 import (
 	"context"
 	"fmt"
+	"os"
+
 	"github.com/anoideaopen/foundation/proto"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
@@ -12,7 +14,6 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
 	"go.opentelemetry.io/otel/trace"
-	"os"
 )
 
 const (
