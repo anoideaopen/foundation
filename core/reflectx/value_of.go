@@ -105,5 +105,5 @@ func errorValue(arg string, t reflect.Type, err error) error {
 		return fmt.Errorf("%w: '%s': for type '%s'", ErrInvalidArgumentValue, arg, t.String())
 	}
 
-	return fmt.Errorf("%w: '%s': for type '%s': '%v'", ErrInvalidArgumentValue, arg, t.String(), err)
+	return fmt.Errorf("%w: '%s': for type '%s': '%s'", ErrInvalidArgumentValue, arg, t.String(), err.Error())
 }
