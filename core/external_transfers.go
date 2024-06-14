@@ -48,9 +48,9 @@ func (bc *BaseContract) TxTransferBalance(
 
 	return balance.Move(
 		bc.GetStub(),
-		balance.BalanceType(req.GetFromBalanceType()),
+		balance.BalanceType(req.GetBalanceType()),
 		fromAddress.String(),
-		balance.BalanceType(req.GetToBalanceType()),
+		balance.BalanceType(req.GetBalanceType()),
 		toAddress.String(),
 		req.GetToken(),
 		amount,

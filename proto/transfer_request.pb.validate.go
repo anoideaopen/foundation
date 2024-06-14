@@ -156,16 +156,7 @@ func (m *TransferRequest) validate(all bool) error {
 		errors = append(errors, err)
 	}
 
-	if utf8.RuneCountInString(m.GetToken()) < 1 {
-		err := TransferRequestValidationError{
-			field:  "Token",
-			reason: "value length must be at least 1 runes",
-		}
-		if !all {
-			return err
-		}
-		errors = append(errors, err)
-	}
+	// no validation rules for Token
 
 	if utf8.RuneCountInString(m.GetAmount()) < 1 {
 		err := TransferRequestValidationError{
@@ -189,20 +180,9 @@ func (m *TransferRequest) validate(all bool) error {
 		errors = append(errors, err)
 	}
 
-	if _, ok := BalanceType_name[int32(m.GetFromBalanceType())]; !ok {
+	if _, ok := BalanceType_name[int32(m.GetBalanceType())]; !ok {
 		err := TransferRequestValidationError{
-			field:  "FromBalanceType",
-			reason: "value must be one of the defined enum values",
-		}
-		if !all {
-			return err
-		}
-		errors = append(errors, err)
-	}
-
-	if _, ok := BalanceType_name[int32(m.GetToBalanceType())]; !ok {
-		err := TransferRequestValidationError{
-			field:  "ToBalanceType",
+			field:  "BalanceType",
 			reason: "value must be one of the defined enum values",
 		}
 		if !all {

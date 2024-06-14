@@ -28,12 +28,7 @@ enum TransferBasis {
 enum BalanceType {
     BALANCE_TYPE_UNSPECIFIED             = 0;  // Unspecified balance type
     BALANCE_TYPE_TOKEN                   = 43; // 0x2b
-    BALANCE_TYPE_TOKEN_LOCKED            = 46; // 0x2e
     BALANCE_TYPE_TOKEN_EXTERNAL_LOCKED   = 50; // 0x32
-    BALANCE_TYPE_ALLOWED                 = 44; // 0x2c
-    BALANCE_TYPE_ALLOWED_LOCKED          = 47; // 0x2f
-    BALANCE_TYPE_ALLOWED_EXTERNAL_LOCKED = 49; // 0x31
-    BALANCE_TYPE_GIVEN                   = 45; // 0x2d
 }
 
 // Message representing a transfer request.
@@ -66,7 +61,7 @@ message TransferRequest {
     string to_address = 9 [(validate.rules).string.pattern = "^[1-9A-HJ-NP-Za-km-z]+$"];
 
     // Token being transferred
-    string token = 10 [(validate.rules).string.min_len = 1];
+    string token = 10;
 
     // Amount being transferred
     string amount = 11 [(validate.rules).string.min_len = 1];
@@ -75,10 +70,7 @@ message TransferRequest {
     string reason = 12 [(validate.rules).string.min_len = 1];
 
     // Balance type from which the transfer is made
-    BalanceType from_balance_type = 13 [(validate.rules).enum = {defined_only: true}];
-
-    // Balance type to which the transfer is made
-    BalanceType to_balance_type = 14 [(validate.rules).enum = {defined_only: true}];
+    BalanceType balance_type = 13 [(validate.rules).enum = {defined_only: true}];
 
     // Optional additional information
     google.protobuf.Any additional_info = 15;
