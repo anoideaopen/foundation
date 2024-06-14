@@ -68,7 +68,7 @@ func TestTransferWithFee(t *testing.T) {
 
 	t.Run("[negative] trying to set empty fee", func(t *testing.T) {
 		err := feeSetter.RawSignedInvokeWithErrorReturned("vt", "setFee", currency, "", "1", "0")
-		require.EqualError(t, err, "invalid argument value: '': for type '*big.Int': validate TxSetFee, argument 2")
+		require.EqualError(t, err, "invalid argument value: '': for type '*big.Int': 'math/big: cannot unmarshal \"\" into a *big.Int': validate TxSetFee, argument 2")
 	})
 
 	t.Run("[negative] trying to set negative fee", func(t *testing.T) {

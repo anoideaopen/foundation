@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/anoideaopen/foundation/core/codec"
 	"github.com/anoideaopen/foundation/core/contract"
 	"github.com/anoideaopen/foundation/core/telemetry"
 	"github.com/anoideaopen/foundation/proto"
@@ -12,40 +13,6 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 )
-
-// BytesEncoder represents an object that can be encoded to a byte slice.
-// This interface was introduced to unify the serialization process of objects.
-//
-// The main reason for its creation is the incompatibility between different serialization formats
-// (e.g., protojson and standard json), which caused issues in services.
-// Standard interfaces like BinaryMarshaler or proto.Message were not suitable
-// as they could cause unexpected effects when returning standard types.
-//
-// NB: If the invoked contract method result supports this interface,
-// the EncodeToBytes() method will be called instead of JSON marshaling when
-// InvokeContractMethod is called.
-//
-// Example:
-//
-//	 type TestStruct struct{}
-//	 func (*TestStruct) EncodeToBytes() ([]byte, error) {
-//		  return []byte("Hello World"), nil
-//	 }
-//	 func (tt *TestToken) QueryHelloWorld() (*TestStruct, error) {
-//	        return &TestStruct{}, nil
-//	 }
-//
-// The result will be returned as bytes when InvokeContractMethod is called:
-//
-//	...
-//	if be, ok := result[0].(BytesEncoder); ok {
-//	    return be.EncodeToBytes() // response: "Hello World"
-//	}
-//	return json.Marshal(result[0])
-//	...
-type BytesEncoder interface {
-	EncodeToBytes() ([]byte, error)
-}
 
 // InvokeContractMethod calls a Chaincode contract method, processes the arguments, and returns the result as bytes.
 //
@@ -68,9 +35,10 @@ type BytesEncoder interface {
 //  5. Calls the contract method via the router.
 //  6. Checks the number of return values, ensuring it matches the expected count.
 //  7. Processes the return error if the method returns an error.
-//  8. If the return value implements the BytesEncoder interface, calls the EncodeToBytes() method to
+//  8. If the return value implements the codec.BytesEncoder interface, calls the EncodeToBytes() method to
 //     get the byte slice.
-//  9. Otherwise, serializes the return value to JSON.
+//  9. Otherwise, serializes the return value(s) to JSON. If there is one return value, it is serialized directly.
+//     If there are multiple return values, they are serialized as a JSON array.
 func (cc *Chaincode) InvokeContractMethod(
 	traceCtx telemetry.TraceContext,
 	stub shim.ChaincodeStubInterface,
@@ -127,7 +95,7 @@ func (cc *Chaincode) InvokeContractMethod(
 	case 0:
 		return json.Marshal(nil)
 	case 1:
-		if be, ok := result[0].(BytesEncoder); ok {
+		if be, ok := result[0].(codec.BytesEncoder); ok {
 			return be.EncodeToBytes()
 		}
 		return json.Marshal(result[0])

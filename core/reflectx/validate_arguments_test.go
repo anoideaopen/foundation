@@ -13,7 +13,6 @@ import (
 	"github.com/hyperledger/fabric-chaincode-go/shim"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/encoding/protojson"
-	pb "google.golang.org/protobuf/proto"
 )
 
 type TestStructForValidation struct{}
@@ -100,8 +99,6 @@ func TestValidateArguments(t *testing.T) {
 		IsMultisig:   false,
 	}
 	aJSON, _ := protojson.Marshal(a)
-	aRaw, _ := pb.Marshal(a)
-
 	nowBinary, _ := time.Now().MarshalBinary()
 
 	multiSwapAssets := types.MultiSwapAssets{
@@ -168,12 +165,6 @@ func TestValidateArguments(t *testing.T) {
 			name:    "Method3 with JSON",
 			method:  "Method3",
 			args:    []string{string(aJSON)},
-			wantErr: false,
-		},
-		{
-			name:    "Method3 with Protobuf",
-			method:  "Method3",
-			args:    []string{string(aRaw)},
 			wantErr: false,
 		},
 		{

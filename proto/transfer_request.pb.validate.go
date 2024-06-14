@@ -57,16 +57,7 @@ func (m *TransferRequest) validate(all bool) error {
 
 	var errors []error
 
-	if utf8.RuneCountInString(m.GetRequestId()) < 1 {
-		err := TransferRequestValidationError{
-			field:  "RequestId",
-			reason: "value length must be at least 1 runes",
-		}
-		if !all {
-			return err
-		}
-		errors = append(errors, err)
-	}
+	// no validation rules for RequestId
 
 	if _, ok := TransferBasis_name[int32(m.GetBasis())]; !ok {
 		err := TransferRequestValidationError{

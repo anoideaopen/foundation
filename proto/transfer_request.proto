@@ -34,7 +34,7 @@ enum BalanceType {
 // Message representing a transfer request.
 message TransferRequest {
     // Transfer request ID
-    string request_id = 1 [(validate.rules).string.min_len = 1];
+    string request_id = 1;
 
     // Basis for the transfer
     TransferBasis basis = 2 [(validate.rules).enum = {defined_only: true}];

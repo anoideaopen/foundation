@@ -46,6 +46,10 @@ func (bc *BaseContract) TxTransferBalance(
 		return ErrBigIntFromString
 	}
 
+	if amount.Sign() <= 0 {
+		return balance.ErrInsufficientBalance
+	}
+
 	return balance.Move(
 		bc.GetStub(),
 		balance.BalanceType(req.GetBalanceType()),

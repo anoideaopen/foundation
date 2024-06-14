@@ -11,8 +11,6 @@ import (
 	corebig "github.com/anoideaopen/foundation/core/types/big"
 	"github.com/anoideaopen/foundation/proto"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/encoding/protojson"
-	pb "google.golang.org/protobuf/proto"
 )
 
 type TestMultiSwapAsset struct {
@@ -101,8 +99,7 @@ func TestCall(t *testing.T) {
 		IsIndustrial: true,
 		IsMultisig:   false,
 	}
-	aJSON, _ := protojson.Marshal(a)
-	aRaw, _ := pb.Marshal(a)
+	aJSON, _ := json.Marshal(a)
 
 	nowBinary, _ := time.Now().MarshalBinary()
 
@@ -179,13 +176,6 @@ func TestCall(t *testing.T) {
 			wantLen:   1,
 			wantErr:   false,
 			wantValue: a.AddrString(),
-		},
-		{
-			name:    "Method3 with Protobuf",
-			method:  "Method3",
-			args:    []string{string(aRaw)},
-			wantLen: 1,
-			wantErr: false,
 		},
 		{
 			name:    "Method4 with float input",

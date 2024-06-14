@@ -112,6 +112,6 @@ func TestMetadataMethods(t *testing.T) {
 		"lockTokenBalance", "metadata", "multiSwapBegin", "multiSwapCancel", "multiSwapGet",
 		"nameOfFiles", "predictFee", "setFee", "setFeeAddress", "setLimits", "setRate",
 		"srcFile", "srcPartFile", "swapBegin", "swapCancel", "swapGet", "systemEnv", "transfer",
-		"unlockAllowedBalance", "healthCheckNb", "unlockTokenBalance"}
+		"unlockAllowedBalance", "healthCheckNb", "unlockTokenBalance", "transferBalance"}
 	require.ElementsMatch(t, tokenMethods, meta.Methods)
 }
