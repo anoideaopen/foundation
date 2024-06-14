@@ -224,7 +224,6 @@ func TestZeroAmountTransfer(t *testing.T) {
 	data, err := json.Marshal(transferRequest)
 	require.NoError(t, err)
 
-	// Попытка перевода с нулевой суммой
 	err = owner.RawSignedInvokeWithErrorReturned("cc", "transferBalance", string(data))
 	require.EqualError(t, err, "insufficient balance")
 
