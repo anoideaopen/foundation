@@ -57,7 +57,7 @@ func valueOf(s string, t reflect.Type) (reflect.Value, error) {
 
 	if json.Valid(argRaw) {
 		if err := json.Unmarshal(argRaw, argInterface); err != nil {
-			return outValue, errorValue(s, t, err)
+			return outValue, NewValueError(s, t, err)
 		}
 
 		return outValue, nil
@@ -65,7 +65,7 @@ func valueOf(s string, t reflect.Type) (reflect.Value, error) {
 
 	if unmarshaler, ok := argInterface.(encoding.TextUnmarshaler); ok && utf8.ValidString(string(argRaw)) {
 		if err := unmarshaler.UnmarshalText(argRaw); err != nil {
-			return outValue, errorValue(s, t, err)
+			return outValue, NewValueError(s, t, err)
 		}
 
 		return outValue, nil
@@ -73,18 +73,18 @@ func valueOf(s string, t reflect.Type) (reflect.Value, error) {
 
 	if unmarshaler, ok := argInterface.(encoding.BinaryUnmarshaler); ok {
 		if err := unmarshaler.UnmarshalBinary(argRaw); err != nil {
-			return outValue, errorValue(s, t, err)
+			return outValue, NewValueError(s, t, err)
 		}
 
 		return outValue, nil
 	}
 
-	return outValue, errorValue(s, t, nil)
+	return outValue, NewValueError(s, t, nil)
 }
 
-// errWrap is a custom error type that wraps both external and internal errors,
+// ValueError is a custom error type that wraps both external and internal errors,
 // providing additional context about the argument and the target type involved in the error.
-type errWrap struct {
+type ValueError struct {
 	external error
 	internal error
 	arg, t   string
@@ -95,7 +95,7 @@ type errWrap struct {
 //
 // Returns:
 //   - string: A formatted error message.
-func (e errWrap) Error() string {
+func (e ValueError) Error() string {
 	if e.external == nil {
 		return fmt.Sprintf("%v: '%s': for type '%s'", e.internal, e.arg, e.t)
 	}
@@ -110,7 +110,7 @@ func (e errWrap) Error() string {
 //
 // Returns:
 //   - bool: True if the target error matches the internal error, false otherwise.
-func (e errWrap) Is(target error) bool {
+func (e ValueError) Is(target error) bool {
 	return e.internal == target
 }
 
@@ -118,11 +118,11 @@ func (e errWrap) Is(target error) bool {
 //
 // Returns:
 //   - error: The external error, or nil if none is present.
-func (e errWrap) Unwrap() error {
+func (e ValueError) Unwrap() error {
 	return e.external
 }
 
-// errorValue constructs an error message for invalid argument value conversions.
+// NewValueError constructs an error message for invalid argument value conversions.
 // Parameters:
 //   - arg: The argument value as a string.
 //   - t: The reflect.Type to which the argument was attempted to be converted.
@@ -130,8 +130,8 @@ func (e errWrap) Unwrap() error {
 //
 // Returns:
 //   - error: A formatted error message indicating the conversion failure.
-func errorValue(arg string, t reflect.Type, errOrNil error) error {
-	return errWrap{
+func NewValueError(arg string, t reflect.Type, errOrNil error) error {
+	return ValueError{
 		external: errOrNil,
 		internal: ErrInvalidArgumentValue,
 		arg:      arg,
