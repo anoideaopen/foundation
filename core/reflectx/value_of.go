@@ -10,7 +10,7 @@ import (
 
 // valueOf converts a string representation of an argument to a reflect.Value of the specified type.
 // It attempts to unmarshal the string into the appropriate type using various methods such as JSON,
-// encoding.TextUnmarshaler, encoding.BinaryUnmarshaler, and codec.BytesDecoder.
+// encoding.TextUnmarshaler and encoding.BinaryUnmarshaler.
 //
 // Parameters:
 //   - s: The string representation of the argument.
@@ -22,12 +22,11 @@ import (
 //
 // The function follows these steps:
 //  1. Checks if the target type is a string or a pointer to a string and handles these cases directly.
-//  2. Attempts to unmarshal the string using the codec.BytesDecoder interface if implemented.
-//  3. Attempts to unmarshal the string as JSON if it is valid JSON. Note that simple values such as numbers,
+//  2. Attempts to unmarshal the string as JSON if it is valid JSON. Note that simple values such as numbers,
 //     booleans, and null are also valid JSON if they are represented as strings.
-//  4. Attempts to unmarshal the string using the encoding.TextUnmarshaler interface if implemented.
-//  5. Attempts to unmarshal the string using the encoding.BinaryUnmarshaler interface if implemented.
-//  6. Returns an error if none of the above methods succeed.
+//  3. Attempts to unmarshal the string using the encoding.TextUnmarshaler interface if implemented.
+//  4. Attempts to unmarshal the string using the encoding.BinaryUnmarshaler interface if implemented.
+//  5. Returns an error if none of the above methods succeed.
 func valueOf(s string, t reflect.Type) (reflect.Value, error) {
 	argRaw := []byte(s)
 	argPointer := t.Kind() == reflect.Pointer

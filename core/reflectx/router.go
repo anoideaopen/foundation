@@ -104,7 +104,7 @@ func (r *Router) Check(method string, args ...string) error {
 //   - args: The arguments to pass to the method.
 //
 // Returns:
-//   - []any: A slice of return values from the method.
+//   - []byte: A slice of bytes (JSON) representing the return values.
 //   - error: An error if the invocation fails.
 func (r *Router) Invoke(method string, args ...string) ([]byte, error) {
 	result, err := Call(r.contract, method, args...)

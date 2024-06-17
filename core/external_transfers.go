@@ -10,7 +10,10 @@ import (
 	"github.com/anoideaopen/foundation/proto"
 )
 
-var ErrAmountMustBeGreaterThanZero = errors.New("amount must be greater than zero")
+var (
+	ErrAmountMustBeGreaterThanZero = errors.New("amount must be greater than zero")
+	ErrSameAddresses               = errors.New("from and to addresses must be different")
+)
 
 // TxTransferBalance - transfer balance from one address to another address
 // by the chaincode admin, the input is TransferRequest.
@@ -42,6 +45,10 @@ func (bc *BaseContract) TxTransferBalance(
 	toAddress, err := types.AddrFromBase58Check(req.GetToAddress())
 	if err != nil {
 		return fmt.Errorf("to address: %w", err)
+	}
+
+	if fromAddress.Equal(toAddress) {
+		return ErrSameAddresses
 	}
 
 	amount, ok := new(big.Int).SetString(req.GetAmount(), 10)
