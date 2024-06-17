@@ -26,9 +26,6 @@ import (
 )
 
 const (
-	// requireInterfaceErrMsg is the error message used when an interface to error type requireion fails.
-	requireInterfaceErrMsg = "requireion interface -> error is failed"
-
 	// chaincodeExecModeEnv is the environment variable that specifies the execution mode of the chaincode.
 	chaincodeExecModeEnv = "CHAINCODE_EXEC_MODE"
 	// chaincodeExecModeServer is the value that, when set for the CHAINCODE_EXEC_MODE environment variable,

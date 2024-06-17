@@ -82,6 +82,46 @@ func valueOf(s string, t reflect.Type) (reflect.Value, error) {
 	return outValue, errorValue(s, t, nil)
 }
 
+// errWrap is a custom error type that wraps both external and internal errors,
+// providing additional context about the argument and the target type involved in the error.
+type errWrap struct {
+	external error
+	internal error
+	arg, t   string
+}
+
+// Error returns a formatted error message indicating the conversion failure.
+// If an external error is present, it is included in the message.
+//
+// Returns:
+//   - string: A formatted error message.
+func (e errWrap) Error() string {
+	if e.external == nil {
+		return fmt.Sprintf("%v: '%s': for type '%s'", e.internal, e.arg, e.t)
+	}
+
+	return fmt.Sprintf("%v: '%s': for type '%s': '%v'", e.internal, e.arg, e.t, e.external)
+}
+
+// Is checks if the target error matches the internal error.
+//
+// Parameters:
+//   - target: The target error to compare against.
+//
+// Returns:
+//   - bool: True if the target error matches the internal error, false otherwise.
+func (e errWrap) Is(target error) bool {
+	return e.internal == target
+}
+
+// Unwrap returns the external error, if any.
+//
+// Returns:
+//   - error: The external error, or nil if none is present.
+func (e errWrap) Unwrap() error {
+	return e.external
+}
+
 // errorValue constructs an error message for invalid argument value conversions.
 // Parameters:
 //   - arg: The argument value as a string.
@@ -91,10 +131,10 @@ func valueOf(s string, t reflect.Type) (reflect.Value, error) {
 // Returns:
 //   - error: A formatted error message indicating the conversion failure.
 func errorValue(arg string, t reflect.Type, errOrNil error) error {
-	err := fmt.Errorf("%w: '%s': for type '%s'", ErrInvalidArgumentValue, arg, t.String())
-	if errOrNil != nil {
-		err = fmt.Errorf("%v: '%w'", err, errOrNil)
+	return errWrap{
+		external: errOrNil,
+		internal: ErrInvalidArgumentValue,
+		arg:      arg,
+		t:        t.String(),
 	}
-
-	return err
 }

@@ -114,7 +114,7 @@ func (r *Router) Invoke(method string, args ...string) ([]byte, error) {
 
 	if MethodReturnsError(r.contract, method) {
 		if errorValue := result[len(result)-1]; errorValue != nil {
-			return nil, errorValue.(error)
+			return nil, errorValue.(error) //nolint:forcetypeassert
 		}
 
 		result = result[:len(result)-1]
