@@ -105,6 +105,7 @@ func (r *Router) Check(method string, args ...string) error {
 //
 // Returns:
 //   - []byte: A slice of bytes (JSON) representing the return values.
+//     If the method returns BytesEncoder, it will be encoded to bytes with EncodeToBytes.
 //   - error: An error if the invocation fails.
 func (r *Router) Invoke(method string, args ...string) ([]byte, error) {
 	result, err := Call(r.contract, method, args...)
@@ -124,6 +125,9 @@ func (r *Router) Invoke(method string, args ...string) ([]byte, error) {
 	case 0:
 		return json.Marshal(nil)
 	case 1:
+		if encoder, ok := result[0].(BytesEncoder); ok {
+			return encoder.EncodeToBytes()
+		}
 		return json.Marshal(result[0])
 	default:
 		return json.Marshal(result)
