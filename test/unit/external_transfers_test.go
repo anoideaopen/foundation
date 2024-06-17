@@ -182,7 +182,7 @@ func TestNegativeAmountTransfer(t *testing.T) {
 	require.NoError(t, err)
 
 	err = owner.RawSignedInvokeWithErrorReturned("cc", "transferBalance", string(data))
-	require.EqualError(t, err, "amount must be non-negative")
+	require.EqualError(t, err, "amount must be greater than zero")
 
 	user1.BalanceShouldBe("cc", 1000)
 	user2.BalanceShouldBe("cc", 500)
@@ -225,7 +225,7 @@ func TestZeroAmountTransfer(t *testing.T) {
 	require.NoError(t, err)
 
 	err = owner.RawSignedInvokeWithErrorReturned("cc", "transferBalance", string(data))
-	require.EqualError(t, err, "insufficient balance")
+	require.EqualError(t, err, "amount must be greater than zero")
 
 	user1.BalanceShouldBe("cc", 1000)
 	user2.BalanceShouldBe("cc", 500)

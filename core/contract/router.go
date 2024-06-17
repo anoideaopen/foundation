@@ -19,9 +19,7 @@ type Method struct {
 	ChaincodeFunc Function   // The name of the chaincode function being called.
 	MethodName    string     // The actual method name to be invoked.
 	RequiresAuth  bool       // Indicates if the method requires authentication.
-	ReturnsError  bool       // Indicates if the method returns an error.
 	NumArgs       int        // Number of arguments the method takes (excluding the receiver).
-	NumReturns    int        // Number of return values the method has.
 }
 
 // Router defines the interface for managing contract methods and routing calls.
@@ -31,8 +29,8 @@ type Router interface {
 	Check(method string, args ...string) error
 
 	// Invoke calls the specified method with the provided arguments.
-	// It returns a slice of return values and an error if the invocation fails.
-	Invoke(method string, args ...string) ([]any, error)
+	// It returns a byte slice of response and an error if the invocation fails.
+	Invoke(method string, args ...string) ([]byte, error)
 
 	// Methods retrieves a map of all available methods, keyed by their chaincode function names.
 	Methods() map[Function]Method

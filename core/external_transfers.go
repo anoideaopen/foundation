@@ -1,6 +1,7 @@
 package core
 
 import (
+	"errors"
 	"fmt"
 	"math/big"
 
@@ -8,6 +9,8 @@ import (
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/proto"
 )
+
+var ErrAmountMustBeGreaterThanZero = errors.New("amount must be greater than zero")
 
 // TxTransferBalance - transfer balance from one address to another address
 // by the chaincode admin, the input is TransferRequest.
@@ -47,7 +50,7 @@ func (bc *BaseContract) TxTransferBalance(
 	}
 
 	if amount.Sign() <= 0 {
-		return balance.ErrInsufficientBalance
+		return ErrAmountMustBeGreaterThanZero
 	}
 
 	return balance.Move(

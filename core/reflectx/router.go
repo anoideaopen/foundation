@@ -1,6 +1,7 @@
 package reflectx
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -105,8 +106,28 @@ func (r *Router) Check(method string, args ...string) error {
 // Returns:
 //   - []any: A slice of return values from the method.
 //   - error: An error if the invocation fails.
-func (r *Router) Invoke(method string, args ...string) ([]any, error) {
-	return Call(r.contract, method, args...)
+func (r *Router) Invoke(method string, args ...string) ([]byte, error) {
+	result, err := Call(r.contract, method, args...)
+	if err != nil {
+		return nil, err
+	}
+
+	if MethodReturnsError(r.contract, method) {
+		if errorValue := result[len(result)-1]; errorValue != nil {
+			return nil, errorValue.(error)
+		}
+
+		result = result[:len(result)-1]
+	}
+
+	switch len(result) {
+	case 0:
+		return json.Marshal(nil)
+	case 1:
+		return json.Marshal(result[0])
+	default:
+		return json.Marshal(result)
+	}
 }
 
 // Methods retrieves a map of all available methods, keyed by their chaincode function names.
@@ -139,9 +160,7 @@ func newReflectEndpoint(name string, of any) (*contract.Method, error) {
 		ChaincodeFunc: "",
 		MethodName:    name,
 		NumArgs:       0,
-		NumReturns:    0,
 		RequiresAuth:  false,
-		ReturnsError:  false,
 	}
 
 	switch {
@@ -166,9 +185,8 @@ func newReflectEndpoint(name string, of any) (*contract.Method, error) {
 	}
 
 	method.ChaincodeFunc = stringsx.LowerFirstChar(method.ChaincodeFunc)
-	method.NumArgs, method.NumReturns = MethodParamCounts(of, method.MethodName)
+	method.NumArgs, _ = MethodParamCounts(of, method.MethodName)
 	method.RequiresAuth = IsArgOfType(of, method.MethodName, 0, &types.Sender{})
-	method.ReturnsError = MethodReturnsError(of, method.MethodName)
 
 	return method, nil
 }

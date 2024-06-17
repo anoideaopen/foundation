@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"reflect"
 	"unicode/utf8"
-
-	"github.com/anoideaopen/foundation/core/codec"
 )
 
 // valueOf converts a string representation of an argument to a reflect.Value of the specified type.
@@ -57,14 +55,6 @@ func valueOf(s string, t reflect.Type) (reflect.Value, error) {
 
 	argInterface := argValue.Interface()
 
-	if decoder, ok := argInterface.(codec.BytesDecoder); ok {
-		if err := decoder.DecodeFromBytes(argRaw); err != nil {
-			return outValue, errorValue(s, t, err)
-		}
-
-		return outValue, nil
-	}
-
 	if json.Valid(argRaw) {
 		if err := json.Unmarshal(argRaw, argInterface); err != nil {
 			return outValue, errorValue(s, t, err)
@@ -96,14 +86,15 @@ func valueOf(s string, t reflect.Type) (reflect.Value, error) {
 // Parameters:
 //   - arg: The argument value as a string.
 //   - t: The reflect.Type to which the argument was attempted to be converted.
-//   - err: The error encountered during the conversion, if any.
+//   - errOrNil: The error encountered during the conversion, if any.
 //
 // Returns:
 //   - error: A formatted error message indicating the conversion failure.
-func errorValue(arg string, t reflect.Type, err error) error {
-	if err == nil {
-		return fmt.Errorf("%w: '%s': for type '%s'", ErrInvalidArgumentValue, arg, t.String())
+func errorValue(arg string, t reflect.Type, errOrNil error) error {
+	err := fmt.Errorf("%w: '%s': for type '%s'", ErrInvalidArgumentValue, arg, t.String())
+	if errOrNil != nil {
+		err = fmt.Errorf("%v: '%w'", err, errOrNil)
 	}
 
-	return fmt.Errorf("%w: '%s': for type '%s': '%s'", ErrInvalidArgumentValue, arg, t.String(), err.Error())
+	return err
 }
