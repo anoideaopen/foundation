@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"os"
 	"runtime/debug"
 	"sort"
 	"strconv"
@@ -24,12 +25,13 @@ import (
 
 // BaseContract is a base contract for all contracts
 type BaseContract struct {
-	stub           shim.ChaincodeStubInterface
-	noncePrefix    byte
-	srcFs          *embed.FS
-	config         *pb.ContractConfig
-	traceCtx       telemetry.TraceContext
-	tracingHandler *telemetry.TracingHandler
+	stub                  shim.ChaincodeStubInterface
+	noncePrefix           byte
+	srcFs                 *embed.FS
+	config                *pb.ContractConfig
+	traceCtx              telemetry.TraceContext
+	tracingHandler        *telemetry.TracingHandler
+	isChaincodeAsAService bool
 }
 
 var _ BaseContractInterface = &BaseContract{}
@@ -275,11 +277,34 @@ func (bc *BaseContract) TracingHandler() *telemetry.TracingHandler {
 	return bc.tracingHandler
 }
 
+// setExecMode returns true if chaincode exec mode is server
+// this function calls in core.Start when we check if the chaincode is running as a service.
+func (bc *BaseContract) setExecModeServer() {
+	bc.isChaincodeAsAService = true
+}
+
 // setupTracing lazy telemetry tracing setup.
 func (bc *BaseContract) setupTracing() {
 	serviceName := "chaincode-" + bc.GetID()
 
-	telemetry.InstallTraceProvider(bc.ContractConfig().GetTracingCollectorEndpoint(), serviceName)
+	// Check if the environment variable with the tracing collector endpoint exists
+	endpointFromEnv, ok := os.LookupEnv(telemetry.TracingCollectorEndpointEnv)
+
+	// If the chaincode is not operating as a service or the environment variable with the endpoint
+	// does not exist in the system, use the contract configuration for tracing.
+	if !bc.isChaincodeAsAService || !ok {
+		telemetry.InstallTraceProvider(bc.ContractConfig().GetTracingCollectorEndpoint(), serviceName, false)
+	} else {
+		// If the chaincode operates as a service and the environment variable exists,
+		// use the endpoint value from the environment variable.
+		// If this endpoint is empty, telemetry will be disabled.
+		endpointFromEnv = os.Getenv(telemetry.TracingCollectorEndpointEnv)
+		tce := &pb.CollectorEndpoint{
+			Endpoint: endpointFromEnv,
+		}
+		//
+		telemetry.InstallTraceProvider(tce, serviceName, true)
+	}
 
 	th := &telemetry.TracingHandler{}
 	th.Tracer = otel.Tracer(serviceName)
@@ -346,4 +371,6 @@ type BaseContractInterface interface { //nolint:interfacebloat
 
 	setTracingHandler(th *telemetry.TracingHandler)
 	TracingHandler() *telemetry.TracingHandler
+
+	setExecModeServer()
 }

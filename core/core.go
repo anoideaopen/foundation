@@ -769,6 +769,8 @@ func (cc *Chaincode) Start() error {
 	if execMode != chaincodeExecModeServer {
 		return shim.Start(cc)
 	}
+	// if chaincode exec mode is chaincode-as-server we should set exec mode server as true in base contract
+	cc.contract.setExecModeServer()
 	// if chaincode exec mode is chaincode-as-server we should propagate variables
 	var ccID string
 	// if chaincode was set during runtime build, use it
