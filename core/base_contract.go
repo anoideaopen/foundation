@@ -298,12 +298,11 @@ func (bc *BaseContract) setupTracing() {
 		// If the chaincode operates as a service and the environment variable exists,
 		// use the endpoint value from the environment variable.
 		// If this endpoint is empty, telemetry will be disabled.
-		endpointFromEnv = os.Getenv(telemetry.TracingCollectorEndpointEnv)
-		tce := &pb.CollectorEndpoint{
+		e := &pb.CollectorEndpoint{
 			Endpoint: endpointFromEnv,
 		}
 		//
-		telemetry.InstallTraceProvider(tce, serviceName, true)
+		telemetry.InstallTraceProvider(e, serviceName, true)
 	}
 
 	th := &telemetry.TracingHandler{}
