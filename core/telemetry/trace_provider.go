@@ -2,6 +2,7 @@ package telemetry
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"os"
@@ -53,28 +54,35 @@ func InstallTraceProvider(
 
 	var client otlptrace.Client
 
-	// If it is tracing config from chaincode init, use an insecure connection
+	// If the endpoint is obtained from the config, we create an insecure client.
 	if !isTracingConfigFromEnv {
 		client = getUnsecureClient(settings.GetEndpoint())
 	}
 
 	if isTracingConfigFromEnv {
-		err := checkAuthEnvironments(authHeaderKey, authHeaderValue, caCerts)
-		if err != nil {
+		// If the endpoint is obtained from the env, we check that there are no errors in passing certificates and the header,
+		// either they should not be at all, or they should all be filled in.
+		if err := checkAuthEnvironments(authHeaderKey, authHeaderValue, caCerts); err != nil {
 			fmt.Printf("Failed to load auth environments: %s", err)
 			return
 		}
 
-		// If it is tracing config from environment and both the environment variable with certificates and the header are set, get the TLS config
-		if isSecure(authHeaderKey, authHeaderValue, caCerts) {
-			client, err = getSecureClient(authHeaderKey, authHeaderValue, caCerts, settings.GetEndpoint())
-			if err != nil {
-				fmt.Printf("Failed to create secure client: %s", err)
-				return
-			}
-		} else {
-			// If it is tracing config from environment and certificates are not provided, use an insecure connection
+		// If none of the variables are filled, create an insecure client
+		if !isSecure(authHeaderKey, authHeaderValue, caCerts) {
 			client = getUnsecureClient(settings.GetEndpoint())
+		}
+
+		// If all variables are filled, we try to get valid CA certificates from the env
+		// and create tlsConfig.
+		tlsConfig, err := getTLSConfig(caCerts)
+		if err != nil {
+			fmt.Printf("failed to load TLS configuration: %s", err)
+			return
+		}
+
+		// After creating tlsConfig, create a secure client
+		if isSecure(authHeaderKey, authHeaderValue, caCerts) {
+			client = getSecureClient(authHeaderKey, authHeaderValue, settings.GetEndpoint(), tlsConfig)
 		}
 	}
 
@@ -99,12 +107,7 @@ func InstallTraceProvider(
 		sdktrace.WithResource(r))
 }
 
-func getSecureClient(authHeaderKey string, authHeaderValue string, caCerts string, endpoint string) (otlptrace.Client, error) {
-	tlsConfig, err := getTLSConfig(caCerts)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load TLS configuration: %w", err)
-	}
-
+func getSecureClient(authHeaderKey string, authHeaderValue string, endpoint string, tlsConfig *tls.Config) otlptrace.Client {
 	h := map[string]string{
 		authHeaderKey: authHeaderValue,
 	}
@@ -113,7 +116,7 @@ func getSecureClient(authHeaderKey string, authHeaderValue string, caCerts strin
 		otlptracehttp.WithEndpoint(endpoint),
 		otlptracehttp.WithTLSClientConfig(tlsConfig),
 	)
-	return client, nil
+	return client
 }
 
 func getUnsecureClient(endpoint string) otlptrace.Client {
@@ -124,6 +127,7 @@ func getUnsecureClient(endpoint string) otlptrace.Client {
 	return client
 }
 
+// checkAuthEnvironments checks for possible erroneous combinations in case the user forgot to specify some variables
 func checkAuthEnvironments(authHeaderKey string, authHeaderValue string, caCerts string) error {
 	// If the environment variable with certificates is not empty, check if the authorization header exists
 	// If the headers are missing, consider it an error
@@ -131,13 +135,15 @@ func checkAuthEnvironments(authHeaderKey string, authHeaderValue string, caCerts
 		return errors.New("TLS CA environment is set, but auth header is wrong or empty")
 	}
 
-	// If it is tracing config from environment and certificates are not provided but headers are, consider it an error
+	// If the header is not empty but there are no certificates, consider it an error
 	if !isCACertsSet(caCerts) && isAuthHeaderSet(authHeaderKey, authHeaderValue) {
 		return errors.New("auth header environment is set, but TLS CA is empty")
 	}
 	return nil
 }
 
+// isSecure checks if both the header and certificates are received, creating a client with their use
+// such a client will be considered secure
 func isSecure(authHeaderKey string, authHeaderValue string, caCerts string) bool {
 	if isAuthHeaderSet(authHeaderKey, authHeaderValue) && isCACertsSet(caCerts) {
 		return true
