@@ -13,6 +13,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gbytes"
 	"github.com/onsi/gomega/gexec"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 func AddUser(
@@ -122,7 +123,7 @@ func CheckRights(network *nwo.Network, peer *nwo.Peer,
 		sess, err := network.PeerUserSession(peer, "User1", commands.ChaincodeQuery{
 			ChannelID: cmn.ChannelAcl,
 			Name:      cmn.ChannelAcl,
-			Ctor:      cmn.CtorFromSlice([]string{"getAccountOperationRight", channel, cc, role, operation, user.AddressBase58Check}),
+			Ctor:      cmn.CtorFromSlice([]string{"getAccountOperationRightJSON", channel, cc, role, operation, user.AddressBase58Check}),
 		})
 		Eventually(sess, network.EventuallyTimeout).Should(gexec.Exit())
 		if sess.ExitCode() != 0 {
@@ -131,7 +132,7 @@ func CheckRights(network *nwo.Network, peer *nwo.Peer,
 
 		out := sess.Out.Contents()[:len(sess.Out.Contents())-1] // skip line feed
 		haveRight := &pb.HaveRight{}
-		err = proto.Unmarshal(out, haveRight)
+		err = protojson.Unmarshal(out, haveRight)
 		if err != nil {
 			return fmt.Sprintf("failed to unmarshal response: %v", err)
 		}

@@ -348,7 +348,7 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 				"balanceOf", user1.AddressBase58Check)
 		})
 
-		It("channel transfer by admin succes", func() {
+		It("channel transfer by admin success", func() {
 			By("FORWARD")
 
 			By("channel transfer forward")

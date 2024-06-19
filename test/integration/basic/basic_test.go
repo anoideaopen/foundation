@@ -12,6 +12,7 @@ import (
 	"github.com/anoideaopen/foundation/test/integration/cmn/client"
 	"github.com/anoideaopen/foundation/test/integration/cmn/fabricnetwork"
 	"github.com/anoideaopen/foundation/test/integration/cmn/runner"
+	"github.com/bsm/gomega/gexec"
 	docker "github.com/fsouza/go-dockerclient"
 	"github.com/hyperledger/fabric/integration/nwo"
 	"github.com/hyperledger/fabric/integration/nwo/commands"
@@ -20,10 +21,11 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gbytes"
-	"github.com/onsi/gomega/gexec"
 	"github.com/tedsuo/ifrit"
 	ginkgomon "github.com/tedsuo/ifrit/ginkgomon_v2"
 )
+
+const fnMethodWithRights = "withRights"
 
 var _ = Describe("Basic foundation Tests", func() {
 	var (
@@ -245,7 +247,7 @@ var _ = Describe("Basic foundation Tests", func() {
 				fabricnetwork.CheckResult(fabricnetwork.CheckBalance("0"), nil),
 				"allowedBalanceOf", user.AddressBase58Check, "CC")
 
-			By("send a invoke that is similar to request")
+			By("send an invoke that is similar to request")
 			client.NBTxInvoke(network, peer, network.Orderers[0], nil,
 				cmn.ChannelFiat, cmn.ChannelFiat,
 				"allowedBalanceAdd", "CC", user.AddressBase58Check, "50", "add some assets")
@@ -551,10 +553,10 @@ var _ = Describe("Basic foundation Tests", func() {
 			user2 := client.NewUserFoundation(pbfound.KeyType_ed25519.String())
 			client.AddUser(network, peer, network.Orderers[0], user2)
 
-			By("invoking industrial chaincode with acl right user")
-			client.TxInvokeWithSign(network, peer, network.Orderers[0],
-				cmn.ChannelIndustrial, cmn.ChannelIndustrial, user1, "methodWithRights", "",
-				client.NewNonceByTime().Get())
+			By("invoking industrial chaincode with user have no rights")
+			client.TxInvokeWithSignErrorReturned(network, peer, network.Orderers[0],
+				cmn.ChannelIndustrial, cmn.ChannelIndustrial, user1, fnMethodWithRights, "",
+				client.NewNonceByTime().Get(), "unauthorized")
 
 			By("add rights and check rights")
 			client.AddRights(network, peer, network.Orderers[0],
@@ -562,22 +564,17 @@ var _ = Describe("Basic foundation Tests", func() {
 
 			By("invoking industrial chaincode with acl right user")
 			client.TxInvokeWithSign(network, peer, network.Orderers[0],
-				cmn.ChannelIndustrial, cmn.ChannelIndustrial, user1, "methodWithRights", "",
-				client.NewNonceByTime().Get())
-
-			By("invoking industrial chaincode with acl right user")
-			client.TxInvokeWithSign(network, peer, network.Orderers[0],
-				cmn.ChannelIndustrial, cmn.ChannelIndustrial, user2, "methodWithRights", "",
+				cmn.ChannelIndustrial, cmn.ChannelIndustrial, user1, fnMethodWithRights, "",
 				client.NewNonceByTime().Get())
 
 			By("remove rights and check rights")
 			client.RemoveRights(network, peer, network.Orderers[0],
 				cmn.ChannelIndustrial, cmn.ChannelIndustrial, "issuer", "", user1)
 
-			By("invoking industrial chaincode with acl right user")
-			client.TxInvokeWithSign(network, peer, network.Orderers[0],
-				cmn.ChannelIndustrial, cmn.ChannelIndustrial, user1, "methodWithRights", "",
-				client.NewNonceByTime().Get())
+			By("invoking industrial chaincode with user acl rights removed")
+			client.TxInvokeWithSignErrorReturned(network, peer, network.Orderers[0],
+				cmn.ChannelIndustrial, cmn.ChannelIndustrial, user1, fnMethodWithRights, "",
+				client.NewNonceByTime().Get(), "unauthorized")
 		})
 	})
 })
