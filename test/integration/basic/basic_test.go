@@ -548,13 +548,36 @@ var _ = Describe("Basic foundation Tests", func() {
 			user1 := client.NewUserFoundation(pbfound.KeyType_ed25519.String())
 			client.AddUser(network, peer, network.Orderers[0], user1)
 
+			user2 := client.NewUserFoundation(pbfound.KeyType_ed25519.String())
+			client.AddUser(network, peer, network.Orderers[0], user2)
+
+			By("invoking industrial chaincode with acl right user")
+			client.TxInvokeWithSign(network, peer, network.Orderers[0],
+				cmn.ChannelIndustrial, cmn.ChannelIndustrial, user1, "methodWithRights", "",
+				client.NewNonceByTime().Get())
+
 			By("add rights and check rights")
 			client.AddRights(network, peer, network.Orderers[0],
-				cmn.ChannelAcl, cmn.ChannelAcl, "issuer", "testOperation", user1)
+				cmn.ChannelIndustrial, cmn.ChannelIndustrial, "issuer", "", user1)
+
+			By("invoking industrial chaincode with acl right user")
+			client.TxInvokeWithSign(network, peer, network.Orderers[0],
+				cmn.ChannelIndustrial, cmn.ChannelIndustrial, user1, "methodWithRights", "",
+				client.NewNonceByTime().Get())
+
+			By("invoking industrial chaincode with acl right user")
+			client.TxInvokeWithSign(network, peer, network.Orderers[0],
+				cmn.ChannelIndustrial, cmn.ChannelIndustrial, user2, "methodWithRights", "",
+				client.NewNonceByTime().Get())
 
 			By("remove rights and check rights")
 			client.RemoveRights(network, peer, network.Orderers[0],
-				cmn.ChannelAcl, cmn.ChannelAcl, "issuer", "testOperation", user1)
+				cmn.ChannelIndustrial, cmn.ChannelIndustrial, "issuer", "", user1)
+
+			By("invoking industrial chaincode with acl right user")
+			client.TxInvokeWithSign(network, peer, network.Orderers[0],
+				cmn.ChannelIndustrial, cmn.ChannelIndustrial, user1, "methodWithRights", "",
+				client.NewNonceByTime().Get())
 		})
 	})
 })
