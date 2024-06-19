@@ -2,6 +2,7 @@ package telemetry
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 
@@ -48,55 +49,33 @@ func InstallTraceProvider(
 
 	authHeaderKey := os.Getenv(tracingCollectorAuthHeaderKey)
 	authHeaderValue := os.Getenv(tracingCollectorAuthHeaderValue)
-	caCertsBase64 := os.Getenv(tracingCollectorCaPem)
+	caCerts := os.Getenv(tracingCollectorCaPem)
 
 	var client otlptrace.Client
 
 	// If it is tracing config from chaincode init, use an insecure connection
 	if !isTracingConfigFromEnv {
-		client = otlptracehttp.NewClient(
-			otlptracehttp.WithEndpoint(settings.GetEndpoint()),
-			otlptracehttp.WithInsecure(),
-		)
+		client = getUnsecureClient(settings.GetEndpoint())
 	}
 
-	// If the environment variable with certificates is not empty, check if the authorization header exists
-	// If the headers are missing, consider it an error
-	if isTracingConfigFromEnv && isCACertsSet() && !isAuthHeaderSet() {
-		fmt.Print("TLS CA environment is set, but auth header is wrong or empty")
-		return
-	}
-
-	// If it is tracing config from environment and certificates are not provided but headers are, consider it an error
-	if isTracingConfigFromEnv && !isCACertsSet() && isAuthHeaderSet() {
-		fmt.Print("Auth header environment is set, but TLS CA is empty")
-		return
-	}
-
-	// If it is tracing config from environment and both the environment variable with certificates and the header are set, get the TLS config
-	if isTracingConfigFromEnv && isCACertsSet() && isAuthHeaderSet() {
-		tlsConfig, err := getTLSConfig(caCertsBase64)
+	if isTracingConfigFromEnv {
+		err := checkAuthEnvironments(authHeaderKey, authHeaderValue, caCerts)
 		if err != nil {
-			fmt.Printf("Failed to load TLS configuration: %s", err)
+			fmt.Printf("Failed to load auth environments: %s", err)
 			return
 		}
 
-		h := map[string]string{
-			authHeaderKey: authHeaderValue,
+		// If it is tracing config from environment and both the environment variable with certificates and the header are set, get the TLS config
+		if isSecure(authHeaderKey, authHeaderValue, caCerts) {
+			client, err = getSecureClient(authHeaderKey, authHeaderValue, caCerts, settings.GetEndpoint())
+			if err != nil {
+				fmt.Printf("Failed to create secure client: %s", err)
+				return
+			}
+		} else {
+			// If it is tracing config from environment and certificates are not provided, use an insecure connection
+			client = getUnsecureClient(settings.GetEndpoint())
 		}
-		client = otlptracehttp.NewClient(
-			otlptracehttp.WithHeaders(h),
-			otlptracehttp.WithEndpoint(settings.GetEndpoint()),
-			otlptracehttp.WithTLSClientConfig(tlsConfig),
-		)
-	}
-
-	// If it is tracing config from environment and certificates are not provided, use an insecure connection
-	if isTracingConfigFromEnv && !isCACertsSet() && !isAuthHeaderSet() {
-		client = otlptracehttp.NewClient(
-			otlptracehttp.WithEndpoint(settings.GetEndpoint()),
-			otlptracehttp.WithInsecure(),
-		)
 	}
 
 	exporter, err := otlptrace.New(context.Background(), client)
@@ -120,16 +99,59 @@ func InstallTraceProvider(
 		sdktrace.WithResource(r))
 }
 
-func isAuthHeaderSet() bool {
-	authHeaderKey := os.Getenv(tracingCollectorAuthHeaderKey)
-	authHeaderValue := os.Getenv(tracingCollectorAuthHeaderValue)
-	if authHeaderKey != "" || authHeaderValue != "" {
+func getSecureClient(authHeaderKey string, authHeaderValue string, caCerts string, endpoint string) (otlptrace.Client, error) {
+	tlsConfig, err := getTLSConfig(caCerts)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load TLS configuration: %w", err)
+	}
+
+	h := map[string]string{
+		authHeaderKey: authHeaderValue,
+	}
+	client := otlptracehttp.NewClient(
+		otlptracehttp.WithHeaders(h),
+		otlptracehttp.WithEndpoint(endpoint),
+		otlptracehttp.WithTLSClientConfig(tlsConfig),
+	)
+	return client, nil
+}
+
+func getUnsecureClient(endpoint string) otlptrace.Client {
+	client := otlptracehttp.NewClient(
+		otlptracehttp.WithEndpoint(endpoint),
+		otlptracehttp.WithInsecure(),
+	)
+	return client
+}
+
+func checkAuthEnvironments(authHeaderKey string, authHeaderValue string, caCerts string) error {
+	// If the environment variable with certificates is not empty, check if the authorization header exists
+	// If the headers are missing, consider it an error
+	if isCACertsSet(caCerts) && !isAuthHeaderSet(authHeaderKey, authHeaderValue) {
+		return errors.New("TLS CA environment is set, but auth header is wrong or empty")
+	}
+
+	// If it is tracing config from environment and certificates are not provided but headers are, consider it an error
+	if !isCACertsSet(caCerts) && isAuthHeaderSet(authHeaderKey, authHeaderValue) {
+		return errors.New("auth header environment is set, but TLS CA is empty")
+	}
+	return nil
+}
+
+func isSecure(authHeaderKey string, authHeaderValue string, caCerts string) bool {
+	if isAuthHeaderSet(authHeaderKey, authHeaderValue) && isCACertsSet(caCerts) {
 		return true
 	}
 	return false
 }
 
-func isCACertsSet() bool {
-	caCerts := os.Getenv(tracingCollectorCaPem)
+func isAuthHeaderSet(authHeaderKey string, authHeaderValue string) bool {
+	if authHeaderKey != "" && authHeaderValue != "" {
+		return true
+	}
+	return false
+}
+
+func isCACertsSet(caCerts string) bool {
 	return caCerts != ""
 }
