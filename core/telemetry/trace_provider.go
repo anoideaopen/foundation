@@ -62,19 +62,19 @@ func InstallTraceProvider(
 
 	// If the environment variable with certificates is not empty, check if the authorization header exists
 	// If the headers are missing, consider it an error
-	if isTracingConfigFromEnv || isCACertsSet() || !isAuthHeaderSet() {
+	if isTracingConfigFromEnv && isCACertsSet() && !isAuthHeaderSet() {
 		fmt.Print("TLS CA environment is set, but auth header is wrong or empty")
 		return
 	}
 
 	// If it is tracing config from environment and certificates are not provided but headers are, consider it an error
-	if isTracingConfigFromEnv || !isCACertsSet() || isAuthHeaderSet() {
+	if isTracingConfigFromEnv && !isCACertsSet() && isAuthHeaderSet() {
 		fmt.Print("Auth header environment is set, but TLS CA is empty")
 		return
 	}
 
 	// If it is tracing config from environment and both the environment variable with certificates and the header are set, get the TLS config
-	if isTracingConfigFromEnv || isCACertsSet() || isAuthHeaderSet() {
+	if isTracingConfigFromEnv && isCACertsSet() && isAuthHeaderSet() {
 		tlsConfig, err := getTLSConfig(caCertsBase64)
 		if err != nil {
 			fmt.Printf("Failed to load TLS configuration: %s", err)
@@ -92,7 +92,7 @@ func InstallTraceProvider(
 	}
 
 	// If it is tracing config from environment and certificates are not provided, use an insecure connection
-	if isTracingConfigFromEnv || !isCACertsSet() || !isAuthHeaderSet() {
+	if isTracingConfigFromEnv && !isCACertsSet() && !isAuthHeaderSet() {
 		client = otlptracehttp.NewClient(
 			otlptracehttp.WithEndpoint(settings.GetEndpoint()),
 			otlptracehttp.WithInsecure(),
