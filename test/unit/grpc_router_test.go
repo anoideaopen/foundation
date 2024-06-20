@@ -56,7 +56,7 @@ func TestGRPCRouter(t *testing.T) {
 
 	// Prepare request.
 	req := &service.BalanceAdjustmentRequest{
-		Suffix: "",
+		Suffix: "Test_suffix",
 		Address: &service.Address{
 			Address: user1.Address(),
 		},

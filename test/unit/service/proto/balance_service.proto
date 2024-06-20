@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package foundation;
+package foundationtoken;
 
 option go_package = "gitlab.n-t.io/atm-ru/onchain/foundation-token/service";
 
@@ -79,6 +79,7 @@ service BalanceService {
     }
     rpc AllBalances(AllBalancesRequest) returns (AllBalancesResponse) {
         option (foundation.method_type) = METHOD_TYPE_QUERY;
+        option (foundation.auth_type)   = AUTH_TYPE_ENABLED;
     }
     rpc AllowedBalance(AllowedBalanceRequest) returns (AllowedBalanceResponse) {
         option (foundation.method_type) = METHOD_TYPE_QUERY;

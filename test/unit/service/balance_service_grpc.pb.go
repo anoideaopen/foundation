@@ -20,14 +20,14 @@ import (
 const _ = grpc.SupportPackageIsVersion8
 
 const (
-	BalanceService_Balance_FullMethodName                       = "/foundation.BalanceService/Balance"
-	BalanceService_AllBalances_FullMethodName                   = "/foundation.BalanceService/AllBalances"
-	BalanceService_AllowedBalance_FullMethodName                = "/foundation.BalanceService/AllowedBalance"
-	BalanceService_AddBalanceByAdmin_FullMethodName             = "/foundation.BalanceService/AddBalanceByAdmin"
-	BalanceService_SubtractBalanceByAdmin_FullMethodName        = "/foundation.BalanceService/SubtractBalanceByAdmin"
-	BalanceService_AddAllowedBalanceByAdmin_FullMethodName      = "/foundation.BalanceService/AddAllowedBalanceByAdmin"
-	BalanceService_SubtractAllowedBalanceByAdmin_FullMethodName = "/foundation.BalanceService/SubtractAllowedBalanceByAdmin"
-	BalanceService_UnlockAllowedBalanceByAdmin_FullMethodName   = "/foundation.BalanceService/UnlockAllowedBalanceByAdmin"
+	BalanceService_Balance_FullMethodName                       = "/foundationtoken.BalanceService/Balance"
+	BalanceService_AllBalances_FullMethodName                   = "/foundationtoken.BalanceService/AllBalances"
+	BalanceService_AllowedBalance_FullMethodName                = "/foundationtoken.BalanceService/AllowedBalance"
+	BalanceService_AddBalanceByAdmin_FullMethodName             = "/foundationtoken.BalanceService/AddBalanceByAdmin"
+	BalanceService_SubtractBalanceByAdmin_FullMethodName        = "/foundationtoken.BalanceService/SubtractBalanceByAdmin"
+	BalanceService_AddAllowedBalanceByAdmin_FullMethodName      = "/foundationtoken.BalanceService/AddAllowedBalanceByAdmin"
+	BalanceService_SubtractAllowedBalanceByAdmin_FullMethodName = "/foundationtoken.BalanceService/SubtractAllowedBalanceByAdmin"
+	BalanceService_UnlockAllowedBalanceByAdmin_FullMethodName   = "/foundationtoken.BalanceService/UnlockAllowedBalanceByAdmin"
 )
 
 // BalanceServiceClient is the client API for BalanceService service.
@@ -340,7 +340,7 @@ func _BalanceService_UnlockAllowedBalanceByAdmin_Handler(srv interface{}, ctx co
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var BalanceService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "foundation.BalanceService",
+	ServiceName: "foundationtoken.BalanceService",
 	HandlerType: (*BalanceServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
