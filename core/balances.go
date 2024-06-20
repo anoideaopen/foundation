@@ -561,12 +561,11 @@ func (bc *BaseContract) IndustrialBalanceLock(
 	address *types.Address,
 	amount *big.Int,
 ) error {
+	parts := strings.Split(token, "_")
+	token = parts[len(parts)-1]
 	if stub, ok := bc.GetStub().(*cachestub.TxCacheStub); ok {
 		stub.AddAccountingRecord(bc.config.GetSymbol()+"_"+token, address, address, amount, "industrial balance lock")
 	}
-
-	parts := strings.Split(token, "_")
-	token = parts[len(parts)-1]
 
 	return balance.Move(
 		bc.stub,
@@ -584,12 +583,11 @@ func (bc *BaseContract) IndustrialBalanceUnLock(
 	address *types.Address,
 	amount *big.Int,
 ) error {
+	parts := strings.Split(token, "_")
+	token = parts[len(parts)-1]
 	if stub, ok := bc.GetStub().(*cachestub.TxCacheStub); ok {
 		stub.AddAccountingRecord(bc.config.GetSymbol()+"_"+token, address, address, amount, "industrial balance unlock")
 	}
-
-	parts := strings.Split(token, "_")
-	token = parts[len(parts)-1]
 
 	return balance.Move(
 		bc.stub,
