@@ -47,8 +47,7 @@ type Router struct {
 //
 // Returns:
 //   - *Router: A new Router instance.
-//   - error: An error if the router setup fails.
-func NewRouter(cfg RouterConfig) (*Router, error) {
+func NewRouter(cfg RouterConfig) *Router {
 	var methods map[contract.Function]contract.Method
 	if cfg.Fallback != nil {
 		methods = cfg.Fallback.Methods()
@@ -60,7 +59,7 @@ func NewRouter(cfg RouterConfig) (*Router, error) {
 		fallback: cfg.Fallback,
 		methods:  methods,
 		handlers: make(map[methodName]handler),
-	}, nil
+	}
 }
 
 // RegisterService registers a service and its implementation to the

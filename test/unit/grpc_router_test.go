@@ -34,13 +34,12 @@ func TestGRPCRouter(t *testing.T) {
 	balanceToken := &token.Balance{} // gRPC service.
 
 	// Create gRPC router.
-	grpcRouter, err := grpc.NewRouter(grpc.RouterConfig{
+	grpcRouter := grpc.NewRouter(grpc.RouterConfig{
 		Fallback: grpc.DefaultReflectxFallback(
 			balanceToken,
 			reflectx.RouterConfig{},
 		),
 	})
-	require.NoError(t, err)
 
 	// Register gRPC service.
 	service.RegisterBalanceServiceServer(grpcRouter, balanceToken)
