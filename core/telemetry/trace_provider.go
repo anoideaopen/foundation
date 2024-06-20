@@ -55,11 +55,9 @@ func InstallTraceProvider(
 	var client otlptrace.Client
 
 	// If the endpoint is obtained from the config, we create an insecure client.
-	if !isTracingConfigFromEnv {
+	if !isTracingConfigFromEnv { //nolint:nestif // TODO For pipeline completion, clarify during review.
 		client = getUnsecureClient(settings.GetEndpoint())
-	}
-
-	if isTracingConfigFromEnv {
+	} else {
 		// If the endpoint is obtained from the env, we check that there are no errors in passing certificates and the header,
 		// either they should not be at all, or they should all be filled in.
 		if err := checkAuthEnvironments(authHeaderKey, authHeaderValue, caCerts); err != nil {
@@ -70,18 +68,15 @@ func InstallTraceProvider(
 		// If none of the variables are filled, create an insecure client
 		if !isSecure(authHeaderKey, authHeaderValue, caCerts) {
 			client = getUnsecureClient(settings.GetEndpoint())
-		}
-
-		// If all variables are filled, we try to get valid CA certificates from the env
-		// and create tlsConfig.
-		tlsConfig, err := getTLSConfig(caCerts)
-		if err != nil {
-			fmt.Printf("failed to load TLS configuration: %s", err)
-			return
-		}
-
-		// After creating tlsConfig, create a secure client
-		if isSecure(authHeaderKey, authHeaderValue, caCerts) {
+		} else {
+			// If all variables are filled, we try to get valid CA certificates from the env
+			// and create tlsConfig.
+			tlsConfig, err := getTLSConfig(caCerts)
+			if err != nil {
+				fmt.Printf("failed to load TLS configuration: %s", err)
+				return
+			}
+			// After creating tlsConfig, create a secure client
 			client = getSecureClient(authHeaderKey, authHeaderValue, settings.GetEndpoint(), tlsConfig)
 		}
 	}
@@ -98,7 +93,7 @@ func InstallTraceProvider(
 			semconv.SchemaURL,
 			semconv.ServiceName(serviceName)))
 	if err != nil {
-		fmt.Printf("creating resoure: %v", err)
+		fmt.Printf("creating resource: %v", err)
 		return
 	}
 
