@@ -575,6 +575,7 @@ var _ = Describe("Basic foundation Tests", func() {
 			client.TxInvokeWithSignErrorReturned(network, peer, network.Orderers[0],
 				cmn.ChannelIndustrial, cmn.ChannelIndustrial, user1, fnMethodWithRights, "",
 				client.NewNonceByTime().Get(), "unauthorized")
+
 		})
 	})
 })

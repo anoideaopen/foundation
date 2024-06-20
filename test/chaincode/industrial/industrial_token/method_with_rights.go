@@ -2,6 +2,7 @@ package industrialtoken
 
 import (
 	"errors"
+	"strings"
 
 	"github.com/anoideaopen/foundation/core/acl"
 	"github.com/anoideaopen/foundation/core/types"
@@ -18,7 +19,7 @@ func (it *IndustrialToken) TxWithRights(sender *types.Sender) error {
 }
 
 func (it *IndustrialToken) checkIfIssuer(address *types.Address) error {
-	params := []string{it.GetStub().GetChannelID(), it.GetID(), acl.Issuer.String(), "", address.String()}
+	params := []string{strings.ToLower(it.GetStub().GetChannelID()), strings.ToLower(it.GetID()), acl.Issuer.String(), "", address.String()}
 	haveRight, err := acl.GetAccountRight(it.GetStub(), params)
 	if err != nil {
 		return err
