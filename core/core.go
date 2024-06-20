@@ -96,6 +96,7 @@ type chaincodeOptions struct {
 	SrcFS        *embed.FS             // SrcFS is a file system that contains the source files for the chaincode.
 	TLS          *TLS                  // TLS contains the TLS configuration for the chaincode.
 	ConfigMapper contract.ConfigMapper // ConfigMapper maps the arguments to a proto.Config instance.
+	Router       contract.Router       // Router for routing contract calls.
 }
 
 // Chaincode defines the structure for a chaincode instance, with methods,
@@ -107,6 +108,16 @@ type Chaincode struct {
 	configMapper contract.ConfigMapper // ConfigMapper maps the arguments to a proto.Config instance.
 }
 
+// Router returns the contract router for the Chaincode.
+//
+// It first checks if the router is already initialized and returns it if so.
+// Then, it checks if the contract implements the contract.Router interface and returns it if it does.
+// If neither of these conditions are met, it initializes the router using the reflectx.NewRouter function
+// with the contract and a reflectx.RouterConfig containing the swaps and multi-swaps disabled options
+// from the contract's configuration.
+//
+// Returns:
+// - contract.Router: the contract router.
 func (cc *Chaincode) Router() contract.Router {
 	if cc.router != nil {
 		return cc.router
@@ -127,12 +138,33 @@ func (cc *Chaincode) Router() contract.Router {
 	return cc.router
 }
 
+// Method retrieves a contract method by its function name.
+//
+// Parameters:
+// - functionName: the name of the function.
+//
+// Returns:
+// - contract.Method: the method associated with the function name.
+// - error: an error if the method is not found.
 func (cc *Chaincode) Method(functionName string) (contract.Method, error) {
 	if method, ok := cc.Router().Methods()[functionName]; ok {
 		return method, nil
 	}
 
 	return contract.Method{}, fmt.Errorf("method '%s' not found", functionName)
+}
+
+// WithRouter returns a ChaincodeOption function that sets the router in the chaincode options.
+//
+// Parameters:
+// - router: the contract router to set.
+// Return type:
+// - ChaincodeOption: a function that sets the router in the chaincode options.
+func WithRouter(router contract.Router) ChaincodeOption {
+	return func(o *chaincodeOptions) error {
+		o.Router = router
+		return nil
+	}
 }
 
 // WithConfigMapper is a ChaincodeOption that specifies the ConfigMapper for the ChainCode.
@@ -386,6 +418,7 @@ func NewCC(
 		contract:     cc,
 		tls:          tlsProps,
 		configMapper: chOpts.ConfigMapper,
+		router:       chOpts.Router,
 	}
 
 	return out, nil
@@ -444,8 +477,8 @@ func (cc *Chaincode) Init(stub shim.ChaincodeStubInterface) peer.Response {
 		return shim.Error("init: saving config: " + err.Error())
 	}
 
-	// Check if the contract implements the Router interface.
-	if _, ok := cc.contract.(contract.Router); ok {
+	// Check if the contract implements the Router interface or router is already provided.
+	if _, ok := cc.contract.(contract.Router); ok || cc.router != nil {
 		return shim.Success(nil)
 	}
 
