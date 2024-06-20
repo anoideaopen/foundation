@@ -224,6 +224,7 @@ func invokeTx(network *nwo.Network, peer *nwo.Peer, orderer *nwo.Orderer, userOr
 func checkErrorIfNeeded(txResponse *pbfound.TxResponse, expectedError string) {
 	if expectedError == "" {
 		Expect(txResponse.Error).To(BeNil())
+		return
 	}
 
 	Expect(txResponse.Error).NotTo(BeNil())
@@ -273,7 +274,7 @@ func TxInvokeWithSignErrorReturned(
 	Expect(err).NotTo(HaveOccurred())
 
 	ctorArgs = append(ctorArgs, pubKey, base58.Encode(sMsg))
-	return invokeTx(network, peer, orderer, "User1", channel, ccName, errMsg, args...)
+	return invokeTx(network, peer, orderer, "User1", channel, ccName, errMsg, ctorArgs...)
 }
 
 func scanTxIDInLog(data []byte) string {

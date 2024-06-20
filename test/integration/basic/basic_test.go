@@ -528,10 +528,10 @@ var _ = Describe("Basic foundation Tests", func() {
 				client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat, fabricnetwork.CheckResult(fFeeTransfer, nil),
 					"getFeeTransfer", string(bytes))
 
-				By("transfer tokens from user1 to user2")
-				client.TxInvokeWithSign(network, peer, network.Orderers[0],
+				By("NEGATIVE: transfer tokens from user1 to user2")
+				client.TxInvokeWithSignErrorReturned(network, peer, network.Orderers[0],
 					cmn.ChannelFiat, cmn.ChannelFiat, user1, "transfer", "",
-					client.NewNonceByTime().Get(), user1.AddressBase58Check, "1", "ref transfer")
+					client.NewNonceByTime().Get(), "TxTransfer: sender and recipient are same users", user1.AddressBase58Check, "1", "ref transfer")
 
 				By("check balance user1")
 				client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
