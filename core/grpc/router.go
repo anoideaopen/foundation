@@ -114,19 +114,18 @@ func (r *Router) RegisterService(desc *grpc.ServiceDesc, impl any) {
 		}
 
 		var requireAuth bool
+		switch methodType {
+		case contract.MethodTypeTransaction:
+			requireAuth = true
+
+		case
+			contract.MethodTypeInvoke,
+			contract.MethodTypeQuery:
+			requireAuth = false
+		}
+
 		if ext, ok := proto.GetExtension(md.Options(), E_AuthType).(AuthType); ok {
 			switch ext {
-			case AuthType_AUTH_TYPE_DEFAULT:
-				switch methodType {
-				case contract.MethodTypeTransaction:
-					requireAuth = true
-
-				case
-					contract.MethodTypeInvoke,
-					contract.MethodTypeQuery:
-					requireAuth = false
-				}
-
 			case AuthType_AUTH_TYPE_ENABLED:
 				requireAuth = true
 
