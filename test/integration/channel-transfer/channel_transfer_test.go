@@ -231,7 +231,7 @@ var _ = Describe("Channel transfer foundation Tests", func() {
 		emitAmount := "1000"
 		client.TxInvokeWithSign(network, peer, network.Orderers[0],
 			cmn.ChannelFiat, cmn.ChannelFiat, admin,
-			"emit", "", client.NewNonceByTime().Get(), user.AddressBase58Check, emitAmount)
+			"emit", "", client.NewNonceByTime().Get(), nil, user.AddressBase58Check, emitAmount)
 
 		By("emit check")
 		client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,

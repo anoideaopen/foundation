@@ -76,7 +76,7 @@ func NBTxInvokeWithSign(network *nwo.Network, peer *nwo.Peer, orderer *nwo.Order
 }
 
 func invokeTx(network *nwo.Network, peer *nwo.Peer, orderer *nwo.Orderer, userOrg string,
-	channel string, ccName string, expectedError string, args ...string) (txId string) {
+	channel string, ccName string, checkErr CheckResultFunc, args ...string) (txId string) {
 	lh := nwo.GetLedgerHeight(network, peer, channel)
 
 	sess, err := network.PeerUserSession(peer, userOrg, commands.ChaincodeInvoke{
@@ -211,7 +211,11 @@ func invokeTx(network *nwo.Network, peer *nwo.Peer, orderer *nwo.Orderer, userOr
 					for _, r := range batchResponse.TxResponses {
 						if hex.EncodeToString(r.GetId()) == txId {
 							Expect(isValid).To(BeTrue())
-							checkErrorIfNeeded(r, expectedError)
+							if checkErr != nil {
+								Expect(r.Error).NotTo(BeNil())
+								res := checkErr(nil, 1, []byte(r.Error.Error), nil)
+								Expect(res).Should(BeEmpty())
+							}
 							return
 						}
 					}
@@ -221,60 +225,28 @@ func invokeTx(network *nwo.Network, peer *nwo.Peer, orderer *nwo.Orderer, userOr
 	}
 }
 
-func checkErrorIfNeeded(txResponse *pbfound.TxResponse, expectedError string) {
-	if expectedError == "" {
-		Expect(txResponse.Error).To(BeNil())
-		return
-	}
-
-	Expect(txResponse.Error).NotTo(BeNil())
-	Expect(txResponse.Error.Error).To(Equal(expectedError))
-}
-
 // TxInvoke func for invoke to foundation fabric
 func TxInvoke(network *nwo.Network, peer *nwo.Peer, orderer *nwo.Orderer,
-	channel string, ccName string, args ...string) (txId string) {
-	return invokeTx(network, peer, orderer, "User1", channel, ccName, "", args...)
+	channel string, ccName string, checkErr CheckResultFunc, args ...string) (txId string) {
+	return invokeTx(network, peer, orderer, "User1", channel, ccName, checkErr, args...)
 }
 
 // TxInvokeByRobot func for invoke to foundation fabric from robot
 func TxInvokeByRobot(network *nwo.Network, peer *nwo.Peer, orderer *nwo.Orderer,
-	channel string, ccName string, args ...string) (txId string) {
-	return invokeTx(network, peer, orderer, "User2", channel, ccName, "", args...)
+	channel string, ccName string, checkErr CheckResultFunc, args ...string) (txId string) {
+	return invokeTx(network, peer, orderer, "User2", channel, ccName, checkErr, args...)
 }
 
 // TxInvokeWithSign func for invoke with sign to foundation fabric
 func TxInvokeWithSign(network *nwo.Network, peer *nwo.Peer, orderer *nwo.Orderer,
 	channel string, ccName string, user *UserFoundation,
-	fn string, requestID string, nonce string, args ...string) (txId string) {
+	fn string, requestID string, nonce string, checkErr CheckResultFunc, args ...string) (txId string) {
 	ctorArgs := append(append([]string{fn, requestID, channel, ccName}, args...), nonce)
 	pubKey, sMsg, err := user.Sign(ctorArgs...)
 	Expect(err).NotTo(HaveOccurred())
 
 	ctorArgs = append(ctorArgs, pubKey, base58.Encode(sMsg))
-	return TxInvoke(network, peer, orderer, channel, ccName, ctorArgs...)
-}
-
-// TxInvokeWithSignErrorReturned invokes signed transaction, expecting error returned
-func TxInvokeWithSignErrorReturned(
-	network *nwo.Network,
-	peer *nwo.Peer,
-	orderer *nwo.Orderer,
-	channel,
-	ccName string,
-	user *UserFoundation,
-	fn,
-	requestID,
-	nonce string,
-	errMsg string,
-	args ...string,
-) (txId string) {
-	ctorArgs := append(append([]string{fn, requestID, channel, ccName}, args...), nonce)
-	pubKey, sMsg, err := user.Sign(ctorArgs...)
-	Expect(err).NotTo(HaveOccurred())
-
-	ctorArgs = append(ctorArgs, pubKey, base58.Encode(sMsg))
-	return invokeTx(network, peer, orderer, "User1", channel, ccName, errMsg, ctorArgs...)
+	return TxInvoke(network, peer, orderer, channel, ccName, checkErr, ctorArgs...)
 }
 
 func scanTxIDInLog(data []byte) string {

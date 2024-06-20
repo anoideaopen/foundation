@@ -293,7 +293,7 @@ var _ = Describe("Basic foundation Tests", func() {
 			emitAmount := "1"
 			client.TxInvokeWithSign(network, peer, network.Orderers[0],
 				cmn.ChannelFiat, cmn.ChannelFiat, admin,
-				"emit", "", client.NewNonceByTime().Get(), user1.AddressBase58Check, emitAmount)
+				"emit", "", client.NewNonceByTime().Get(), nil, user1.AddressBase58Check, emitAmount)
 
 			By("emit check")
 			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,

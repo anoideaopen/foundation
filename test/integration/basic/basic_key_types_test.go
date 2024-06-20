@@ -208,7 +208,7 @@ var _ = Describe("Basic foundation tests with different key types", func() {
 			amount := "1"
 			client.TxInvokeWithSign(network, peer, network.Orderers[0],
 				cmn.ChannelFiat, cmn.ChannelFiat, admin,
-				"emit", "", client.NewNonceByTime().Get(), user1.AddressBase58Check, amount)
+				"emit", "", client.NewNonceByTime().Get(), nil, user1.AddressBase58Check, amount)
 
 			By("emit check")
 			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
@@ -233,7 +233,7 @@ var _ = Describe("Basic foundation tests with different key types", func() {
 			By("transfer tokens from user1 to user2")
 			client.TxInvokeWithSign(network, peer, network.Orderers[0],
 				cmn.ChannelFiat, cmn.ChannelFiat, user1, "transfer", "",
-				client.NewNonceByTime().Get(), user2.AddressBase58Check, amount, "ref transfer")
+				client.NewNonceByTime().Get(), nil, user2.AddressBase58Check, amount, "ref transfer")
 
 			By("check balance user1")
 			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,

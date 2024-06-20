@@ -300,27 +300,27 @@ var _ = Describe("Version and Nonce Tests", func() {
 		By("emit tokens 1")
 		client.TxInvokeWithSign(network, peer, network.Orderers[0],
 			cmn.ChannelFiat, cmn.ChannelFiat, admin,
-			"emit", "", nonce3, user1.AddressBase58Check, emitAmount)
+			"emit", "", nonce3, nil, user1.AddressBase58Check, emitAmount)
 
 		By("emit tokens 2")
 		client.TxInvokeWithSign(network, peer, network.Orderers[0],
 			cmn.ChannelFiat, cmn.ChannelFiat, admin,
-			"emit", "", nonce2, user1.AddressBase58Check, emitAmount)
+			"emit", "", nonce2, nil, user1.AddressBase58Check, emitAmount)
 
-		By("emit tokens 3")
-		client.TxInvokeWithSignErrorReturned(network, peer, network.Orderers[0],
+		By("NEGATIVE: emit tokens 3")
+		client.TxInvokeWithSign(network, peer, network.Orderers[0],
 			cmn.ChannelFiat, cmn.ChannelFiat, admin,
-			"emit", "", nonce1, fmt.Sprintf("function and args loading error: incorrect nonce %s, less than %s", nonce1, nonce3), user1.AddressBase58Check, emitAmount)
+			"emit", "", nonce1, fabricnetwork.CheckResult(nil, fabricnetwork.CheckTxResponseResult(fmt.Sprintf("function and args loading error: incorrect nonce %s, less than %s", nonce1, nonce3))), user1.AddressBase58Check, emitAmount)
 
-		By("emit tokens 4")
-		client.TxInvokeWithSignErrorReturned(network, peer, network.Orderers[0],
+		By("NEGATIVE: emit tokens 4")
+		client.TxInvokeWithSign(network, peer, network.Orderers[0],
 			cmn.ChannelFiat, cmn.ChannelFiat, admin,
-			"emit", "", nonce3, fmt.Sprintf("function and args loading error: nonce %s already exists", nonce3), user1.AddressBase58Check, emitAmount)
+			"emit", "", nonce3, fabricnetwork.CheckResult(nil, fabricnetwork.CheckTxResponseResult(fmt.Sprintf("function and args loading error: nonce %s already exists", nonce3))), user1.AddressBase58Check, emitAmount)
 
 		By("emit tokens 5")
 		client.TxInvokeWithSign(network, peer, network.Orderers[0],
 			cmn.ChannelFiat, cmn.ChannelFiat, admin,
-			"emit", "", nonce4, user1.AddressBase58Check, emitAmount)
+			"emit", "", nonce4, nil, user1.AddressBase58Check, emitAmount)
 
 		By("emit check")
 		client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,

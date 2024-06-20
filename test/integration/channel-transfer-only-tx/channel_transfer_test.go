@@ -219,7 +219,7 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 			By("emit tokens 1000")
 			client.TxInvokeWithSign(network, peer, network.Orderers[0],
 				cmn.ChannelFiat, cmn.ChannelFiat, admin,
-				"emit", "", client.NewNonceByTime().Get(), user1.AddressBase58Check, emitAmount)
+				"emit", "", client.NewNonceByTime().Get(), nil, user1.AddressBase58Check, emitAmount)
 
 			By("emit check")
 			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
@@ -233,7 +233,7 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 			By("channel transfer by customer forward")
 			client.TxInvokeWithSign(network, peer, network.Orderers[0],
 				cmn.ChannelFiat, cmn.ChannelFiat, user1, "channelTransferByCustomer", "",
-				client.NewNonceByTime().Get(), id, "CC", "FIAT", transferAmount)
+				client.NewNonceByTime().Get(), nil, id, "CC", "FIAT", transferAmount)
 
 			By("check balance after transfer")
 			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
@@ -255,7 +255,7 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 
 			By("create cc transfer to")
 			client.TxInvokeByRobot(network, peer, network.Orderers[0],
-				cmn.ChannelCC, cmn.ChannelCC, "createCCTransferTo", from)
+				cmn.ChannelCC, cmn.ChannelCC, nil, "createCCTransferTo", from)
 
 			By("check allowed balance 1")
 			client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC,
@@ -300,7 +300,7 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 			By("channel transfer by customer backward")
 			client.TxInvokeWithSign(network, peer, network.Orderers[0],
 				cmn.ChannelCC, cmn.ChannelCC, user1, "channelTransferByCustomer", "",
-				client.NewNonceByTime().Get(), id2, "FIAT", "FIAT", transferAmount)
+				client.NewNonceByTime().Get(), nil, id2, "FIAT", "FIAT", transferAmount)
 
 			By("check allowed balance after transfer")
 			client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC,
@@ -314,7 +314,7 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 
 			By("create cc transfer to")
 			client.TxInvokeByRobot(network, peer, network.Orderers[0],
-				cmn.ChannelFiat, cmn.ChannelFiat, "createCCTransferTo", from)
+				cmn.ChannelFiat, cmn.ChannelFiat, nil, "createCCTransferTo", from)
 
 			By("check fiat balance 1")
 			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
@@ -354,7 +354,7 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 			By("channel transfer forward")
 			client.TxInvokeWithSign(network, peer, network.Orderers[0],
 				cmn.ChannelFiat, cmn.ChannelFiat, admin, "channelTransferByAdmin", "",
-				client.NewNonceByTime().Get(), id, "CC", user1.AddressBase58Check, "FIAT", transferAmount)
+				client.NewNonceByTime().Get(), nil, id, "CC", user1.AddressBase58Check, "FIAT", transferAmount)
 
 			By("check balance after transfer")
 			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
@@ -377,7 +377,7 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 
 			By("create cc transfer to")
 			client.TxInvokeByRobot(network, peer, network.Orderers[0],
-				cmn.ChannelCC, cmn.ChannelCC, "createCCTransferTo", from)
+				cmn.ChannelCC, cmn.ChannelCC, nil, "createCCTransferTo", from)
 
 			By("check allowed balance 1")
 			client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC,
@@ -422,7 +422,7 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 			By("channel transfer by customer backward")
 			client.TxInvokeWithSign(network, peer, network.Orderers[0],
 				cmn.ChannelCC, cmn.ChannelCC, admin, "channelTransferByAdmin", "",
-				client.NewNonceByTime().Get(), id2, "FIAT", user1.AddressBase58Check, "FIAT", transferAmount)
+				client.NewNonceByTime().Get(), nil, id2, "FIAT", user1.AddressBase58Check, "FIAT", transferAmount)
 
 			By("check allowed balance after transfer")
 			client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC,
@@ -436,7 +436,7 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 
 			By("create cc transfer to")
 			client.TxInvokeByRobot(network, peer, network.Orderers[0],
-				cmn.ChannelFiat, cmn.ChannelFiat, "createCCTransferTo", from)
+				cmn.ChannelFiat, cmn.ChannelFiat, nil, "createCCTransferTo", from)
 
 			By("check fiat balance 1")
 			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
@@ -474,7 +474,7 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 			By("cancel channel transfer forward")
 			client.TxInvokeWithSign(network, peer, network.Orderers[0],
 				cmn.ChannelFiat, cmn.ChannelFiat, user1, "channelTransferByCustomer", "",
-				client.NewNonceByTime().Get(), id, "CC", "FIAT", transferAmount)
+				client.NewNonceByTime().Get(), nil, id, "CC", "FIAT", transferAmount)
 
 			By("check balance after transfer")
 			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
@@ -513,7 +513,7 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 			By("channel transfer by customer forward")
 			client.TxInvokeWithSign(network, peer, network.Orderers[0],
 				cmn.ChannelFiat, cmn.ChannelFiat, user1, "channelTransferByCustomer", "",
-				client.NewNonceByTime().Get(), id, "CC", "FIAT", transferAmount)
+				client.NewNonceByTime().Get(), nil, id, "CC", "FIAT", transferAmount)
 
 			By("check balance after transfer")
 			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
@@ -535,7 +535,7 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 
 			By("create cc transfer to")
 			client.TxInvokeByRobot(network, peer, network.Orderers[0],
-				cmn.ChannelCC, cmn.ChannelCC, "createCCTransferTo", from)
+				cmn.ChannelCC, cmn.ChannelCC, nil, "createCCTransferTo", from)
 
 			By("check allowed balance 1")
 			client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC,
@@ -580,7 +580,7 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 			By("channel transfer by customer backward")
 			client.TxInvokeWithSign(network, peer, network.Orderers[0],
 				cmn.ChannelCC, cmn.ChannelCC, user1, "channelTransferByCustomer", "",
-				client.NewNonceByTime().Get(), id2, "FIAT", "FIAT", transferAmount)
+				client.NewNonceByTime().Get(), nil, id2, "FIAT", "FIAT", transferAmount)
 
 			By("check allowed balance after transfer")
 			client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC,
@@ -614,35 +614,35 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 			id = uuid.NewString()
 			client.TxInvokeWithSign(network, peer, network.Orderers[0],
 				cmn.ChannelFiat, cmn.ChannelFiat, user1, "channelTransferByCustomer", "",
-				client.NewNonceByTime().Get(), id, "CC", "FIAT", transferAmount)
+				client.NewNonceByTime().Get(), nil, id, "CC", "FIAT", transferAmount)
 			ids[id] = struct{}{}
 
 			By("channel transfer by customer forward2")
 			id = uuid.NewString()
 			client.TxInvokeWithSign(network, peer, network.Orderers[0],
 				cmn.ChannelFiat, cmn.ChannelFiat, user1, "channelTransferByCustomer", "",
-				client.NewNonceByTime().Get(), id, "CC", "FIAT", transferAmount)
+				client.NewNonceByTime().Get(), nil, id, "CC", "FIAT", transferAmount)
 			ids[id] = struct{}{}
 
 			By("channel transfer by customer forward3")
 			id = uuid.NewString()
 			client.TxInvokeWithSign(network, peer, network.Orderers[0],
 				cmn.ChannelFiat, cmn.ChannelFiat, user1, "channelTransferByCustomer", "",
-				client.NewNonceByTime().Get(), id, "CC", "FIAT", transferAmount)
+				client.NewNonceByTime().Get(), nil, id, "CC", "FIAT", transferAmount)
 			ids[id] = struct{}{}
 
 			By("channel transfer by customer forward4")
 			id = uuid.NewString()
 			client.TxInvokeWithSign(network, peer, network.Orderers[0],
 				cmn.ChannelFiat, cmn.ChannelFiat, user1, "channelTransferByCustomer", "",
-				client.NewNonceByTime().Get(), id, "CC", "FIAT", transferAmount)
+				client.NewNonceByTime().Get(), nil, id, "CC", "FIAT", transferAmount)
 			ids[id] = struct{}{}
 
 			By("channel transfer by customer forward5")
 			id = uuid.NewString()
 			client.TxInvokeWithSign(network, peer, network.Orderers[0],
 				cmn.ChannelFiat, cmn.ChannelFiat, user1, "channelTransferByCustomer", "",
-				client.NewNonceByTime().Get(), id, "CC", "FIAT", transferAmount)
+				client.NewNonceByTime().Get(), nil, id, "CC", "FIAT", transferAmount)
 			ids[id] = struct{}{}
 
 			By("check balance after transfer")

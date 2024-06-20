@@ -62,6 +62,17 @@ func CheckBalance(etalon string) func([]byte) string {
 	}
 }
 
+func CheckTxResponseResult(expectedErrorMsg string) func([]byte) string {
+	return func(out []byte) string {
+		occurredError := string(out)
+
+		if occurredError != expectedErrorMsg {
+			return fmt.Sprintf("expected error '%s' not equals to occurred error '%s'", expectedErrorMsg, occurredError)
+		}
+		return ""
+	}
+}
+
 func PeerGroupRunners(n *nwo.Network) (ifrit.Runner, []*ginkgomon.Runner) {
 	var runners []*ginkgomon.Runner
 	members := grouper.Members{}

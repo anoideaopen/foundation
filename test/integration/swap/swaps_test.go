@@ -214,7 +214,7 @@ var _ = Describe("Swap Tests", func() {
 			By("emit tokens 1000")
 			client.TxInvokeWithSign(network, peer, network.Orderers[0],
 				cmn.ChannelFiat, cmn.ChannelFiat, admin,
-				"emit", "", client.NewNonceByTime().Get(), user1.AddressBase58Check, swapAmount)
+				"emit", "", client.NewNonceByTime().Get(), nil, user1.AddressBase58Check, swapAmount)
 
 			By("emit check")
 			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
@@ -227,7 +227,7 @@ var _ = Describe("Swap Tests", func() {
 			By("swap begin")
 			swapBeginTxID := client.TxInvokeWithSign(network, peer, network.Orderers[0],
 				cmn.ChannelFiat, cmn.ChannelFiat, user1,
-				"swapBegin", "", client.NewNonceByTime().Get(),
+				"swapBegin", "", client.NewNonceByTime().Get(), nil,
 				"FIAT", "CC", swapAmount, defaultSwapHash)
 			Expect(swapBeginTxID).ToNot(BeEmpty())
 
@@ -272,7 +272,7 @@ var _ = Describe("Swap Tests", func() {
 			By("swap begin")
 			swapBeginTxID = client.TxInvokeWithSign(network, peer, network.Orderers[0],
 				cmn.ChannelCC, cmn.ChannelCC, user1,
-				"swapBegin", "", client.NewNonceByTime().Get(),
+				"swapBegin", "", client.NewNonceByTime().Get(), nil,
 				"FIAT", "FIAT", swapAmount, defaultSwapHash)
 			Expect(swapBeginTxID).ToNot(BeEmpty())
 
@@ -312,7 +312,7 @@ var _ = Describe("Swap Tests", func() {
 			By("swap begin")
 			swapBeginTxID := client.TxInvokeWithSign(network, peer, network.Orderers[0],
 				cmn.ChannelFiat, cmn.ChannelFiat, user1,
-				"swapBegin", "", client.NewNonceByTime().Get(),
+				"swapBegin", "", client.NewNonceByTime().Get(), nil,
 				"FIAT", "CC", swapAmount, defaultSwapHash)
 			Expect(swapBeginTxID).ToNot(BeEmpty())
 
@@ -341,13 +341,13 @@ var _ = Describe("Swap Tests", func() {
 			By("swap cancel on channel cc")
 			client.TxInvokeWithSign(network, peer, network.Orderers[0],
 				cmn.ChannelCC, cmn.ChannelCC, user1,
-				"swapCancel", "", client.NewNonceByTime().Get(),
+				"swapCancel", "", client.NewNonceByTime().Get(), nil,
 				swapBeginTxID)
 
 			By("swap cancel on channel fiat")
 			client.TxInvokeWithSign(network, peer, network.Orderers[0],
 				cmn.ChannelFiat, cmn.ChannelFiat, user1,
-				"swapCancel", "", client.NewNonceByTime().Get(),
+				"swapCancel", "", client.NewNonceByTime().Get(), nil,
 				swapBeginTxID)
 
 			By("check balance 2")
@@ -382,7 +382,7 @@ var _ = Describe("Swap Tests", func() {
 			By("emit tokens 1000")
 			client.TxInvokeWithSign(network, peer, network.Orderers[0],
 				cmn.ChannelFiat, cmn.ChannelFiat, admin,
-				"emit", "", client.NewNonceByTime().Get(), user1.AddressBase58Check, swapAmount)
+				"emit", "", client.NewNonceByTime().Get(), nil, user1.AddressBase58Check, swapAmount)
 
 			By("emit check")
 			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
@@ -404,7 +404,7 @@ var _ = Describe("Swap Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 			swapBeginTxID := client.TxInvokeWithSign(network, peer, network.Orderers[0],
 				cmn.ChannelFiat, cmn.ChannelFiat, user1,
-				"multiSwapBegin", "", client.NewNonceByTime().Get(),
+				"multiSwapBegin", "", client.NewNonceByTime().Get(), nil,
 				"FIAT", string(assets), "CC", defaultSwapHash)
 			Expect(swapBeginTxID).ToNot(BeEmpty())
 
@@ -449,7 +449,7 @@ var _ = Describe("Swap Tests", func() {
 			By("multiswap begin")
 			swapBeginTxID = client.TxInvokeWithSign(network, peer, network.Orderers[0],
 				cmn.ChannelCC, cmn.ChannelCC, user1,
-				"multiSwapBegin", "", client.NewNonceByTime().Get(),
+				"multiSwapBegin", "", client.NewNonceByTime().Get(), nil,
 				"FIAT", string(assets), "FIAT", defaultSwapHash)
 			Expect(swapBeginTxID).ToNot(BeEmpty())
 
