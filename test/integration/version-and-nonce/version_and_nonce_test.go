@@ -2,6 +2,7 @@ package version_and_nonce
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime/debug"
@@ -307,14 +308,14 @@ var _ = Describe("Version and Nonce Tests", func() {
 			"emit", "", nonce2, user1.AddressBase58Check, emitAmount)
 
 		By("emit tokens 3")
-		client.TxInvokeWithSign(network, peer, network.Orderers[0],
+		client.TxInvokeWithSignErrorReturned(network, peer, network.Orderers[0],
 			cmn.ChannelFiat, cmn.ChannelFiat, admin,
-			"emit", "", nonce1, user1.AddressBase58Check, emitAmount)
+			"emit", "", nonce1, fmt.Sprintf("function and args loading error: incorrect nonce %s, less than %s", nonce1, nonce3), user1.AddressBase58Check, emitAmount)
 
 		By("emit tokens 4")
-		client.TxInvokeWithSign(network, peer, network.Orderers[0],
+		client.TxInvokeWithSignErrorReturned(network, peer, network.Orderers[0],
 			cmn.ChannelFiat, cmn.ChannelFiat, admin,
-			"emit", "", nonce3, user1.AddressBase58Check, emitAmount)
+			"emit", "", nonce3, fmt.Sprintf("function and args loading error: nonce %s already exists", nonce3), user1.AddressBase58Check, emitAmount)
 
 		By("emit tokens 5")
 		client.TxInvokeWithSign(network, peer, network.Orderers[0],
