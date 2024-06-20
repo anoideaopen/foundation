@@ -6,7 +6,7 @@ import (
 	"math/big"
 
 	"github.com/anoideaopen/foundation/core/balance"
-	"github.com/anoideaopen/foundation/core/grpc/svccontext"
+	"github.com/anoideaopen/foundation/core/grpc/grpcctx"
 	"github.com/anoideaopen/foundation/test/unit/service"
 	"github.com/anoideaopen/foundation/token"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -21,19 +21,19 @@ func (b *Balance) AddBalanceByAdmin(
 	ctx context.Context,
 	req *service.BalanceAdjustmentRequest,
 ) (*emptypb.Empty, error) {
-	if svccontext.Sender(ctx) == "" {
+	if grpcctx.Sender(ctx) == "" {
 		return nil, errors.New("unauthorized")
 	}
 
-	if svccontext.Stub(ctx) == nil {
+	if grpcctx.Stub(ctx) == nil {
 		return nil, errors.New("stub is nil")
 	}
 
-	value, _ := big.NewInt(0).SetString(req.Amount.Value, 10)
+	value, _ := big.NewInt(0).SetString(req.GetAmount().GetValue(), 10)
 	return &emptypb.Empty{}, balance.Add(
-		svccontext.Stub(ctx),
+		grpcctx.Stub(ctx),
 		balance.BalanceTypeToken,
-		req.Address.Address,
+		req.GetAddress().GetAddress(),
 		"",
 		value,
 	)

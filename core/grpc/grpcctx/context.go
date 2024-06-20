@@ -1,4 +1,4 @@
-package svccontext
+package grpcctx
 
 import (
 	"context"

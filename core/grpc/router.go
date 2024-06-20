@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/anoideaopen/foundation/core/contract"
-	grpcctx "github.com/anoideaopen/foundation/core/grpc/svccontext"
+	"github.com/anoideaopen/foundation/core/grpc/grpcctx"
 	"github.com/anoideaopen/foundation/core/stringsx"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -204,20 +204,20 @@ func (r *Router) Check(method string, args ...string) error {
 		) (resp any, err error) {
 			if validator, ok := req.(contract.Validator); ok {
 				if err := validator.Validate(); err != nil {
-					return nil, err
+					return resp, err
 				}
 			}
 
 			stubGetter, ok := h.service.(contract.StubGetSetter)
 			if !ok {
-				return nil, nil
+				return resp, nil
 			}
 
 			if validator, ok := h.service.(contract.ValidatorWithStub); ok {
-				return nil, validator.ValidateWithStub(stubGetter.GetStub())
+				return resp, validator.ValidateWithStub(stubGetter.GetStub())
 			}
 
-			return nil, nil
+			return resp, nil
 		},
 	)
 
@@ -273,7 +273,6 @@ func (r *Router) Invoke(method string, args ...string) ([]byte, error) {
 		},
 		nil,
 	)
-
 	if err != nil {
 		return nil, err
 	}
