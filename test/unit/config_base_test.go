@@ -3,9 +3,11 @@ package unit
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/anoideaopen/foundation/core"
+	"github.com/anoideaopen/foundation/core/config"
 	"github.com/anoideaopen/foundation/core/contract"
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/mock"
@@ -121,6 +123,136 @@ func TestInitWithCommonConfig(t *testing.T) {
 		require.Equal(t, ttName, cfg.Token.Name)
 		require.Equal(t, ttDecimals, cfg.Token.Decimals)
 		require.Equal(t, issuer.Address(), cfg.Token.Issuer.Address)
+	})
+}
+
+func TestWithConfigMapperFunc(t *testing.T) {
+	t.Parallel()
+
+	ledgerMock := mock.NewLedger(t)
+	user1 := ledgerMock.NewWallet()
+	issuer := ledgerMock.NewWallet()
+
+	ttName, ttSymbol, ttDecimals := "test token", "TT", uint32(8)
+	step(t, "Init new chaincode", false, func() {
+		initArgs := []string{
+			"",                            // PlatformSKI (backend) - deprecated
+			fixtures_test.RobotHashedCert, // RobotSKI
+			issuer.Address(),              // IssuerAddress
+			fixtures_test.AdminAddr,       // AdminAddress
+		}
+		message := ledgerMock.NewCCArgsArr("tt", &TestConfigToken{}, initArgs, core.WithConfigMapperFunc(
+			func(args []string) (*proto.Config, error) {
+				const requiredArgsCount = 4
+
+				if len(args) != requiredArgsCount {
+					return nil, fmt.Errorf(
+						"required args length '%s' is '%d', passed %d",
+						ttSymbol,
+						requiredArgsCount,
+						len(args),
+					)
+				}
+
+				_ = args[0] // PlatformSKI (backend) - deprecated
+
+				robotSKI := args[1]
+				if robotSKI == "" {
+					return nil, fmt.Errorf("robot ski is empty")
+				}
+
+				issuerAddress := args[2]
+				if issuerAddress == "" {
+					return nil, fmt.Errorf("issuer address is empty")
+				}
+
+				adminAddress := args[3]
+				if adminAddress == "" {
+					return nil, fmt.Errorf("admin address is empty")
+				}
+
+				cfgEtl := &proto.Config{
+					Contract: &proto.ContractConfig{
+						Symbol: ttSymbol,
+						Options: &proto.ChaincodeOptions{
+							DisableMultiSwaps: true,
+						},
+						RobotSKI: robotSKI,
+						Admin:    &proto.Wallet{Address: adminAddress},
+					},
+					Token: &proto.TokenConfig{
+						Name:     ttName,
+						Decimals: ttDecimals,
+						Issuer:   &proto.Wallet{Address: issuerAddress},
+					},
+				}
+
+				return cfgEtl, nil
+			}),
+		)
+		require.Empty(t, message)
+	})
+
+	var cfg proto.Config
+	step(t, "Fetch config", false, func() {
+		data := user1.Invoke("tt", "config")
+		require.NotEmpty(t, data)
+
+		err := json.Unmarshal([]byte(data), &cfg)
+		require.NoError(t, err)
+	})
+
+	step(t, "Validate contract config", false, func() {
+		require.Equal(t, ttSymbol, cfg.Contract.Symbol)
+		require.Equal(t, fixtures_test.RobotHashedCert, cfg.Contract.RobotSKI)
+		require.Equal(t, false, cfg.Contract.Options.DisableSwaps)
+		require.Equal(t, true, cfg.Contract.Options.DisableMultiSwaps)
+	})
+
+	step(t, "Validate token config", false, func() {
+		require.Equal(t, ttName, cfg.Token.Name)
+		require.Equal(t, ttDecimals, cfg.Token.Decimals)
+		require.Equal(t, issuer.Address(), cfg.Token.Issuer.Address)
+	})
+}
+
+func TestWithConfigMapperFuncFromArgs(t *testing.T) {
+	t.Parallel()
+
+	ledgerMock := mock.NewLedger(t)
+	user1 := ledgerMock.NewWallet()
+	issuer := ledgerMock.NewWallet()
+
+	ttSymbol := "tt"
+	step(t, "Init new chaincode", false, func() {
+		initArgs := []string{
+			"",                            // PlatformSKI (backend) - deprecated
+			fixtures_test.RobotHashedCert, // RobotSKI
+			issuer.Address(),              // IssuerAddress
+			fixtures_test.AdminAddr,       // AdminAddress
+		}
+		message := ledgerMock.NewCCArgsArr(ttSymbol, &TestConfigToken{}, initArgs, core.WithConfigMapperFunc(
+			func(args []string) (*proto.Config, error) {
+				return config.FromArgsWithIssuerAndAdmin(ttSymbol, args)
+			}),
+		)
+		require.Empty(t, message)
+	})
+
+	var cfg proto.Config
+	step(t, "Fetch config", false, func() {
+		data := user1.Invoke("tt", "config")
+		require.NotEmpty(t, data)
+
+		err := json.Unmarshal([]byte(data), &cfg)
+		require.NoError(t, err)
+	})
+
+	step(t, "Validate contract config", false, func() {
+		require.Equal(t, strings.ToUpper(ttSymbol), cfg.Contract.Symbol)
+		require.Equal(t, fixtures_test.RobotHashedCert, cfg.Contract.RobotSKI)
+		require.Equal(t, false, cfg.Contract.Options.DisableSwaps)
+		require.Equal(t, false, cfg.Contract.Options.DisableMultiSwaps)
 	})
 }
 

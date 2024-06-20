@@ -2,7 +2,6 @@ package core
 
 import (
 	"crypto/ecdsa"
-	"crypto/elliptic"
 	"errors"
 	"fmt"
 	"math/big"
@@ -16,6 +15,7 @@ import (
 	pb "github.com/anoideaopen/foundation/proto"
 	"github.com/btcsuite/btcutil/base58"
 	"github.com/ddulesov/gogost/gost3410"
+	eth "github.com/ethereum/go-ethereum/crypto"
 	"github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/hyperledger/fabric-chaincode-go/shim"
 	"github.com/hyperledger/fabric-protos-go/peer"
@@ -134,16 +134,19 @@ func validateSignaturesInInvocation(
 			signature = base58.Decode(invocation.signatureArgs[i+invocation.signersCount])
 		)
 
-		// Verify the signature ED25519, ECDSA or GOST 34.10 2012
+		// Verify the signature ED25519, SECP256K1 or GOST 34.10 2012
 		valid := false
 		switch invocation.keyTypes[i] {
-		case pb.KeyType_ecdsa:
+		case pb.KeyType_secp256k1:
 			if digestSHA3 == nil {
 				digestSHA3Raw := sha3.Sum256(message)
 				digestSHA3 = digestSHA3Raw[:]
 			}
+			if publicKey[0] == 0x04 {
+				publicKey = publicKey[1:]
+			}
 			ecdsaKey := &ecdsa.PublicKey{
-				Curve: elliptic.P256(),
+				Curve: eth.S256(),
 				X:     new(big.Int).SetBytes(publicKey[:32]),
 				Y:     new(big.Int).SetBytes(publicKey[32:]),
 			}

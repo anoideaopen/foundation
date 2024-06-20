@@ -3,10 +3,24 @@ package contract
 import (
 	"fmt"
 
-	"github.com/anoideaopen/foundation/internal/config"
+	"github.com/anoideaopen/foundation/core/config"
 	"github.com/anoideaopen/foundation/proto"
 	"github.com/hyperledger/fabric-chaincode-go/shim"
 )
+
+// ConfigMapper defines a method for mapping Init arguments to a Config instance.
+type ConfigMapper interface {
+	// MapConfig maps the provided arguments to a proto.Config instance.
+	MapConfig(args []string) (*proto.Config, error)
+}
+
+// ConfigMapperFunc is a function type that implements the ConfigMapper interface.
+type ConfigMapperFunc func(args []string) (*proto.Config, error)
+
+// MapConfig calls the underlying function to map the provided arguments to a proto.Config instance.
+func (c ConfigMapperFunc) MapConfig(args []string) (*proto.Config, error) {
+	return c(args)
+}
 
 // Configurator defines methods for validating, applying, and retrieving contract configuration.
 type Configurator interface {
@@ -72,26 +86,17 @@ func Configure(contract Base, stub shim.ChaincodeStubInterface, rawCfg []byte) e
 		return nil
 	}
 
-	contractCfg, err := config.ContractConfigFromBytes(rawCfg)
+	cfg, err := config.FromBytes(rawCfg)
 	if err != nil {
-		return fmt.Errorf("parsing contract config: %w", err)
+		return fmt.Errorf("parsing config: %w", err)
 	}
 
-	if contractCfg.GetOptions() == nil {
-		contractCfg.Options = new(proto.ChaincodeOptions)
-	}
-
-	if err = contract.ApplyContractConfig(contractCfg); err != nil {
+	if err = contract.ApplyContractConfig(cfg.GetContract()); err != nil {
 		return fmt.Errorf("applying contract config: %w", err)
 	}
 
 	if tc, ok := contract.(TokenConfigurator); ok {
-		tokenCfg, err := config.TokenConfigFromBytes(rawCfg)
-		if err != nil {
-			return fmt.Errorf("parsing token config: %w", err)
-		}
-
-		if err = tc.ApplyTokenConfig(tokenCfg); err != nil {
+		if err = tc.ApplyTokenConfig(cfg.GetToken()); err != nil {
 			return fmt.Errorf("applying token config: %w", err)
 		}
 	}

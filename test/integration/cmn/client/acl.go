@@ -15,12 +15,26 @@ import (
 	"github.com/onsi/gomega/gexec"
 )
 
-func AddUser(network *nwo.Network, peer *nwo.Peer, orderer *nwo.Orderer, user *UserFoundation) {
+func AddUser(
+	network *nwo.Network,
+	peer *nwo.Peer,
+	orderer *nwo.Orderer,
+	user *UserFoundation,
+) {
 	sess, err := network.PeerUserSession(peer, "User1", commands.ChaincodeInvoke{
 		ChannelID: cmn.ChannelAcl,
 		Orderer:   network.OrdererAddress(orderer, nwo.ListenPort),
 		Name:      cmn.ChannelAcl,
-		Ctor:      cmn.CtorFromSlice([]string{"addUser", user.PublicKeyBase58, "test", user.UserID, "true"}),
+		Ctor: cmn.CtorFromSlice(
+			[]string{
+				"addUserWithPublicKeyType",
+				user.PublicKeyBase58,
+				"test",
+				user.UserID,
+				"true",
+				user.PublicKeyType,
+			},
+		),
 		PeerAddresses: []string{
 			network.PeerAddress(network.Peer("Org1", "peer0"), nwo.ListenPort),
 			network.PeerAddress(network.Peer("Org2", "peer0"), nwo.ListenPort),

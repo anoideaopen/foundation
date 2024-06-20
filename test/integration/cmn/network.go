@@ -226,14 +226,14 @@ func (n *NetworkFoundation) ChannelTransferGRPCAddress() string {
 	return net.JoinHostPort(host, port)
 }
 
-// ChannelTransferHTTPAddress returns channel transfer GRPC host & port as a string
+// ChannelTransferHTTPAddress returns channel transfer HTTP host & port as a string
 func (n *NetworkFoundation) ChannelTransferHTTPAddress() string {
 	host := n.channelTransferHost()
 	port := n.ChannelTransferPort(HttpPort)
 	return net.JoinHostPort(host, port)
 }
 
-// ChannelTransferAccessToken returns Channel Transfer GRPC port
+// ChannelTransferAccessToken returns Channel Transfer access token
 func (n *NetworkFoundation) ChannelTransferAccessToken() string {
 	token := n.ChannelTransfer.AccessToken
 	Expect(token).NotTo(BeNil())

@@ -1,6 +1,7 @@
-package general
+package basic
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"syscall"
@@ -13,18 +14,16 @@ import (
 	"github.com/anoideaopen/foundation/test/integration/cmn/runner"
 	docker "github.com/fsouza/go-dockerclient"
 	"github.com/hyperledger/fabric/integration/nwo"
-	"github.com/hyperledger/fabric/integration/nwo/commands"
 	"github.com/hyperledger/fabric/integration/nwo/fabricconfig"
 	runnerFbk "github.com/hyperledger/fabric/integration/nwo/runner"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gbytes"
-	"github.com/onsi/gomega/gexec"
 	"github.com/tedsuo/ifrit"
 	ginkgomon "github.com/tedsuo/ifrit/ginkgomon_v2"
 )
 
-var _ = Describe("Basic foundation Tests", func() {
+var _ = Describe("Basic foundation tests with different key types", func() {
 	var (
 		testDir          string
 		cli              *docker.Client
@@ -64,94 +63,6 @@ var _ = Describe("Basic foundation Tests", func() {
 		}
 		err := os.RemoveAll(testDir)
 		Expect(err).NotTo(HaveOccurred())
-	})
-
-	Describe("smartbft standart test", func() {
-		It("smartbft multiple nodes stop start all nodes", func() {
-			networkConfig := nwo.MultiNodeSmartBFT()
-			networkConfig.Channels = nil
-			channel := "testchannel1"
-
-			network = nwo.New(networkConfig, testDir, cli, StartPort(), components)
-			cwd, err := os.Getwd()
-			Expect(err).NotTo(HaveOccurred())
-			network.ExternalBuilders = append(network.ExternalBuilders,
-				fabricconfig.ExternalBuilder{
-					Path:                 filepath.Join(cwd, ".", "externalbuilders", "binary"),
-					Name:                 "binary",
-					PropagateEnvironment: []string{"GOPROXY"},
-				})
-
-			network.GenerateConfigTree()
-			network.Bootstrap()
-
-			var ordererRunners []*ginkgomon.Runner
-			for _, orderer := range network.Orderers {
-				runner := network.OrdererRunner(orderer)
-				runner.Command.Env = append(runner.Command.Env, "FABRIC_LOGGING_SPEC=orderer.consensus.smartbft=debug:grpc=debug")
-				ordererRunners = append(ordererRunners, runner)
-				proc := ifrit.Invoke(runner)
-				ordererProcesses = append(ordererProcesses, proc)
-				Eventually(proc.Ready(), network.EventuallyTimeout).Should(BeClosed())
-			}
-
-			peerGroupRunner, _ := fabricnetwork.PeerGroupRunners(network)
-			peerProcesses = ifrit.Invoke(peerGroupRunner)
-			Eventually(peerProcesses.Ready(), network.EventuallyTimeout).Should(BeClosed())
-			peer := network.Peer("Org1", "peer0")
-
-			fabricnetwork.JoinChannel(network, channel)
-
-			By("Waiting for followers to see the leader")
-			Eventually(ordererRunners[1].Err(), network.EventuallyTimeout, time.Second).Should(gbytes.Say("Message from 1"))
-			Eventually(ordererRunners[2].Err(), network.EventuallyTimeout, time.Second).Should(gbytes.Say("Message from 1"))
-			Eventually(ordererRunners[3].Err(), network.EventuallyTimeout, time.Second).Should(gbytes.Say("Message from 1"))
-
-			By("Joining peers to testchannel1")
-			network.JoinChannel(channel, network.Orderers[0], network.PeersWithChannel(channel)...)
-
-			By("Deploying chaincode")
-			fabricnetwork.DeployChaincodeFn(components, network, channel, testDir)
-
-			By("querying the chaincode")
-			sess, err := network.PeerUserSession(peer, "User1", commands.ChaincodeQuery{
-				ChannelID: channel,
-				Name:      "mycc",
-				Ctor:      cmn.CtorFromSlice([]string{"query", "a"}),
-			})
-			Expect(err).NotTo(HaveOccurred())
-			Eventually(sess, network.EventuallyTimeout).Should(gexec.Exit(0))
-			Expect(sess).To(gbytes.Say("100"))
-
-			By("invoking the chaincode")
-			fabricnetwork.InvokeQuery(network, peer, network.Orderers[1], channel, 90)
-
-			By("Taking down all the orderers")
-			for _, proc := range ordererProcesses {
-				proc.Signal(syscall.SIGTERM)
-				Eventually(proc.Wait(), network.EventuallyTimeout).Should(Receive())
-			}
-
-			ordererRunners = nil
-			ordererProcesses = nil
-			By("Bringing up all the nodes")
-			for _, orderer := range network.Orderers {
-				runner := network.OrdererRunner(orderer)
-				runner.Command.Env = append(runner.Command.Env, "FABRIC_LOGGING_SPEC=orderer.consensus.smartbft=debug:grpc=debug")
-				ordererRunners = append(ordererRunners, runner)
-				proc := ifrit.Invoke(runner)
-				ordererProcesses = append(ordererProcesses, proc)
-				Eventually(proc.Ready(), network.EventuallyTimeout).Should(BeClosed())
-			}
-
-			By("Waiting for followers to see the leader, again")
-			Eventually(ordererRunners[1].Err(), network.EventuallyTimeout, time.Second).Should(gbytes.Say("Message from 1 channel=testchannel1"))
-			Eventually(ordererRunners[2].Err(), network.EventuallyTimeout, time.Second).Should(gbytes.Say("Message from 1 channel=testchannel1"))
-			Eventually(ordererRunners[3].Err(), network.EventuallyTimeout, time.Second).Should(gbytes.Say("Message from 1 channel=testchannel1"))
-
-			By("invoking the chaincode, again")
-			fabricnetwork.InvokeQuery(network, peer, network.Orderers[2], channel, 80)
-		})
 	})
 
 	Describe("foundation test", func() {
@@ -253,11 +164,11 @@ var _ = Describe("Basic foundation Tests", func() {
 			skiRobot, err = cmn.ReadSKI(pathToPrivateKeyRobot)
 			Expect(err).NotTo(HaveOccurred())
 
-			admin = client.NewUserFoundation(pbfound.KeyType_ed25519.String())
+			admin = client.NewUserFoundation(pbfound.KeyType_secp256k1.String())
 			Expect(admin.PrivateKeyBytes).NotTo(Equal(nil))
 			feeSetter = client.NewUserFoundation(pbfound.KeyType_ed25519.String())
 			Expect(feeSetter.PrivateKeyBytes).NotTo(Equal(nil))
-			feeAddressSetter = client.NewUserFoundation(pbfound.KeyType_ed25519.String())
+			feeAddressSetter = client.NewUserFoundation(pbfound.KeyType_secp256k1.String())
 			Expect(feeAddressSetter.PrivateKeyBytes).NotTo(Equal(nil))
 
 			cmn.DeployACL(network, components, peer, testDir, skiBackend, admin.PublicKeyBase58, admin.PublicKeyType)
@@ -281,24 +192,58 @@ var _ = Describe("Basic foundation Tests", func() {
 			}
 		})
 
-		It("example test", func() {
+		It("transfer", func() {
+			By("create users")
+			user1 := client.NewUserFoundation(pbfound.KeyType_ed25519.String())
+			user2 := client.NewUserFoundation(pbfound.KeyType_secp256k1.String())
+
+			By("add users to acl")
+			client.AddUser(network, peer, network.Orderers[0], user1)
+			client.AddUser(network, peer, network.Orderers[0], user2)
+
 			By("add admin to acl")
 			client.AddUser(network, peer, network.Orderers[0], admin)
 
-			By("add user to acl")
-			user1 := client.NewUserFoundation(pbfound.KeyType_ed25519.String())
-			client.AddUser(network, peer, network.Orderers[0], user1)
-
 			By("emit tokens")
-			emitAmount := "1"
+			amount := "1"
 			client.TxInvokeWithSign(network, peer, network.Orderers[0],
 				cmn.ChannelFiat, cmn.ChannelFiat, admin,
-				"emit", "", client.NewNonceByTime().Get(), user1.AddressBase58Check, emitAmount)
+				"emit", "", client.NewNonceByTime().Get(), user1.AddressBase58Check, amount)
 
 			By("emit check")
 			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
-				fabricnetwork.CheckResult(fabricnetwork.CheckBalance(emitAmount), nil),
+				fabricnetwork.CheckResult(fabricnetwork.CheckBalance(amount), nil),
 				"balanceOf", user1.AddressBase58Check)
+
+			By("get transfer fee from user1 to user2")
+			req := FeeTransferRequestDTO{
+				SenderAddress:    user1.AddressBase58Check,
+				RecipientAddress: user2.AddressBase58Check,
+				Amount:           amount,
+			}
+			bytes, err := json.Marshal(req)
+			Expect(err).NotTo(HaveOccurred())
+			fErr := func(out []byte) string {
+				Expect(gbytes.BufferWithBytes(out)).To(gbytes.Say("fee address is not set in token config"))
+				return ""
+			}
+			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat, fabricnetwork.CheckResult(nil, fErr),
+				"getFeeTransfer", string(bytes))
+
+			By("transfer tokens from user1 to user2")
+			client.TxInvokeWithSign(network, peer, network.Orderers[0],
+				cmn.ChannelFiat, cmn.ChannelFiat, user1, "transfer", "",
+				client.NewNonceByTime().Get(), user2.AddressBase58Check, amount, "ref transfer")
+
+			By("check balance user1")
+			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
+				fabricnetwork.CheckResult(fabricnetwork.CheckBalance("0"), nil),
+				"balanceOf", user1.AddressBase58Check)
+
+			By("check balance user2")
+			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
+				fabricnetwork.CheckResult(fabricnetwork.CheckBalance(amount), nil),
+				"balanceOf", user2.AddressBase58Check)
 		})
 	})
 })
