@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package foundation;
+
+option go_package = "github.com/anoideaopen/foundation/core/grpc";
+
+import "google/protobuf/descriptor.proto";
+
+// Define enum for method type.
+enum MethodType {
+    METHOD_TYPE_TRANSACTION = 0;
+    METHOD_TYPE_INVOKE      = 1;
+    METHOD_TYPE_QUERY       = 2;
+}
+
+// Define enum for method authorization.
+enum AuthType {
+    AUTH_TYPE_DEFAULT  = 0;
+    AUTH_TYPE_ENABLED  = 1;
+    AUTH_TYPE_DISABLED = 2;
+}
+
+// Define custom extensions for methods.
+extend google.protobuf.MethodOptions {
+    MethodType method_type = 50001;
+    AuthType auth_type     = 50002;
+}
