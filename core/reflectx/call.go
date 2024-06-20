@@ -15,9 +15,7 @@ var (
 
 // Call invokes a specified method on a given value using reflection. The method to be invoked is identified by its name.
 // It checks whether the specified method exists on the value 'v' and if the number of provided arguments matches the
-// method's expected input parameters. If the method is found and the arguments match, it attempts to convert
-// the string arguments into the method's expected argument types using various unmarshalers or decoders, such as JSON,
-// proto.Message, encoding.TextUnmarshaler, encoding.BinaryUnmarshaler, and gob.GobDecoder.
+// method's expected input parameters.
 //
 // The process follows these steps:
 //  1. Check if the input string arguments are valid JSON; if so, attempt to unmarshal into the expected types.

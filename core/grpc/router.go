@@ -230,8 +230,7 @@ func (r *Router) Check(method string, args ...string) error {
 //   - args: The arguments to pass to the method.
 //
 // Returns:
-//   - []byte: A slice of bytes (JSON) representing the return values.
-//     If the method returns BytesEncoder, it will be encoded to bytes with EncodeToBytes.
+//   - []byte: A slice of bytes (protojson JSON) representing the return values.
 //   - error: An error if the invocation fails.
 func (r *Router) Invoke(method string, args ...string) ([]byte, error) {
 	h, ok := r.handlers[method]
