@@ -215,7 +215,9 @@ func invokeTx(network *nwo.Network, peer *nwo.Peer, orderer *nwo.Orderer, userOr
 								Expect(r.Error).NotTo(BeNil())
 								res := checkErr(nil, 1, []byte(r.Error.Error), nil)
 								Expect(res).Should(BeEmpty())
+								return
 							}
+							Expect(r.Error).To(BeNil())
 							return
 						}
 					}
