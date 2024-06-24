@@ -636,9 +636,9 @@ func (cc *Chaincode) Invoke(stub shim.ChaincodeStubInterface) (r peer.Response) 
 			opts             = cfg.GetContract().GetOptions()
 		)
 
-		if stringsx.OneOf(method, opts.DisabledFunctions...) ||
-			(opts.DisableSwaps && stringsx.OneOf(method, swapMethods...)) ||
-			(opts.DisableMultiSwaps && stringsx.OneOf(method, multiSwapMethods...)) {
+		if stringsx.OneOf(method, opts.GetDisabledFunctions()...) ||
+			(opts.GetDisableSwaps() && stringsx.OneOf(method, swapMethods...)) ||
+			(opts.GetDisableMultiSwaps() && stringsx.OneOf(method, multiSwapMethods...)) {
 			return shim.Error(fmt.Sprintf("invoke: finding method: method '%s' not found", functionName))
 		}
 	}
