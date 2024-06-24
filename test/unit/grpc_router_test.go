@@ -67,7 +67,7 @@ func TestGRPCRouter(t *testing.T) {
 	user1.BalanceShouldBe("cc", 1000)
 
 	// Add balance by admin with override function name.
-	owner.SignedInvoke("cc", "CustomAddBalance", string(rawJSON))
+	_, _ = owner.NbInvoke("cc", "CustomAddBalance", string(rawJSON))
 	user1.BalanceShouldBe("cc", 2000)
 }
 
