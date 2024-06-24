@@ -281,6 +281,11 @@ func (bc *BaseContract) SetIsService() {
 	bc.isService = true
 }
 
+// IsService returns true if chaincode runs as a service
+func (bc *BaseContract) IsService() bool {
+	return bc.isService
+}
+
 // setupTracing lazy telemetry tracing setup.
 func (bc *BaseContract) setupTracing() {
 	serviceName := "chaincode-" + bc.GetID()
@@ -352,4 +357,6 @@ type BaseContractInterface interface { //nolint:interfacebloat
 
 	setTracingHandler(th *telemetry.TracingHandler)
 	TracingHandler() *telemetry.TracingHandler
+
+	IsService() bool
 }
