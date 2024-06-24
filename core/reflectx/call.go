@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+
+	"github.com/hyperledger/fabric-chaincode-go/shim"
 )
 
 // Error types.
@@ -29,6 +31,7 @@ var (
 // Parameters:
 //   - v: The value on which the method is to be invoked.
 //   - method: The name of the method to invoke.
+//   - stub: The ChaincodeStubInterface used for access control checks (optional).
 //   - args: A slice of strings representing the arguments for the method.
 //
 // Returns:
@@ -48,13 +51,13 @@ var (
 //
 //	func main() {
 //	    myInstance := &MyType{}
-//	    output, err := Call(myInstance, "Update", `"New data"`)
+//	    output, err := Call(myInstance, "Update", nil, `"New data"`)
 //	    if err != nil {
 //	        log.Fatalf("Error invoking method: %v", err)
 //	    }
 //	    fmt.Println(output[0]) // Output: Updated data to: New data
 //	}
-func Call(v any, method string, args ...string) ([]any, error) {
+func Call(v any, method string, stub shim.ChaincodeStubInterface, args ...string) ([]any, error) {
 	inputVal := reflect.ValueOf(v)
 
 	methodVal := inputVal.MethodByName(method)
@@ -78,7 +81,7 @@ func Call(v any, method string, args ...string) ([]any, error) {
 		err error
 	)
 	for i, arg := range args {
-		if in[i], err = valueOf(arg, methodType.In(i)); err != nil {
+		if in[i], err = valueOf(arg, methodType.In(i), stub); err != nil {
 			return nil, fmt.Errorf("%w: call %s, argument %d", err, method, i)
 		}
 	}

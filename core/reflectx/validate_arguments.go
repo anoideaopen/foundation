@@ -46,7 +46,7 @@ func ValidateArguments(v any, method string, stub shim.ChaincodeStubInterface, a
 	}
 
 	for i, arg := range args {
-		value, err := valueOf(arg, methodType.In(i))
+		value, err := valueOf(arg, methodType.In(i), stub)
 		if err != nil {
 			return fmt.Errorf("%w: validate %s, argument %d", err, method, i)
 		}

@@ -276,7 +276,7 @@ func TestCall(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			resp, err := Call(input, tt.method, tt.args...)
+			resp, err := Call(input, tt.method, nil, tt.args...)
 			if tt.wantErr {
 				require.Error(t, err)
 			} else {

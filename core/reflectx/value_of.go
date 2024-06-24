@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"reflect"
 	"unicode/utf8"
+
+	"github.com/hyperledger/fabric-chaincode-go/shim"
 )
 
 // valueOf converts a string representation of an argument to a reflect.Value of the specified type.
@@ -22,13 +24,13 @@ import (
 //
 // The function follows these steps:
 //  1. Checks if the target type is a string or a pointer to a string and handles these cases directly.
-//  2. Attempts to unmarshal the string using the codec.BytesDecoder interface if implemented.
+//  2. Attempts to unmarshal the string using the BytesDecoder or StubBytesDecoder code interface if implemented.
 //  3. Attempts to unmarshal the string as JSON if it is valid JSON. Note that simple values such as numbers,
 //     booleans, and null are also valid JSON if they are represented as strings.
 //  4. Attempts to unmarshal the string using the encoding.TextUnmarshaler interface if implemented.
 //  5. Attempts to unmarshal the string using the encoding.BinaryUnmarshaler interface if implemented.
 //  6. Returns an error if none of the above methods succeed.
-func valueOf(s string, t reflect.Type) (reflect.Value, error) {
+func valueOf(s string, t reflect.Type, stub shim.ChaincodeStubInterface) (reflect.Value, error) {
 	argRaw := []byte(s)
 	argPointer := t.Kind() == reflect.Pointer
 
@@ -61,6 +63,12 @@ func valueOf(s string, t reflect.Type) (reflect.Value, error) {
 		}
 
 		return outValue, nil
+	}
+
+	if decoder, ok := argInterface.(StubBytesDecoder); ok && stub != nil {
+		if err := decoder.DecodeFromBytesWithStub(stub, argRaw); err != nil {
+			return outValue, NewValueError(s, t, err)
+		}
 	}
 
 	if json.Valid(argRaw) {

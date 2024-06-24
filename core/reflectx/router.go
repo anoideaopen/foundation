@@ -9,6 +9,7 @@ import (
 	"github.com/anoideaopen/foundation/core/contract"
 	"github.com/anoideaopen/foundation/core/stringsx"
 	"github.com/anoideaopen/foundation/core/types"
+	"github.com/hyperledger/fabric-chaincode-go/shim"
 )
 
 var (
@@ -87,7 +88,12 @@ func (r *Router) Check(method string, args ...string) error {
 //   - []byte: A slice of bytes (JSON) representing the return values.
 //   - error: An error if the invocation fails.
 func (r *Router) Invoke(method string, args ...string) ([]byte, error) {
-	result, err := Call(r.contract, method, args...)
+	var stub shim.ChaincodeStubInterface
+	if stubGetter, ok := r.contract.(contract.StubGetSetter); ok {
+		stub = stubGetter.GetStub()
+	}
+
+	result, err := Call(r.contract, method, stub, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -106,6 +112,9 @@ func (r *Router) Invoke(method string, args ...string) ([]byte, error) {
 	case 1:
 		if encoder, ok := result[0].(BytesEncoder); ok {
 			return encoder.EncodeToBytes()
+		}
+		if encoder, ok := result[0].(StubBytesEncoder); ok {
+			return encoder.EncodeToBytesWithStub(stub)
 		}
 		return json.Marshal(result[0])
 	default:
