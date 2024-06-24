@@ -103,7 +103,6 @@ type chaincodeOptions struct {
 // configuration, and options for transaction processing.
 type Chaincode struct {
 	contract     BaseContractInterface // Contract interface containing the chaincode logic.
-	tls          shim.TLSProperties    // TLS configuration properties.
 	router       contract.Router       // Router for routing contract calls.
 	configMapper contract.ConfigMapper // ConfigMapper maps the arguments to a proto.Config instance.
 }
@@ -371,43 +370,16 @@ func NewCC(
 ) (*Chaincode, error) {
 	empty := new(Chaincode) // Empty chaincode result fixes integration tests.
 
-	// Default TLS properties, disabled unless keys and certs are provided.
-	tlsProps := shim.TLSProperties{
-		Disabled: true,
-	}
-
-	// Try to read TLS configuration from environment variables.
-	key, cert, clientCACerts, err := readTLSConfigFromEnv()
-	if err != nil {
-		return empty, fmt.Errorf("error reading TLS config from environment: %w", err)
-	}
-
-	// If TLS configuration is found in environment variables, use it.
-	if key != nil && cert != nil {
-		tlsProps.Disabled = false
-		tlsProps.Key = key
-		tlsProps.Cert = cert
-		tlsProps.ClientCACerts = clientCACerts
-	}
-
 	// Apply chaincode options provided by the caller.
 	chOpts := chaincodeOptions{}
 	for _, option := range chOptions {
 		if option == nil {
 			continue
 		}
-		err = option(&chOpts)
+		err := option(&chOpts)
 		if err != nil {
 			return empty, fmt.Errorf("reading opts: %w", err)
 		}
-	}
-
-	// If TLS was provided via options, overwrite env vars.
-	if chOpts.TLS != nil {
-		tlsProps.Disabled = false
-		tlsProps.Key = chOpts.TLS.Key
-		tlsProps.Cert = chOpts.TLS.Cert
-		tlsProps.ClientCACerts = chOpts.TLS.ClientCACerts
 	}
 
 	// Initialize the contract.
@@ -416,7 +388,6 @@ func NewCC(
 	// Set up the ChainCode structure.
 	out := &Chaincode{
 		contract:     cc,
-		tls:          tlsProps,
 		configMapper: chOpts.ConfigMapper,
 		router:       chOpts.Router,
 	}
@@ -814,13 +785,39 @@ func (cc *Chaincode) Start() error {
 		port = chaincodeServerDefaultPort
 	}
 
+	tlsProps, err := tlsProperties()
+	if err != nil {
+		return fmt.Errorf("failed obtaining tls properties for chaincode server: %w", err)
+	}
+
 	srv := shim.ChaincodeServer{
 		CCID:     ccID,
 		Address:  fmt.Sprintf("%s:%s", "0.0.0.0", port),
 		CC:       cc,
-		TLSProps: cc.tls,
+		TLSProps: tlsProps,
 	}
 	return srv.Start()
+}
+
+func tlsProperties() (shim.TLSProperties, error) {
+	tlsProps := shim.TLSProperties{
+		Disabled: true,
+	}
+
+	key, cert, clientCACerts, err := readTLSConfigFromEnv()
+	if err != nil {
+		return tlsProps, fmt.Errorf("error reading TLS config from environment: %w", err)
+	}
+
+	// If TLS configuration is found in environment variables, use it.
+	if key != nil && cert != nil {
+		tlsProps.Disabled = false
+		tlsProps.Key = key
+		tlsProps.Cert = cert
+		tlsProps.ClientCACerts = clientCACerts
+	}
+
+	return tlsProps, nil
 }
 
 // readTLSConfigFromEnv tries to read TLS configuration from environment variables.
