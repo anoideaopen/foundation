@@ -69,6 +69,8 @@ func valueOf(s string, t reflect.Type, stub shim.ChaincodeStubInterface) (reflec
 		if err := decoder.DecodeFromBytesWithStub(stub, argRaw); err != nil {
 			return outValue, NewValueError(s, t, err)
 		}
+
+		return outValue, nil
 	}
 
 	if json.Valid(argRaw) {
