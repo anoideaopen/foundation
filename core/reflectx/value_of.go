@@ -10,7 +10,7 @@ import (
 
 // valueOf converts a string representation of an argument to a reflect.Value of the specified type.
 // It attempts to unmarshal the string into the appropriate type using various methods such as JSON,
-// encoding.TextUnmarshaler, encoding.BinaryUnmarshaler, and codec.BytesDecoder.
+// encoding.TextUnmarshaler, encoding.BinaryUnmarshaler and codec.BytesDecoder.
 //
 // Parameters:
 //   - s: The string representation of the argument.

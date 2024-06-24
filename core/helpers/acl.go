@@ -181,8 +181,13 @@ func GetAccountInfo(stub shim.ChaincodeStubInterface, addr string) (*pb.AccountI
 	}, "acl")
 
 	if resp.GetStatus() != http.StatusOK {
-		return nil, errors.New(resp.GetMessage())
+		return nil, fmt.Errorf(
+			"ACL status is not OK: status code: %d, message: %s",
+			resp.GetStatus(),
+			resp.GetMessage(),
+		)
 	}
+
 	if len(resp.GetPayload()) == 0 {
 		return nil, errors.New("empty response")
 	}
@@ -191,5 +196,6 @@ func GetAccountInfo(stub shim.ChaincodeStubInterface, addr string) (*pb.AccountI
 	if err := json.Unmarshal(resp.GetPayload(), &infoMsg); err != nil {
 		return nil, err
 	}
+
 	return &infoMsg, nil
 }

@@ -15,6 +15,7 @@ import (
 	"github.com/anoideaopen/foundation/core/contract"
 	"github.com/anoideaopen/foundation/core/logger"
 	"github.com/anoideaopen/foundation/core/reflectx"
+	"github.com/anoideaopen/foundation/core/stringsx"
 	"github.com/anoideaopen/foundation/core/telemetry"
 	"github.com/anoideaopen/foundation/hlfcreator"
 	"github.com/anoideaopen/foundation/proto"
@@ -128,11 +129,7 @@ func (cc *Chaincode) Router() contract.Router {
 	}
 
 	// Error is checked in Init.
-	cc.router, _ = reflectx.NewRouter(cc.contract, reflectx.RouterConfig{
-		SwapsDisabled:      cc.contract.ContractConfig().GetOptions().GetDisableSwaps(),
-		MultiSwapsDisabled: cc.contract.ContractConfig().GetOptions().GetDisableMultiSwaps(),
-		DisabledMethods:    cc.contract.ContractConfig().GetOptions().GetDisabledFunctions(),
-	})
+	cc.router, _ = reflectx.NewRouter(cc.contract)
 
 	return cc.router
 }
@@ -453,19 +450,8 @@ func (cc *Chaincode) Init(stub shim.ChaincodeStubInterface) peer.Response {
 		return shim.Success(nil)
 	}
 
-	// If the contract does not implement the Router interface, check if it
-	// is possible to create a router based on reflection.
-	cfg, err := config.FromBytes(cfgBytes)
-	if err != nil {
-		return shim.Error("init: unmarshalling config: " + err.Error())
-	}
-
 	// Check for duplicate methods.
-	if _, err = reflectx.NewRouter(cc.contract, reflectx.RouterConfig{
-		SwapsDisabled:      cfg.GetContract().GetOptions().GetDisableSwaps(),
-		MultiSwapsDisabled: cfg.GetContract().GetOptions().GetDisableMultiSwaps(),
-		DisabledMethods:    cfg.GetContract().GetOptions().GetDisabledFunctions(),
-	}); err != nil {
+	if _, err = reflectx.NewRouter(cc.contract); err != nil {
 		return shim.Error("init: validating contract methods: " + err.Error())
 	}
 
@@ -495,6 +481,11 @@ func (cc *Chaincode) Invoke(stub shim.ChaincodeStubInterface) (r peer.Response) 
 	cfgBytes, err := config.Load(stub)
 	if err != nil {
 		return shim.Error("invoke: loading raw config: " + err.Error())
+	}
+
+	cfg, err := config.FromBytes(cfgBytes)
+	if err != nil {
+		return shim.Error(err.Error())
 	}
 
 	// Apply config on all layers: base contract (SKI's & chaincode options),
@@ -574,12 +565,6 @@ func (cc *Chaincode) Invoke(stub shim.ChaincodeStubInterface) (r peer.Response) 
 		CommitCCTransferFrom,
 		CancelCCTransferFrom,
 		DeleteCCTransferFrom:
-		cfg, err := config.FromBytes(cfgBytes)
-		if err != nil {
-			errMsg := "loading base config " + err.Error()
-			span.SetStatus(codes.Error, errMsg)
-			return shim.Error(errMsg)
-		}
 
 		robotSKIBytes, _ := hex.DecodeString(cfg.GetContract().GetRobotSKI())
 		err = hlfcreator.ValidateSKI(robotSKIBytes, creatorSKI, hashedCert)
@@ -612,6 +597,21 @@ func (cc *Chaincode) Invoke(stub shim.ChaincodeStubInterface) (r peer.Response) 
 		errMsg := "invoke: finding method: " + err.Error()
 		span.SetStatus(codes.Error, errMsg)
 		return shim.Error(errMsg)
+	}
+
+	if cfg.GetContract().GetOptions() != nil {
+		var (
+			swapMethods      = []string{"QuerySwapGet", "TxSwapBegin", "TxSwapCancel"}
+			multiSwapMethods = []string{"QueryMultiSwapGet", "TxMultiSwapBegin", "TxMultiSwapCancel"}
+			method           = method.MethodName
+			opts             = cfg.GetContract().GetOptions()
+		)
+
+		if stringsx.OneOf(method, opts.GetDisabledFunctions()...) ||
+			(opts.GetDisableSwaps() && stringsx.OneOf(method, swapMethods...)) ||
+			(opts.GetDisableMultiSwaps() && stringsx.OneOf(method, multiSwapMethods...)) {
+			return shim.Error(fmt.Sprintf("invoke: finding method: method '%s' not found", functionName))
+		}
 	}
 
 	// handle invoke and query methods executed without batch process

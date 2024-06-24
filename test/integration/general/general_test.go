@@ -7,6 +7,7 @@ import (
 	"time"
 
 	pbfound "github.com/anoideaopen/foundation/proto"
+	"github.com/anoideaopen/foundation/test/chaincode/fiat/service"
 	"github.com/anoideaopen/foundation/test/integration/cmn"
 	"github.com/anoideaopen/foundation/test/integration/cmn/client"
 	"github.com/anoideaopen/foundation/test/integration/cmn/fabricnetwork"
@@ -22,6 +23,7 @@ import (
 	"github.com/onsi/gomega/gexec"
 	"github.com/tedsuo/ifrit"
 	ginkgomon "github.com/tedsuo/ifrit/ginkgomon_v2"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 var _ = Describe("Basic foundation Tests", func() {
@@ -298,6 +300,40 @@ var _ = Describe("Basic foundation Tests", func() {
 			By("emit check")
 			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
 				fabricnetwork.CheckResult(fabricnetwork.CheckBalance(emitAmount), nil),
+				"balanceOf", user1.AddressBase58Check)
+
+			By("add balance by admin to user1 (gRPC router)")
+			req := &service.BalanceAdjustmentRequest{
+				Address: &service.Address{
+					Base58Check: user1.AddressBase58Check,
+				},
+				Amount: &service.BigInt{
+					Value: emitAmount,
+				},
+				Reason: "some important reason",
+			}
+			rawReq, _ := protojson.Marshal(req)
+
+			client.NBTxInvokeWithSign(network, peer, network.Orderers[0],
+				func(err error, exitCode int, sessError, sessOut []byte) string {
+					return ""
+				},
+				cmn.ChannelFiat, cmn.ChannelFiat, admin,
+				"CustomAddBalance", "", client.NewNonceByTime().Get(), string(rawReq))
+
+			newBlance := "2"
+			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
+				fabricnetwork.CheckResult(fabricnetwork.CheckBalance(newBlance), nil),
+				"balanceOf", user1.AddressBase58Check)
+
+			By("add balance by admin to user1 with nbtx and custom name (gRPC router)")
+			client.TxInvokeWithSign(network, peer, network.Orderers[0],
+				cmn.ChannelFiat, cmn.ChannelFiat, admin,
+				"addBalanceByAdmin", "", client.NewNonceByTime().Get(), nil, string(rawReq))
+
+			newBlance = "3"
+			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
+				fabricnetwork.CheckResult(fabricnetwork.CheckBalance(newBlance), nil),
 				"balanceOf", user1.AddressBase58Check)
 		})
 	})

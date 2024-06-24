@@ -6,7 +6,7 @@ require (
 	github.com/IBM/idemix v0.0.2-0.20231011101252-a4feda90f3f7
 	github.com/anoideaopen/acl v0.0.2
 	github.com/anoideaopen/channel-transfer v0.0.2-0.20240605150922-e13f00983d0b
-	github.com/anoideaopen/foundation v0.0.2-0.20240611130553-67a5dbb1fa4f
+	github.com/anoideaopen/foundation v0.0.3-0.20240624115045-4a0b8e299724
 	github.com/anoideaopen/robot v0.0.2-0.20240605153321-0e09032227bf
 	github.com/bsm/gomega v1.26.0
 	github.com/btcsuite/btcutil v1.0.3-0.20201208143702-a53e38424cce
@@ -59,7 +59,7 @@ require (
 	github.com/docker/go-connections v0.4.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/dustin/go-humanize v1.0.0 // indirect
-	github.com/envoyproxy/protoc-gen-validate v1.0.2 // indirect
+	github.com/envoyproxy/protoc-gen-validate v1.0.4 // indirect
 	github.com/ethereum/c-kzg-4844 v1.0.2 // indirect
 	github.com/ethereum/go-ethereum v1.14.5 // indirect
 	github.com/felixge/httpsnoop v1.0.3 // indirect
@@ -155,7 +155,7 @@ require (
 	golang.org/x/tools v0.20.0 // indirect
 	google.golang.org/genproto v0.0.0-20231106174013-bbf56f31fb17 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20231106174013-bbf56f31fb17 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20231120223509-83a465c0220f // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20240318140521-94a12d6c2237 // indirect
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
