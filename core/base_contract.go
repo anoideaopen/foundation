@@ -30,6 +30,7 @@ type BaseContract struct {
 	config         *pb.ContractConfig
 	traceCtx       telemetry.TraceContext
 	tracingHandler *telemetry.TracingHandler
+	isService      bool
 }
 
 var _ BaseContractInterface = &BaseContract{}
@@ -273,6 +274,11 @@ func (bc *BaseContract) TracingHandler() *telemetry.TracingHandler {
 	}
 
 	return bc.tracingHandler
+}
+
+// SetIsService sets base contract isService
+func (bc *BaseContract) SetIsService() {
+	bc.isService = true
 }
 
 // setupTracing lazy telemetry tracing setup.
