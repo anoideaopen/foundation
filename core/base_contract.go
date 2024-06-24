@@ -294,11 +294,7 @@ func buildRouter(in contract.Base) (contract.Router, error) {
 		return router, nil
 	}
 
-	return reflectx.NewRouter(in, reflectx.RouterConfig{
-		SwapsDisabled:      in.ContractConfig().GetOptions().GetDisableSwaps(),
-		MultiSwapsDisabled: in.ContractConfig().GetOptions().GetDisableMultiSwaps(),
-		DisabledMethods:    in.ContractConfig().GetOptions().GetDisabledFunctions(),
-	})
+	return reflectx.NewRouter(in)
 }
 
 // BaseContractInterface represents BaseContract interface

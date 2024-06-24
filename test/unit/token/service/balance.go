@@ -1,4 +1,4 @@
-package token
+package service
 
 import (
 	"context"
@@ -6,35 +6,42 @@ import (
 	"math/big"
 
 	"github.com/anoideaopen/foundation/core/balance"
-	"github.com/anoideaopen/foundation/core/grpc/grpcctx"
-	"github.com/anoideaopen/foundation/test/unit/service"
+	"github.com/anoideaopen/foundation/core/grpc"
+	"github.com/anoideaopen/foundation/test/unit/token/proto"
 	"github.com/anoideaopen/foundation/token"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 type Balance struct {
 	token.BaseToken
-	service.UnimplementedBalanceServiceServer
+	proto.UnimplementedBalanceServiceServer
 }
 
 func (b *Balance) AddBalanceByAdmin(
 	ctx context.Context,
-	req *service.BalanceAdjustmentRequest,
+	req *proto.BalanceAdjustmentRequest,
 ) (*emptypb.Empty, error) {
-	if grpcctx.Sender(ctx) == "" {
+	if grpc.SenderFromContext(ctx) == "" {
 		return nil, errors.New("unauthorized")
 	}
 
-	if grpcctx.Stub(ctx) == nil {
+	if grpc.StubFromContext(ctx) == nil {
 		return nil, errors.New("stub is nil")
 	}
 
 	value, _ := big.NewInt(0).SetString(req.GetAmount().GetValue(), 10)
 	return &emptypb.Empty{}, balance.Add(
-		grpcctx.Stub(ctx),
+		grpc.StubFromContext(ctx),
 		balance.BalanceTypeToken,
-		req.GetAddress().GetAddress(),
+		req.GetAddress().GetBase58Check(),
 		"",
 		value,
 	)
+}
+
+func (b *Balance) AddBalanceByAdmin2(
+	ctx context.Context,
+	req *proto.BalanceAdjustmentRequest,
+) (*emptypb.Empty, error) {
+	return b.AddBalanceByAdmin(ctx, req)
 }

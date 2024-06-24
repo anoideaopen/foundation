@@ -10,15 +10,11 @@ import (
 //
 // Parameters:
 // - base: The contract.Base instance to be used by the router.
-// - cfg: The reflectx.RouterConfig instance containing configuration options for the router.
 //
 // Returns:
 // - contract.Router: The newly created contract.Router instance.
-func DefaultReflectxFallback(
-	base contract.Base,
-	cfg reflectx.RouterConfig,
-) contract.Router {
-	router, err := reflectx.NewRouter(base, cfg)
+func DefaultReflectxFallback(base contract.Base) contract.Router {
+	router, err := reflectx.NewRouter(base)
 	if err != nil {
 		panic(err)
 	}

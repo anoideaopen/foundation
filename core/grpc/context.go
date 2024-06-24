@@ -1,4 +1,4 @@
-package grpcctx
+package grpc
 
 import (
 	"context"
@@ -14,13 +14,13 @@ const (
 	senderKey contextKey = "sender"
 )
 
-// WithStub adds a stub to the context.
-func WithStub(parent context.Context, stub shim.ChaincodeStubInterface) context.Context {
+// ContextWithStub adds a stub to the context.
+func ContextWithStub(parent context.Context, stub shim.ChaincodeStubInterface) context.Context {
 	return context.WithValue(parent, stubKey, stub)
 }
 
-// Stub retrieves a stub from the context.
-func Stub(parent context.Context) shim.ChaincodeStubInterface {
+// StubFromContext retrieves a stub from the context.
+func StubFromContext(parent context.Context) shim.ChaincodeStubInterface {
 	stub, ok := parent.Value(stubKey).(shim.ChaincodeStubInterface)
 	if !ok {
 		return nil
@@ -29,13 +29,13 @@ func Stub(parent context.Context) shim.ChaincodeStubInterface {
 	return stub
 }
 
-// WithSender adds a sender to the context.
-func WithSender(parent context.Context, sender string) context.Context {
+// ContextWithSender adds a sender to the context.
+func ContextWithSender(parent context.Context, sender string) context.Context {
 	return context.WithValue(parent, senderKey, sender)
 }
 
-// Sender retrieves a sender from the context.
-func Sender(parent context.Context) string {
+// SenderFromContext retrieves a sender from the context.
+func SenderFromContext(parent context.Context) string {
 	sender, ok := parent.Value(senderKey).(string)
 	if !ok {
 		return ""

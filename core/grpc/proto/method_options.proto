@@ -14,14 +14,15 @@ enum MethodType {
 }
 
 // Define enum for method authorization.
-enum AuthType {
-    AUTH_TYPE_DEFAULT  = 0;
-    AUTH_TYPE_ENABLED  = 1;
-    AUTH_TYPE_DISABLED = 2;
+enum MethodAuth {
+    METHOD_AUTH_DEFAULT  = 0;
+    METHOD_AUTH_ENABLED  = 1;
+    METHOD_AUTH_DISABLED = 2;
 }
 
 // Define custom extensions for methods.
 extend google.protobuf.MethodOptions {
-    MethodType method_type = 50001;
-    AuthType auth_type     = 50002;
+    MethodType method_type       = 50001;
+    MethodAuth method_auth       = 50002;
+    string     contract_function = 50003;
 }

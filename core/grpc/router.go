@@ -4,9 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/anoideaopen/foundation/core/contract"
-	"github.com/anoideaopen/foundation/core/grpc/grpcctx"
 	"github.com/anoideaopen/foundation/core/stringsx"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -28,12 +28,18 @@ var (
 
 // RouterConfig holds configuration options for the Router.
 type RouterConfig struct {
+	// Fallback is the router to use if the method is not defined in the contract.
 	Fallback contract.Router
+
+	// Use URLs instead of contract function names.
+	// Example: /foundationtoken.FiatService/AddBalanceByAdmin instead of addBalanceByAdmin.
+	UseURLs bool
 }
 
 // Router routes method calls to contract methods based on gRPC service description.
 type Router struct {
 	fallback contract.Router
+	useURLs  bool
 
 	methods  map[contract.Function]contract.Method
 	handlers map[methodName]handler
@@ -57,6 +63,7 @@ func NewRouter(cfg RouterConfig) *Router {
 
 	return &Router{
 		fallback: cfg.Fallback,
+		useURLs:  cfg.UseURLs,
 		methods:  methods,
 		handlers: make(map[methodName]handler),
 	}
@@ -90,13 +97,26 @@ func (r *Router) RegisterService(desc *grpc.ServiceDesc, impl any) {
 	}
 
 	for _, method := range desc.Methods {
-		contractFn := stringsx.LowerFirstChar(method.MethodName)
+		md := sd.Methods().ByName(protoreflect.Name(method.MethodName))
+
+		var contractFn string
+		if ext, ok := proto.GetExtension(md.Options(), E_ContractFunction).(string); ok && ext != "" {
+			contractFn = ext
+		} else if r.useURLs {
+			// Example:
+			// "foundationtoken.BalanceService.AddBalanceByAdmin" ->
+			// "/foundationtoken.BalanceService/AddBalanceByAdmin"
+			contractFn = transformMethodName(string(md.FullName()))
+		} else {
+			// Example:
+			// "AddBalanceByAdmin" ->
+			// "addBalanceByAdmin"
+			contractFn = stringsx.LowerFirstChar(method.MethodName)
+		}
 
 		if _, ok := r.methods[contractFn]; ok {
 			panic(fmt.Sprintf("contract function '%s' is already registered", contractFn))
 		}
-
-		md := sd.Methods().ByName(protoreflect.Name(method.MethodName))
 
 		methodType := contract.MethodTypeTransaction
 		if ext, ok := proto.GetExtension(md.Options(), E_MethodType).(MethodType); ok {
@@ -123,12 +143,12 @@ func (r *Router) RegisterService(desc *grpc.ServiceDesc, impl any) {
 			requireAuth = false
 		}
 
-		if ext, ok := proto.GetExtension(md.Options(), E_AuthType).(AuthType); ok {
+		if ext, ok := proto.GetExtension(md.Options(), E_MethodAuth).(MethodAuth); ok {
 			switch ext {
-			case AuthType_AUTH_TYPE_ENABLED:
+			case MethodAuth_METHOD_AUTH_ENABLED:
 				requireAuth = true
 
-			case AuthType_AUTH_TYPE_DISABLED:
+			case MethodAuth_METHOD_AUTH_DISABLED:
 				requireAuth = false
 			}
 		}
@@ -249,12 +269,12 @@ func (r *Router) Invoke(method string, args ...string) ([]byte, error) {
 	ctx := context.Background()
 
 	if h.contractMethod.RequiresAuth {
-		ctx = grpcctx.WithSender(ctx, args[0])
+		ctx = ContextWithSender(ctx, args[0])
 		args = args[1:]
 	}
 
 	if stubGetter, ok := h.service.(contract.StubGetSetter); ok {
-		ctx = grpcctx.WithStub(ctx, stubGetter.GetStub())
+		ctx = ContextWithStub(ctx, stubGetter.GetStub())
 	}
 
 	resp, err := h.methodDesc.Handler(
@@ -300,3 +320,19 @@ type handler struct {
 
 // methodName represents the name of a method in the contract.
 type methodName = string
+
+// transformMethodName transforms a method name from "package.Service.Method" to "/package.Service/Method"
+func transformMethodName(fullMethodName string) string {
+	parts := strings.Split(fullMethodName, ".")
+	if len(parts) != 3 {
+		return ""
+	}
+
+	var (
+		packageName = parts[0]
+		serviceName = parts[1]
+		methodName  = parts[2]
+	)
+
+	return fmt.Sprintf("/%s.%s/%s", packageName, serviceName, methodName)
+}

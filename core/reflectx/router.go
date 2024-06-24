@@ -22,48 +22,28 @@ var (
 	ErrInvalidMethodName = errors.New("invalid method name")
 )
 
-// RouterConfig holds configuration options for the Router.
-type RouterConfig struct {
-	SwapsDisabled      bool     // Indicates if swap methods should be disabled.
-	MultiSwapsDisabled bool     // Indicates if multi-swap methods should be disabled.
-	DisabledMethods    []string // List of methods that should be disabled.
-}
-
 // Router routes method calls to contract methods based on reflection.
 type Router struct {
 	contract contract.Base
 	methods  map[contract.Function]contract.Method
 }
 
-// NewRouter creates a new Router instance with the given contract and configuration.
-// It reflects on the methods of the provided contract and sets up routing for them, respecting the
-// configuration options specified.
+// NewRouter creates a new Router instance with the given contract.
+// It reflects on the methods of the provided contract and sets up routing for them.
 //
 // Parameters:
 //   - baseContract: The contract instance to route methods for.
-//   - cfg: Configuration options for the router.
 //
 // Returns:
 //   - *Router: A new Router instance.
 //   - error: An error if the router setup fails.
-func NewRouter(baseContract contract.Base, cfg RouterConfig) (*Router, error) {
-	var (
-		swapMethods      = []string{"QuerySwapGet", "TxSwapBegin", "TxSwapCancel"}
-		multiSwapMethods = []string{"QueryMultiSwapGet", "TxMultiSwapBegin", "TxMultiSwapCancel"}
-	)
-
+func NewRouter(baseContract contract.Base) (*Router, error) {
 	r := &Router{
 		contract: baseContract,
 		methods:  make(map[contract.Function]contract.Method),
 	}
 
 	for _, method := range Methods(baseContract) {
-		if stringsx.OneOf(method, cfg.DisabledMethods...) ||
-			(cfg.SwapsDisabled && stringsx.OneOf(method, swapMethods...)) ||
-			(cfg.MultiSwapsDisabled && stringsx.OneOf(method, multiSwapMethods...)) {
-			continue
-		}
-
 		ep, err := newReflectEndpoint(method, baseContract)
 		if err != nil {
 			if errors.Is(err, ErrUnsupportedMethod) {

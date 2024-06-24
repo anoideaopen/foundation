@@ -1,0 +1,40 @@
+syntax = "proto3";
+
+package foundationtoken;
+
+option go_package = "github.com/anoideaopen/foundation/test/chaincode/fiat/service";
+
+import "google/protobuf/empty.proto";
+import "validate/validate.proto";
+import "method_options.proto"; // Import custom options.
+
+// Address represents a blockchain address.
+message Address {
+    string base58check = 1 [(validate.rules).string = {pattern: "^[1-9A-HJ-NP-Za-km-z]+$"}];
+}
+
+// BigInt represents a large integer.
+message BigInt {
+    string value = 1 [(validate.rules).string = {pattern: "^[0-9]+$"}];
+}
+
+// Requests and responses for methods.
+
+message BalanceAdjustmentRequest {
+    Address address = 1 [(validate.rules).message.required = true];
+    BigInt amount   = 2 [(validate.rules).message.required = true];
+    string reason   = 3 [(validate.rules).string = {min_len: 1, max_len: 200}];
+}
+
+// FiatService defines the balance service.
+service FiatService {
+    rpc AddBalanceByAdmin(BalanceAdjustmentRequest) returns (google.protobuf.Empty) {
+        option (foundation.method_type) = METHOD_TYPE_TRANSACTION; // Tx-prefixed transaction when using reflectx.Router.
+    }
+
+    rpc AddBalanceByAdmin2(BalanceAdjustmentRequest) returns (google.protobuf.Empty) {
+        option (foundation.method_type) = METHOD_TYPE_INVOKE;       // NBTx-prefixed transaction when using reflectx.Router.
+        option (foundation.method_auth) = METHOD_AUTH_ENABLED;      // Enable authorization.
+        option (foundation.contract_function) = "CustomAddBalance"; // Custom function name.
+    }
+}
