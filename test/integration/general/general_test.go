@@ -327,20 +327,9 @@ var _ = Describe("Basic foundation Tests", func() {
 				"balanceOf", user1.AddressBase58Check)
 
 			By("add balance by admin to user1 with nbtx and custom name (gRPC router)")
-			req = &service.BalanceAdjustmentRequest{
-				Address: &service.Address{
-					Base58Check: user1.AddressBase58Check,
-				},
-				Amount: &service.BigInt{
-					Value: emitAmount,
-				},
-				Reason: "some important reason",
-			}
-			rawReq, _ = protojson.Marshal(req)
-
 			client.TxInvokeWithSign(network, peer, network.Orderers[0],
 				cmn.ChannelFiat, cmn.ChannelFiat, admin,
-				"addBalanceByAdmin", "", client.NewNonceByTime().Get(), []string{string(rawReq)}...)
+				"addBalanceByAdmin", "", client.NewNonceByTime().Get(), string(rawReq))
 
 			newBlance = "3"
 			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
