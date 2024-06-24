@@ -314,9 +314,12 @@ var _ = Describe("Basic foundation Tests", func() {
 			}
 			rawReq, _ := protojson.Marshal(req)
 
-			client.TxInvokeWithSign(network, peer, network.Orderers[0],
+			client.NBTxInvokeWithSign(network, peer, network.Orderers[0],
+				func(err error, exitCode int, sessError, sessOut []byte) string {
+					return ""
+				},
 				cmn.ChannelFiat, cmn.ChannelFiat, admin,
-				"addBalanceByAdmin", "", client.NewNonceByTime().Get(), string(rawReq))
+				"CustomAddBalance", "", client.NewNonceByTime().Get(), string(rawReq))
 
 			newBlance := "2"
 			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
@@ -335,12 +338,9 @@ var _ = Describe("Basic foundation Tests", func() {
 			}
 			rawReq, _ = protojson.Marshal(req)
 
-			client.NBTxInvokeWithSign(network, peer, network.Orderers[0],
-				func(err error, exitCode int, sessError, sessOut []byte) string {
-					return ""
-				},
+			client.TxInvokeWithSign(network, peer, network.Orderers[0],
 				cmn.ChannelFiat, cmn.ChannelFiat, admin,
-				"CustomAddBalance", "", client.NewNonceByTime().Get(), string(rawReq))
+				"addBalanceByAdmin", "", client.NewNonceByTime().Get(), string(rawReq))
 
 			newBlance = "3"
 			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
