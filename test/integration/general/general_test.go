@@ -323,30 +323,26 @@ var _ = Describe("Basic foundation Tests", func() {
 				fabricnetwork.CheckResult(fabricnetwork.CheckBalance(newBlance), nil),
 				"balanceOf", user1.AddressBase58Check)
 
-			// By("add balance by admin to user1 with nbtx and custom name (gRPC router)")
-			// req = &service.BalanceAdjustmentRequest{
-			// 	Address: &service.Address{
-			// 		Base58Check: user1.AddressBase58Check,
-			// 	},
-			// 	Amount: &service.BigInt{
-			// 		Value: emitAmount,
-			// 	},
-			// 	Reason: "some important reason",
-			// }
-			// rawReq, _ = protojson.Marshal(req)
+			By("add balance by admin to user1 with nbtx and custom name (gRPC router)")
+			req = &service.BalanceAdjustmentRequest{
+				Address: &service.Address{
+					Base58Check: user1.AddressBase58Check,
+				},
+				Amount: &service.BigInt{
+					Value: emitAmount,
+				},
+				Reason: "some important reason",
+			}
+			rawReq, _ = protojson.Marshal(req)
 
-			// client.NBTxInvokeWithSign(network, peer, network.Orderers[0],
-			// 	func(err error, exitCode int, sessError, sessOut []byte) string {
-			// 		fmt.Println(string(sessOut))
-			// 		return ""
-			// 	},
-			// 	cmn.ChannelFiat, cmn.ChannelFiat, admin,
-			// 	"CustomAddBalance", "", client.NewNonceByTime().Get(), string(rawReq))
+			client.NBTxInvokeWithSign(network, peer, network.Orderers[0], nil,
+				cmn.ChannelFiat, cmn.ChannelFiat, admin,
+				"CustomAddBalance", "", client.NewNonceByTime().Get(), string(rawReq))
 
-			// newBlance = "3"
-			// client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
-			// 	fabricnetwork.CheckResult(fabricnetwork.CheckBalance(newBlance), nil),
-			// 	"balanceOf", user1.AddressBase58Check)
+			newBlance = "3"
+			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
+				fabricnetwork.CheckResult(fabricnetwork.CheckBalance(newBlance), nil),
+				"balanceOf", user1.AddressBase58Check)
 		})
 	})
 })
