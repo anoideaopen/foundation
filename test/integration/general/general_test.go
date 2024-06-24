@@ -335,7 +335,10 @@ var _ = Describe("Basic foundation Tests", func() {
 			}
 			rawReq, _ = protojson.Marshal(req)
 
-			client.NBTxInvokeWithSign(network, peer, network.Orderers[0], nil,
+			client.NBTxInvokeWithSign(network, peer, network.Orderers[0],
+				func(err error, exitCode int, sessError, sessOut []byte) string {
+					return ""
+				},
 				cmn.ChannelFiat, cmn.ChannelFiat, admin,
 				"CustomAddBalance", "", client.NewNonceByTime().Get(), string(rawReq))
 
