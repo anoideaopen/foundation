@@ -340,7 +340,7 @@ var _ = Describe("Basic foundation Tests", func() {
 
 			client.TxInvokeWithSign(network, peer, network.Orderers[0],
 				cmn.ChannelFiat, cmn.ChannelFiat, admin,
-				"addBalanceByAdmin", "", client.NewNonceByTime().Get(), string(rawReq))
+				"addBalanceByAdmin", "", client.NewNonceByTime().Get(), []string{string(rawReq)}...)
 
 			newBlance = "3"
 			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
