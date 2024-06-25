@@ -2,8 +2,9 @@ package telemetry
 
 import (
 	"context"
+	"crypto/tls"
+	"errors"
 	"fmt"
-
 	"github.com/anoideaopen/foundation/proto"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
@@ -13,6 +14,17 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
 	"go.opentelemetry.io/otel/trace"
+)
+
+const (
+	// TracingCollectorEndpointEnv is publicly available to use before calling InstallTraceProvider
+	// to be able to use the correct type of configuration either through environment variables
+	// or chaincode initialization parameters
+	TracingCollectorEndpointEnv = "CHAINCODE_TRACING_COLLECTOR_ENDPOINT"
+
+	TracingCollectorAuthHeaderKey   = "CHAINCODE_TRACING_COLLECTOR_AUTH_HEADER_KEY"
+	TracingCollectorAuthHeaderValue = "CHAINCODE_TRACING_COLLECTOR_AUTH_HEADER_VALUE"
+	TracingCollectorCaPem           = "TRACING_COLLECTOR_CAPEM"
 )
 
 // InstallTraceProvider returns trace provider based on http otlp exporter .
@@ -27,15 +39,34 @@ func InstallTraceProvider(
 		otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}))
 	}()
 
+	// If there is no endpoint, telemetry is disabled
 	if settings == nil || len(settings.GetEndpoint()) == 0 {
 		tracerProvider = trace.NewNoopTracerProvider()
 		return
 	}
 
+	// сразу проверяем нет ли ошибок в настройках, должны быть либо все настройки для секьюрного подключения либо не быть вообще настроек для этого
+	err := checkSettings(settings)
+	if err != nil {
+		fmt.Printf("failed to check collector settings: %s", err)
+		return
+	}
+
+	// создаем несекьюрный клиент
 	client := otlptracehttp.NewClient(
-		otlptracehttp.WithEndpoint(settings.GetEndpoint()),
+		otlptracehttp.WithEndpoint(settings.Endpoint),
 		otlptracehttp.WithInsecure(),
 	)
+
+	// если подключение секуьюрное перезаписываем клиент
+	if isSecure(settings) {
+		tlsConfig, err := getTLSConfig(settings.TlsCA)
+		if err != nil {
+			fmt.Printf("failed to load TLS configuration: %s", err)
+			return
+		}
+		client = getSecureClient(settings, tlsConfig)
+	}
 
 	exporter, err := otlptrace.New(context.Background(), client)
 	if err != nil {
@@ -49,11 +80,66 @@ func InstallTraceProvider(
 			semconv.SchemaURL,
 			semconv.ServiceName(serviceName)))
 	if err != nil {
-		fmt.Printf("creating resoure: %v", err)
+		fmt.Printf("creating resource: %v", err)
 		return
 	}
 
 	tracerProvider = sdktrace.NewTracerProvider(
 		sdktrace.WithBatcher(exporter),
 		sdktrace.WithResource(r))
+}
+
+func getSecureClient(settings *proto.CollectorEndpoint, tlsConfig *tls.Config) otlptrace.Client {
+	h := map[string]string{
+		settings.AuthorizationHeaderKey: settings.AuthorizationHeaderValue,
+	}
+	client := otlptracehttp.NewClient(
+		otlptracehttp.WithHeaders(h),
+		otlptracehttp.WithEndpoint(settings.Endpoint),
+		otlptracehttp.WithTLSClientConfig(tlsConfig),
+	)
+	return client
+}
+
+func getUnsecureClient(settings *proto.CollectorEndpoint) otlptrace.Client {
+	client := otlptracehttp.NewClient(
+		otlptracehttp.WithEndpoint(settings.Endpoint),
+		otlptracehttp.WithInsecure(),
+	)
+	return client
+}
+
+// checkAuthEnvironments checks for possible erroneous combinations in case the user forgot to specify some variables
+func checkSettings(settings *proto.CollectorEndpoint) error {
+	// If the environment variable with certificates is not empty, check if the authorization header exists
+	// If the headers are missing, consider it an error
+	if isCACertsSet(settings.TlsCA) && !isAuthHeaderSet(settings.AuthorizationHeaderKey, settings.AuthorizationHeaderValue) {
+		return errors.New("TLS CA environment is set, but auth header is wrong or empty")
+	}
+
+	// If the header is not empty but there are no certificates, consider it an error
+	if !isCACertsSet(settings.TlsCA) && isAuthHeaderSet(settings.AuthorizationHeaderKey, settings.AuthorizationHeaderValue) {
+		return errors.New("auth header environment is set, but TLS CA is empty")
+	}
+	return nil
+}
+
+// isSecure checks if both the header and certificates are received, creating a client with their use
+// such a client will be considered secure
+func isSecure(settings *proto.CollectorEndpoint) bool {
+	if isAuthHeaderSet(settings.AuthorizationHeaderKey, settings.AuthorizationHeaderValue) && isCACertsSet(settings.TlsCA) {
+		return true
+	}
+	return false
+}
+
+func isAuthHeaderSet(authHeaderKey string, authHeaderValue string) bool {
+	if authHeaderKey != "" && authHeaderValue != "" {
+		return true
+	}
+	return false
+}
+
+func isCACertsSet(caCerts string) bool {
+	return caCerts != ""
 }

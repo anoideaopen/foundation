@@ -34,6 +34,9 @@ message ContractConfig {
 
 message CollectorEndpoint {
   string endpoint = 1;
+  string authorization_header_key = 2;
+  string authorization_header_value = 3;
+  string tls_ca = 4;
 }
 
 // ChaincodeOptions stores possible chaincode configuration options.
