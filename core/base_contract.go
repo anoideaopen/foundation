@@ -298,7 +298,7 @@ func (bc *BaseContract) setupTracing() {
 
 	// If the chaincode is not operating as a service or the environment variable with the endpoint
 	// does not exist in the system, use the contract configuration for tracing.
-	if bc.isService || ok {
+	if bc.isService && ok {
 		traceConfig = &pb.CollectorEndpoint{
 			Endpoint:                 endpointFromEnv,
 			AuthorizationHeaderKey:   os.Getenv(telemetry.TracingCollectorAuthHeaderKey),
