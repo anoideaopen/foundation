@@ -33,7 +33,6 @@ func InstallTraceProvider(
 	settings *proto.CollectorEndpoint,
 	serviceName string,
 ) {
-
 	tracerProvider := trace.NewNoopTracerProvider()
 
 	defer func() {
