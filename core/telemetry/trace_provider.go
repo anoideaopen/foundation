@@ -89,7 +89,7 @@ func InstallTraceProvider(
 
 func getSecureClient(settings *proto.CollectorEndpoint, tlsConfig *tls.Config) otlptrace.Client {
 	h := map[string]string{
-		settings.GetAuthorizationHeaderValue(): settings.GetAuthorizationHeaderValue(),
+		settings.GetAuthorizationHeaderKey(): settings.GetAuthorizationHeaderValue(),
 	}
 	client := otlptracehttp.NewClient(
 		otlptracehttp.WithHeaders(h),
