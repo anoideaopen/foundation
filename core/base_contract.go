@@ -276,8 +276,8 @@ func (bc *BaseContract) TracingHandler() *telemetry.TracingHandler {
 	return bc.tracingHandler
 }
 
-// SetIsService sets base contract isService
-func (bc *BaseContract) SetIsService() {
+// setIsService sets base contract isService
+func (bc *BaseContract) setIsService() {
 	bc.isService = true
 }
 
@@ -290,6 +290,7 @@ func (bc *BaseContract) IsService() bool {
 func (bc *BaseContract) setupTracing() {
 	serviceName := "chaincode-" + bc.GetID()
 
+	bc.setIsService()
 	telemetry.InstallTraceProvider(bc.ContractConfig().GetTracingCollectorEndpoint(), serviceName)
 
 	th := &telemetry.TracingHandler{}
@@ -358,5 +359,6 @@ type BaseContractInterface interface { //nolint:interfacebloat
 	setTracingHandler(th *telemetry.TracingHandler)
 	TracingHandler() *telemetry.TracingHandler
 
+	setIsService()
 	IsService() bool
 }
