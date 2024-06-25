@@ -45,7 +45,6 @@ func InstallTraceProvider(
 		return
 	}
 
-	// сразу проверяем нет ли ошибок в настройках, должны быть либо все настройки для секьюрного подключения либо не быть вообще настроек для этого
 	err := checkSettings(settings)
 	if err != nil {
 		fmt.Printf("failed to check collector settings: %s", err)
@@ -58,9 +57,8 @@ func InstallTraceProvider(
 		otlptracehttp.WithInsecure(),
 	)
 
-	// если подключение секуьюрное перезаписываем клиент
 	if isSecure(settings) {
-		tlsConfig, err := getTLSConfig(settings.TlsCA)
+		tlsConfig, err := getTLSConfig(settings.TlsCa)
 		if err != nil {
 			fmt.Printf("failed to load TLS configuration: %s", err)
 			return
@@ -113,12 +111,12 @@ func getUnsecureClient(settings *proto.CollectorEndpoint) otlptrace.Client {
 func checkSettings(settings *proto.CollectorEndpoint) error {
 	// If the environment variable with certificates is not empty, check if the authorization header exists
 	// If the headers are missing, consider it an error
-	if isCACertsSet(settings.TlsCA) && !isAuthHeaderSet(settings.AuthorizationHeaderKey, settings.AuthorizationHeaderValue) {
+	if isCACertsSet(settings.TlsCa) && !isAuthHeaderSet(settings.AuthorizationHeaderKey, settings.AuthorizationHeaderValue) {
 		return errors.New("TLS CA environment is set, but auth header is wrong or empty")
 	}
 
 	// If the header is not empty but there are no certificates, consider it an error
-	if !isCACertsSet(settings.TlsCA) && isAuthHeaderSet(settings.AuthorizationHeaderKey, settings.AuthorizationHeaderValue) {
+	if !isCACertsSet(settings.TlsCa) && isAuthHeaderSet(settings.AuthorizationHeaderKey, settings.AuthorizationHeaderValue) {
 		return errors.New("auth header environment is set, but TLS CA is empty")
 	}
 	return nil
@@ -127,7 +125,7 @@ func checkSettings(settings *proto.CollectorEndpoint) error {
 // isSecure checks if both the header and certificates are received, creating a client with their use
 // such a client will be considered secure
 func isSecure(settings *proto.CollectorEndpoint) bool {
-	if isAuthHeaderSet(settings.AuthorizationHeaderKey, settings.AuthorizationHeaderValue) && isCACertsSet(settings.TlsCA) {
+	if isAuthHeaderSet(settings.AuthorizationHeaderKey, settings.AuthorizationHeaderValue) && isCACertsSet(settings.TlsCa) {
 		return true
 	}
 	return false
