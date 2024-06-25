@@ -52,12 +52,12 @@ func InstallTraceProvider(
 	}
 
 	client := otlptracehttp.NewClient(
-		otlptracehttp.WithEndpoint(settings.Endpoint),
+		otlptracehttp.WithEndpoint(settings.GetEndpoint()),
 		otlptracehttp.WithInsecure(),
 	)
 
 	if isSecure(settings) {
-		tlsConfig, err := getTLSConfig(settings.TlsCa)
+		tlsConfig, err := getTLSConfig(settings.GetTlsCa())
 		if err != nil {
 			fmt.Printf("failed to load TLS configuration: %s", err)
 			return
@@ -88,20 +88,12 @@ func InstallTraceProvider(
 
 func getSecureClient(settings *proto.CollectorEndpoint, tlsConfig *tls.Config) otlptrace.Client {
 	h := map[string]string{
-		settings.AuthorizationHeaderKey: settings.AuthorizationHeaderValue,
+		settings.GetAuthorizationHeaderValue(): settings.GetAuthorizationHeaderValue(),
 	}
 	client := otlptracehttp.NewClient(
 		otlptracehttp.WithHeaders(h),
-		otlptracehttp.WithEndpoint(settings.Endpoint),
+		otlptracehttp.WithEndpoint(settings.GetEndpoint()),
 		otlptracehttp.WithTLSClientConfig(tlsConfig),
-	)
-	return client
-}
-
-func getUnsecureClient(settings *proto.CollectorEndpoint) otlptrace.Client {
-	client := otlptracehttp.NewClient(
-		otlptracehttp.WithEndpoint(settings.Endpoint),
-		otlptracehttp.WithInsecure(),
 	)
 	return client
 }
@@ -110,12 +102,12 @@ func getUnsecureClient(settings *proto.CollectorEndpoint) otlptrace.Client {
 func checkSettings(settings *proto.CollectorEndpoint) error {
 	// If the environment variable with certificates is not empty, check if the authorization header exists
 	// If the headers are missing, consider it an error
-	if isCACertsSet(settings.TlsCa) && !isAuthHeaderSet(settings.AuthorizationHeaderKey, settings.AuthorizationHeaderValue) {
+	if isCACertsSet(settings.GetTlsCa()) && !isAuthHeaderSet(settings.GetAuthorizationHeaderKey(), settings.GetAuthorizationHeaderValue()) {
 		return errors.New("TLS CA environment is set, but auth header is wrong or empty")
 	}
 
 	// If the header is not empty but there are no certificates, consider it an error
-	if !isCACertsSet(settings.TlsCa) && isAuthHeaderSet(settings.AuthorizationHeaderKey, settings.AuthorizationHeaderValue) {
+	if !isCACertsSet(settings.GetTlsCa()) && isAuthHeaderSet(settings.GetAuthorizationHeaderKey(), settings.GetAuthorizationHeaderValue()) {
 		return errors.New("auth header environment is set, but TLS CA is empty")
 	}
 	return nil
@@ -124,7 +116,7 @@ func checkSettings(settings *proto.CollectorEndpoint) error {
 // isSecure checks if both the header and certificates are received, creating a client with their use
 // such a client will be considered secure
 func isSecure(settings *proto.CollectorEndpoint) bool {
-	if isAuthHeaderSet(settings.AuthorizationHeaderKey, settings.AuthorizationHeaderValue) && isCACertsSet(settings.TlsCa) {
+	if isAuthHeaderSet(settings.GetAuthorizationHeaderKey(), settings.GetAuthorizationHeaderValue()) && isCACertsSet(settings.GetTlsCa()) {
 		return true
 	}
 	return false
