@@ -51,7 +51,6 @@ func InstallTraceProvider(
 		return
 	}
 
-	// создаем несекьюрный клиент
 	client := otlptracehttp.NewClient(
 		otlptracehttp.WithEndpoint(settings.Endpoint),
 		otlptracehttp.WithInsecure(),
