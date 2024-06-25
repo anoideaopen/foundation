@@ -33,18 +33,18 @@ func InstallTraceProvider(
 	settings *proto.CollectorEndpoint,
 	serviceName string,
 ) {
-	var tracerProvider trace.TracerProvider
 
-	// If there is no endpoint, telemetry is disabled
-	if settings == nil || len(settings.GetEndpoint()) == 0 {
-		tracerProvider = trace.NewNoopTracerProvider()
-		return
-	}
+	tracerProvider := trace.NewNoopTracerProvider()
 
 	defer func() {
 		otel.SetTracerProvider(tracerProvider)
 		otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}))
 	}()
+
+	// If there is no endpoint, telemetry is disabled
+	if settings == nil || len(settings.GetEndpoint()) == 0 {
+		return
+	}
 
 	err := checkSettings(settings)
 	if err != nil {
