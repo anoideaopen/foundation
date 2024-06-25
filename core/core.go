@@ -104,7 +104,6 @@ type chaincodeOptions struct {
 // configuration, and options for transaction processing.
 type Chaincode struct {
 	contract     BaseContractInterface // Contract interface containing the chaincode logic.
-	router       contract.Router       // Router for routing contract calls.
 	configMapper contract.ConfigMapper // ConfigMapper maps the arguments to a proto.Config instance.
 }
 
@@ -119,19 +118,20 @@ type Chaincode struct {
 // Returns:
 // - contract.Router: the contract router.
 func (cc *Chaincode) Router() contract.Router {
-	if cc.router != nil {
-		return cc.router
+	if router := cc.contract.Router(); router != nil {
+		return router
 	}
 
 	if router, ok := cc.contract.(contract.Router); ok {
-		cc.router = router
-		return cc.router
+		cc.contract.setRouter(router)
+		return router
 	}
 
 	// Error is checked in Init.
-	cc.router, _ = reflectx.NewRouter(cc.contract)
+	router, _ := reflectx.NewRouter(cc.contract)
+	cc.contract.setRouter(router)
 
-	return cc.router
+	return router
 }
 
 // Method retrieves a contract method by its function name.
@@ -381,12 +381,12 @@ func NewCC(
 
 	// Initialize the contract.
 	cc.setSrcFs(chOpts.SrcFS)
+	cc.setRouter(chOpts.Router)
 
 	// Set up the ChainCode structure.
 	out := &Chaincode{
 		contract:     cc,
 		configMapper: chOpts.ConfigMapper,
-		router:       chOpts.Router,
 	}
 
 	return out, nil
@@ -446,7 +446,7 @@ func (cc *Chaincode) Init(stub shim.ChaincodeStubInterface) peer.Response {
 	}
 
 	// Check if the contract implements the Router interface or router is already provided.
-	if _, ok := cc.contract.(contract.Router); ok || cc.router != nil {
+	if _, ok := cc.contract.(contract.Router); ok || cc.contract.Router() != nil {
 		return shim.Success(nil)
 	}
 

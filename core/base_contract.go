@@ -32,9 +32,18 @@ type BaseContract struct {
 	traceCtx       telemetry.TraceContext
 	tracingHandler *telemetry.TracingHandler
 	isService      bool
+	router         contract.Router
 }
 
 var _ BaseContractInterface = &BaseContract{}
+
+func (bc *BaseContract) setRouter(router contract.Router) {
+	bc.router = router
+}
+
+func (bc *BaseContract) Router() contract.Router {
+	return bc.router
+}
 
 func (bc *BaseContract) setSrcFs(srcFs *embed.FS) {
 	bc.srcFs = srcFs
@@ -320,12 +329,22 @@ func (bc *BaseContract) setupTracing() {
 	bc.setTracingHandler(th)
 }
 
-func buildRouter(in contract.Base) (contract.Router, error) {
+func buildRouter(in any) (contract.Router, error) {
+	if bc, ok := in.(BaseContractInterface); ok {
+		if router := bc.Router(); router != nil {
+			return router, nil
+		}
+	}
+
 	if router, ok := in.(contract.Router); ok {
 		return router, nil
 	}
 
-	return reflectx.NewRouter(in)
+	if contract, ok := in.(contract.Base); ok {
+		return reflectx.NewRouter(contract)
+	}
+
+	return nil, fmt.Errorf("invalid contract type: %T", in)
 }
 
 // BaseContractInterface represents BaseContract interface
@@ -376,4 +395,7 @@ type BaseContractInterface interface { //nolint:interfacebloat
 
 	setIsService()
 	IsService() bool
+
+	setRouter(contract.Router)
+	Router() contract.Router
 }
