@@ -358,5 +358,6 @@ type BaseContractInterface interface { //nolint:interfacebloat
 	setTracingHandler(th *telemetry.TracingHandler)
 	TracingHandler() *telemetry.TracingHandler
 
+	setIsService()
 	IsService() bool
 }
