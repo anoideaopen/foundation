@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package foundationtoken;
+package foundation.token;
 
 option go_package = "github.com/anoideaopen/foundation/test/unit/token/proto";
 

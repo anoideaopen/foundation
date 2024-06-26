@@ -37,7 +37,7 @@ func NewBalanceServiceClient(cc grpc.ClientConnInterface) BalanceServiceClient {
 
 func (c *balanceServiceClient) AddBalanceByAdmin(ctx context.Context, in *BalanceAdjustmentRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	out := new(emptypb.Empty)
-	err := c.cc.Invoke(ctx, "/foundationtoken.BalanceService/AddBalanceByAdmin", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/foundation.token.BalanceService/AddBalanceByAdmin", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -46,7 +46,7 @@ func (c *balanceServiceClient) AddBalanceByAdmin(ctx context.Context, in *Balanc
 
 func (c *balanceServiceClient) AddBalanceByAdmin2(ctx context.Context, in *BalanceAdjustmentRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	out := new(emptypb.Empty)
-	err := c.cc.Invoke(ctx, "/foundationtoken.BalanceService/AddBalanceByAdmin2", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/foundation.token.BalanceService/AddBalanceByAdmin2", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -95,7 +95,7 @@ func _BalanceService_AddBalanceByAdmin_Handler(srv interface{}, ctx context.Cont
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/foundationtoken.BalanceService/AddBalanceByAdmin",
+		FullMethod: "/foundation.token.BalanceService/AddBalanceByAdmin",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(BalanceServiceServer).AddBalanceByAdmin(ctx, req.(*BalanceAdjustmentRequest))
@@ -113,7 +113,7 @@ func _BalanceService_AddBalanceByAdmin2_Handler(srv interface{}, ctx context.Con
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/foundationtoken.BalanceService/AddBalanceByAdmin2",
+		FullMethod: "/foundation.token.BalanceService/AddBalanceByAdmin2",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(BalanceServiceServer).AddBalanceByAdmin2(ctx, req.(*BalanceAdjustmentRequest))
@@ -125,7 +125,7 @@ func _BalanceService_AddBalanceByAdmin2_Handler(srv interface{}, ctx context.Con
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var BalanceService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "foundationtoken.BalanceService",
+	ServiceName: "foundation.token.BalanceService",
 	HandlerType: (*BalanceServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{

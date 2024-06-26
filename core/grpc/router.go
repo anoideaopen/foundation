@@ -324,15 +324,13 @@ type methodName = string
 // transformMethodName transforms a method name from "package.Service.Method" to "/package.Service/Method"
 func transformMethodName(fullMethodName string) string {
 	parts := strings.Split(fullMethodName, ".")
-	if len(parts) != 3 {
+	if len(parts) < 2 {
 		return ""
 	}
 
-	var (
-		packageName = parts[0]
-		serviceName = parts[1]
-		methodName  = parts[2]
-	)
+	methodName := parts[len(parts)-1]
+	serviceName := parts[len(parts)-2]
+	packageName := strings.Join(parts[:len(parts)-2], ".")
 
 	return fmt.Sprintf("/%s.%s/%s", packageName, serviceName, methodName)
 }

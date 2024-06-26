@@ -723,6 +723,31 @@ func (w *Wallet) SignedInvoke(ch string, fn string, args ...string) string {
 	return txID
 }
 
+func (w *Wallet) SignedInvokeWithResponse(ch string, fn string, args ...string) (string, TxResponse) {
+	txID, res, swaps := w.RawSignedInvoke(ch, fn, args...)
+	require.Equal(w.ledger.t, "", res.Error)
+	for _, swap := range swaps {
+		x := proto.Batch{Swaps: []*proto.Swap{{
+			Id:      swap.GetId(),
+			Creator: []byte("0000"),
+			Owner:   swap.GetOwner(),
+			Token:   swap.GetToken(),
+			Amount:  swap.GetAmount(),
+			From:    swap.GetFrom(),
+			To:      swap.GetTo(),
+			Hash:    swap.GetHash(),
+			Timeout: swap.GetTimeout(),
+		}}}
+		data, err := pb.Marshal(&x)
+		require.NoError(w.ledger.t, err)
+		cert, err := hex.DecodeString(batchRobotCert)
+		require.NoError(w.ledger.t, err)
+		w.ledger.stubs[strings.ToLower(swap.GetTo())].SetCreator(cert)
+		w.Invoke(strings.ToLower(swap.GetTo()), core.BatchExecute, string(data))
+	}
+	return txID, res
+}
+
 // SignedMultiSwapsInvoke invokes a function on the ledger
 func (w *Wallet) SignedMultiSwapsInvoke(ch string, fn string, args ...string) string {
 	txID, res, _, multiSwaps := w.RawSignedMultiSwapInvoke(ch, fn, args...)

@@ -1,6 +1,7 @@
 package unit
 
 import (
+	"context"
 	"testing"
 
 	"github.com/anoideaopen/foundation/core"
@@ -76,6 +77,7 @@ func TestGRPCRouterWithURLs(t *testing.T) {
 		ledger = mock.NewLedger(t)
 		owner  = ledger.NewWallet()
 		user1  = ledger.NewWallet()
+		ch     = "cc"
 	)
 
 	ccConfig := makeBaseTokenConfig(
@@ -97,12 +99,17 @@ func TestGRPCRouterWithURLs(t *testing.T) {
 		UseURLs:  true,
 	})
 
+	conn := mock.NewMockClientConn(ch)
+	conn.SetCaller(owner)
+
 	// Register gRPC service.
 	proto.RegisterBalanceServiceServer(grpcRouter, balanceToken)
 
+	client := proto.NewBalanceServiceClient(conn)
+
 	// Init chaincode.
 	initMsg := ledger.NewCC(
-		"cc",
+		ch,
 		balanceToken,
 		ccConfig,
 		core.WithRouter(grpcRouter),
@@ -120,13 +127,13 @@ func TestGRPCRouterWithURLs(t *testing.T) {
 		Reason: "Test reason",
 	}
 
-	rawJSON, _ := protojson.Marshal(req)
-
-	// Add balance by admin with URL.
-	owner.SignedInvoke("cc", "/foundationtoken.BalanceService/AddBalanceByAdmin", string(rawJSON))
-	user1.BalanceShouldBe("cc", 1000)
+	// Add balance by admin with a client by URL.
+	_, err := client.AddBalanceByAdmin(context.Background(), req)
+	require.NoError(t, err)
+	user1.BalanceShouldBe(ch, 1000)
 
 	// Add balance by admin with override function name.
-	owner.NbInvoke("cc", "CustomAddBalance", string(rawJSON))
-	user1.BalanceShouldBe("cc", 2000)
+	rawJSON, _ := protojson.Marshal(req)
+	owner.NbInvoke(ch, "CustomAddBalance", string(rawJSON))
+	user1.BalanceShouldBe(ch, 2000)
 }
