@@ -40,7 +40,7 @@ func (m *MockClientConn) Invoke(ctx context.Context, method string, args interfa
 		rawJSON, _ = json.Marshal(args)
 	}
 
-	_, resp := m.caller.SignedInvokeWithResponse(m.ch, method, string(rawJSON))
+	_, resp, _ := m.caller.RawSignedInvoke(m.ch, method, string(rawJSON))
 
 	if resp.Error != "" {
 		return errors.New(resp.Error)
