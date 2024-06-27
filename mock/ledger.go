@@ -1,15 +1,12 @@
 package mock
 
 import (
-	"bytes"
-	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"os"
-	"sort"
 	"strings"
 	"sync"
 	"testing"
@@ -20,18 +17,13 @@ import (
 	"github.com/anoideaopen/foundation/core/config"
 	"github.com/anoideaopen/foundation/core/multiswap"
 	"github.com/anoideaopen/foundation/core/types/big"
-	"github.com/anoideaopen/foundation/keys"
-	"github.com/anoideaopen/foundation/keys/eth"
 	"github.com/anoideaopen/foundation/mock/stub"
 	"github.com/anoideaopen/foundation/proto"
-	"github.com/btcsuite/btcutil/base58"
 	pb "github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/google/uuid"
 	"github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/crypto/ed25519"
-	"golang.org/x/crypto/sha3"
 )
 
 type Ledger struct {
@@ -233,93 +225,6 @@ func (l *Ledger) WaitChTransferTo(name string, id string, timeout time.Duration)
 		fmt.Println(k, string(v))
 	}
 	require.Fail(l.t, "timeout exceeded")
-}
-
-// NewWallet creates new wallet
-func (l *Ledger) NewWallet() *Wallet {
-	pKey, sKey, err := keys.GenerateEd25519Keys()
-	require.NoError(l.t, err)
-
-	pKeySecp256k1, sKeySecp256k1, err := keys.GenerateSecp256k1Keys()
-	require.NoError(l.t, err)
-
-	pKeyGOST, sKeyGOST, err := keys.GenerateGOSTKeys()
-	require.NoError(l.t, err)
-
-	hash := sha3.Sum256(pKey)
-	hashGOST := sha3.Sum256(pKeyGOST.Raw())
-	hashSecp256k1 := sha3.Sum256(eth.PublicKeyBytes(pKeySecp256k1))
-
-	return &Wallet{
-		ledger:        l,
-		keyType:       proto.KeyType_ed25519,
-		sKey:          sKey,
-		pKey:          pKey,
-		sKeySecp256k1: sKeySecp256k1,
-		pKeySecp256k1: pKeySecp256k1,
-		sKeyGOST:      sKeyGOST,
-		pKeyGOST:      pKeyGOST,
-		addr:          base58.CheckEncode(hash[1:], hash[0]),
-		addrGOST:      base58.CheckEncode(hashGOST[1:], hashGOST[0]),
-		addrSecp256k1: base58.CheckEncode(hashSecp256k1[1:], hashSecp256k1[0]),
-	}
-}
-
-// NewMultisigWallet creates new multisig wallet
-func (l *Ledger) NewMultisigWallet(n int) *Multisig {
-	wlt := &Multisig{Wallet: Wallet{ledger: l}}
-	for i := 0; i < n; i++ {
-		pKey, sKey, err := ed25519.GenerateKey(rand.Reader)
-		require.NoError(l.t, err)
-		wlt.pKeys = append(wlt.pKeys, pKey)
-		wlt.sKeys = append(wlt.sKeys, sKey)
-	}
-
-	binPubKeys := make([][]byte, len(wlt.pKeys))
-	for i, k := range wlt.pKeys {
-		binPubKeys[i] = k
-	}
-	sort.Slice(binPubKeys, func(i, j int) bool {
-		return bytes.Compare(binPubKeys[i], binPubKeys[j]) < 0
-	})
-
-	hashedAddr := sha3.Sum256(bytes.Join(binPubKeys, []byte("")))
-	wlt.addr = base58.CheckEncode(hashedAddr[1:], hashedAddr[0])
-	return wlt
-}
-
-// NewWalletFromKey creates new wallet from key
-func (l *Ledger) NewWalletFromKey(key string) *Wallet {
-	decoded, ver, err := base58.CheckDecode(key)
-	require.NoError(l.t, err)
-	sKey := ed25519.PrivateKey(append([]byte{ver}, decoded...))
-	pub, ok := sKey.Public().(ed25519.PublicKey)
-	require.True(l.t, ok)
-	hash := sha3.Sum256(pub)
-	return &Wallet{
-		ledger:  l,
-		keyType: proto.KeyType_ed25519,
-		sKey:    sKey,
-		pKey:    pub,
-		addr:    base58.CheckEncode(hash[1:], hash[0]),
-	}
-}
-
-// NewWalletFromHexKey creates new wallet from hex key
-func (l *Ledger) NewWalletFromHexKey(key string) *Wallet {
-	decoded, err := hex.DecodeString(key)
-	require.NoError(l.t, err)
-	sKey := ed25519.PrivateKey(decoded)
-	pub, ok := sKey.Public().(ed25519.PublicKey)
-	require.True(l.t, ok)
-	hash := sha3.Sum256(pub)
-	return &Wallet{
-		ledger:  l,
-		keyType: proto.KeyType_ed25519,
-		sKey:    sKey,
-		pKey:    pub,
-		addr:    base58.CheckEncode(hash[1:], hash[0]),
-	}
 }
 
 func (l *Ledger) doInvoke(ch, txID, fn string, args ...string) string {

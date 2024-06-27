@@ -4,6 +4,8 @@ import (
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/rand"
+	"encoding/hex"
+	"errors"
 
 	"github.com/anoideaopen/foundation/keys/eth"
 	"github.com/anoideaopen/foundation/proto"
@@ -24,11 +26,11 @@ type Keys struct {
 	PublicKeyBase58     string
 }
 
-func GenerateEd25519Keys() (ed25519.PublicKey, ed25519.PrivateKey, error) {
+func generateEd25519Keys() (ed25519.PublicKey, ed25519.PrivateKey, error) {
 	return ed25519.GenerateKey(rand.Reader)
 }
 
-func GenerateSecp256k1Keys() (*ecdsa.PublicKey, *ecdsa.PrivateKey, error) {
+func generateSecp256k1Keys() (*ecdsa.PublicKey, *ecdsa.PrivateKey, error) {
 	sKey, err := eth.NewKey()
 	if err != nil {
 		return nil, nil, err
@@ -36,7 +38,7 @@ func GenerateSecp256k1Keys() (*ecdsa.PublicKey, *ecdsa.PrivateKey, error) {
 	return &sKey.PublicKey, sKey, nil
 }
 
-func GenerateGOSTKeys() (*gost3410.PublicKey, *gost3410.PrivateKey, error) {
+func generateGOSTKeys() (*gost3410.PublicKey, *gost3410.PrivateKey, error) {
 	sKeyGOST, err := gost3410.GenPrivateKey(
 		gost3410.CurveIdGostR34102001CryptoProXchAParamSet(),
 		gost3410.Mode2001,
@@ -55,31 +57,31 @@ func GenerateGOSTKeys() (*gost3410.PublicKey, *gost3410.PrivateKey, error) {
 }
 
 // GenerateKeysByKeyType generates private and public keys based on specified key type
-func GenerateKeysByKeyType(keyType proto.KeyType) (Keys, error) {
-	var keys Keys
+func GenerateKeysByKeyType(keyType proto.KeyType) (*Keys, error) {
+	keys := &Keys{}
 	switch keyType {
 	case proto.KeyType_ed25519:
-		pKey, sKey, err := GenerateEd25519Keys()
+		pKey, sKey, err := generateEd25519Keys()
 		if err != nil {
-			return keys, err
+			return nil, err
 		}
 		keys.PrivateKeyEd25519 = sKey
 		keys.PublicKeyEd25519 = pKey
 		keys.PrivateKeyBytes = sKey
 		keys.PublicKeyBytes = pKey
 	case proto.KeyType_secp256k1:
-		pKey, sKey, err := GenerateSecp256k1Keys()
+		pKey, sKey, err := generateSecp256k1Keys()
 		if err != nil {
-			return keys, err
+			return nil, err
 		}
 		keys.PrivateKeySecp256k1 = sKey
 		keys.PublicKeySecp256k1 = pKey
 		keys.PrivateKeyBytes = eth.PrivateKeyBytes(sKey)
 		keys.PublicKeyBytes = eth.PublicKeyBytes(pKey)
 	case proto.KeyType_gost:
-		pKey, sKey, err := GenerateGOSTKeys()
+		pKey, sKey, err := generateGOSTKeys()
 		if err != nil {
-			return keys, err
+			return nil, err
 		}
 		keys.PrivateKeyGOST = sKey
 		keys.PublicKeyGOST = pKey
@@ -88,6 +90,66 @@ func GenerateKeysByKeyType(keyType proto.KeyType) (Keys, error) {
 	}
 
 	keys.PublicKeyBase58 = base58.Encode(keys.PublicKeyBytes)
+	return keys, nil
+}
 
+// GenerateAllKeys generates all kind of keys
+func GenerateAllKeys() (*Keys, error) {
+	var err error
+
+	keys := &Keys{}
+	keys.PublicKeyEd25519, keys.PrivateKeyEd25519, err = generateEd25519Keys()
+	if err != nil {
+		return nil, err
+	}
+
+	keys.PublicKeySecp256k1, keys.PrivateKeySecp256k1, err = generateSecp256k1Keys()
+	if err != nil {
+		return nil, err
+	}
+
+	keys.PublicKeyGOST, keys.PrivateKeyGOST, err = generateGOSTKeys()
+	if err != nil {
+		return nil, err
+	}
+
+	return keys, nil
+}
+
+// GenerateEd25519FromBase58 generates ed25519 key from base58 encoded string
+func GenerateEd25519FromBase58(base58encoded string) (*Keys, error) {
+	keys := &Keys{}
+	decoded, ver, err := base58.CheckDecode(base58encoded)
+	if err != nil {
+		return nil, err
+	}
+	sKey := ed25519.PrivateKey(append([]byte{ver}, decoded...))
+	pKey, ok := sKey.Public().(ed25519.PublicKey)
+	if !ok {
+		return nil, errors.New("error converting private key to public")
+	}
+
+	keys.KeyType = proto.KeyType_ed25519
+	keys.PrivateKeyEd25519 = sKey
+	keys.PublicKeyEd25519 = pKey
+	return keys, nil
+}
+
+// GenerateEd25519FromHex generates ed25519 key from base58 encoded string
+func GenerateEd25519FromHex(hexEncoded string) (*Keys, error) {
+	keys := &Keys{}
+	decoded, err := hex.DecodeString(hexEncoded)
+	if err != nil {
+		return nil, err
+	}
+	sKey := ed25519.PrivateKey(decoded)
+	pKey, ok := sKey.Public().(ed25519.PublicKey)
+	if !ok {
+		return nil, errors.New("error converting private key to public")
+	}
+
+	keys.KeyType = proto.KeyType_ed25519
+	keys.PrivateKeyEd25519 = sKey
+	keys.PublicKeyEd25519 = pKey
 	return keys, nil
 }

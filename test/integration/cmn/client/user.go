@@ -13,7 +13,7 @@ import (
 )
 
 type UserFoundation struct {
-	keys.Keys
+	*keys.Keys
 	AddressBase58Check string
 	UserID             string
 }
@@ -45,7 +45,7 @@ func UserFoundationFromEd25519PrivateKey(privateKey ed25519.PrivateKey) (*UserFo
 	addressBase58Check := base58.CheckEncode(hash[1:], hash[0])
 
 	return &UserFoundation{
-		Keys: keys.Keys{
+		Keys: &keys.Keys{
 			KeyType:           pbfound.KeyType_ed25519,
 			PrivateKeyEd25519: privateKey,
 			PublicKeyEd25519:  publicKey,
@@ -84,7 +84,8 @@ func (u *UserFoundation) Sign(args ...string) (publicKeyBase58 string, signMsg [
 }
 
 func (u *UserFoundation) sign(message []byte) (signMsg []byte, err error) {
-	return keys.SignMessageByKeyType(u.KeyType, u.Keys, message)
+	_, signature, err := keys.SignMessageByKeyType(u.KeyType, u.Keys, message)
+	return signature, err
 }
 
 func (u *UserFoundation) SetUserID(id string) {

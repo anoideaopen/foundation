@@ -1,13 +1,14 @@
 package mock
 
 import (
-	"crypto/ecdsa"
+	"bytes"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"testing"
@@ -17,12 +18,11 @@ import (
 	"github.com/anoideaopen/foundation/core/balance"
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/core/types/big"
+	"github.com/anoideaopen/foundation/keys"
 	"github.com/anoideaopen/foundation/keys/eth"
-	"github.com/anoideaopen/foundation/keys/gost"
 	"github.com/anoideaopen/foundation/mock/stub"
 	"github.com/anoideaopen/foundation/proto"
 	"github.com/btcsuite/btcutil/base58"
-	"github.com/ddulesov/gogost/gost3410"
 	pb "github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/hyperledger/fabric-chaincode-go/shim"
 	"github.com/hyperledger/fabric-protos-go/peer"
@@ -87,21 +87,76 @@ const (
 type Wallet struct {
 	ledger *Ledger
 
-	keyType proto.KeyType
-
-	pKey ed25519.PublicKey
-	sKey ed25519.PrivateKey
-
-	pKeySecp256k1 *ecdsa.PublicKey
-	sKeySecp256k1 *ecdsa.PrivateKey
-
-	// Additional GOST Keys.
-	pKeyGOST *gost3410.PublicKey
-	sKeyGOST *gost3410.PrivateKey
+	*keys.Keys
 
 	addr          string
 	addrSecp256k1 string
 	addrGOST      string
+}
+
+// NewWallet creates new wallet
+func (l *Ledger) NewWallet() *Wallet {
+	keysStr, err := keys.GenerateAllKeys()
+	require.NoError(l.t, err)
+
+	hash := sha3.Sum256(keysStr.PublicKeyEd25519)
+	hashSecp256k1 := sha3.Sum256(eth.PublicKeyBytes(keysStr.PublicKeySecp256k1))
+	hashGOST := sha3.Sum256(keysStr.PublicKeyGOST.Raw())
+
+	return &Wallet{
+		ledger:        l,
+		Keys:          keysStr,
+		addr:          base58.CheckEncode(hash[1:], hash[0]),
+		addrGOST:      base58.CheckEncode(hashGOST[1:], hashGOST[0]),
+		addrSecp256k1: base58.CheckEncode(hashSecp256k1[1:], hashSecp256k1[0]),
+	}
+}
+
+// NewMultisigWallet creates new multisig wallet
+func (l *Ledger) NewMultisigWallet(n int) *Multisig {
+	wlt := &Multisig{Wallet: Wallet{ledger: l}}
+	for i := 0; i < n; i++ {
+		pKey, sKey, err := ed25519.GenerateKey(rand.Reader)
+		require.NoError(l.t, err)
+		wlt.pKeys = append(wlt.pKeys, pKey)
+		wlt.sKeys = append(wlt.sKeys, sKey)
+	}
+
+	binPubKeys := make([][]byte, len(wlt.pKeys))
+	for i, k := range wlt.pKeys {
+		binPubKeys[i] = k
+	}
+	sort.Slice(binPubKeys, func(i, j int) bool {
+		return bytes.Compare(binPubKeys[i], binPubKeys[j]) < 0
+	})
+
+	hashedAddr := sha3.Sum256(bytes.Join(binPubKeys, []byte("")))
+	wlt.addr = base58.CheckEncode(hashedAddr[1:], hashedAddr[0])
+	return wlt
+}
+
+// NewWalletFromKey creates new wallet from key
+func (l *Ledger) NewWalletFromKey(key string) *Wallet {
+	keysStr, err := keys.GenerateEd25519FromBase58(key)
+	require.NoError(l.t, err)
+	hash := sha3.Sum256(keysStr.PublicKeyEd25519)
+	return &Wallet{
+		ledger: l,
+		Keys:   keysStr,
+		addr:   base58.CheckEncode(hash[1:], hash[0]),
+	}
+}
+
+// NewWalletFromHexKey creates new wallet from hex key
+func (l *Ledger) NewWalletFromHexKey(key string) *Wallet {
+	keysStr, err := keys.GenerateEd25519FromHex(key)
+	require.NoError(l.t, err)
+	hash := sha3.Sum256(keysStr.PublicKeyEd25519)
+	return &Wallet{
+		ledger: l,
+		Keys:   keysStr,
+		addr:   base58.CheckEncode(hash[1:], hash[0]),
+	}
 }
 
 func getWalletKeyType(stub shim.ChaincodeStubInterface, address string) proto.KeyType {
@@ -125,10 +180,10 @@ func (w *Wallet) saveKeyType() {
 	if !ok {
 		panic("stub not found")
 	}
-	txID := fmt.Sprintf("%s_%s", w.addr, w.keyType.String())
+	txID := fmt.Sprintf("%s_%s", w.addr, w.KeyType.String())
 	stubACL.MockTransactionStart(txID)
 	address := w.addr
-	switch w.keyType {
+	switch w.KeyType {
 	case proto.KeyType_secp256k1:
 		address = w.addrSecp256k1
 	case proto.KeyType_gost:
@@ -138,27 +193,27 @@ func (w *Wallet) saveKeyType() {
 	if err != nil {
 		panic(err)
 	}
-	if err = stubACL.PutState(compositeKey, []byte(w.keyType.String())); err != nil {
+	if err = stubACL.PutState(compositeKey, []byte(w.KeyType.String())); err != nil {
 		panic(err)
 	}
 	stubACL.MockTransactionEnd(txID)
 }
 
 func (w *Wallet) UseSecp256k1Key() {
-	w.keyType = proto.KeyType_secp256k1
+	w.KeyType = proto.KeyType_secp256k1
 	w.saveKeyType()
 }
 
 func (w *Wallet) UseGOSTKey() {
-	w.keyType = proto.KeyType_gost
+	w.KeyType = proto.KeyType_gost
 	w.saveKeyType()
 }
 
 // ChangeKeys change private key, then public key will be derived and changed too
 func (w *Wallet) ChangeKeys(sKey ed25519.PrivateKey) error {
-	w.sKey = sKey
+	w.PrivateKeyEd25519 = sKey
 	var ok bool
-	w.pKey, ok = sKey.Public().(ed25519.PublicKey)
+	w.PublicKeyEd25519, ok = sKey.Public().(ed25519.PublicKey)
 	if !ok {
 		return errors.New("failed to derive public key from secret")
 	}
@@ -167,7 +222,7 @@ func (w *Wallet) ChangeKeys(sKey ed25519.PrivateKey) error {
 
 // Address returns the address of the wallet
 func (w *Wallet) Address() string {
-	switch w.keyType {
+	switch w.KeyType {
 	case proto.KeyType_gost:
 		return w.addrGOST
 	case proto.KeyType_secp256k1:
@@ -179,17 +234,17 @@ func (w *Wallet) Address() string {
 
 // PubKey returns the public key of the wallet
 func (w *Wallet) PubKey() []byte {
-	return w.pKey
+	return w.PublicKeyEd25519
 }
 
 // SecretKey returns the secret key of the wallet
 func (w *Wallet) SecretKey() []byte {
-	return w.sKey
+	return w.PrivateKeyEd25519
 }
 
 // SetPubKey sets the public key of the wallet
 func (w *Wallet) SetPubKey(pk ed25519.PublicKey) {
-	w.pKey = pk
+	w.PublicKeyEd25519 = pk
 }
 
 // AddressType returns the address type of the wallet
@@ -217,11 +272,11 @@ func (w *Wallet) CheckGivenBalanceShouldBe(ch string, token string, expectedBala
 	prefix := hex.EncodeToString([]byte{byte(balance.BalanceTypeGiven)})
 	key, err := st.CreateCompositeKey(prefix, []string{token})
 	require.NoError(w.ledger.t, err)
-	bytes := st.State[key]
-	if bytes == nil && expectedBalance == 0 {
+	rawRecord := st.State[key]
+	if rawRecord == nil && expectedBalance == 0 {
 		return
 	}
-	actualBalanceInt := new(big.Int).SetBytes(bytes)
+	actualBalanceInt := new(big.Int).SetBytes(rawRecord)
 	expectedBalanceInt := new(big.Int).SetUint64(expectedBalance)
 	require.Equal(w.ledger.t, expectedBalanceInt, actualBalanceInt)
 }
@@ -375,13 +430,13 @@ func (w *Wallet) BatchedInvoke(ch, fn string, args ...string) (string, TxRespons
 }
 
 func (w *Wallet) publicKeyBytes() []byte {
-	switch w.keyType {
+	switch w.KeyType {
 	case proto.KeyType_gost:
-		return w.pKeyGOST.Raw()
+		return w.PublicKeyGOST.Raw()
 	case proto.KeyType_secp256k1:
-		return eth.PublicKeyBytes(w.pKeySecp256k1)
+		return eth.PublicKeyBytes(w.PublicKeySecp256k1)
 	default:
-		return w.pKey
+		return w.PublicKeyEd25519
 	}
 }
 
@@ -403,48 +458,14 @@ func (w *Wallet) sign(fn, ch string, args ...string) ([]string, string) {
 	message := []byte(strings.Join(messageChunks, ""))
 
 	// Calculating the hash of the message and signing the hash with the secret key and adding the signature to the message.
-	var (
-		digest    []byte
-		signature []byte
-		err       error
-	)
-
-	switch w.keyType {
-	case proto.KeyType_gost:
-		digestRawGOST := gost.Sum256(message)
-		// Reverse the bytes for compatibility with client-side HSM.
-
-		digest = digestRawGOST[:]
-		digest = reverseBytes(digest)
-
-		signature, _ = w.sKeyGOST.SignDigest(digest, rand.Reader)
-		signature = reverseBytes(signature)
-	case proto.KeyType_secp256k1:
-		digestSHA3 := sha3.Sum256(message)
-		digest = eth.Hash(digestSHA3[:])
-		signature, err = eth.Sign(digest, w.sKeySecp256k1)
-		require.NoError(w.ledger.t, err)
-	default:
-		digestRawSHA3 := sha3.Sum256(message)
-		digest = digestRawSHA3[:]
-		signature = ed25519.Sign(w.sKey, digest)
-	}
+	digest, signature, err := keys.SignMessageByKeyType(w.KeyType, w.Keys, message)
+	require.NoError(w.ledger.t, err)
 
 	// We remove the function name from the message and add a caption.
 	signedMessage := append(messageChunks[1:], base58.Encode(signature)) //nolint:gocritic
 
 	// Return the signed message and hash in hexadecimal format.
 	return signedMessage, hex.EncodeToString(digest)
-}
-
-func reverseBytes(in []byte) []byte {
-	n := len(in)
-	reversed := make([]byte, n)
-	for i, b := range in {
-		reversed[n-i-1] = b
-	}
-
-	return reversed
 }
 
 // BatchTxResponse is a batch transaction response

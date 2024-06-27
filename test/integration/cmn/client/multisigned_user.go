@@ -108,11 +108,11 @@ func (u *UserFoundationMultisigned) Sign(args ...string) (publicKeysBase58 []str
 	message := []byte(strings.Join(msg, ""))
 
 	for _, user := range u.Users {
-		signMsg, err := keys.SignMessageByKeyType(user.KeyType, user.PrivateKey, message)
+		_, signature, err := keys.SignMessageByKeyType(user.KeyType, user.Keys, message)
 		if err != nil {
 			return nil, nil, err
 		}
-		signMsgs = append(signMsgs, signMsg)
+		signMsgs = append(signMsgs, signature)
 	}
 
 	return
