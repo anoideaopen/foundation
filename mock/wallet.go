@@ -15,10 +15,10 @@ import (
 
 	"github.com/anoideaopen/foundation/core"
 	"github.com/anoideaopen/foundation/core/balance"
-	"github.com/anoideaopen/foundation/core/eth"
-	"github.com/anoideaopen/foundation/core/gost"
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/core/types/big"
+	"github.com/anoideaopen/foundation/keys/eth"
+	"github.com/anoideaopen/foundation/keys/gost"
 	"github.com/anoideaopen/foundation/mock/stub"
 	"github.com/anoideaopen/foundation/proto"
 	"github.com/btcsuite/btcutil/base58"

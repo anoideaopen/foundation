@@ -2,12 +2,12 @@ package mock
 
 import (
 	"bytes"
-	"crypto/ecdsa"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/anoideaopen/foundation/keys"
 	"net/http"
 	"os"
 	"sort"
@@ -19,13 +19,12 @@ import (
 	"github.com/anoideaopen/foundation/core"
 	"github.com/anoideaopen/foundation/core/cctransfer"
 	"github.com/anoideaopen/foundation/core/config"
-	"github.com/anoideaopen/foundation/core/eth"
 	"github.com/anoideaopen/foundation/core/multiswap"
 	"github.com/anoideaopen/foundation/core/types/big"
+	"github.com/anoideaopen/foundation/keys/eth"
 	"github.com/anoideaopen/foundation/mock/stub"
 	"github.com/anoideaopen/foundation/proto"
 	"github.com/btcsuite/btcutil/base58"
-	"github.com/ddulesov/gogost/gost3410"
 	pb "github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/google/uuid"
 	"github.com/hyperledger/fabric-protos-go/peer"
@@ -238,14 +237,19 @@ func (l *Ledger) WaitChTransferTo(name string, id string, timeout time.Duration)
 
 // NewWallet creates new wallet
 func (l *Ledger) NewWallet() *Wallet {
-	var (
-		pKey, sKey                   = generateEd25519Keys(l.t)
-		pKeyGOST, sKeyGOST           = generateGOSTKeys(l.t)
-		pKeySecp256k1, sKeySecp256k1 = generateSecp256k1Keys(l.t)
-		hash                         = sha3.Sum256(pKey)
-		hashGOST                     = sha3.Sum256(pKeyGOST.Raw())
-		hashSecp256k1                = sha3.Sum256(eth.PublicKeyBytes(pKeySecp256k1))
-	)
+	pKey, sKey, err := keys.GenerateEd25519Keys()
+	require.NoError(l.t, err, fmt.Sprintf("error generating ED25519 keys: %w", err))
+
+	pKeySecp256k1, sKeySecp256k1, err := keys.GenerateSecp256k1Keys()
+	require.NoError(l.t, err, fmt.Sprintf("error generating Secp256k1 keys: %w", err))
+
+	pKeyGOST, sKeyGOST, err := keys.GenerateGOSTKeys()
+	require.NoError(l.t, err, fmt.Sprintf("error generating GOST keys: %w", err))
+
+	hash := sha3.Sum256(pKey)
+	hashGOST := sha3.Sum256(pKeyGOST.Raw())
+	hashSecp256k1 := sha3.Sum256(eth.PublicKeyBytes(pKeySecp256k1))
+
 	return &Wallet{
 		ledger:        l,
 		keyType:       proto.KeyType_ed25519,
@@ -498,30 +502,4 @@ func (l *Ledger) verifyIncoming(ch string, fn string) error {
 	}
 
 	return nil
-}
-
-func generateEd25519Keys(t *testing.T) (ed25519.PublicKey, ed25519.PrivateKey) {
-	pKey, sKey, err := ed25519.GenerateKey(rand.Reader)
-	require.NoError(t, err)
-	return pKey, sKey
-}
-
-func generateGOSTKeys(t *testing.T) (*gost3410.PublicKey, *gost3410.PrivateKey) {
-	sKeyGOST, err := gost3410.GenPrivateKey(
-		gost3410.CurveIdGostR34102001CryptoProXchAParamSet(),
-		gost3410.Mode2001,
-		rand.Reader,
-	)
-	require.NoError(t, err)
-
-	pKeyGOST, err := sKeyGOST.PublicKey()
-	require.NoError(t, err)
-
-	return pKeyGOST, sKeyGOST
-}
-
-func generateSecp256k1Keys(t *testing.T) (*ecdsa.PublicKey, *ecdsa.PrivateKey) {
-	sKey, err := eth.NewKey()
-	require.NoError(t, err)
-	return &sKey.PublicKey, sKey
 }

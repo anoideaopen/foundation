@@ -165,14 +165,19 @@ var _ = Describe("Version and Nonce Tests", func() {
 		skiRobot, err = cmn.ReadSKI(pathToPrivateKeyRobot)
 		Expect(err).NotTo(HaveOccurred())
 
-		admin = client.NewUserFoundation(pbfound.KeyType_ed25519.String())
+		admin, err = client.NewUserFoundation(pbfound.KeyType_ed25519)
+		Expect(err).NotTo(HaveOccurred())
 		Expect(admin.PrivateKeyBytes).NotTo(Equal(nil))
-		feeSetter = client.NewUserFoundation(pbfound.KeyType_ed25519.String())
+
+		feeSetter, err = client.NewUserFoundation(pbfound.KeyType_ed25519)
+		Expect(err).NotTo(HaveOccurred())
 		Expect(feeSetter.PrivateKeyBytes).NotTo(Equal(nil))
-		feeAddressSetter = client.NewUserFoundation(pbfound.KeyType_ed25519.String())
+
+		feeAddressSetter, err = client.NewUserFoundation(pbfound.KeyType_ed25519)
+		Expect(err).NotTo(HaveOccurred())
 		Expect(feeAddressSetter.PrivateKeyBytes).NotTo(Equal(nil))
 
-		cmn.DeployACL(network, components, peer, testDir, skiBackend, admin.PublicKeyBase58, admin.PublicKeyType)
+		cmn.DeployACL(network, components, peer, testDir, skiBackend, admin.PublicKeyBase58, admin.KeyType)
 		cmn.DeployCC(network, components, peer, testDir, skiRobot, admin.AddressBase58Check)
 		cmn.DeployFiat(network, components, peer, testDir, skiRobot,
 			admin.AddressBase58Check, feeSetter.AddressBase58Check, feeAddressSetter.AddressBase58Check)
@@ -282,7 +287,9 @@ var _ = Describe("Version and Nonce Tests", func() {
 		client.AddUser(network, peer, network.Orderers[0], admin)
 
 		By("add user to acl")
-		user1 := client.NewUserFoundation(pbfound.KeyType_ed25519.String())
+		user1, err := client.NewUserFoundation(pbfound.KeyType_ed25519)
+		Expect(err).NotTo(HaveOccurred())
+
 		client.AddUser(network, peer, network.Orderers[0], user1)
 
 		By("prepare nonces")

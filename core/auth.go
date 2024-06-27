@@ -3,12 +3,11 @@ package core
 import (
 	"errors"
 	"fmt"
+	"github.com/anoideaopen/foundation/keys"
 	"strconv"
 	"strings"
 
 	"github.com/anoideaopen/foundation/core/contract"
-	"github.com/anoideaopen/foundation/core/eth"
-	"github.com/anoideaopen/foundation/core/gost"
 	"github.com/anoideaopen/foundation/core/helpers"
 	"github.com/anoideaopen/foundation/core/types"
 	pb "github.com/anoideaopen/foundation/proto"
@@ -17,8 +16,6 @@ import (
 	"github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/hyperledger/fabric-chaincode-go/shim"
 	"github.com/hyperledger/fabric-protos-go/peer"
-	"golang.org/x/crypto/ed25519"
-	"golang.org/x/crypto/sha3"
 )
 
 type invocationDetails struct {
@@ -32,7 +29,7 @@ type invocationDetails struct {
 
 // validateAndExtractInvocationContext verifies authorization and extracts the context of the chincode method call.
 // This function makes sure that the number of arguments matches the expected number of arguments,
-// verifies that the chancode name and channel match, authenticates signatures,
+// verifies that the chaincode name and channel match, authenticates signatures,
 // updates the address if necessary, and verifies the nonce.
 // Returns the user's address, a list of method arguments and nonce if successful, or an error.
 //
@@ -116,52 +113,21 @@ func validateSignaturesInInvocation(
 	invocation *invocationDetails,
 	message []byte,
 ) error {
-	var (
-		digestSHA3 []byte
-		digestGOST []byte
-		digestEth  []byte
-		err        error
-	)
-
 	for i := 0; i < invocation.signersCount; i++ {
 		if invocation.signatureArgs[i+invocation.signersCount] == "" {
 			continue // Skip the blank signatures.
 		}
 
 		var (
-			publicKey = base58.Decode(invocation.signatureArgs[i])
-			signature = base58.Decode(invocation.signatureArgs[i+invocation.signersCount])
+			publicKeyBytes = base58.Decode(invocation.signatureArgs[i])
+			signatureBytes = base58.Decode(invocation.signatureArgs[i+invocation.signersCount])
 		)
 
 		// Verify the signature ED25519, SECP256K1 or GOST 34.10 2012
-		valid := false
-		switch invocation.keyTypes[i] {
-		case pb.KeyType_secp256k1:
-			if digestSHA3 == nil {
-				digestSHA3Raw := sha3.Sum256(message)
-				digestSHA3 = digestSHA3Raw[:]
-			}
-			if digestEth == nil {
-				digestEth = eth.Hash(digestSHA3)
-			}
-			valid = eth.Verify(publicKey, digestEth, signature)
-		case pb.KeyType_gost:
-			if digestGOST == nil {
-				digestGOSTRaw := gost.Sum256(message)
-				digestGOST = digestGOSTRaw[:]
-			}
-			valid, err = gost.Verify(publicKey, digestGOST, signature)
-			if err != nil {
-				return fmt.Errorf("incorrect signature: %w", err)
-			}
-		default:
-			if digestSHA3 == nil {
-				digestSHA3Raw := sha3.Sum256(message)
-				digestSHA3 = digestSHA3Raw[:]
-			}
-			valid = ed25519.Verify(publicKey, digestSHA3, signature)
+		valid, err := keys.VerifySignatureByKeyType(invocation.keyTypes[i], publicKeyBytes, message, signatureBytes)
+		if err != nil {
+			return err
 		}
-
 		if !valid {
 			return errors.New("incorrect signature")
 		}

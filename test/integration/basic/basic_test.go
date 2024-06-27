@@ -168,14 +168,19 @@ var _ = Describe("Basic foundation Tests", func() {
 			skiRobot, err = cmn.ReadSKI(pathToPrivateKeyRobot)
 			Expect(err).NotTo(HaveOccurred())
 
-			admin = client.NewUserFoundation(pbfound.KeyType_ed25519.String())
+			admin, err = client.NewUserFoundation(pbfound.KeyType_ed25519)
+			Expect(err).NotTo(HaveOccurred())
 			Expect(admin.PrivateKeyBytes).NotTo(Equal(nil))
-			feeSetter = client.NewUserFoundation(pbfound.KeyType_ed25519.String())
+
+			feeSetter, err = client.NewUserFoundation(pbfound.KeyType_ed25519)
+			Expect(err).NotTo(HaveOccurred())
 			Expect(feeSetter.PrivateKeyBytes).NotTo(Equal(nil))
-			feeAddressSetter = client.NewUserFoundation(pbfound.KeyType_ed25519.String())
+
+			feeAddressSetter, err = client.NewUserFoundation(pbfound.KeyType_ed25519)
+			Expect(err).NotTo(HaveOccurred())
 			Expect(feeAddressSetter.PrivateKeyBytes).NotTo(Equal(nil))
 
-			cmn.DeployACL(network, components, peer, testDir, skiBackend, admin.PublicKeyBase58, admin.PublicKeyType)
+			cmn.DeployACL(network, components, peer, testDir, skiBackend, admin.PublicKeyBase58, admin.KeyType)
 			cmn.DeployCC(network, components, peer, testDir, skiRobot, admin.AddressBase58Check)
 			cmn.DeployFiat(network, components, peer, testDir, skiRobot,
 				admin.AddressBase58Check, feeSetter.AddressBase58Check, feeAddressSetter.AddressBase58Check)
@@ -197,7 +202,8 @@ var _ = Describe("Basic foundation Tests", func() {
 		})
 
 		It("add user", func() {
-			user := client.NewUserFoundation(pbfound.KeyType_ed25519.String())
+			user, err := client.NewUserFoundation(pbfound.KeyType_ed25519)
+			Expect(err).NotTo(HaveOccurred())
 			client.AddUser(network, peer, network.Orderers[0], user)
 		})
 
@@ -234,7 +240,8 @@ var _ = Describe("Basic foundation Tests", func() {
 		})
 
 		It("query test", func() {
-			user := client.NewUserFoundation(pbfound.KeyType_ed25519.String())
+			user, err := client.NewUserFoundation(pbfound.KeyType_ed25519)
+			Expect(err).NotTo(HaveOccurred())
 			client.AddUser(network, peer, network.Orderers[0], user)
 
 			By("send a request that is similar to invoke")
@@ -269,8 +276,12 @@ var _ = Describe("Basic foundation Tests", func() {
 				client.AddUser(network, peer, network.Orderers[0], admin)
 
 				By("create users")
-				user1 = client.NewUserFoundation(pbfound.KeyType_ed25519.String())
-				user2 = client.NewUserFoundation(pbfound.KeyType_ed25519.String())
+				var err error
+
+				user1, err = client.NewUserFoundation(pbfound.KeyType_ed25519)
+				Expect(err).NotTo(HaveOccurred())
+				user2, err = client.NewUserFoundation(pbfound.KeyType_ed25519)
+				Expect(err).NotTo(HaveOccurred())
 			})
 
 			It("transfer", func() {
@@ -330,7 +341,9 @@ var _ = Describe("Basic foundation Tests", func() {
 				client.AddUser(network, peer, network.Orderers[0], feeSetter)
 				client.AddUser(network, peer, network.Orderers[0], feeAddressSetter)
 
-				feeWallet := client.NewUserFoundation(pbfound.KeyType_ed25519.String())
+				feeWallet, err := client.NewUserFoundation(pbfound.KeyType_ed25519)
+				Expect(err).NotTo(HaveOccurred())
+
 				client.AddUser(network, peer, network.Orderers[0], feeWallet)
 
 				By("emit tokens")
@@ -408,7 +421,9 @@ var _ = Describe("Basic foundation Tests", func() {
 				client.AddUser(network, peer, network.Orderers[0], feeSetter)
 				client.AddUser(network, peer, network.Orderers[0], feeAddressSetter)
 
-				feeWallet := client.NewUserFoundation(pbfound.KeyType_ed25519.String())
+				feeWallet, err := client.NewUserFoundation(pbfound.KeyType_ed25519)
+				Expect(err).NotTo(HaveOccurred())
+
 				client.AddUser(network, peer, network.Orderers[0], feeWallet)
 
 				By("emit tokens")
@@ -482,7 +497,9 @@ var _ = Describe("Basic foundation Tests", func() {
 				client.AddUser(network, peer, network.Orderers[0], feeSetter)
 				client.AddUser(network, peer, network.Orderers[0], feeAddressSetter)
 
-				feeWallet := client.NewUserFoundation(pbfound.KeyType_ed25519.String())
+				feeWallet, err := client.NewUserFoundation(pbfound.KeyType_ed25519)
+				Expect(err).NotTo(HaveOccurred())
+
 				client.AddUser(network, peer, network.Orderers[0], feeWallet)
 
 				By("emit tokens")
@@ -547,10 +564,14 @@ var _ = Describe("Basic foundation Tests", func() {
 
 		It("accessmatrix - add and remove rights", func() {
 			By("add user to acl")
-			user1 := client.NewUserFoundation(pbfound.KeyType_ed25519.String())
+			user1, err := client.NewUserFoundation(pbfound.KeyType_ed25519)
+			Expect(err).NotTo(HaveOccurred())
+
 			client.AddUser(network, peer, network.Orderers[0], user1)
 
-			user2 := client.NewUserFoundation(pbfound.KeyType_ed25519.String())
+			user2, err := client.NewUserFoundation(pbfound.KeyType_ed25519)
+			Expect(err).NotTo(HaveOccurred())
+
 			client.AddUser(network, peer, network.Orderers[0], user2)
 
 			By("invoking industrial chaincode with user have no rights")

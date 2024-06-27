@@ -30,7 +30,7 @@ func DeployACL(
 	testDir string,
 	skiBackend string,
 	publicKeyBase58 string,
-	validatorKeyType string,
+	validatorKeyType pb.KeyType,
 ) {
 	By("Deploying chaincode acl with validator's key type specified")
 	aclCfg := &aclpb.ACLConfig{
@@ -38,7 +38,7 @@ func DeployACL(
 		Validators: []*aclpb.ACLValidator{
 			{
 				PublicKey: publicKeyBase58,
-				KeyType:   validatorKeyType,
+				KeyType:   validatorKeyType.String(),
 			},
 		},
 	}
