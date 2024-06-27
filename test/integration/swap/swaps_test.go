@@ -213,7 +213,8 @@ var _ = Describe("Swap Tests", func() {
 			client.AddUser(network, peer, network.Orderers[0], admin)
 
 			By("add user to acl")
-			user1, err := client.NewUserFoundation(pbfound.KeyType_ed25519)
+			var err error
+			user1, err = client.NewUserFoundation(pbfound.KeyType_ed25519)
 			Expect(err).NotTo(HaveOccurred())
 
 			client.AddUser(network, peer, network.Orderers[0], user1)
@@ -383,7 +384,8 @@ var _ = Describe("Swap Tests", func() {
 			client.AddUser(network, peer, network.Orderers[0], admin)
 
 			By("add user to acl")
-			user1, err := client.NewUserFoundation(pbfound.KeyType_ed25519)
+			var err error
+			user1, err = client.NewUserFoundation(pbfound.KeyType_ed25519)
 			Expect(err).NotTo(HaveOccurred())
 
 			client.AddUser(network, peer, network.Orderers[0], user1)
