@@ -6,10 +6,10 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
-	"github.com/ddulesov/gogost/gost3410"
 
 	"github.com/anoideaopen/foundation/keys/eth"
 	"github.com/anoideaopen/foundation/proto"
+	"github.com/ddulesov/gogost/gost3410"
 )
 
 func signEd25519Validate(privateKeyBytes ed25519.PrivateKey, message []byte) ([]byte, error) {

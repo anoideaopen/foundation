@@ -3,13 +3,13 @@ package core
 import (
 	"errors"
 	"fmt"
-	"github.com/anoideaopen/foundation/keys"
 	"strconv"
 	"strings"
 
 	"github.com/anoideaopen/foundation/core/contract"
 	"github.com/anoideaopen/foundation/core/helpers"
 	"github.com/anoideaopen/foundation/core/types"
+	"github.com/anoideaopen/foundation/keys"
 	pb "github.com/anoideaopen/foundation/proto"
 	"github.com/btcsuite/btcutil/base58"
 	"github.com/ddulesov/gogost/gost3410"

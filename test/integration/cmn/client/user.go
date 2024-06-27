@@ -4,9 +4,9 @@ import (
 	"crypto/ed25519"
 	"errors"
 	"fmt"
-	"github.com/anoideaopen/foundation/keys"
 	"strings"
 
+	"github.com/anoideaopen/foundation/keys"
 	pbfound "github.com/anoideaopen/foundation/proto"
 	"github.com/btcsuite/btcutil/base58"
 	"golang.org/x/crypto/sha3"

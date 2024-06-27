@@ -4,6 +4,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/rand"
+
 	"github.com/anoideaopen/foundation/keys/eth"
 	"github.com/anoideaopen/foundation/proto"
 	"github.com/ddulesov/gogost/gost3410"

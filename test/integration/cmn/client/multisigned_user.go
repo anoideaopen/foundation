@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"crypto/ed25519"
 	"fmt"
+	"sort"
+	"strings"
+
 	"github.com/anoideaopen/foundation/keys"
 	pbfound "github.com/anoideaopen/foundation/proto"
 	"github.com/btcsuite/btcutil/base58"
 	"golang.org/x/crypto/sha3"
-	"sort"
-	"strings"
 )
 
 const MultisignKeyDelimiter = "/"
