@@ -79,7 +79,6 @@ func (m *MockClientConn) Invoke(ctx context.Context, method string, args interfa
 
 		default:
 			panic("method type not supported")
-
 		}
 	} else {
 		_, resp, _ = m.caller.RawSignedInvoke(m.ch, method, string(rawJSON))
