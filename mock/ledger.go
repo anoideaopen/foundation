@@ -238,13 +238,13 @@ func (l *Ledger) WaitChTransferTo(name string, id string, timeout time.Duration)
 // NewWallet creates new wallet
 func (l *Ledger) NewWallet() *Wallet {
 	pKey, sKey, err := keys.GenerateEd25519Keys()
-	require.NoError(l.t, err, fmt.Sprintf("error generating ED25519 keys: %w", err))
+	require.NoError(l.t, err)
 
 	pKeySecp256k1, sKeySecp256k1, err := keys.GenerateSecp256k1Keys()
-	require.NoError(l.t, err, fmt.Sprintf("error generating Secp256k1 keys: %w", err))
+	require.NoError(l.t, err)
 
 	pKeyGOST, sKeyGOST, err := keys.GenerateGOSTKeys()
-	require.NoError(l.t, err, fmt.Sprintf("error generating GOST keys: %w", err))
+	require.NoError(l.t, err)
 
 	hash := sha3.Sum256(pKey)
 	hashGOST := sha3.Sum256(pKeyGOST.Raw())

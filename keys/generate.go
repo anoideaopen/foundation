@@ -7,15 +7,25 @@ import (
 
 	"github.com/anoideaopen/foundation/keys/eth"
 	"github.com/anoideaopen/foundation/proto"
+	"github.com/btcsuite/btcutil/base58"
 	"github.com/ddulesov/gogost/gost3410"
 )
 
+type Keys struct {
+	KeyType             proto.KeyType
+	PublicKeyEd25519    ed25519.PublicKey
+	PrivateKeyEd25519   ed25519.PrivateKey
+	PublicKeySecp256k1  *ecdsa.PublicKey
+	PrivateKeySecp256k1 *ecdsa.PrivateKey
+	PublicKeyGOST       *gost3410.PublicKey
+	PrivateKeyGOST      *gost3410.PrivateKey
+	PublicKeyBytes      []byte
+	PrivateKeyBytes     []byte
+	PublicKeyBase58     string
+}
+
 func GenerateEd25519Keys() (ed25519.PublicKey, ed25519.PrivateKey, error) {
-	pKey, sKey, err := ed25519.GenerateKey(rand.Reader)
-	if err != nil {
-		return nil, nil, err
-	}
-	return pKey, sKey, nil
+	return ed25519.GenerateKey(rand.Reader)
 }
 
 func GenerateSecp256k1Keys() (*ecdsa.PublicKey, *ecdsa.PrivateKey, error) {
@@ -45,37 +55,39 @@ func GenerateGOSTKeys() (*gost3410.PublicKey, *gost3410.PrivateKey, error) {
 }
 
 // GenerateKeysByKeyType generates private and public keys based on specified key type
-func GenerateKeysByKeyType(keyType proto.KeyType) (interface{}, interface{}, []byte, []byte, error) {
-	var (
-		sKey      interface{}
-		pKey      interface{}
-		sKeyBytes []byte
-		pKeyBytes []byte
-		err       error
-	)
+func GenerateKeysByKeyType(keyType proto.KeyType) (Keys, error) {
+	var keys Keys
 	switch keyType {
 	case proto.KeyType_ed25519:
-		pKeyBytes, sKeyBytes, err = GenerateEd25519Keys()
-		pKey = pKeyBytes
-		sKey = sKeyBytes
+		pKey, sKey, err := GenerateEd25519Keys()
 		if err != nil {
-			return nil, nil, nil, nil, err
+			return keys, err
 		}
+		keys.PrivateKeyEd25519 = sKey
+		keys.PublicKeyEd25519 = pKey
+		keys.PrivateKeyBytes = sKey
+		keys.PublicKeyBytes = pKey
 	case proto.KeyType_secp256k1:
-		pKey, sKey, err = GenerateSecp256k1Keys()
+		pKey, sKey, err := GenerateSecp256k1Keys()
 		if err != nil {
-			return nil, nil, nil, nil, err
+			return keys, err
 		}
-		sKeyBytes = eth.PrivateKeyBytes(sKey.(*ecdsa.PrivateKey))
-		pKeyBytes = eth.PublicKeyBytes(pKey.(*ecdsa.PublicKey))
+		keys.PrivateKeySecp256k1 = sKey
+		keys.PublicKeySecp256k1 = pKey
+		keys.PrivateKeyBytes = eth.PrivateKeyBytes(sKey)
+		keys.PublicKeyBytes = eth.PublicKeyBytes(pKey)
 	case proto.KeyType_gost:
-		pKey, sKey, err = GenerateGOSTKeys()
+		pKey, sKey, err := GenerateGOSTKeys()
 		if err != nil {
-			return nil, nil, nil, nil, err
+			return keys, err
 		}
-		sKeyBytes = sKey.(*gost3410.PrivateKey).Raw()
-		pKeyBytes = pKey.(*gost3410.PublicKey).Raw()
+		keys.PrivateKeyGOST = sKey
+		keys.PublicKeyGOST = pKey
+		keys.PrivateKeyBytes = sKey.Raw()
+		keys.PublicKeyBytes = pKey.Raw()
 	}
 
-	return sKey, pKey, sKeyBytes, pKeyBytes, nil
+	keys.PublicKeyBase58 = base58.Encode(keys.PublicKeyBytes)
+
+	return keys, nil
 }

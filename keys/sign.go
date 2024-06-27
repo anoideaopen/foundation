@@ -15,7 +15,10 @@ import (
 func signEd25519Validate(privateKeyBytes ed25519.PrivateKey, message []byte) ([]byte, error) {
 	digestSHA3 := getDigestSHA3(message)
 	signature := ed25519.Sign(privateKeyBytes, digestSHA3)
-	publicKeyBytes := privateKeyBytes.Public().(ed25519.PublicKey)
+	publicKeyBytes, ok := privateKeyBytes.Public().(ed25519.PublicKey)
+	if !ok {
+		return nil, errors.New("error converting private key to public")
+	}
 	if !verifyEd25519ByDigest(publicKeyBytes, digestSHA3, signature) {
 		return nil, errors.New("ed25519 signature rejected")
 	}
@@ -29,7 +32,11 @@ func signSecp256k1Validate(privateKey ecdsa.PrivateKey, message []byte) ([]byte,
 	if err != nil {
 		return nil, fmt.Errorf("error signing message: %w", err)
 	}
-	publicKeyBytes := eth.PublicKeyBytes(privateKey.Public().(*ecdsa.PublicKey))
+	publicKey, ok := privateKey.Public().(*ecdsa.PublicKey)
+	if !ok {
+		return nil, errors.New("error converting private key to public")
+	}
+	publicKeyBytes := eth.PublicKeyBytes(publicKey)
 	if !verifySecp256k1ByDigest(publicKeyBytes, digestEth, signature) {
 		return nil, errors.New("secp256k1 signature rejected")
 	}
@@ -64,29 +71,17 @@ func signGostValidate(privateKey gost3410.PrivateKey, message []byte) ([]byte, e
 }
 
 // SignMessageByKeyType signs message depending on specified key type
-func SignMessageByKeyType(keyType proto.KeyType, sKey interface{}, message []byte) ([]byte, error) {
-	var (
-		signature []byte
-		err       error
-	)
+func SignMessageByKeyType(keyType proto.KeyType, keys Keys, message []byte) ([]byte, error) {
 	switch keyType {
 	case proto.KeyType_ed25519:
-		signature, err = signEd25519Validate(sKey.([]byte), message)
-		if err != nil {
-			return nil, err
-		}
+		return signEd25519Validate(keys.PrivateKeyEd25519, message)
 	case proto.KeyType_secp256k1:
-		signature, err = signSecp256k1Validate(*sKey.(*ecdsa.PrivateKey), message)
-		if err != nil {
-			return nil, err
-		}
+		return signSecp256k1Validate(*keys.PrivateKeySecp256k1, message)
 	case proto.KeyType_gost:
-		signature, err = signGostValidate(*sKey.(*gost3410.PrivateKey), message)
+		return signGostValidate(*keys.PrivateKeyGOST, message)
 	default:
 		return nil, fmt.Errorf("unexpected key type: %s", keyType.String())
 	}
-
-	return signature, nil
 }
 
 func reverseBytes(in []byte) []byte {

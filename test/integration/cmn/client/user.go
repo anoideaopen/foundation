@@ -12,40 +12,23 @@ import (
 	"golang.org/x/crypto/sha3"
 )
 
-type Keys struct {
-	KeyType         pbfound.KeyType
-	PublicKey       interface{}
-	PrivateKey      interface{}
-	PublicKeyBytes  []byte
-	PrivateKeyBytes []byte
-	PublicKeyBase58 string
-}
-
 type UserFoundation struct {
-	Keys
+	keys.Keys
 	AddressBase58Check string
 	UserID             string
 }
 
 func NewUserFoundation(keyType pbfound.KeyType) (*UserFoundation, error) {
-	sKey, pKey, sKeyBytes, pKeyBytes, err := keys.GenerateKeysByKeyType(keyType)
+	keysStr, err := keys.GenerateKeysByKeyType(keyType)
 	if err != nil {
 		return nil, err
 	}
 
-	publicKeyBase58 := base58.Encode(pKeyBytes)
-	hash := sha3.Sum256(pKeyBytes)
+	hash := sha3.Sum256(keysStr.PublicKeyBytes)
 	addressBase58Check := base58.CheckEncode(hash[1:], hash[0])
 
 	return &UserFoundation{
-		Keys: Keys{
-			KeyType:         keyType,
-			PrivateKey:      sKey,
-			PublicKey:       pKey,
-			PrivateKeyBytes: sKeyBytes,
-			PublicKeyBytes:  pKeyBytes,
-			PublicKeyBase58: publicKeyBase58,
-		},
+		Keys:               keysStr,
 		AddressBase58Check: addressBase58Check,
 		UserID:             "testuser",
 	}, nil
@@ -62,13 +45,13 @@ func UserFoundationFromEd25519PrivateKey(privateKey ed25519.PrivateKey) (*UserFo
 	addressBase58Check := base58.CheckEncode(hash[1:], hash[0])
 
 	return &UserFoundation{
-		Keys: Keys{
-			KeyType:         pbfound.KeyType_ed25519,
-			PrivateKey:      privateKey,
-			PublicKey:       publicKey,
-			PrivateKeyBytes: privateKey,
-			PublicKeyBytes:  publicKey,
-			PublicKeyBase58: publicKeyBase58,
+		Keys: keys.Keys{
+			KeyType:           pbfound.KeyType_ed25519,
+			PrivateKeyEd25519: privateKey,
+			PublicKeyEd25519:  publicKey,
+			PrivateKeyBytes:   privateKey,
+			PublicKeyBytes:    publicKey,
+			PublicKeyBase58:   publicKeyBase58,
 		},
 		AddressBase58Check: addressBase58Check,
 		UserID:             "testuser",
@@ -101,7 +84,7 @@ func (u *UserFoundation) Sign(args ...string) (publicKeyBase58 string, signMsg [
 }
 
 func (u *UserFoundation) sign(message []byte) (signMsg []byte, err error) {
-	return keys.SignMessageByKeyType(u.KeyType, u.PrivateKey, message)
+	return keys.SignMessageByKeyType(u.KeyType, u.Keys, message)
 }
 
 func (u *UserFoundation) SetUserID(id string) {
