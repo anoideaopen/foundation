@@ -11,6 +11,7 @@ import (
 	"github.com/anoideaopen/foundation/test/unit/token/service"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 func TestGRPCRouter(t *testing.T) {
@@ -99,13 +100,8 @@ func TestGRPCRouterWithURLs(t *testing.T) {
 		UseURLs:  true,
 	})
 
-	conn := mock.NewMockClientConn(ch)
-	conn.SetCaller(owner)
-
 	// Register gRPC service.
 	proto.RegisterBalanceServiceServer(grpcRouter, balanceToken)
-
-	client := proto.NewBalanceServiceClient(conn)
 
 	// Init chaincode.
 	initMsg := ledger.NewCC(
@@ -128,9 +124,15 @@ func TestGRPCRouterWithURLs(t *testing.T) {
 	}
 
 	// Add balance by admin with a client by URL.
+	client := proto.NewBalanceServiceClient(mock.NewMockClientConn(ch).SetCaller(owner))
+
 	_, err := client.AddBalanceByAdmin(context.Background(), req)
 	require.NoError(t, err)
 	user1.BalanceShouldBe(ch, 1000)
+
+	hello, err := client.HelloWorld(context.Background(), &emptypb.Empty{})
+	require.NoError(t, err)
+	require.Equal(t, "Hello World!", hello.Message)
 
 	// Add balance by admin with override function name.
 	rawJSON, _ := protojson.Marshal(req)

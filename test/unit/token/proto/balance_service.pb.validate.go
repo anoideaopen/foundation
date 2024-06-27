@@ -449,3 +449,107 @@ var _ interface {
 	Cause() error
 	ErrorName() string
 } = BalanceAdjustmentRequestValidationError{}
+
+// Validate checks the field values on HelloWorldResponse with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the first error encountered is returned, or nil if there are no violations.
+func (m *HelloWorldResponse) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on HelloWorldResponse with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// HelloWorldResponseMultiError, or nil if none found.
+func (m *HelloWorldResponse) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *HelloWorldResponse) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for Message
+
+	if len(errors) > 0 {
+		return HelloWorldResponseMultiError(errors)
+	}
+
+	return nil
+}
+
+// HelloWorldResponseMultiError is an error wrapping multiple validation errors
+// returned by HelloWorldResponse.ValidateAll() if the designated constraints
+// aren't met.
+type HelloWorldResponseMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m HelloWorldResponseMultiError) Error() string {
+	var msgs []string
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m HelloWorldResponseMultiError) AllErrors() []error { return m }
+
+// HelloWorldResponseValidationError is the validation error returned by
+// HelloWorldResponse.Validate if the designated constraints aren't met.
+type HelloWorldResponseValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e HelloWorldResponseValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e HelloWorldResponseValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e HelloWorldResponseValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e HelloWorldResponseValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e HelloWorldResponseValidationError) ErrorName() string {
+	return "HelloWorldResponseValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e HelloWorldResponseValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sHelloWorldResponse.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = HelloWorldResponseValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = HelloWorldResponseValidationError{}

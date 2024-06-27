@@ -79,19 +79,7 @@ func (r *Router) RegisterService(desc *grpc.ServiceDesc, impl any) {
 		panic("stream methods are not supported")
 	}
 
-	// Find service descriptor.
-	var sd protoreflect.ServiceDescriptor
-	protoregistry.GlobalFiles.RangeFiles(func(fd protoreflect.FileDescriptor) bool {
-		for i := 0; i < fd.Services().Len(); i++ {
-			sd = fd.Services().Get(i)
-			if sd.FullName() == protoreflect.FullName(desc.ServiceName) {
-				return false
-			}
-		}
-
-		return true
-	})
-
+	sd := FindServiceDescriptor(desc.ServiceName)
 	if sd == nil {
 		panic(fmt.Sprintf("service '%s' not found", desc.ServiceName))
 	}
@@ -104,9 +92,9 @@ func (r *Router) RegisterService(desc *grpc.ServiceDesc, impl any) {
 			contractFn = ext
 		} else if r.useURLs {
 			// Example:
-			// "foundationtoken.BalanceService.AddBalanceByAdmin" ->
-			// "/foundationtoken.BalanceService/AddBalanceByAdmin"
-			contractFn = transformMethodName(string(md.FullName()))
+			// "foundation.token.BalanceService.AddBalanceByAdmin" ->
+			// "/foundation.token.BalanceService/AddBalanceByAdmin"
+			contractFn = FullNameToURL(string(md.FullName()))
 		} else {
 			// Example:
 			// "AddBalanceByAdmin" ->
@@ -321,16 +309,58 @@ type handler struct {
 // methodName represents the name of a method in the contract.
 type methodName = string
 
-// transformMethodName transforms a method name from "package.Service.Method" to "/package.Service/Method"
-func transformMethodName(fullMethodName string) string {
+// FullNameToURL transforms a method name from "package.Service.Method" to "/package.Service/Method"
+func FullNameToURL(fullMethodName string) string {
 	parts := strings.Split(fullMethodName, ".")
 	if len(parts) < 2 {
 		return ""
 	}
 
-	methodName := parts[len(parts)-1]
-	serviceName := parts[len(parts)-2]
-	packageName := strings.Join(parts[:len(parts)-2], ".")
+	var (
+		methodName  = parts[len(parts)-1]
+		serviceName = parts[len(parts)-2]
+		packageName = strings.Join(parts[:len(parts)-2], ".")
+	)
 
 	return fmt.Sprintf("/%s.%s/%s", packageName, serviceName, methodName)
+}
+
+// ServiceAndMethod extracts the service name and method name from a URL.
+func ServiceAndMethod(url string) (string, string) {
+	if len(url) == 0 || url[0] != '/' {
+		return "", ""
+	}
+
+	// Split the trimmed URL by '/'
+	parts := strings.Split(url[1:], "/")
+	if len(parts) != 2 {
+		return "", ""
+	}
+
+	var (
+		serviceName = parts[0]
+		methodName  = parts[1]
+	)
+
+	return serviceName, methodName
+}
+
+// FindServiceDescriptor finds the service descriptor by the given service name.
+func FindServiceDescriptor(serviceName string) protoreflect.ServiceDescriptor {
+	var sd protoreflect.ServiceDescriptor
+
+	protoregistry.GlobalFiles.RangeFiles(func(fd protoreflect.FileDescriptor) bool {
+		for i := 0; i < fd.Services().Len(); i++ {
+			sd = fd.Services().Get(i)
+			if sd.FullName() == protoreflect.FullName(serviceName) {
+				return false
+			}
+		}
+		return true
+	})
+	if sd == nil || sd.FullName() != protoreflect.FullName(serviceName) {
+		return nil
+	}
+
+	return sd
 }

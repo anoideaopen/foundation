@@ -2,12 +2,15 @@ package mock
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
+	"fmt"
+	"net/http"
 
+	coregrpc "github.com/anoideaopen/foundation/core/grpc"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 type MockClientConn struct {
@@ -33,24 +36,65 @@ func (m *MockClientConn) Invoke(ctx context.Context, method string, args interfa
 		return errors.New("caller not set")
 	}
 
-	var rawJSON []byte
-	if protoMessage, ok := args.(proto.Message); ok {
-		rawJSON, _ = protojson.Marshal(protoMessage)
-	} else {
-		rawJSON, _ = json.Marshal(args)
+	protoMessage, ok := args.(proto.Message)
+	if !ok {
+		panic("only proto messages are supported")
 	}
 
-	_, resp, _ := m.caller.RawSignedInvoke(m.ch, method, string(rawJSON))
+	rawJSON, _ := protojson.Marshal(protoMessage)
+
+	serviceName, methodName := coregrpc.ServiceAndMethod(method)
+
+	sd := coregrpc.FindServiceDescriptor(serviceName)
+	if sd == nil {
+		panic("service not found")
+	}
+
+	md := sd.Methods().ByName(protoreflect.Name(methodName))
+	if md == nil {
+		panic("method not found")
+	}
+
+	var resp TxResponse
+	if ext, ok := proto.GetExtension(md.Options(), coregrpc.E_MethodType).(coregrpc.MethodType); ok {
+		switch ext {
+		case coregrpc.MethodType_METHOD_TYPE_TRANSACTION:
+			_, resp, _ = m.caller.RawSignedInvoke(m.ch, method, string(rawJSON))
+
+		case coregrpc.MethodType_METHOD_TYPE_QUERY:
+			peerResp, err := m.caller.InvokeWithPeerResponse(m.ch, method, string(rawJSON))
+			if err != nil {
+				return err
+			}
+
+			if peerResp.GetStatus() != http.StatusOK {
+				return fmt.Errorf(
+					"unexpected status code: %d, message: %s",
+					peerResp.GetStatus(),
+					peerResp.GetMessage(),
+				)
+			}
+
+			resp.Result = string(peerResp.GetPayload())
+
+		default:
+			panic("method type not supported")
+
+		}
+	} else {
+		_, resp, _ = m.caller.RawSignedInvoke(m.ch, method, string(rawJSON))
+	}
 
 	if resp.Error != "" {
 		return errors.New(resp.Error)
 	}
 
-	if protoMessage, ok := reply.(proto.Message); ok {
-		return protojson.Unmarshal([]byte(resp.Result), protoMessage)
+	protoMessage, ok = reply.(proto.Message)
+	if !ok {
+		panic("only proto messages are supported")
 	}
 
-	return json.Unmarshal([]byte(resp.Result), reply)
+	return protojson.Unmarshal([]byte(resp.Result), protoMessage)
 }
 
 // NewStream begins a streaming RPC.

@@ -24,10 +24,18 @@ message BalanceAdjustmentRequest {
     string reason   = 3 [(validate.rules).string = {min_len: 1, max_len: 200}];
 }
 
+message HelloWorldResponse {
+    string message = 1;
+}
+
 // BalanceService defines the balance service.
 service BalanceService {
     rpc AddBalanceByAdmin(BalanceAdjustmentRequest) returns (google.protobuf.Empty) {
         option (foundation.method_type) = METHOD_TYPE_TRANSACTION;
+    }
+
+    rpc HelloWorld(google.protobuf.Empty) returns (HelloWorldResponse) {
+        option (foundation.method_type) = METHOD_TYPE_QUERY;
     }
 
     rpc AddBalanceByAdmin2(BalanceAdjustmentRequest) returns (google.protobuf.Empty) {

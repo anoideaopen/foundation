@@ -24,6 +24,7 @@ const _ = grpc.SupportPackageIsVersion7
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type BalanceServiceClient interface {
 	AddBalanceByAdmin(ctx context.Context, in *BalanceAdjustmentRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	HelloWorld(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*HelloWorldResponse, error)
 	AddBalanceByAdmin2(ctx context.Context, in *BalanceAdjustmentRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 }
 
@@ -44,6 +45,15 @@ func (c *balanceServiceClient) AddBalanceByAdmin(ctx context.Context, in *Balanc
 	return out, nil
 }
 
+func (c *balanceServiceClient) HelloWorld(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*HelloWorldResponse, error) {
+	out := new(HelloWorldResponse)
+	err := c.cc.Invoke(ctx, "/foundation.token.BalanceService/HelloWorld", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *balanceServiceClient) AddBalanceByAdmin2(ctx context.Context, in *BalanceAdjustmentRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	out := new(emptypb.Empty)
 	err := c.cc.Invoke(ctx, "/foundation.token.BalanceService/AddBalanceByAdmin2", in, out, opts...)
@@ -58,6 +68,7 @@ func (c *balanceServiceClient) AddBalanceByAdmin2(ctx context.Context, in *Balan
 // for forward compatibility
 type BalanceServiceServer interface {
 	AddBalanceByAdmin(context.Context, *BalanceAdjustmentRequest) (*emptypb.Empty, error)
+	HelloWorld(context.Context, *emptypb.Empty) (*HelloWorldResponse, error)
 	AddBalanceByAdmin2(context.Context, *BalanceAdjustmentRequest) (*emptypb.Empty, error)
 	mustEmbedUnimplementedBalanceServiceServer()
 }
@@ -68,6 +79,9 @@ type UnimplementedBalanceServiceServer struct {
 
 func (UnimplementedBalanceServiceServer) AddBalanceByAdmin(context.Context, *BalanceAdjustmentRequest) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AddBalanceByAdmin not implemented")
+}
+func (UnimplementedBalanceServiceServer) HelloWorld(context.Context, *emptypb.Empty) (*HelloWorldResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method HelloWorld not implemented")
 }
 func (UnimplementedBalanceServiceServer) AddBalanceByAdmin2(context.Context, *BalanceAdjustmentRequest) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AddBalanceByAdmin2 not implemented")
@@ -103,6 +117,24 @@ func _BalanceService_AddBalanceByAdmin_Handler(srv interface{}, ctx context.Cont
 	return interceptor(ctx, in, info, handler)
 }
 
+func _BalanceService_HelloWorld_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(emptypb.Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BalanceServiceServer).HelloWorld(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/foundation.token.BalanceService/HelloWorld",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BalanceServiceServer).HelloWorld(ctx, req.(*emptypb.Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _BalanceService_AddBalanceByAdmin2_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(BalanceAdjustmentRequest)
 	if err := dec(in); err != nil {
@@ -131,6 +163,10 @@ var BalanceService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "AddBalanceByAdmin",
 			Handler:    _BalanceService_AddBalanceByAdmin_Handler,
+		},
+		{
+			MethodName: "HelloWorld",
+			Handler:    _BalanceService_HelloWorld_Handler,
 		},
 		{
 			MethodName: "AddBalanceByAdmin2",

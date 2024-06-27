@@ -45,3 +45,9 @@ func (b *Balance) AddBalanceByAdmin2(
 ) (*emptypb.Empty, error) {
 	return b.AddBalanceByAdmin(ctx, req)
 }
+
+func (b *Balance) HelloWorld(context.Context, *emptypb.Empty) (*proto.HelloWorldResponse, error) {
+	return &proto.HelloWorldResponse{
+		Message: "Hello World!",
+	}, nil
+}
