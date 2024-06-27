@@ -10,6 +10,27 @@ import (
 	"golang.org/x/crypto/sha3"
 )
 
+const (
+	KeyLengthEd25519   = 32
+	KeyLengthSecp256k1 = 65
+	KeyLengthGOST      = 64
+)
+
+const PrefixUncompressedSecp259k1Key = 0x04
+
+func ValidateKeyLength(key []byte) bool {
+	if len(key) == KeyLengthEd25519 {
+		return true
+	}
+	if len(key) == KeyLengthSecp256k1 && key[0] == PrefixUncompressedSecp259k1Key {
+		return true
+	}
+	if len(key) == KeyLengthGOST {
+		return true
+	}
+	return false
+}
+
 func verifyEd25519ByMessage(publicKeyBytes []byte, message []byte, signature []byte) bool {
 	digestSHA3 := getDigestSHA3(message)
 	return verifyEd25519ByDigest(publicKeyBytes, digestSHA3, signature)

@@ -58,7 +58,7 @@ func generateGOSTKeys() (*gost3410.PublicKey, *gost3410.PrivateKey, error) {
 
 // GenerateKeysByKeyType generates private and public keys based on specified key type
 func GenerateKeysByKeyType(keyType proto.KeyType) (*Keys, error) {
-	keys := &Keys{}
+	keys := &Keys{KeyType: keyType}
 	switch keyType {
 	case proto.KeyType_ed25519:
 		pKey, sKey, err := generateEd25519Keys()

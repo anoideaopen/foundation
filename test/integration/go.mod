@@ -4,9 +4,9 @@ go 1.22.4
 
 require (
 	github.com/IBM/idemix v0.0.2-0.20231011101252-a4feda90f3f7
-	github.com/anoideaopen/acl v0.0.2
+	github.com/anoideaopen/acl v0.0.3-0.20240626183348-c5fd80acc486
 	github.com/anoideaopen/channel-transfer v0.0.2-0.20240605150922-e13f00983d0b
-	github.com/anoideaopen/foundation v0.0.3-0.20240624115045-4a0b8e299724
+	github.com/anoideaopen/foundation v0.0.3-0.20240625135101-49d8541502df
 	github.com/anoideaopen/robot v0.0.2-0.20240605153321-0e09032227bf
 	github.com/bsm/gomega v1.26.0
 	github.com/btcsuite/btcutil v1.0.3-0.20201208143702-a53e38424cce
