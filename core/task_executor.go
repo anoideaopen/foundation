@@ -75,7 +75,7 @@ func TasksExecutorHandler(
 	span.SetAttributes(attribute.String("tx_id", txID))
 	start := time.Now()
 	defer func() {
-		log.Infof("tx id %s elapsed time %d ms", txID, time.Since(start).Milliseconds())
+		log.Infof("tasks executor: tx id: %s, elapsed: %s", txID, time.Since(start))
 	}()
 
 	if len(args) != 1 {
@@ -88,6 +88,9 @@ func TasksExecutorHandler(
 		err = fmt.Errorf("failed to unmarshal argument to ExecuteTasksRequest for transaction %s, argument: %s", txID, args[0])
 		return nil, handleTasksError(span, err)
 	}
+
+	log.Warningf("tasks executor: tx id: %s, txs: %d", txID, len(executeTaskRequest.Tasks))
+
 	if len(executeTaskRequest.Tasks) == 0 {
 		err := fmt.Errorf("failed to validate argument: no tasks found in ExecuteTasksRequest for transaction %s: %w", txID, ErrTasksNotFound)
 		return nil, handleTasksError(span, err)

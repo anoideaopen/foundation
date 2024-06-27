@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"log"
 	"os"
 	"runtime/debug"
 	"time"
@@ -469,9 +468,10 @@ func (cc *Chaincode) Init(stub shim.ChaincodeStubInterface) peer.Response {
 // - An error response if any validations fail or the required method is not found.
 func (cc *Chaincode) Invoke(stub shim.ChaincodeStubInterface) (r peer.Response) {
 	r = shim.Error("panic invoke")
+	log := logger.Logger()
 	defer func() {
 		if rc := recover(); rc != nil {
-			log.Printf("panic invoke\nrc: %v\nstack: %s\n", rc, debug.Stack())
+			log.Errorf("panic invoke\nrc: %v\nstack: %s\n", rc, debug.Stack())
 		}
 	}()
 
@@ -511,10 +511,10 @@ func (cc *Chaincode) Invoke(stub shim.ChaincodeStubInterface) (r peer.Response) 
 
 	span.AddEvent(fmt.Sprintf("begin id: %s, name: %s", transactionID, functionName))
 	defer func() {
-		span.AddEvent(fmt.Sprintf("end id: %s, name: %s, elapsed time %d ms",
+		span.AddEvent(fmt.Sprintf("end id: %s, name: %s, elapsed: %d",
 			transactionID,
 			functionName,
-			time.Since(start).Milliseconds(),
+			time.Since(start),
 		))
 
 		span.End()
@@ -552,6 +552,13 @@ func (cc *Chaincode) Invoke(stub shim.ChaincodeStubInterface) (r peer.Response) 
 		return cc.createIndexHandler(traceCtx, stub, arguments)
 
 	case BatchExecute:
+		defer func() {
+			log.Warningf("tx id: %s, name: %s, elapsed: %d",
+				transactionID,
+				functionName,
+				time.Since(start),
+			)
+		}()
 		return cc.batchExecuteHandler(traceCtx, stub, creatorSKI, hashedCert, arguments, cfgBytes)
 
 	case SwapDone:
@@ -575,6 +582,13 @@ func (cc *Chaincode) Invoke(stub shim.ChaincodeStubInterface) (r peer.Response) 
 		}
 
 	case ExecuteTasks:
+		defer func() {
+			log.Warningf("tx id: %s, name: %s, elapsed: %d",
+				transactionID,
+				functionName,
+				time.Since(start),
+			)
+		}()
 		bytes, err := TasksExecutorHandler(
 			traceCtx,
 			stub,

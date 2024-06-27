@@ -162,7 +162,7 @@ func (cc *Chaincode) batchExecute(
 	btchStub := cachestub.NewBatchCacheStub(stub)
 	start := time.Now()
 	defer func() {
-		log.Infof("batch %s elapsed time %d ms", batchID, time.Since(start).Milliseconds())
+		log.Infof("batch: tx id: %s, elapsed: %s", batchID, time.Since(start))
 	}()
 	response := proto.BatchResponse{}
 	events := proto.BatchEvent{}
@@ -171,6 +171,8 @@ func (cc *Chaincode) batchExecute(
 		log.Errorf("Couldn't unmarshal batch %s: %s", batchID, err.Error())
 		return shim.Error(err.Error())
 	}
+
+	log.Warningf("batch: tx id: %s, txs: %d", batchID, len(batch.GetTxIDs()))
 
 	span.AddEvent("handle transactions in batch")
 	ids := make([]string, 0, len(batch.GetTxIDs()))
