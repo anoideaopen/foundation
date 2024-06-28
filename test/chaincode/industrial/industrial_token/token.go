@@ -38,15 +38,15 @@ type IndustrialToken struct {
 
 // GetID returns token id
 func (it *IndustrialToken) GetID() string {
-	return it.ContractConfig().Symbol
+	return it.ContractConfig().GetSymbol()
 }
 
 func (it *IndustrialToken) Issuer() *types.Address {
-	if it.extConfig.Issuer == nil {
+	if it.extConfig.GetIssuer() == nil {
 		panic("issuer is not set")
 	}
 
-	addr, err := types.AddrFromBase58Check(it.extConfig.Issuer.Address)
+	addr, err := types.AddrFromBase58Check(it.extConfig.GetIssuer().GetAddress())
 	if err != nil {
 		panic(err)
 	}
@@ -55,11 +55,11 @@ func (it *IndustrialToken) Issuer() *types.Address {
 }
 
 func (it *IndustrialToken) FeeSetter() *types.Address {
-	if it.extConfig.FeeSetter == nil {
+	if it.extConfig.GetFeeSetter() == nil {
 		panic("fee-setter is not set")
 	}
 
-	addr, err := types.AddrFromBase58Check(it.extConfig.FeeSetter.Address)
+	addr, err := types.AddrFromBase58Check(it.extConfig.GetFeeSetter().GetAddress())
 	if err != nil {
 		panic(err)
 	}
@@ -68,11 +68,11 @@ func (it *IndustrialToken) FeeSetter() *types.Address {
 }
 
 func (it *IndustrialToken) FeeAddressSetter() *types.Address {
-	if it.extConfig.FeeAddressSetter == nil {
+	if it.extConfig.GetFeeAddressSetter() == nil {
 		panic("fee-address-setter is not set")
 	}
 
-	addr, err := types.AddrFromBase58Check(it.extConfig.FeeAddressSetter.Address)
+	addr, err := types.AddrFromBase58Check(it.extConfig.GetFeeAddressSetter().GetAddress())
 	if err != nil {
 		panic(err)
 	}
@@ -112,18 +112,18 @@ func (it *IndustrialToken) setFee(
 	if err := it.loadConfigUnlessLoaded(); err != nil {
 		return err
 	}
-	if it.config.Fee == nil {
+	if it.config.GetFee() == nil {
 		it.config.Fee = &proto.TokenFee{}
 	}
-	if currency == it.ContractConfig().Symbol {
+	if currency == it.ContractConfig().GetSymbol() {
 		it.config.Fee.Currency = currency
 		it.config.Fee.Fee = fee.Bytes()
 		it.config.Fee.Floor = floor.Bytes()
 		it.config.Fee.Cap = cap.Bytes()
 		return it.saveConfig()
 	}
-	for _, rate := range it.config.Rates {
-		if rate.Currency == currency {
+	for _, rate := range it.config.GetRates() {
+		if rate.GetCurrency() == currency {
 			it.config.Fee.Currency = currency
 			it.config.Fee.Fee = fee.Bytes()
 			it.config.Fee.Floor = floor.Bytes()
@@ -139,8 +139,8 @@ func (it *IndustrialToken) GetRateAndLimits(dealType string, currency string) (*
 	if err := it.loadConfigUnlessLoaded(); err != nil {
 		return nil, false, err
 	}
-	for _, r := range it.config.Rates {
-		if r.DealType == dealType && r.Currency == currency {
+	for _, r := range it.config.GetRates() {
+		if r.GetDealType() == dealType && r.GetCurrency() == currency {
 			return r, true, nil
 		}
 	}
@@ -153,7 +153,7 @@ func (it *IndustrialToken) Initialize(groups []Group) error {
 		return err
 	}
 
-	if it.config.Initialized {
+	if it.config.GetInitialized() {
 		return nil
 	}
 
@@ -180,9 +180,9 @@ func (it *IndustrialToken) Initialize(groups []Group) error {
 
 	for _, x := range industrialGroups {
 		if err := it.IndustrialBalanceAdd(
-			it.ContractConfig().Symbol+"_"+x.Id,
+			it.ContractConfig().GetSymbol()+"_"+x.GetId(),
 			it.Issuer(),
-			new(big.Int).SetBytes(x.Emission),
+			new(big.Int).SetBytes(x.GetEmission()),
 			"initial emit",
 		); err != nil {
 			return err

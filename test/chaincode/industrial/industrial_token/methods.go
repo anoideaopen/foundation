@@ -55,15 +55,15 @@ type metadataRate struct {
 // QueryMetadata returns token Metadata
 func (it *IndustrialToken) QueryMetadata() (Metadata, error) {
 	m := Metadata{
-		Name:            it.extConfig.Name,
-		Symbol:          it.ContractConfig().Symbol,
-		Decimals:        uint(it.extConfig.Decimals),
-		UnderlyingAsset: it.extConfig.UnderlyingAsset,
-		DeliveryForm:    it.extConfig.DeliveryForm,
-		UnitOfMeasure:   it.extConfig.UnitOfMeasure,
-		TokensForUnit:   it.extConfig.TokensForUnit,
-		PaymentTerms:    it.extConfig.PaymentTerms,
-		Price:           it.extConfig.Price,
+		Name:            it.extConfig.GetName(),
+		Symbol:          it.ContractConfig().GetSymbol(),
+		Decimals:        uint(it.extConfig.GetDecimals()),
+		UnderlyingAsset: it.extConfig.GetUnderlyingAsset(),
+		DeliveryForm:    it.extConfig.GetDeliveryForm(),
+		UnitOfMeasure:   it.extConfig.GetUnitOfMeasure(),
+		TokensForUnit:   it.extConfig.GetTokensForUnit(),
+		PaymentTerms:    it.extConfig.GetPaymentTerms(),
+		Price:           it.extConfig.GetPrice(),
 		Issuer:          it.Issuer().String(),
 		Methods:         it.GetMethods(it),
 	}
@@ -72,32 +72,32 @@ func (it *IndustrialToken) QueryMetadata() (Metadata, error) {
 		return Metadata{}, err
 	}
 
-	for _, group := range it.config.Groups {
+	for _, group := range it.config.GetGroups() {
 		m.Groups = append(m.Groups, MetadataGroup{
-			Name:         group.Id,
-			Amount:       new(big.Int).SetBytes(group.Emission),
-			MaturityDate: time.Unix(group.Maturity, 0),
-			Note:         group.Note,
+			Name:         group.GetId(),
+			Amount:       new(big.Int).SetBytes(group.GetEmission()),
+			MaturityDate: time.Unix(group.GetMaturity(), 0),
+			Note:         group.GetNote(),
 		})
 	}
-	if len(it.config.FeeAddress) == 32 {
-		m.Fee.Address = types.AddrFromBytes(it.config.FeeAddress).String()
+	if len(it.config.GetFeeAddress()) == 32 {
+		m.Fee.Address = types.AddrFromBytes(it.config.GetFeeAddress()).String()
 	}
 
-	if it.config.Fee != nil {
-		m.Fee.Currency = it.config.Fee.Currency
-		m.Fee.Fee = new(big.Int).SetBytes(it.config.Fee.Fee)
-		m.Fee.Floor = new(big.Int).SetBytes(it.config.Fee.Floor)
-		m.Fee.Cap = new(big.Int).SetBytes(it.config.Fee.Cap)
+	if it.config.GetFee() != nil {
+		m.Fee.Currency = it.config.GetFee().GetCurrency()
+		m.Fee.Fee = new(big.Int).SetBytes(it.config.GetFee().GetFee())
+		m.Fee.Floor = new(big.Int).SetBytes(it.config.GetFee().GetFloor())
+		m.Fee.Cap = new(big.Int).SetBytes(it.config.GetFee().GetCap())
 	}
 
-	for _, r := range it.config.Rates {
+	for _, r := range it.config.GetRates() {
 		m.Rates = append(m.Rates, metadataRate{
-			DealType: r.DealType,
-			Currency: r.Currency,
-			Rate:     new(big.Int).SetBytes(r.Rate),
-			Min:      new(big.Int).SetBytes(r.Min),
-			Max:      new(big.Int).SetBytes(r.Max),
+			DealType: r.GetDealType(),
+			Currency: r.GetCurrency(),
+			Rate:     new(big.Int).SetBytes(r.GetRate()),
+			Min:      new(big.Int).SetBytes(r.GetMin()),
+			Max:      new(big.Int).SetBytes(r.GetMax()),
 		})
 	}
 
@@ -109,23 +109,23 @@ func (it *IndustrialToken) ChangeGroupMetadata(groupName string, maturityDate ti
 	if err := it.loadConfigUnlessLoaded(); err != nil {
 		return err
 	}
-	if !it.config.Initialized {
+	if !it.config.GetInitialized() {
 		return errors.New("token is not initialized")
 	}
 	notFound := true
-	for _, group := range it.config.Groups {
-		if group.Id == groupName {
+	for _, group := range it.config.GetGroups() {
+		if group.GetId() == groupName {
 			notFound = false
 			bChanged := false
 
 			nilTime := time.Time{}
 
-			if maturityDate != nilTime && maturityDate != time.Unix(group.Maturity, 0) {
+			if maturityDate != nilTime && maturityDate != time.Unix(group.GetMaturity(), 0) {
 				bChanged = true
 				group.Maturity = maturityDate.Unix()
 			}
 
-			if note != "" && note != group.Note {
+			if note != "" && note != group.GetNote() {
 				bChanged = true
 				group.Note = note
 			}
@@ -190,14 +190,14 @@ func (it *IndustrialToken) TxSetRate(sender *types.Sender, dealType string, curr
 	if rate.Sign() == 0 {
 		return errors.New("trying to set rate = 0")
 	}
-	if it.ContractConfig().Symbol == currency {
+	if it.ContractConfig().GetSymbol() == currency {
 		return errors.New("currency is equals token: it is impossible")
 	}
 	if err := it.loadConfigUnlessLoaded(); err != nil {
 		return err
 	}
-	for i, r := range it.config.Rates {
-		if r.DealType == dealType && r.Currency == currency {
+	for i, r := range it.config.GetRates() {
+		if r.GetDealType() == dealType && r.GetCurrency() == currency {
 			it.config.Rates[i].Rate = rate.Bytes()
 			return it.saveConfig()
 		}
@@ -224,12 +224,12 @@ func (it *IndustrialToken) TxSetLimits(sender *types.Sender, dealType string, cu
 		return err
 	}
 	unknownDealType := true
-	for i, r := range it.config.Rates {
-		if r.DealType == dealType {
+	for i, r := range it.config.GetRates() {
+		if r.GetDealType() == dealType {
 			unknownDealType = false
-			if r.Currency == currency {
-				it.config.Rates[i].Max = max.Bytes()
-				it.config.Rates[i].Min = min.Bytes()
+			if r.GetCurrency() == currency {
+				it.config.GetRates()[i].Max = max.Bytes()
+				it.config.GetRates()[i].Min = min.Bytes()
 				return it.saveConfig()
 			}
 		}

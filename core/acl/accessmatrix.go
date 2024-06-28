@@ -40,12 +40,12 @@ func GetAccountRight(stub shim.ChaincodeStubInterface, params []string) (*pb.Hav
 		args = append(args, []byte(param))
 	}
 	resp := stub.InvokeChaincode(CC, args, Ch)
-	if resp.Status != shim.OK {
-		return nil, errors.New(resp.Message)
+	if resp.GetStatus() != shim.OK {
+		return nil, errors.New(resp.GetMessage())
 	}
 
 	var r pb.HaveRight
-	if err := proto.Unmarshal(resp.Payload, &r); err != nil {
+	if err := proto.Unmarshal(resp.GetPayload(), &r); err != nil {
 		return nil, err
 	}
 
@@ -76,7 +76,7 @@ func IsIssuerAccountRight(bci core.BaseContractInterface, address *types.Address
 		return false, fmt.Errorf("getting account right: %w", err)
 	}
 
-	if haveRight != nil && !haveRight.HaveRight {
+	if haveRight != nil && !haveRight.GetHaveRight() {
 		return false, nil
 	}
 

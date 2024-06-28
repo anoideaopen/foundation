@@ -44,7 +44,7 @@ func ListBalancesByAddress(
 			return nil, err
 		}
 
-		_, components, err := stub.SplitCompositeKey(response.Key)
+		_, components, err := stub.SplitCompositeKey(response.GetKey())
 		if err != nil {
 			return nil, err
 		}
@@ -56,7 +56,7 @@ func ListBalancesByAddress(
 		balances = append(balances, TokenBalance{
 			Address: components[0],
 			Token:   components[1],
-			Balance: new(big.Int).SetBytes(response.Value),
+			Balance: new(big.Int).SetBytes(response.GetValue()),
 		})
 	}
 
@@ -94,7 +94,7 @@ func ListOwnersByToken(
 			return nil, err
 		}
 
-		_, components, err := stub.SplitCompositeKey(response.Key)
+		_, components, err := stub.SplitCompositeKey(response.GetKey())
 		if err != nil {
 			return nil, err
 		}
@@ -106,7 +106,7 @@ func ListOwnersByToken(
 		owners = append(owners, TokenBalance{
 			Token:   components[1],
 			Address: components[2],
-			Balance: new(big.Int).SetBytes(response.Value),
+			Balance: new(big.Int).SetBytes(response.GetValue()),
 		})
 	}
 

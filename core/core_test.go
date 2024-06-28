@@ -10,7 +10,7 @@ import (
 )
 
 func TestInvokeWithPanic(t *testing.T) {
-	cc := ChainCode{}
+	cc := Chaincode{}
 
 	rsp := cc.Invoke(nil)
 	require.Equal(t, int32(shim.ERROR), rsp.GetStatus())

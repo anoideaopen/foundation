@@ -56,8 +56,8 @@ func LoadCCFromTransfers(
 		}
 
 		cct := new(pb.CCTransfer)
-		if err = protojson.Unmarshal(kv.Value, cct); err != nil {
-			if err = proto.Unmarshal(kv.Value, cct); err != nil {
+		if err = protojson.Unmarshal(kv.GetValue(), cct); err != nil {
+			if err = proto.Unmarshal(kv.GetValue(), cct); err != nil {
 				return nil, fmt.Errorf("unmarshal: %w", err)
 			}
 		}
@@ -66,7 +66,7 @@ func LoadCCFromTransfers(
 	}
 
 	if meta != nil {
-		ccts.Bookmark = meta.Bookmark
+		ccts.Bookmark = meta.GetBookmark()
 	}
 
 	return ccts, nil
@@ -78,7 +78,7 @@ func SaveCCFromTransfer(stub shim.ChaincodeStubInterface, cct *pb.CCTransfer) er
 		return ErrSaveNilTransfer
 	}
 
-	if cct.Id == "" {
+	if cct.GetId() == "" {
 		return ErrEmptyIDTransfer
 	}
 
@@ -87,7 +87,7 @@ func SaveCCFromTransfer(stub shim.ChaincodeStubInterface, cct *pb.CCTransfer) er
 		return err
 	}
 
-	return stub.PutState(CCFromTransfer(cct.Id), data)
+	return stub.PutState(CCFromTransfer(cct.GetId()), data)
 }
 
 // DelCCFromTransfer deletes entry.
@@ -123,7 +123,7 @@ func SaveCCToTransfer(stub shim.ChaincodeStubInterface, cct *pb.CCTransfer) erro
 		return ErrSaveNilTransfer
 	}
 
-	if cct.Id == "" {
+	if cct.GetId() == "" {
 		return ErrEmptyIDTransfer
 	}
 
@@ -132,7 +132,7 @@ func SaveCCToTransfer(stub shim.ChaincodeStubInterface, cct *pb.CCTransfer) erro
 		return err
 	}
 
-	return stub.PutState(CCToTransfer(cct.Id), data)
+	return stub.PutState(CCToTransfer(cct.GetId()), data)
 }
 
 // DelCCToTransfer deletes entry.

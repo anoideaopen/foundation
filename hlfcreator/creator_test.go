@@ -8,7 +8,6 @@ import (
 
 	pb "github.com/golang/protobuf/proto"
 	"github.com/hyperledger/fabric-protos-go/msp"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -115,7 +114,7 @@ func Test_CreatorSKIAndHashedCert(t *testing.T) {
 			}
 
 			if err == nil {
-				assert.Equal(t, hex.EncodeToString(gotCreatorSKI[:]), tt.wantCreatorSKI)
+				require.Equal(t, hex.EncodeToString(gotCreatorSKI[:]), tt.wantCreatorSKI)
 			}
 		})
 	}

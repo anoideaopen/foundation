@@ -3,31 +3,29 @@ package core
 import (
 	"embed"
 	"encoding/hex"
-	"encoding/json"
+	"errors"
 	"fmt"
-	"log"
 	"os"
-	"reflect"
 	"runtime/debug"
 	"time"
 
 	"github.com/anoideaopen/foundation/core/balance"
+	"github.com/anoideaopen/foundation/core/config"
+	"github.com/anoideaopen/foundation/core/contract"
+	"github.com/anoideaopen/foundation/core/logger"
+	"github.com/anoideaopen/foundation/core/reflectx"
+	"github.com/anoideaopen/foundation/core/stringsx"
 	"github.com/anoideaopen/foundation/core/telemetry"
-	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/hlfcreator"
-	"github.com/anoideaopen/foundation/internal/config"
 	"github.com/anoideaopen/foundation/proto"
 	"github.com/hyperledger/fabric-chaincode-go/shim"
 	"github.com/hyperledger/fabric-protos-go/peer"
-	"github.com/pkg/errors"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 const (
-	// assertInterfaceErrMsg is the error message used when an interface to error type assertion fails.
-	assertInterfaceErrMsg = "assertion interface -> error is failed"
-
 	// chaincodeExecModeEnv is the environment variable that specifies the execution mode of the chaincode.
 	chaincodeExecModeEnv = "CHAINCODE_EXEC_MODE"
 	// chaincodeExecModeServer is the value that, when set for the CHAINCODE_EXEC_MODE environment variable,
@@ -64,14 +62,6 @@ var (
 )
 
 const (
-	noBatchPrefix = "NBTx"
-	queryPrefix   = "Query"
-	txPrefix      = "Tx"
-)
-
-const (
-	CreateIndex          = "createIndex"
-	SetIndexCreatedFlag  = "setIndexCreatedFlag"
 	BatchExecute         = "batchExecute"
 	SwapDone             = "swapDone"
 	MultiSwapDone        = "multiSwapDone"
@@ -80,53 +70,9 @@ const (
 	CommitCCTransferFrom = "commitCCTransferFrom"
 	CancelCCTransferFrom = "cancelCCTransferFrom"
 	DeleteCCTransferFrom = "deleteCCTransferFrom"
+	CreateIndex          = "createIndex"
+	ExecuteTasks         = "executeTasks"
 )
-
-// TokenConfigurable is an interface that defines methods for validating, applying, and
-// retrieving token configuration.
-type TokenConfigurable interface {
-	// ValidateTokenConfig validates the provided token configuration data.
-	// It takes a byte slice containing JSON-encoded token configuration and returns an error
-	// if the validation fails. The error should provide information about the validation failure.
-	//
-	// The implementation of this method may include unmarshalling the JSON-encoded data and
-	// invoking specific validation logic on the deserialized token configuration.
-	ValidateTokenConfig(config []byte) error
-
-	// ApplyTokenConfig applies the provided token configuration to the implementing object.
-	// It takes a pointer to a proto.TokenConfig struct and returns an error if applying the
-	// configuration fails. The error should provide information about the failure.
-	//
-	// The implementation of this method may include setting various properties of the implementing
-	// object based on the values in the provided token configuration.
-	ApplyTokenConfig(config *proto.TokenConfig) error
-
-	// TokenConfig retrieves the current token configuration from the implementing object.
-	// It returns a pointer to a proto.TokenConfig struct representing the current configuration.
-	//
-	// The implementation of this method should return the current state of the token configuration
-	// stored within the object.
-	TokenConfig() *proto.TokenConfig
-}
-
-// ExternalConfigurable is an interface that defines methods for validating and applying external configuration.
-// This interface should be implemented in chaincode to initialize some extended chaincode attributes
-// on Init() call.
-// ValidateExtConfig function called in shim.Chaincode.Init function, verify that config is OK.
-// ApplyExtConfig function called each time shim.Chaincode.Invoke called. It loads configuration from state
-// and apply to chaincode.
-type ExternalConfigurable interface {
-	// ValidateExtConfig validates the provided external configuration data.
-	// It takes a byte slice containing the external configuration data, typically in a
-	// specific format, and returns an error if the validation fails. The error should
-	// provide information about the validation failure.
-	ValidateExtConfig(cfgBytes []byte) error
-
-	// ApplyExtConfig applies the provided external configuration to the chaincode.
-	// It takes a byte slice containing the external configuration data and returns an error
-	// if applying the configuration fails. The error should provide information about the failure.
-	ApplyExtConfig(cfgBytes []byte) error
-}
 
 // ChaincodeOption represents a function that applies configuration options to
 // a chaincodeOptions object.
@@ -147,17 +93,140 @@ type TLS struct {
 // chaincodeOptions is a structure that holds advanced options for configuring
 // a ChainCode instance.
 type chaincodeOptions struct {
-	SrcFs *embed.FS // SrcFs is a file system that contains the source files for the chaincode.
-	TLS   *TLS      // TLS contains the TLS configuration for the chaincode.
+	SrcFS        *embed.FS             // SrcFS is a file system that contains the source files for the chaincode.
+	TLS          *TLS                  // TLS contains the TLS configuration for the chaincode.
+	ConfigMapper contract.ConfigMapper // ConfigMapper maps the arguments to a proto.Config instance.
+	Router       contract.Router       // Router for routing contract calls.
 }
 
-// ChainCode defines the structure for a chaincode instance, with methods,
+// Chaincode defines the structure for a chaincode instance, with methods,
 // configuration, and options for transaction processing.
-type ChainCode struct {
-	contract BaseContractInterface // Contract interface containing the chaincode logic.
-	tls      shim.TLSProperties    // TLS configuration properties.
-	// methods stores contract public methods, filled through parseContractMethods.
-	methods ContractMethods
+type Chaincode struct {
+	contract     BaseContractInterface // Contract interface containing the chaincode logic.
+	configMapper contract.ConfigMapper // ConfigMapper maps the arguments to a proto.Config instance.
+}
+
+// Router returns the contract router for the Chaincode.
+//
+// It first checks if the router is already initialized and returns it if so.
+// Then, it checks if the contract implements the contract.Router interface and returns it if it does.
+// If neither of these conditions are met, it initializes the router using the reflectx.NewRouter function
+// with the contract and a reflectx.RouterConfig containing the swaps and multi-swaps disabled options
+// from the contract's configuration.
+//
+// Returns:
+// - contract.Router: the contract router.
+func (cc *Chaincode) Router() contract.Router {
+	if router := cc.contract.Router(); router != nil {
+		return router
+	}
+
+	if router, ok := cc.contract.(contract.Router); ok {
+		cc.contract.setRouter(router)
+		return router
+	}
+
+	// Error is checked in Init.
+	router, _ := reflectx.NewRouter(cc.contract)
+	cc.contract.setRouter(router)
+
+	return router
+}
+
+// Method retrieves a contract method by its function name.
+//
+// Parameters:
+// - functionName: the name of the function.
+//
+// Returns:
+// - contract.Method: the method associated with the function name.
+// - error: an error if the method is not found.
+func (cc *Chaincode) Method(functionName string) (contract.Method, error) {
+	if method, ok := cc.Router().Methods()[functionName]; ok {
+		return method, nil
+	}
+
+	return contract.Method{}, fmt.Errorf("method '%s' not found", functionName)
+}
+
+// WithRouter returns a ChaincodeOption function that sets the router in the chaincode options.
+//
+// Parameters:
+// - router: the contract router to set.
+// Return type:
+// - ChaincodeOption: a function that sets the router in the chaincode options.
+func WithRouter(router contract.Router) ChaincodeOption {
+	return func(o *chaincodeOptions) error {
+		o.Router = router
+		return nil
+	}
+}
+
+// WithConfigMapper is a ChaincodeOption that specifies the ConfigMapper for the ChainCode.
+//
+// cm: An instance of the ConfigMapper interface.
+//
+// It returns a ChaincodeOption that sets the ConfigMapper field in the chaincodeOptions.
+//
+// Example:
+//
+//	configMapper := myCustomConfigMapper{}
+//	chaincode := core.NewCC(cc, core.WithConfigMapper(configMapper))
+func WithConfigMapper(cm contract.ConfigMapper) ChaincodeOption {
+	return func(o *chaincodeOptions) error {
+		o.ConfigMapper = cm
+		return nil
+	}
+}
+
+// WithConfigMapperFunc is a ChaincodeOption that specifies the ConfigMapper for the ChainCode.
+//
+// cmf: A function implementing the ConfigMapper interface.
+//
+// It returns a ChaincodeOption that sets the ConfigMapper field in the chaincodeOptions.
+//
+// Example using FromArgsWithAdmin:
+//
+//	chaincode := core.NewCC(cc, core.WithConfigMapperFunc(func(args []string) (*proto.Config, error) {
+//	    return config.FromArgsWithAdmin("ndm", args)
+//	}))
+//
+// Example with manual mapping:
+//
+//	chaincode := core.NewCC(cc, core.WithConfigMapperFunc(func(args []string) (*proto.Config, error) {
+//	    const requiredArgsCount = 4
+//	    if len(args) != requiredArgsCount {
+//	        return nil, fmt.Errorf("required args length is '%d', passed %d", requiredArgsCount, len(args))
+//	    }
+//	    robotSKI := args[1]
+//	    if robotSKI == "" {
+//	        return nil, fmt.Errorf("robot ski is empty")
+//	    }
+//	    issuerAddress := args[2]
+//	    if issuerAddress == "" {
+//	        return nil, fmt.Errorf("issuer address is empty")
+//	    }
+//	    adminAddress := args[3]
+//	    if adminAddress == "" {
+//	        return nil, fmt.Errorf("admin address is empty")
+//	    }
+//	    return &proto.Config{
+//	        Contract: &proto.ContractConfig{
+//	            Symbol: "TT",
+//	            Admin:  &proto.Wallet{Address: adminAddress},
+//	            RobotSKI: robotSKI,
+//	        },
+//	        Token: &proto.TokenConfig{
+//	            Name: "Test Token",
+//	            Issuer: &proto.Wallet{Address: issuerAddress},
+//	        },
+//	    }, nil
+//	}))
+func WithConfigMapperFunc(cmf contract.ConfigMapperFunc) ChaincodeOption {
+	return func(o *chaincodeOptions) error {
+		o.ConfigMapper = cmf
+		return nil
+	}
 }
 
 // WithSrcFS is a ChaincodeOption that specifies the source file system to be used by the ChainCode.
@@ -167,7 +236,7 @@ type ChainCode struct {
 // It returns a ChaincodeOption that sets the SrcFs field in the chaincodeOptions.
 func WithSrcFS(fs *embed.FS) ChaincodeOption {
 	return func(o *chaincodeOptions) error {
-		o.SrcFs = fs
+		o.SrcFS = fs
 		return nil
 	}
 }
@@ -294,27 +363,8 @@ func WithTLSFromFiles(keyPath, certPath, clientCACertPath string) (ChaincodeOpti
 func NewCC(
 	cc BaseContractInterface,
 	chOptions ...ChaincodeOption,
-) (*ChainCode, error) {
-	empty := new(ChainCode) // Empty chaincode result fixes integration tests.
-
-	// Default TLS properties, disabled unless keys and certs are provided.
-	tlsProps := shim.TLSProperties{
-		Disabled: true,
-	}
-
-	// Try to read TLS configuration from environment variables.
-	key, cert, clientCACerts, err := readTLSConfigFromEnv()
-	if err != nil {
-		return empty, fmt.Errorf("error reading TLS config from environment: %w", err)
-	}
-
-	// If TLS configuration is found in environment variables, use it.
-	if key != nil && cert != nil {
-		tlsProps.Disabled = false
-		tlsProps.Key = key
-		tlsProps.Cert = cert
-		tlsProps.ClientCACerts = clientCACerts
-	}
+) (*Chaincode, error) {
+	empty := new(Chaincode) // Empty chaincode result fixes integration tests.
 
 	// Apply chaincode options provided by the caller.
 	chOpts := chaincodeOptions{}
@@ -322,27 +372,20 @@ func NewCC(
 		if option == nil {
 			continue
 		}
-		err = option(&chOpts)
+		err := option(&chOpts)
 		if err != nil {
 			return empty, fmt.Errorf("reading opts: %w", err)
 		}
 	}
 
-	// If TLS was provided via options, overwrite env vars.
-	if chOpts.TLS != nil {
-		tlsProps.Disabled = false
-		tlsProps.Key = chOpts.TLS.Key
-		tlsProps.Cert = chOpts.TLS.Cert
-		tlsProps.ClientCACerts = chOpts.TLS.ClientCACerts
-	}
-
 	// Initialize the contract.
-	cc.setSrcFs(chOpts.SrcFs)
+	cc.setSrcFs(chOpts.SrcFS)
+	cc.setRouter(chOpts.Router)
 
 	// Set up the ChainCode structure.
-	out := &ChainCode{
-		contract: cc,
-		tls:      tlsProps,
+	out := &Chaincode{
+		contract:     cc,
+		configMapper: chOpts.ConfigMapper,
 	}
 
 	return out, nil
@@ -357,55 +400,58 @@ func NewCC(
 // Returns:
 // - A success response if initialization succeeds.
 // - An error response if it fails to get the creator or to initialize the chaincode.
-func (cc *ChainCode) Init(stub shim.ChaincodeStubInterface) peer.Response {
+func (cc *Chaincode) Init(stub shim.ChaincodeStubInterface) peer.Response {
 	creator, err := stub.GetCreator()
 	if err != nil {
-		return shim.Error(fmt.Sprintf("init: getting creator of transaction: %s", err.Error()))
+		return shim.Error("init: getting creator of transaction: " + err.Error())
 	}
 	if err = hlfcreator.ValidateAdminCreator(creator); err != nil {
-		return shim.Error(fmt.Sprintf("init: validating admin creator: %s", err))
+		return shim.Error("init: validating admin creator: " + err.Error())
 	}
 
 	args := stub.GetStringArgs()
 
 	var cfgBytes []byte
-	if config.IsJSONConfig(args) {
+	switch {
+	case config.IsJSON(args):
 		cfgBytes = []byte(args[0])
-	} else {
-		// handle args as position parameters and fill config structure.
-		// TODO: remove this code when all users moved to json-config initialization.
-		cfgBytes, err = config.ParseArgsArr(stub.GetChannelID(), args)
+
+	case cc.configMapper != nil:
+		cfg, err := cc.configMapper.MapConfig(args)
+		if err != nil {
+			return shim.Error("init: mapping config: " + err.Error())
+		}
+
+		cfgBytes, err = protojson.Marshal(cfg)
+		if err != nil {
+			return shim.Error("init: marshaling config: " + err.Error())
+		}
+
+	default:
+		// Handle args as positional parameters and fill the config structure.
+		// TODO: Remove this code when all users have moved to JSON-config initialization.
+		cfgBytes, err = config.FromInitArgs(stub.GetChannelID(), args) //nolint:staticcheck
 		if err != nil {
 			return shim.Error(fmt.Sprintf("init: parsing args old way: %s", err))
 		}
 	}
 
-	if err = validateContractMethods(cc.contract); err != nil {
-		return shim.Error(fmt.Sprintf("init: validating contract methods: %s", err.Error()))
+	if err = contract.ValidateConfig(cc.contract, cfgBytes); err != nil {
+		return shim.Error("init: validating config: " + err.Error())
 	}
 
-	if c, ok := cc.contract.(ContractConfigurable); ok {
-		if err = c.ValidateConfig(cfgBytes); err != nil {
-			return shim.Error(fmt.Sprintf("init: validating base config: %s", err))
-		}
-	} else {
-		return shim.Error("chaincode does not implement ContractConfigurable interface")
+	if err = config.Save(stub, cfgBytes); err != nil {
+		return shim.Error("init: saving config: " + err.Error())
 	}
 
-	if t, ok := cc.contract.(TokenConfigurable); ok {
-		if err = t.ValidateTokenConfig(cfgBytes); err != nil {
-			return shim.Error(fmt.Sprintf("init: validating token config: %s", err))
-		}
+	// Check if the contract implements the Router interface or router is already provided.
+	if _, ok := cc.contract.(contract.Router); ok || cc.contract.Router() != nil {
+		return shim.Success(nil)
 	}
 
-	if tc, ok := cc.contract.(ExternalConfigurable); ok {
-		if err = tc.ValidateExtConfig(cfgBytes); err != nil {
-			return shim.Error(fmt.Sprintf("init: validating extended token config: %s", err))
-		}
-	}
-
-	if err = config.SaveConfig(stub, cfgBytes); err != nil {
-		return shim.Error(fmt.Sprintf("init: saving config: %s", err.Error()))
+	// Check for duplicate methods.
+	if _, err = reflectx.NewRouter(cc.contract); err != nil {
+		return shim.Error("init: validating contract methods: " + err.Error())
 	}
 
 	return shim.Success(nil)
@@ -420,26 +466,32 @@ func (cc *ChainCode) Init(stub shim.ChaincodeStubInterface) peer.Response {
 // Returns:
 // - A response from the executed handler.
 // - An error response if any validations fail or the required method is not found.
-func (cc *ChainCode) Invoke(stub shim.ChaincodeStubInterface) (r peer.Response) {
+func (cc *Chaincode) Invoke(stub shim.ChaincodeStubInterface) (r peer.Response) {
 	r = shim.Error("panic invoke")
+	log := logger.Logger()
 	defer func() {
 		if rc := recover(); rc != nil {
-			log.Printf("panic invoke\nrc: %v\nstack: %s\n", rc, debug.Stack())
+			log.Errorf("panic invoke\nrc: %v\nstack: %s\n", rc, debug.Stack())
 		}
 	}()
 
 	start := time.Now()
 
 	// getting contract config
-	cfgBytes, err := config.LoadRawConfig(stub)
+	cfgBytes, err := config.Load(stub)
 	if err != nil {
-		return shim.Error(fmt.Sprintf("invoke: loading raw config: %s", err.Error()))
+		return shim.Error("invoke: loading raw config: " + err.Error())
+	}
+
+	cfg, err := config.FromBytes(cfgBytes)
+	if err != nil {
+		return shim.Error(err.Error())
 	}
 
 	// Apply config on all layers: base contract (SKI's & chaincode options),
 	// token base attributes and extended token parameters.
-	if err = applyConfig(&cc.contract, stub, cfgBytes); err != nil {
-		return shim.Error(fmt.Sprintf("applying configutarion: %s", err.Error()))
+	if err = contract.Configure(cc.contract, stub, cfgBytes); err != nil {
+		return shim.Error("applying configutarion: " + err.Error())
 	}
 
 	// Getting carrier from transient map and creating tracing span
@@ -459,10 +511,10 @@ func (cc *ChainCode) Invoke(stub shim.ChaincodeStubInterface) (r peer.Response) 
 
 	span.AddEvent(fmt.Sprintf("begin id: %s, name: %s", transactionID, functionName))
 	defer func() {
-		span.AddEvent(fmt.Sprintf("end id: %s, name: %s, elapsed time %d ms",
+		span.AddEvent(fmt.Sprintf("end id: %s, name: %s, elapsed: %d",
 			transactionID,
 			functionName,
-			time.Since(start).Milliseconds(),
+			time.Since(start),
 		))
 
 		span.End()
@@ -470,7 +522,7 @@ func (cc *ChainCode) Invoke(stub shim.ChaincodeStubInterface) (r peer.Response) 
 
 	span.AddEvent("validating transaction ID")
 	if err = cc.ValidateTxID(stub); err != nil {
-		errMsg := fmt.Sprintf("invoke: validating transaction ID: %s", err.Error())
+		errMsg := "invoke: validating transaction ID: " + err.Error()
 		span.SetStatus(codes.Error, errMsg)
 		return shim.Error(errMsg)
 	}
@@ -478,7 +530,7 @@ func (cc *ChainCode) Invoke(stub shim.ChaincodeStubInterface) (r peer.Response) 
 	span.AddEvent("getting creator")
 	creatorBytes, err := stub.GetCreator()
 	if err != nil {
-		errMsg := fmt.Sprintf("invoke: failed to get creator of transaction: %s", err.Error())
+		errMsg := "invoke: failed to get creator of transaction: " + err.Error()
 		span.SetStatus(codes.Error, errMsg)
 		return shim.Error(errMsg)
 	}
@@ -486,15 +538,7 @@ func (cc *ChainCode) Invoke(stub shim.ChaincodeStubInterface) (r peer.Response) 
 	span.AddEvent("getting creator SKI and hashed cert")
 	creatorSKI, hashedCert, err := hlfcreator.CreatorSKIAndHashedCert(creatorBytes)
 	if err != nil {
-		errMsg := fmt.Sprintf("invoke: validating creator: %s", err.Error())
-		span.SetStatus(codes.Error, errMsg)
-		return shim.Error(errMsg)
-	}
-
-	span.AddEvent("parsing contract methods")
-	cc.methods, err = parseContractMethods(cc.contract)
-	if err != nil {
-		errMsg := fmt.Sprintf("invoke: parsing contract methods: %s", err.Error())
+		errMsg := "invoke: validating creator: " + err.Error()
 		span.SetStatus(codes.Error, errMsg)
 		return shim.Error(errMsg)
 	}
@@ -505,73 +549,93 @@ func (cc *ChainCode) Invoke(stub shim.ChaincodeStubInterface) (r peer.Response) 
 	span.SetAttributes(attribute.String("method", functionName))
 	switch functionName {
 	case CreateIndex: // Creating a reverse index to find token owners.
-		if len(arguments) != 1 {
-			errMsg := fmt.Sprintf("invoke: incorrect number of arguments: %d", len(arguments))
-			span.SetStatus(codes.Error, errMsg)
-			return shim.Error(errMsg)
-		}
-
-		balanceType, err := balance.StringToBalanceType(arguments[0])
-		if err != nil {
-			errMsg := fmt.Sprintf("invoke: parsing object type: %s", err.Error())
-			span.SetStatus(codes.Error, errMsg)
-			return shim.Error(errMsg)
-		}
-
-		if err = balance.CreateIndex(stub, balanceType); err != nil {
-			errMsg := fmt.Sprintf("invoke: create index: %s", err.Error())
-			span.SetStatus(codes.Error, errMsg)
-			return shim.Error(errMsg)
-		}
-
-		span.SetStatus(codes.Ok, "")
-		return shim.Success([]byte(`{"status": "success"}`))
+		return cc.createIndexHandler(traceCtx, stub, arguments)
 
 	case BatchExecute:
+		defer func() {
+			log.Warningf("tx id: %s, name: %s, elapsed: %s",
+				transactionID,
+				functionName,
+				time.Since(start),
+			)
+		}()
 		return cc.batchExecuteHandler(traceCtx, stub, creatorSKI, hashedCert, arguments, cfgBytes)
 
 	case SwapDone:
-		return cc.swapDoneHandler(traceCtx, stub, arguments, cfgBytes)
+		return cc.swapDoneHandler(arguments)
 
 	case MultiSwapDone:
-		return cc.multiSwapDoneHandler(traceCtx, stub, arguments, cfgBytes)
+		return cc.multiSwapDoneHandler(arguments)
 
 	case CreateCCTransferTo,
 		DeleteCCTransferTo,
 		CommitCCTransferFrom,
 		CancelCCTransferFrom,
 		DeleteCCTransferFrom:
-		contractCfg, err := config.ContractConfigFromBytes(cfgBytes)
-		if err != nil {
-			errMsg := fmt.Sprintf("loading base config %s", err.Error())
-			span.SetStatus(codes.Error, errMsg)
-			return shim.Error(errMsg)
-		}
 
-		robotSKIBytes, _ := hex.DecodeString(contractCfg.RobotSKI)
+		robotSKIBytes, _ := hex.DecodeString(cfg.GetContract().GetRobotSKI())
 		err = hlfcreator.ValidateSKI(robotSKIBytes, creatorSKI, hashedCert)
 		if err != nil {
-			errMsg := fmt.Sprintf("invoke:unauthorized: robotSKI is not equal creatorSKI and hashedCert: %s", err.Error())
+			errMsg := "invoke:unauthorized: robotSKI is not equal creatorSKI and hashedCert: " + err.Error()
 			span.SetStatus(codes.Error, errMsg)
 			return shim.Error(errMsg)
 		}
+
+	case ExecuteTasks:
+		defer func() {
+			log.Warningf("tx id: %s, name: %s, elapsed: %s",
+				transactionID,
+				functionName,
+				time.Since(start),
+			)
+		}()
+		bytes, err := TasksExecutorHandler(
+			traceCtx,
+			stub,
+			cfgBytes,
+			arguments,
+			cc,
+		)
+		if err != nil {
+			errMsg := fmt.Sprintf("failed to execute method %s: txID %s: %s", ExecuteTasks, stub.GetTxID(), err)
+			logger.Logger().Error(errMsg)
+			span.SetStatus(codes.Error, errMsg)
+			return shim.Error(errMsg)
+		}
+
+		return shim.Success(bytes)
 	}
 
-	method, err := cc.methods.Method(functionName)
+	method, err := cc.Method(functionName)
 	if err != nil {
-		errMsg := fmt.Sprintf("invoke: finding method: %s", err.Error())
+		errMsg := "invoke: finding method: " + err.Error()
 		span.SetStatus(codes.Error, errMsg)
 		return shim.Error(errMsg)
 	}
 
+	if cfg.GetContract().GetOptions() != nil {
+		var (
+			swapMethods      = []string{"QuerySwapGet", "TxSwapBegin", "TxSwapCancel"}
+			multiSwapMethods = []string{"QueryMultiSwapGet", "TxMultiSwapBegin", "TxMultiSwapCancel"}
+			method           = method.MethodName
+			opts             = cfg.GetContract().GetOptions()
+		)
+
+		if stringsx.OneOf(method, opts.GetDisabledFunctions()...) ||
+			(opts.GetDisableSwaps() && stringsx.OneOf(method, swapMethods...)) ||
+			(opts.GetDisableMultiSwaps() && stringsx.OneOf(method, multiSwapMethods...)) {
+			return shim.Error(fmt.Sprintf("invoke: finding method: method '%s' not found", functionName))
+		}
+	}
+
 	// handle invoke and query methods executed without batch process
-	if method.noBatch {
+	if method.Type == contract.MethodTypeInvoke || method.Type == contract.MethodTypeQuery {
 		span.SetAttributes(telemetry.MethodType(telemetry.MethodNbTx))
-		return cc.noBatchHandler(traceCtx, stub, functionName, method, arguments, cfgBytes)
+		return cc.noBatchHandler(traceCtx, stub, method, arguments, cfgBytes)
 	}
 
 	// handle invoke method with batch process
-	return cc.BatchHandler(traceCtx, stub, functionName, method, arguments)
+	return cc.BatchHandler(traceCtx, stub, method, arguments)
 }
 
 // ValidateTxID validates the transaction ID to ensure it is correctly formatted.
@@ -582,7 +646,7 @@ func (cc *ChainCode) Invoke(stub shim.ChaincodeStubInterface) (r peer.Response) 
 // Returns:
 // - nil if the transaction ID is valid.
 // - An error if the transaction ID is not valid hexadecimal.
-func (cc *ChainCode) ValidateTxID(stub shim.ChaincodeStubInterface) error {
+func (cc *Chaincode) ValidateTxID(stub shim.ChaincodeStubInterface) error {
 	_, err := hex.DecodeString(stub.GetTxID())
 	if err != nil {
 		return fmt.Errorf("incorrect tx id: %w", err)
@@ -602,32 +666,31 @@ func (cc *ChainCode) ValidateTxID(stub shim.ChaincodeStubInterface) error {
 // Returns:
 // - A success response if the batching is successful.
 // - An error response if there is any failure in authentication, preparation, or saving to batch.
-func (cc *ChainCode) BatchHandler(
+func (cc *Chaincode) BatchHandler(
 	traceCtx telemetry.TraceContext,
 	stub shim.ChaincodeStubInterface,
-	funcName string,
-	fn *Fn,
+	method contract.Method,
 	args []string,
 ) peer.Response {
 	traceCtx, span := cc.contract.TracingHandler().StartNewSpan(traceCtx, "chaincode.BatchHandler")
 	defer span.End()
 
 	span.AddEvent("validating sender")
-	sender, args, nonce, err := cc.validateAndExtractInvocationContext(stub, fn, funcName, args)
+	sender, args, nonce, err := cc.validateAndExtractInvocationContext(stub, method, args)
 	if err != nil {
 		span.SetStatus(codes.Error, "validating sender failed")
 		return shim.Error(err.Error())
 	}
-	span.AddEvent("prepare to save")
-	args, err = doPrepareToSave(stub, fn, args)
-	if err != nil {
-		span.SetStatus(codes.Error, "prepare to save failed")
+
+	span.AddEvent("validating arguments")
+	if err := cc.Router().Check(method.MethodName, cc.PrependSender(method, sender, args)...); err != nil {
+		span.SetStatus(codes.Error, "validating arguments failed")
 		return shim.Error(err.Error())
 	}
 
 	span.SetAttributes(attribute.String("preimage_tx_id", stub.GetTxID()))
 	span.AddEvent("save to batch")
-	if err = cc.saveToBatch(traceCtx, stub, funcName, fn, sender, args[:len(fn.in)], nonce); err != nil {
+	if err = cc.saveToBatch(traceCtx, stub, method, sender, args, nonce); err != nil {
 		span.SetStatus(codes.Error, "save to batch failed")
 		return shim.Error(err.Error())
 	}
@@ -643,36 +706,35 @@ func (cc *ChainCode) BatchHandler(
 // If the function is marked as a 'query', it modifies the stub to ensure that no state changes are persisted.
 //
 // Returns a shim.Success response if the function invocation is successful. Otherwise, it returns a shim.Error response.
-func (cc *ChainCode) noBatchHandler(
+func (cc *Chaincode) noBatchHandler(
 	traceCtx telemetry.TraceContext,
 	stub shim.ChaincodeStubInterface,
-	funcName string,
-	fn *Fn,
+	method contract.Method,
 	args []string,
 	cfgBytes []byte,
 ) peer.Response {
 	traceCtx, span := cc.contract.TracingHandler().StartNewSpan(traceCtx, "chaincode.NoBatchHandler")
 	defer span.End()
 
-	if fn.query {
+	if method.Type == contract.MethodTypeQuery {
 		stub = newQueryStub(stub)
 	}
 
 	span.AddEvent("validating sender")
-	sender, args, _, err := cc.validateAndExtractInvocationContext(stub, fn, funcName, args)
+	sender, args, _, err := cc.validateAndExtractInvocationContext(stub, method, args)
 	if err != nil {
 		span.SetStatus(codes.Error, "validating sender failed")
 		return shim.Error(err.Error())
 	}
-	span.AddEvent("prepare to save")
-	args, err = doPrepareToSave(stub, fn, args)
-	if err != nil {
-		span.SetStatus(codes.Error, "prepare to save failed")
+
+	span.AddEvent("validating arguments")
+	if err := cc.Router().Check(method.MethodName, cc.PrependSender(method, sender, args)...); err != nil {
+		span.SetStatus(codes.Error, "validating arguments failed")
 		return shim.Error(err.Error())
 	}
 
 	span.AddEvent("calling method")
-	resp, err := cc.callMethod(traceCtx, stub, fn, sender, args, cfgBytes)
+	resp, err := cc.InvokeContractMethod(traceCtx, stub, method, sender, args, cfgBytes)
 	if err != nil {
 		span.SetStatus(codes.Error, err.Error())
 		return shim.Error(err.Error())
@@ -690,7 +752,7 @@ func (cc *ChainCode) noBatchHandler(
 //
 // Returns a shim.Success response if the batch execution is successful. Otherwise, it returns a shim.Error response
 // indicating either an incorrect transaction ID or unauthorized access.
-func (cc *ChainCode) batchExecuteHandler(
+func (cc *Chaincode) batchExecuteHandler(
 	traceCtx telemetry.TraceContext,
 	stub shim.ChaincodeStubInterface,
 	creatorSKI [32]byte,
@@ -698,235 +760,19 @@ func (cc *ChainCode) batchExecuteHandler(
 	args []string,
 	cfgBytes []byte,
 ) peer.Response {
-	contractCfg, err := config.ContractConfigFromBytes(cfgBytes)
+	cfg, err := config.FromBytes(cfgBytes)
 	if err != nil {
 		return peer.Response{}
 	}
 
-	robotSKIBytes, _ := hex.DecodeString(contractCfg.RobotSKI)
+	robotSKIBytes, _ := hex.DecodeString(cfg.GetContract().GetRobotSKI())
 
 	err = hlfcreator.ValidateSKI(robotSKIBytes, creatorSKI, hashedCert)
 	if err != nil {
-		return shim.Error(
-			fmt.Sprintf(
-				"unauthorized: robotSKI is not equal creatorSKI and hashedCert: %s",
-				err.Error(),
-			),
-		)
+		return shim.Error("unauthorized: robotSKI is not equal creatorSKI and hashedCert: " + err.Error())
 	}
 
 	return cc.batchExecute(traceCtx, stub, args[0], cfgBytes)
-}
-
-// callMethod invokes a method on the ChainCode contract using reflection. It converts the
-// arguments from strings to their expected types, handles sender address if provided,
-// creates a copy of the contract with provided initialization arguments, and then
-// calls the specified method on the contract.
-//
-// Returns:
-//   - A byte slice containing the JSON-marshaled return value of the method, if method.out is true.
-//   - An error if there is any issue with argument conversion, contract copying, or method call.
-//
-// If 'sender' is non-nil, it is converted to a types.Sender and prepended to the argument list.
-// If 'method.out' is true, the return value of the method call is JSON-marshaled and returned as a byte slice.
-// If the method call returns an error or the return value cannot be converted to an error, it is returned as is.
-//
-// Errors from the method call are converted to Go errors and returned. If the conversion is not possible,
-// a generic error with message assertInterfaceErrMsg is returned.
-func (cc *ChainCode) callMethod(
-	traceCtx telemetry.TraceContext,
-	stub shim.ChaincodeStubInterface,
-	method *Fn,
-	sender *proto.Address,
-	args []string,
-	cfgBytes []byte,
-) ([]byte, error) {
-	traceCtx, span := cc.contract.TracingHandler().StartNewSpan(traceCtx, "chaincode.CallMethod")
-	defer span.End()
-
-	span.SetAttributes(attribute.StringSlice("args", args))
-	span.AddEvent("convert to call")
-	values, err := doConvertToCall(stub, method, args)
-	if err != nil {
-		return nil, err
-	}
-	if sender != nil {
-		span.SetAttributes(attribute.String("sender addr", sender.AddrString()))
-		values = append([]reflect.Value{
-			reflect.ValueOf(types.NewSenderFromAddr((*types.Address)(sender))),
-		}, values...)
-	}
-
-	span.AddEvent("copy contract")
-	contract, _ := copyContractWithConfig(traceCtx, cc.contract, stub, cfgBytes)
-
-	span.AddEvent("call")
-	out := method.fn.Call(append([]reflect.Value{contract}, values...))
-	errInt := out[0].Interface()
-	if method.out {
-		errInt = out[1].Interface()
-	}
-	if errInt != nil {
-		err, ok := errInt.(error)
-		if !ok {
-			span.SetStatus(codes.Error, assertInterfaceErrMsg)
-			return nil, errors.New(assertInterfaceErrMsg)
-		}
-		span.SetStatus(codes.Error, err.Error())
-		return nil, err
-	}
-
-	if method.out {
-		span.SetStatus(codes.Ok, "")
-		return json.Marshal(out[0].Interface())
-	}
-	span.SetStatus(codes.Ok, "")
-	return nil, nil
-}
-
-// doConvertToCall prepares the arguments for a chaincode method call by converting each
-// string argument to its expected Go type as defined in the method's 'in' field. It uses reflection
-// to dynamically convert arguments and checks if the number of provided arguments matches the expectation.
-//
-// It returns a slice of reflect.Value representing the converted arguments, and an error if
-// the conversion fails or if there is an incorrect number of arguments.
-func doConvertToCall(
-	stub shim.ChaincodeStubInterface,
-	method *Fn,
-	args []string,
-) ([]reflect.Value, error) {
-	found := len(args)
-	expected := len(method.in)
-	if found < expected {
-		return nil, fmt.Errorf(
-			"incorrect number of arguments, found %d but expected more than %d",
-			found,
-			expected,
-		)
-	}
-	// todo check is args enough
-	vArgs := make([]reflect.Value, len(method.in))
-	for i := range method.in {
-		var impl reflect.Value
-		if method.in[i].kind.Kind().String() == "ptr" {
-			impl = reflect.New(method.in[i].kind.Elem())
-		} else {
-			impl = reflect.New(method.in[i].kind).Elem()
-		}
-
-		res := method.in[i].convertToCall.Call([]reflect.Value{
-			impl,
-			reflect.ValueOf(stub), reflect.ValueOf(args[i]),
-		})
-
-		if res[1].Interface() != nil {
-			err, ok := res[1].Interface().(error)
-			if !ok {
-				return nil, errors.New(assertInterfaceErrMsg)
-			}
-			return nil, fmt.Errorf(
-				"failed to convert arg value '%s' to type '%s' on index '%d': %w",
-				args[i], impl.String(), i, err,
-			)
-		}
-		vArgs[i] = res[0]
-	}
-	return vArgs, nil
-}
-
-// doPrepareToSave prepares the arguments for storage by ensuring they are in the correct format.
-// It checks if there are enough arguments and uses either a custom 'prepareToSave' or 'convertToCall'
-// method defined in the method's 'in' field for conversion. It returns the processed arguments as a
-// slice of strings, and an error if the conversion fails or if there is an incorrect number of arguments.
-func doPrepareToSave(
-	stub shim.ChaincodeStubInterface,
-	method *Fn,
-	args []string,
-) ([]string, error) {
-	if len(args) < len(method.in) {
-		return nil, fmt.Errorf(
-			"incorrect number of arguments. current count of args is %d but expected more than %d",
-			len(args),
-			len(method.in),
-		)
-	}
-	as := make([]string, len(method.in))
-	for i := range method.in {
-		var impl reflect.Value
-		if method.in[i].kind.Kind().String() == "ptr" {
-			impl = reflect.New(method.in[i].kind.Elem())
-		} else {
-			impl = reflect.New(method.in[i].kind).Elem()
-		}
-
-		var ok bool
-		if method.in[i].prepareToSave.IsValid() {
-			res := method.in[i].prepareToSave.Call([]reflect.Value{
-				impl,
-				reflect.ValueOf(stub), reflect.ValueOf(args[i]),
-			})
-			if res[1].Interface() != nil {
-				err, ok := res[1].Interface().(error)
-				if !ok {
-					return nil, errors.New(assertInterfaceErrMsg)
-				}
-				return nil, err
-			}
-			as[i], ok = res[0].Interface().(string)
-			if !ok {
-				return nil, errors.New(assertInterfaceErrMsg)
-			}
-			continue
-		}
-
-		// if method PrepareToSave don't have exists
-		// use ConvertToCall to check converting
-		res := method.in[i].convertToCall.Call([]reflect.Value{
-			impl,
-			reflect.ValueOf(stub), reflect.ValueOf(args[i]),
-		})
-		if res[1].Interface() != nil {
-			err, ok := res[1].Interface().(error)
-			if !ok {
-				return nil, errors.New(assertInterfaceErrMsg)
-			}
-			return nil, err
-		}
-
-		as[i] = args[i] // in this case we don't convert argument
-	}
-	return as, nil
-}
-
-// copyContract creates a deep copy of a contract's interface. It uses reflection to copy each field
-// from the original to a new instance of the same type. The new copy is initialized with the provided
-// stub, cfgBytes and noncePrefix. It returns a reflect.Value of the copied contract and
-// an interface to the copied contract.
-func copyContractWithConfig(
-	traceCtx telemetry.TraceContext,
-	orig BaseContractInterface,
-	stub shim.ChaincodeStubInterface,
-	cfgBytes []byte,
-) (reflect.Value, BaseContractInterface) {
-	cp := reflect.New(reflect.ValueOf(orig).Elem().Type())
-	val := reflect.ValueOf(orig).Elem()
-	for i := 0; i < val.NumField(); i++ {
-		if cp.Elem().Field(i).CanSet() {
-			cp.Elem().Field(i).Set(val.Field(i))
-		}
-	}
-
-	contract, ok := cp.Interface().(BaseContractInterface)
-	if !ok {
-		return cp, nil
-	}
-
-	_ = applyConfig(&contract, stub, cfgBytes)
-
-	contract.setTraceContext(traceCtx)
-	contract.setTracingHandler(contract.TracingHandler())
-
-	return cp, contract
 }
 
 // Start begins the chaincode execution based on the environment configuration. It decides whether to
@@ -934,18 +780,22 @@ func copyContractWithConfig(
 // variable. In server mode, it requires the CHAINCODE_ID to be set and uses CHAINCODE_SERVER_PORT for
 // the port or defaults to a predefined port if not set. It returns an error if the necessary
 // environment variables are not set or if the chaincode fails to start.
-func (cc *ChainCode) Start() error {
+func (cc *Chaincode) Start() error {
 	// get chaincode execution mode
 	execMode := os.Getenv(chaincodeExecModeEnv)
 	// if exec mode is not chaincode-as-server or not defined start chaincode as usual
 	if execMode != chaincodeExecModeServer {
 		return shim.Start(cc)
 	}
+
+	// if exec mode is chaincode-as-service, set the parameter isService in the base contract to true
+	cc.contract.setIsService()
+
 	// if chaincode exec mode is chaincode-as-server we should propagate variables
 	var ccID string
 	// if chaincode was set during runtime build, use it
 	if ccID = os.Getenv(chaincodeCcIDEnv); ccID == "" {
-		return fmt.Errorf("need to specify chaincode id if running as server")
+		return errors.New("need to specify chaincode id if running as server")
 	}
 
 	port := os.Getenv(chaincodeServerPortEnv)
@@ -953,13 +803,39 @@ func (cc *ChainCode) Start() error {
 		port = chaincodeServerDefaultPort
 	}
 
+	tlsProps, err := tlsProperties()
+	if err != nil {
+		return fmt.Errorf("failed obtaining tls properties for chaincode server: %w", err)
+	}
+
 	srv := shim.ChaincodeServer{
 		CCID:     ccID,
 		Address:  fmt.Sprintf("%s:%s", "0.0.0.0", port),
 		CC:       cc,
-		TLSProps: cc.tls,
+		TLSProps: tlsProps,
 	}
 	return srv.Start()
+}
+
+func tlsProperties() (shim.TLSProperties, error) {
+	tlsProps := shim.TLSProperties{
+		Disabled: true,
+	}
+
+	key, cert, clientCACerts, err := readTLSConfigFromEnv()
+	if err != nil {
+		return tlsProps, fmt.Errorf("error reading TLS config from environment: %w", err)
+	}
+
+	// If TLS configuration is found in environment variables, use it.
+	if key != nil && cert != nil {
+		tlsProps.Disabled = false
+		tlsProps.Key = key
+		tlsProps.Cert = cert
+		tlsProps.ClientCACerts = clientCACerts
+	}
+
+	return tlsProps, nil
 }
 
 // readTLSConfigFromEnv tries to read TLS configuration from environment variables.
@@ -999,61 +875,37 @@ func readTLSConfigFromEnv() ([]byte, []byte, []byte, error) {
 	return key, cert, clientCACerts, nil
 }
 
-// applyConfig applies the provided configuration to a BaseContractInterface, updating its internal state.
-//
-// The function takes a BaseContractInterface (bci), a shim.ChaincodeStubInterface (stub), and the
-// configuration data in the form of a byte slice (cfgBytes). It sets the ChaincodeStubInterface on
-// the BaseContractInterface and tries to apply Base, Token and Extended configurations
-// based on the implemented interfaces of the
-// ContractConfigurable, TokenConfigurable and ExternalConfigurable consequently.
-//
-// If the BaseContractInterface does not implement the ContractConfigurable interface, an error is returned.
-//
-// If any step in the configuration application process fails, an error is returned with details about
-// the specific error encountered.
-func applyConfig(
-	bci *BaseContractInterface,
-	stub shim.ChaincodeStubInterface,
-	cfgBytes []byte,
-) error {
-	// WARN: if stub is not set,
-	// it should be thrown through it into all methods before CallMethod.
-	(*bci).setStub(stub)
+func (cc *Chaincode) createIndexHandler(traceCtx telemetry.TraceContext, stub shim.ChaincodeStubInterface, arguments []string) peer.Response {
+	_, span := cc.contract.TracingHandler().StartNewSpan(traceCtx, "chaincode.CreateIndexHandler")
+	defer span.End()
 
-	ccbc, ok := (*bci).(ContractConfigurable)
-	if !ok {
-		return fmt.Errorf("chaincode is not ContractConfigurable")
+	if len(arguments) != 1 {
+		errMsg := fmt.Sprintf("invoke: incorrect number of arguments: %d", len(arguments))
+		span.SetStatus(codes.Error, errMsg)
+		return shim.Error(errMsg)
 	}
 
-	contractCfg, err := config.ContractConfigFromBytes(cfgBytes)
+	balanceType, err := balance.StringToBalanceType(arguments[0])
 	if err != nil {
-		return fmt.Errorf("parsing base config: %w", err)
+		errMsg := "invoke: parsing object type: " + err.Error()
+		span.SetStatus(codes.Error, errMsg)
+		return shim.Error(errMsg)
 	}
 
-	if contractCfg.Options == nil {
-		contractCfg.Options = new(proto.ChaincodeOptions)
+	if err = balance.CreateIndex(stub, balanceType); err != nil {
+		errMsg := "invoke: create index: " + err.Error()
+		span.SetStatus(codes.Error, errMsg)
+		return shim.Error(errMsg)
 	}
 
-	if err = ccbc.ApplyContractConfig(contractCfg); err != nil {
-		return fmt.Errorf("applying base config: %w", err)
+	span.SetStatus(codes.Ok, "")
+	return shim.Success([]byte(`{"status": "success"}`))
+}
+
+func (cc *Chaincode) PrependSender(method contract.Method, sender *proto.Address, args []string) []string {
+	if method.RequiresAuth {
+		args = append([]string{sender.AddrString()}, args...)
 	}
 
-	if tc, ok := (*bci).(TokenConfigurable); ok {
-		tokenCfg, err := config.TokenConfigFromBytes(cfgBytes)
-		if err != nil {
-			return fmt.Errorf("parsing token config: %w", err)
-		}
-
-		if err = tc.ApplyTokenConfig(tokenCfg); err != nil {
-			return fmt.Errorf("applying token config: %w", err)
-		}
-	}
-
-	if ec, ok := (*bci).(ExternalConfigurable); ok {
-		if err = ec.ApplyExtConfig(cfgBytes); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return args
 }

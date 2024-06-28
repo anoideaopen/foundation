@@ -9,11 +9,13 @@ import (
 	"time"
 
 	"github.com/anoideaopen/foundation/core/cachestub"
+	"github.com/anoideaopen/foundation/core/config"
+	"github.com/anoideaopen/foundation/core/contract"
+	"github.com/anoideaopen/foundation/core/logger"
 	"github.com/anoideaopen/foundation/core/multiswap"
 	"github.com/anoideaopen/foundation/core/swap"
 	"github.com/anoideaopen/foundation/core/telemetry"
 	"github.com/anoideaopen/foundation/core/types"
-	"github.com/anoideaopen/foundation/internal/config"
 	"github.com/anoideaopen/foundation/proto"
 	pb "github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/hyperledger/fabric-chaincode-go/shim"
@@ -25,40 +27,39 @@ import (
 
 const robotSideTimeout = 300 // 5 minutes
 
-func (cc *ChainCode) saveToBatch(
+func (cc *Chaincode) saveToBatch(
 	traceCtx telemetry.TraceContext,
 	stub shim.ChaincodeStubInterface,
-	funcName string,
-	fn *Fn,
+	method contract.Method,
 	sender *proto.Address,
 	args []string,
 	nonce uint64,
 ) error {
-	logger := Logger()
+	log := logger.Logger()
 	txID := stub.GetTxID()
 
-	_, err := doConvertToCall(stub, fn, args)
+	err := cc.Router().Check(method.MethodName, cc.PrependSender(method, sender, args)...)
 	if err != nil {
-		return fmt.Errorf("validate arguments. %w", err)
+		return err
 	}
 
 	key, err := stub.CreateCompositeKey(config.BatchPrefix, []string{txID})
 	if err != nil {
-		logger.Errorf("Couldn't create composite key for tx %s: %s", txID, err.Error())
+		log.Errorf("Couldn't create composite key for tx %s: %s", txID, err.Error())
 		return err
 	}
 
 	txTimestamp, err := stub.GetTxTimestamp()
 	if err != nil {
-		logger.Errorf("Couldn't get timestamp for tx %s: %s", txID, err.Error())
+		log.Errorf("Couldn't get timestamp for tx %s: %s", txID, err.Error())
 		return err
 	}
 
 	pending := &proto.PendingTx{
-		Method:    funcName,
+		Method:    method.ChaincodeFunc,
 		Sender:    sender,
 		Args:      args,
-		Timestamp: txTimestamp.Seconds,
+		Timestamp: txTimestamp.GetSeconds(),
 		Nonce:     nonce,
 	}
 
@@ -81,64 +82,64 @@ func (cc *ChainCode) saveToBatch(
 
 	data, err := pb.Marshal(pending)
 	if err != nil {
-		logger.Errorf("Couldn't marshal transaction %s: %s", txID, err.Error())
+		log.Errorf("Couldn't marshal transaction %s: %s", txID, err.Error())
 		return err
 	}
 
 	return stub.PutState(key, data)
 }
 
-func (cc *ChainCode) loadFromBatch(
+func (cc *Chaincode) loadFromBatch(
 	stub shim.ChaincodeStubInterface,
 	txID string,
 ) (*proto.PendingTx, string, error) {
-	logger := Logger()
+	log := logger.Logger()
 	key, err := stub.CreateCompositeKey(config.BatchPrefix, []string{txID})
 	if err != nil {
-		logger.Errorf("Couldn't create composite key for tx %s: %s", txID, err.Error())
+		log.Errorf("Couldn't create composite key for tx %s: %s", txID, err.Error())
 		return nil, "", err
 	}
 	data, err := stub.GetState(key)
 	if err != nil {
-		logger.Errorf("Couldn't load transaction %s from state: %s", txID, err.Error())
+		log.Errorf("Couldn't load transaction %s from state: %s", txID, err.Error())
 		return nil, "", err
 	}
 	if len(data) == 0 {
-		logger.Warningf("Transaction %s not found", txID)
+		log.Warningf("Transaction %s not found", txID)
 		return nil, "", fmt.Errorf("transaction %s not found", txID)
 	}
 
 	defer func() {
 		err = stub.DelState(key)
 		if err != nil {
-			logger.Errorf("Couldn't delete from state tx %s: %s", txID, err.Error())
+			log.Errorf("Couldn't delete from state tx %s: %s", txID, err.Error())
 		}
 	}()
 
 	pending := new(proto.PendingTx)
 	if err = pb.Unmarshal(data, pending); err != nil {
-		logger.Errorf("couldn't unmarshal transaction %s: %s", txID, err.Error())
+		log.Errorf("couldn't unmarshal transaction %s: %s", txID, err.Error())
 		return nil, key, err
 	}
 
-	method, err := cc.methods.Method(pending.Method)
+	method, err := cc.Method(pending.GetMethod())
 	if err != nil {
-		logger.Errorf("unknown method %s in tx %s", pending.Method, txID)
-		return pending, key, fmt.Errorf("unknown method %s in tx %s", pending.Method, txID)
+		log.Errorf("unknown method %s in tx %s", pending.GetMethod(), txID)
+		return pending, key, fmt.Errorf("unknown method %s in tx %s", pending.GetMethod(), txID)
 	}
 
-	if !method.needsAuth {
+	if !method.RequiresAuth {
 		return pending, key, nil
 	}
 
-	if pending.Sender == nil {
-		logger.Errorf("no sender in tx %s", txID)
+	if pending.GetSender() == nil {
+		log.Errorf("no sender in tx %s", txID)
 		return pending, key, fmt.Errorf("no sender in tx %s", txID)
 	}
 
-	sender := types.NewSenderFromAddr((*types.Address)(pending.Sender))
-	if err = checkNonce(stub, sender, pending.Nonce); err != nil {
-		logger.Errorf("incorrect tx %s nonce: %s", txID, err.Error())
+	sender := types.NewSenderFromAddr((*types.Address)(pending.GetSender()))
+	if err = checkNonce(stub, sender, pending.GetNonce()); err != nil {
+		log.Errorf("incorrect tx %s nonce: %s", txID, err.Error())
 		return pending, key, err
 	}
 
@@ -146,7 +147,7 @@ func (cc *ChainCode) loadFromBatch(
 }
 
 //nolint:funlen
-func (cc *ChainCode) batchExecute(
+func (cc *Chaincode) batchExecute(
 	traceCtx telemetry.TraceContext,
 	stub shim.ChaincodeStubInterface,
 	dataIn string,
@@ -155,25 +156,27 @@ func (cc *ChainCode) batchExecute(
 	traceCtx, span := cc.contract.TracingHandler().StartNewSpan(traceCtx, BatchExecute)
 	defer span.End()
 
-	logger := Logger()
+	log := logger.Logger()
 	batchID := stub.GetTxID()
 	span.SetAttributes(attribute.String("batch_tx_id", batchID))
 	btchStub := cachestub.NewBatchCacheStub(stub)
 	start := time.Now()
 	defer func() {
-		logger.Infof("batch %s elapsed time %d ms", batchID, time.Since(start).Milliseconds())
+		log.Infof("batch: tx id: %s, elapsed: %s", batchID, time.Since(start))
 	}()
 	response := proto.BatchResponse{}
 	events := proto.BatchEvent{}
 	var batch proto.Batch
 	if err := pb.Unmarshal([]byte(dataIn), &batch); err != nil {
-		logger.Errorf("Couldn't unmarshal batch %s: %s", batchID, err.Error())
+		log.Errorf("Couldn't unmarshal batch %s: %s", batchID, err.Error())
 		return shim.Error(err.Error())
 	}
 
+	log.Warningf("batch: tx id: %s, txs: %d", batchID, len(batch.GetTxIDs()))
+
 	span.AddEvent("handle transactions in batch")
-	ids := make([]string, 0, len(batch.TxIDs))
-	for _, txID := range batch.TxIDs {
+	ids := make([]string, 0, len(batch.GetTxIDs()))
+	for _, txID := range batch.GetTxIDs() {
 		ids = append(ids, hex.EncodeToString(txID))
 		resp, event := cc.batchedTxExecute(traceCtx, btchStub, txID, cfgBytes)
 		response.TxResponses = append(response.TxResponses, resp)
@@ -181,29 +184,29 @@ func (cc *ChainCode) batchExecute(
 	}
 	span.SetAttributes(attribute.StringSlice("ids", ids))
 
-	if !cc.contract.ContractConfig().Options.DisableSwaps {
+	if !cc.contract.ContractConfig().GetOptions().GetDisableSwaps() {
 		span.AddEvent("handle swaps")
-		for _, s := range batch.Swaps {
+		for _, s := range batch.GetSwaps() {
 			response.SwapResponses = append(response.SwapResponses, swap.Answer(btchStub, s, robotSideTimeout))
 		}
-		for _, swapKey := range batch.Keys {
-			response.SwapKeyResponses = append(response.SwapKeyResponses, swap.RobotDone(btchStub, swapKey.Id, swapKey.Key))
+		for _, swapKey := range batch.GetKeys() {
+			response.SwapKeyResponses = append(response.SwapKeyResponses, swap.RobotDone(btchStub, swapKey.GetId(), swapKey.GetKey()))
 		}
 	}
 
-	if !cc.contract.ContractConfig().Options.DisableMultiSwaps {
+	if !cc.contract.ContractConfig().GetOptions().GetDisableMultiSwaps() {
 		span.AddEvent("handle multi-swaps")
-		for _, s := range batch.MultiSwaps {
+		for _, s := range batch.GetMultiSwaps() {
 			response.SwapResponses = append(response.SwapResponses, multiswap.Answer(btchStub, s, robotSideTimeout))
 		}
-		for _, swapKey := range batch.MultiSwapsKeys {
-			response.SwapKeyResponses = append(response.SwapKeyResponses, multiswap.RobotDone(btchStub, swapKey.Id, swapKey.Key))
+		for _, swapKey := range batch.GetMultiSwapsKeys() {
+			response.SwapKeyResponses = append(response.SwapKeyResponses, multiswap.RobotDone(btchStub, swapKey.GetId(), swapKey.GetKey()))
 		}
 	}
 
 	span.AddEvent("commit")
 	if err := btchStub.Commit(); err != nil {
-		logger.Errorf("Couldn't commit batch %s: %s", batchID, err.Error())
+		log.Errorf("Couldn't commit batch %s: %s", batchID, err.Error())
 		return shim.Error(err.Error())
 	}
 
@@ -212,20 +215,20 @@ func (cc *ChainCode) batchExecute(
 
 	data, err := pb.Marshal(&response)
 	if err != nil {
-		logger.Errorf("Couldn't marshal batch response %s: %s", batchID, err.Error())
+		log.Errorf("Couldn't marshal batch response %s: %s", batchID, err.Error())
 		span.SetStatus(codes.Error, "marshalling batch response failed")
 
 		return shim.Error(err.Error())
 	}
 	eventData, err := pb.Marshal(&events)
 	if err != nil {
-		logger.Errorf("Couldn't marshal batch event %s: %s", batchID, err.Error())
+		log.Errorf("Couldn't marshal batch event %s: %s", batchID, err.Error())
 		span.SetStatus(codes.Error, "marshalling batch event failed")
 
 		return shim.Error(err.Error())
 	}
 	if err = stub.SetEvent(BatchExecute, eventData); err != nil {
-		logger.Errorf("Couldn't set batch event %s: %s", batchID, err.Error())
+		log.Errorf("Couldn't set batch event %s: %s", batchID, err.Error())
 		span.SetStatus(codes.Error, "set batch event failed")
 
 		return shim.Error(err.Error())
@@ -244,7 +247,7 @@ type TxResponse struct {
 	Accounting []*proto.AccountingRecord `json:"accounting"`
 }
 
-func (cc *ChainCode) batchedTxExecute(
+func (cc *Chaincode) batchedTxExecute(
 	traceCtx telemetry.TraceContext,
 	stub *cachestub.BatchCacheStub,
 	binaryTxID []byte,
@@ -253,7 +256,7 @@ func (cc *ChainCode) batchedTxExecute(
 	traceCtx, span := cc.contract.TracingHandler().StartNewSpan(traceCtx, "batchTxExecute")
 	defer span.End()
 
-	logger := Logger()
+	log := logger.Logger()
 	start := time.Now()
 	methodName := "unknown"
 	span.SetAttributes(attribute.String("method", methodName))
@@ -261,39 +264,39 @@ func (cc *ChainCode) batchedTxExecute(
 	txID := hex.EncodeToString(binaryTxID)
 	span.SetAttributes(attribute.String("preimage_tx_id", txID))
 	defer func() {
-		logger.Infof("batched method %s txid %s elapsed time %d ms", methodName, txID, time.Since(start).Milliseconds())
+		log.Infof("batched method %s txid %s elapsed time %d ms", methodName, txID, time.Since(start).Milliseconds())
 	}()
 
 	r = &proto.TxResponse{Id: binaryTxID, Error: &proto.ResponseError{Error: "panic batchedTxExecute"}}
 	e = &proto.BatchTxEvent{Id: binaryTxID, Error: &proto.ResponseError{Error: "panic batchedTxExecute"}}
 	defer func() {
 		if rc := recover(); rc != nil {
-			logger.Criticalf("Tx %s panicked:\n%s", txID, string(debug.Stack()))
+			log.Criticalf("Tx %s panicked:\n%s", txID, string(debug.Stack()))
 		}
 	}()
 
 	span.AddEvent("load from batch")
 	pending, key, err := cc.loadFromBatch(stub, txID)
 	if err != nil && pending != nil {
-		if delErr := stub.ChaincodeStubInterface.DelState(key); delErr != nil {
-			logger.Errorf("failed deleting key %s from state on txId: %s", key, delErr.Error())
+		if delErr := stub.DelState(key); delErr != nil {
+			log.Errorf("failed deleting key %s from state on txId: %s", key, delErr.Error())
 		}
-		ee := proto.ResponseError{Error: fmt.Sprintf("function and args loading error: %s", err.Error())}
+		ee := proto.ResponseError{Error: "function and args loading error: " + err.Error()}
 		span.SetStatus(codes.Error, err.Error())
 		return &proto.TxResponse{
 				Id:     binaryTxID,
-				Method: pending.Method,
+				Method: pending.GetMethod(),
 				Error:  &ee,
 			}, &proto.BatchTxEvent{
 				Id:     binaryTxID,
-				Method: pending.Method,
+				Method: pending.GetMethod(),
 				Error:  &ee,
 			}
 	} else if err != nil {
-		if delErr := stub.ChaincodeStubInterface.DelState(key); delErr != nil {
-			logger.Errorf("failed deleting key %s from state: %s", key, delErr.Error())
+		if delErr := stub.DelState(key); delErr != nil {
+			log.Errorf("failed deleting key %s from state: %s", key, delErr.Error())
 		}
-		ee := proto.ResponseError{Error: fmt.Sprintf("function and args loading error: %s", err.Error())}
+		ee := proto.ResponseError{Error: "function and args loading error: " + err.Error()}
 		span.SetStatus(codes.Error, err.Error())
 		return &proto.TxResponse{
 				Id:    binaryTxID,
@@ -305,50 +308,50 @@ func (cc *ChainCode) batchedTxExecute(
 	}
 
 	txStub := stub.NewTxCacheStub(txID)
-	method, err := cc.methods.Method(pending.Method)
+	method, err := cc.Method(pending.GetMethod())
 	if err != nil {
-		msg := fmt.Sprintf("parsing method '%s' in tx '%s': %s", pending.Method, txID, err.Error())
+		msg := fmt.Sprintf("parsing method '%s' in tx '%s': %s", pending.GetMethod(), txID, err.Error())
 		span.SetStatus(codes.Error, msg)
-		logger.Info(msg)
+		log.Info(msg)
 
-		_ = stub.ChaincodeStubInterface.DelState(key)
-		ee := proto.ResponseError{Error: fmt.Sprintf("unknown method %s", pending.Method)}
+		_ = stub.DelState(key)
+		ee := proto.ResponseError{Error: "unknown method " + pending.GetMethod()}
 		return &proto.TxResponse{
 				Id:     binaryTxID,
-				Method: pending.Method,
+				Method: pending.GetMethod(),
 				Error:  &ee,
 			}, &proto.BatchTxEvent{
 				Id:     binaryTxID,
-				Method: pending.Method,
+				Method: pending.GetMethod(),
 				Error:  &ee,
 			}
 	}
-	methodName = pending.Method
+	methodName = pending.GetMethod()
 	span.SetAttributes(attribute.String("method", methodName))
 
-	if len(pending.Pairs) != 0 {
+	if len(pending.GetPairs()) != 0 {
 		carrier := propagation.MapCarrier{}
-		for _, pair := range pending.Pairs {
-			carrier.Set(pair.Key, pair.Value)
+		for _, pair := range pending.GetPairs() {
+			carrier.Set(pair.GetKey(), pair.GetValue())
 		}
 
 		traceCtx = cc.contract.TracingHandler().ExtractContext(carrier)
 	}
 
 	span.AddEvent("calling method")
-	response, err := cc.callMethod(traceCtx, txStub, method, pending.Sender, pending.Args, cfgBytes)
+	response, err := cc.InvokeContractMethod(traceCtx, txStub, method, pending.GetSender(), pending.GetArgs(), cfgBytes)
 	if err != nil {
-		_ = stub.ChaincodeStubInterface.DelState(key)
+		_ = stub.DelState(key)
 		ee := proto.ResponseError{Error: err.Error()}
 		span.SetStatus(codes.Error, "call method returned error")
 
 		return &proto.TxResponse{
 				Id:     binaryTxID,
-				Method: pending.Method,
+				Method: pending.GetMethod(),
 				Error:  &ee,
 			}, &proto.BatchTxEvent{
 				Id:     binaryTxID,
-				Method: pending.Method,
+				Method: pending.GetMethod(),
 				Error:  &ee,
 			}
 	}
@@ -364,12 +367,12 @@ func (cc *ChainCode) batchedTxExecute(
 
 	return &proto.TxResponse{
 			Id:     binaryTxID,
-			Method: pending.Method,
+			Method: pending.GetMethod(),
 			Writes: writes,
 		},
 		&proto.BatchTxEvent{
 			Id:         binaryTxID,
-			Method:     pending.Method,
+			Method:     pending.GetMethod(),
 			Accounting: txStub.Accounting,
 			Events:     events,
 			Result:     response,

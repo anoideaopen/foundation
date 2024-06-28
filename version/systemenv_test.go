@@ -4,11 +4,11 @@ import (
 	"testing"
 
 	"github.com/anoideaopen/foundation/version"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSystemEnv(t *testing.T) {
 	s := version.SystemEnv()
 	_, ok := s["/etc/issue"]
-	assert.True(t, ok)
+	require.True(t, ok)
 }

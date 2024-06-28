@@ -65,22 +65,19 @@ func (a *Address) MarshalJSON() ([]byte, error) {
 	return json.Marshal(a.String())
 }
 
-// PrepareToSave checks if address is blacklisted
-func (a *Address) PrepareToSave(stub shim.ChaincodeStubInterface, in string) (string, error) {
-	accInfo, err := helpers.GetAccountInfo(stub, in)
+// Validate checks if the address is blacklisted by querying the account
+// information from the provided ChaincodeStubInterface.
+func (a *Address) ValidateWithStub(stub shim.ChaincodeStubInterface) error {
+	accInfo, err := helpers.GetAccountInfo(stub, a.String())
 	if err != nil {
-		return "", err
+		return err
 	}
-	if accInfo.BlackListed {
-		return "", fmt.Errorf("address %s is blacklisted", in)
-	}
-	return in, nil
-}
 
-// ConvertToCall converts string to address
-func (a *Address) ConvertToCall(_ shim.ChaincodeStubInterface, in string) (*Address, error) { // stub
-	// only this called in batch
-	return AddrFromBase58Check(in)
+	if accInfo.GetBlackListed() {
+		return fmt.Errorf("address %s is blacklisted", a.String())
+	}
+
+	return nil
 }
 
 // UnmarshalJSON unmarshals address from json
@@ -98,6 +95,19 @@ func (a *Address) UnmarshalJSON(data []byte) error {
 	return err
 }
 
+func (a *Address) UnmarshalText(text []byte) error {
+	addr, err := AddrFromBase58Check(string(text))
+	if err != nil {
+		return err
+	}
+
+	a.UserID = addr.UserID
+	a.Address = addr.Address
+	a.IsIndustrial = addr.IsIndustrial
+	a.IsMultisig = addr.IsMultisig
+	return nil
+}
+
 // IsUserIDSame checks if userIDs are the same
 func (a *Address) IsUserIDSame(b *Address) bool {
 	if a.UserID == "" || b.UserID == "" {
@@ -109,6 +119,16 @@ func (a *Address) IsUserIDSame(b *Address) bool {
 // Sender is a wrapper for address
 type Sender struct {
 	addr *Address
+}
+
+func (s *Sender) UnmarshalText(text []byte) error {
+	addr, err := AddrFromBase58Check(string(text))
+	if err != nil {
+		return err
+	}
+
+	s.addr = addr
+	return nil
 }
 
 // NewSenderFromAddr creates sender from address
@@ -129,10 +149,14 @@ func (s *Sender) Equal(addr *Address) bool {
 // Hex is a wrapper for []byte
 type Hex []byte
 
-// ConvertToCall converts string to hex
-func (h Hex) ConvertToCall(_ shim.ChaincodeStubInterface, in string) (Hex, error) { // stub
-	value, err := hex.DecodeString(in)
-	return value, err
+func (h *Hex) UnmarshalText(text []byte) error {
+	value, err := hex.DecodeString(string(text))
+	if err != nil {
+		return err
+	}
+
+	*h = value
+	return nil
 }
 
 // MultiSwapAssets is a wrapper for asset
@@ -168,16 +192,6 @@ func ConvertToAsset(in []*MultiSwapAsset) ([]*pb.Asset, error) {
 		assets = append(assets, &asset)
 	}
 
-	return assets, nil
-}
-
-// ConvertToCall converts string to MultiSwapAssets
-func (n MultiSwapAssets) ConvertToCall(_ shim.ChaincodeStubInterface, in string) (MultiSwapAssets, error) { // stub
-	assets := MultiSwapAssets{}
-	err := json.Unmarshal([]byte(in), &assets)
-	if err != nil {
-		return assets, err
-	}
 	return assets, nil
 }
 

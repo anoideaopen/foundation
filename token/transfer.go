@@ -54,7 +54,7 @@ func (bt *BaseToken) transferFee(
 		return err
 	}
 
-	if bt.config.Fee != nil && len(bt.config.FeeAddress) == 0 {
+	if bt.config.GetFee() != nil && len(bt.config.GetFeeAddress()) == 0 {
 		return ErrFeeAddressNotConfigured
 	}
 
@@ -78,8 +78,8 @@ func (bt *BaseToken) transferFee(
 		return nil
 	}
 
-	feeAddr := types.AddrFromBytes(bt.config.FeeAddress)
-	if bt.config.Fee.Currency == bt.ContractConfig().Symbol {
+	feeAddr := types.AddrFromBytes(bt.config.GetFeeAddress())
+	if bt.config.GetFee().GetCurrency() == bt.ContractConfig().GetSymbol() {
 		err = bt.TokenBalanceTransfer(sender, feeAddr, fee.Fee, "transfer fee")
 		if err != nil {
 			return fmt.Errorf(
@@ -119,14 +119,14 @@ func (bt *BaseToken) calcTransferFee(amount *big.Int, sender *types.Address, rec
 	if sender.UserID == "" {
 		fullSenderAddress, err := helpers.GetFullAddress(bt.GetStub(), sender.String())
 		if err != nil {
-			return nil, fmt.Errorf("failed to recive user id by sender address")
+			return nil, errors.New("failed to recive user id by sender address")
 		}
 		sender = (*types.Address)(fullSenderAddress)
 	}
 	if recipient.UserID == "" {
 		fullRecipientAddress, err := helpers.GetFullAddress(bt.GetStub(), recipient.String())
 		if err != nil {
-			return nil, fmt.Errorf("failed to recive user id by recipient address")
+			return nil, errors.New("failed to recive user id by recipient address")
 		}
 		recipient = (*types.Address)(fullRecipientAddress)
 	}
@@ -140,7 +140,7 @@ func (bt *BaseToken) calcTransferFee(amount *big.Int, sender *types.Address, rec
 		return fee, nil
 	}
 
-	return &Predict{Fee: big.NewInt(0), Currency: bt.ContractConfig().Symbol}, nil
+	return &Predict{Fee: big.NewInt(0), Currency: bt.ContractConfig().GetSymbol()}, nil
 }
 
 // TxAllowedIndustrialBalanceTransfer transfers tokens from one account to another
@@ -163,7 +163,7 @@ func (bt *BaseToken) TxAllowedIndustrialBalanceTransfer(sender *types.Sender, re
 	}
 
 	for _, industrialAsset := range assets {
-		if new(big.Int).SetBytes(industrialAsset.Amount).Cmp(big.NewInt(0)) == 0 {
+		if new(big.Int).SetBytes(industrialAsset.GetAmount()).Cmp(big.NewInt(0)) == 0 {
 			return errors.New("amount should be more than zero")
 		}
 	}
@@ -227,14 +227,14 @@ func (bt *BaseToken) calcFee(amount *big.Int) (*Predict, error) {
 		return &Predict{}, err
 	}
 
-	if bt.config.Fee == nil || bt.config.Fee.Fee == nil || new(big.Int).SetBytes(bt.config.Fee.Fee).Cmp(big.NewInt(0)) == 0 {
-		return &Predict{Fee: big.NewInt(0), Currency: bt.ContractConfig().Symbol}, nil
+	if bt.config.GetFee().GetFee() == nil || new(big.Int).SetBytes(bt.config.GetFee().GetFee()).Cmp(big.NewInt(0)) == 0 {
+		return &Predict{Fee: big.NewInt(0), Currency: bt.ContractConfig().GetSymbol()}, nil
 	}
 
 	fee := new(big.Int).Div(
 		new(big.Int).Mul(
 			amount,
-			new(big.Int).SetBytes(bt.config.Fee.Fee),
+			new(big.Int).SetBytes(bt.config.GetFee().GetFee()),
 		),
 		new(big.Int).Exp(
 			new(big.Int).SetUint64(10), //nolint:gomnd
@@ -243,8 +243,8 @@ func (bt *BaseToken) calcFee(amount *big.Int) (*Predict, error) {
 		),
 	)
 
-	if bt.config.Fee.Currency != bt.ContractConfig().Symbol {
-		rate, ok, err := bt.GetRateAndLimits("buyToken", bt.config.Fee.Currency)
+	if bt.config.GetFee().GetCurrency() != bt.ContractConfig().GetSymbol() {
+		rate, ok, err := bt.GetRateAndLimits("buyToken", bt.config.GetFee().GetCurrency())
 		if err != nil {
 			return &Predict{}, err
 		}
@@ -255,7 +255,7 @@ func (bt *BaseToken) calcFee(amount *big.Int) (*Predict, error) {
 		fee = new(big.Int).Div(
 			new(big.Int).Mul(
 				fee,
-				new(big.Int).SetBytes(rate.Rate),
+				new(big.Int).SetBytes(rate.GetRate()),
 			),
 			new(big.Int).Exp(
 				new(big.Int).SetUint64(10), //nolint:gomnd
@@ -265,36 +265,36 @@ func (bt *BaseToken) calcFee(amount *big.Int) (*Predict, error) {
 		)
 	}
 
-	if fee.Cmp(new(big.Int).SetBytes(bt.config.Fee.Floor)) < 0 {
-		fee = new(big.Int).SetBytes(bt.config.Fee.Floor)
+	if fee.Cmp(new(big.Int).SetBytes(bt.config.GetFee().GetFloor())) < 0 {
+		fee = new(big.Int).SetBytes(bt.config.GetFee().GetFloor())
 	}
 
-	cp := new(big.Int).SetBytes(bt.config.Fee.Cap)
+	cp := new(big.Int).SetBytes(bt.config.GetFee().GetCap())
 	if cp.Cmp(big.NewInt(0)) > 0 && fee.Cmp(cp) > 0 {
-		fee = new(big.Int).SetBytes(bt.config.Fee.Cap)
+		fee = new(big.Int).SetBytes(bt.config.GetFee().GetCap())
 	}
 
-	return &Predict{Fee: fee, Currency: bt.config.Fee.Currency}, nil
+	return &Predict{Fee: fee, Currency: bt.config.GetFee().GetCurrency()}, nil
 }
 
 func validateFeeConfig(config *proto.Token) error {
-	if config == nil || config.Fee == nil {
+	if config == nil || config.GetFee() == nil {
 		return nil
 	}
 
-	if len(config.FeeAddress) == 0 {
+	if len(config.GetFeeAddress()) == 0 {
 		return ErrFeeAddressNotConfigured
 	}
 
-	if !types.IsValidAddressLen(config.FeeAddress) {
+	if !types.IsValidAddressLen(config.GetFeeAddress()) {
 		return fmt.Errorf("config fee address has a wrong len. actual %d but expected %d",
-			len(config.FeeAddress),
+			len(config.GetFeeAddress()),
 			types.AddressLength,
 		)
 	}
 
-	if config.Fee.Currency == "" {
-		return fmt.Errorf("config fee currency can't be empty")
+	if config.GetFee().GetCurrency() == "" {
+		return errors.New("config fee currency can't be empty")
 	}
 
 	return nil

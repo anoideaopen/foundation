@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/anoideaopen/foundation/core"
+	"github.com/anoideaopen/foundation/core/reflectx"
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/core/types/big"
 	"github.com/anoideaopen/foundation/mock/stub"
@@ -14,7 +15,7 @@ import (
 	"github.com/anoideaopen/foundation/token"
 	"github.com/google/uuid"
 	"github.com/hyperledger/fabric-chaincode-go/shim"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
@@ -49,17 +50,17 @@ func TestDuplicateNames(t *testing.T) {
 		{
 			name: "variant #1",
 			bci:  &DuplicateNamesT1{},
-			err:  fmt.Errorf("%w, method: '%s'", core.ErrMethodAlreadyDefined, "allowedBalanceAdd"),
+			err:  fmt.Errorf("init: validating contract methods: %w, method: '%s'", reflectx.ErrMethodAlreadyDefined, "allowedBalanceAdd"),
 		},
 		{
 			name: "variant #2",
 			bci:  &DuplicateNamesT2{},
-			err:  fmt.Errorf("%w, method: '%s'", core.ErrMethodAlreadyDefined, "allowedBalanceAdd"),
+			err:  fmt.Errorf("init: validating contract methods: %w, method: '%s'", reflectx.ErrMethodAlreadyDefined, "allowedBalanceAdd"),
 		},
 		{
 			name: "variant #3",
 			bci:  &DuplicateNamesT3{},
-			err:  fmt.Errorf("%w, method: '%s'", core.ErrMethodAlreadyDefined, "allowedBalanceAdd"),
+			err:  fmt.Errorf("init: validating contract methods: %w, method: '%s'", reflectx.ErrMethodAlreadyDefined, "allowedBalanceAdd"),
 		},
 	}
 
@@ -74,10 +75,10 @@ func TestDuplicateNames(t *testing.T) {
 			idBytes := [16]byte(uuid.New())
 			rsp := ms.MockInit(hex.EncodeToString(idBytes[:]), [][]byte{cfgBytes})
 			if test.err == nil {
-				assert.Empty(t, rsp.GetMessage())
+				require.Empty(t, rsp.GetMessage())
 			} else {
-				assert.Equal(t, int32(shim.ERROR), rsp.GetStatus())
-				assert.Contains(t, rsp.GetMessage(), test.err.Error())
+				require.Equal(t, int32(shim.ERROR), rsp.GetStatus())
+				require.Contains(t, rsp.GetMessage(), test.err.Error())
 			}
 		})
 	}

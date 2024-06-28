@@ -9,7 +9,6 @@ import (
 	ma "github.com/anoideaopen/foundation/mock"
 	"github.com/anoideaopen/foundation/proto"
 	pb "github.com/golang/protobuf/proto"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -36,16 +35,16 @@ func TestBaseTokenTxTransfer(t *testing.T) {
 	seller.AddAllowedBalance("vt", "usd", 5)
 
 	err := seller.RawSignedInvokeWithErrorReturned("vt", "buyToken", "5", "usd")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	if err = seller.RawSignedInvokeWithErrorReturned("vt", "transfer", buyer.Address(), "0", ""); err != nil {
-		assert.ErrorContains(t, err, "amount should be more than zero")
+		require.ErrorContains(t, err, "amount should be more than zero")
 	}
 	if err = seller.RawSignedInvokeWithErrorReturned("vt", "transfer", buyer.Address(), "100", ""); err != nil {
-		assert.ErrorContains(t, err, "insufficient balance")
+		require.ErrorContains(t, err, "insufficient balance")
 	}
 	err = seller.RawSignedInvokeWithErrorReturned("vt", "transfer", buyer.Address(), "5", "")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 func TestTransferWithFee(t *testing.T) {
@@ -69,12 +68,12 @@ func TestTransferWithFee(t *testing.T) {
 
 	t.Run("[negative] trying to set empty fee", func(t *testing.T) {
 		err := feeSetter.RawSignedInvokeWithErrorReturned("vt", "setFee", currency, "", "1", "0")
-		require.EqualError(t, err, "couldn't convert  to bigint")
+		require.EqualError(t, err, "invalid argument value: '': for type '*big.Int': 'math/big: cannot unmarshal \"\" into a *big.Int': validate TxSetFee, argument 2")
 	})
 
 	t.Run("[negative] trying to set negative fee", func(t *testing.T) {
 		err := feeSetter.RawSignedInvokeWithErrorReturned("vt", "setFee", "", "-1", "1", "0")
-		require.EqualError(t, err, "value -1 should be positive")
+		require.EqualError(t, err, "invalid argument value: '-1': validation failed: 'negative number': validate TxSetFee, argument 2")
 	})
 
 	feeSetter.SignedInvoke("vt", "setFee", "VT", feeAmount, "1", "0")
@@ -87,7 +86,7 @@ func TestTransferWithFee(t *testing.T) {
 
 	t.Run("[negative] trying to transfer negative amount", func(t *testing.T) {
 		err = issuer.RawSignedInvokeWithErrorReturned("vt", "transfer", user.Address(), "-100", "")
-		require.EqualError(t, err, "value -100 should be positive")
+		require.EqualError(t, err, "invalid argument value: '-100': validation failed: 'negative number': validate TxTransfer, argument 2")
 	})
 
 	t.Run("[negative] trying to transfer zero amount", func(t *testing.T) {
@@ -101,7 +100,7 @@ func TestTransferWithFee(t *testing.T) {
 	})
 
 	err = issuer.RawSignedInvokeWithErrorReturned("vt", "transfer", user.Address(), "100", "")
-	assert.ErrorContains(t, err, ErrFeeAddressNotConfigured.Error())
+	require.ErrorContains(t, err, ErrFeeAddressNotConfigured.Error())
 
 	feeAddressSetter.SignedInvoke("vt", "setFeeAddress", feeAggregator.Address())
 	issuer.SignedInvoke("vt", "transfer", user.Address(), "100", "")
@@ -380,7 +379,7 @@ func TestAllowedIndustrialBalanceTransfer(t *testing.T) {
 	}
 
 	rawGA, err := json.Marshal(industrialAssets)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	issuer.SignedInvoke("vt", "allowedIndustrialBalanceTransfer", user.Address(), string(rawGA), "ref")
 	issuer.AllowedBalanceShouldBe("vt", ba1, 50000000)

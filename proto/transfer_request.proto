@@ -1,0 +1,77 @@
+syntax = "proto3";
+
+package proto;
+
+option go_package = "github.com/anoideaopen/foundation/proto";
+
+import "validate/validate.proto";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/any.proto";
+
+// Enum representing the types of documents.
+enum DocumentType {
+    DOCUMENT_TYPE_UNSPECIFIED = 0;  // Unspecified document type
+    DOCUMENT_TYPE_LEGAL       = 1;  // Record Sheet of the Unified State Register of Legal Entities (EGRUL)
+    DOCUMENT_TYPE_INHERITANCE = 2;  // Certificate of Inheritance
+    DOCUMENT_TYPE_JUDGMENT    = 3;  // Writ of Execution
+}
+
+// Enum representing the basis for the transfer.
+enum TransferBasis {
+    TRANSFER_BASIS_UNSPECIFIED    = 0;  // Unspecified basis
+    TRANSFER_BASIS_REORGANIZATION = 1;  // Reorganization of a legal entity
+    TRANSFER_BASIS_INHERITANCE    = 2;  // Inheritance
+    TRANSFER_BASIS_COURT_DECISION = 3;  // Court decision
+}
+
+// Enum representing the types of balances.
+enum BalanceType {
+    BALANCE_TYPE_UNSPECIFIED             = 0;  // Unspecified balance type
+    BALANCE_TYPE_TOKEN                   = 43; // 0x2b
+    BALANCE_TYPE_TOKEN_EXTERNAL_LOCKED   = 50; // 0x32
+}
+
+// Message representing a transfer request.
+message TransferRequest {
+    // Transfer request ID
+    string request_id = 1;
+
+    // Basis for the transfer
+    TransferBasis basis = 2 [(validate.rules).enum = {defined_only: true}];
+
+    // Administrator ID
+    string administrator_id = 3 [(validate.rules).string.min_len = 1];
+
+    // Document type
+    DocumentType document_type = 4 [(validate.rules).enum = {defined_only: true}];
+
+    // Document number
+    string document_number = 5 [(validate.rules).string.min_len = 1];
+
+    // Document date
+    google.protobuf.Timestamp document_date = 6 [(validate.rules).timestamp.required = true];
+
+    // Hashes of attached documents
+    repeated string document_hashes = 7 [(validate.rules).repeated.min_items = 1];
+
+    // Address from which the transfer is made
+    string from_address = 8 [(validate.rules).string.pattern = "^[1-9A-HJ-NP-Za-km-z]+$"];
+
+    // Address to which the transfer is made
+    string to_address = 9 [(validate.rules).string.pattern = "^[1-9A-HJ-NP-Za-km-z]+$"];
+
+    // Token being transferred
+    string token = 10;
+
+    // Amount being transferred
+    string amount = 11 [(validate.rules).string.min_len = 1];
+
+    // Reason for the transfer
+    string reason = 12 [(validate.rules).string.min_len = 1];
+
+    // Balance type from which the transfer is made
+    BalanceType balance_type = 13 [(validate.rules).enum = {defined_only: true}];
+
+    // Optional additional information
+    google.protobuf.Any additional_info = 15;
+}

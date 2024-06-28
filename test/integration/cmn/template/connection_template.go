@@ -41,7 +41,7 @@ orderers:{{ range .Orderers }}
   {{ .ID }}:
     url: grpcs://{{ $w.OrdererAddress . "Listen" }}
     tlsCACerts:
-      path: {{ $w.CACertsBundlePath }}
+      path: {{ $w.OrdererTLSCACert . }}
 {{- end }}
 
 organizations:{{ range .Organizations }}
@@ -67,7 +67,7 @@ peers:{{ range .Peers }}
   {{ .ID }}:
     url: grpcs://{{ $w.PeerAddress . "Listen" }}
     tlsCACerts:
-      path: {{ $w.CACertsBundlePath }}
+      path: {{ $w.PeerTLSCACert . }}
 {{- end }}
 {{ end }}
 `

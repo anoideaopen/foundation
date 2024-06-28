@@ -216,9 +216,16 @@ message SignaturePolicy {
     repeated string replaceKeysSignedTx  = 4;
 }
 
+enum KeyType {
+    ed25519 = 0;
+    secp256k1 = 1;
+    gost = 2;
+}
+
 message AclResponse {
     AccountInfo account     = 1;
     SignedAddress address   = 2;
+    repeated KeyType keyTypes = 3;
 }
 
 message Nonce {

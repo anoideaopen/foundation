@@ -8,7 +8,6 @@ import (
 	"github.com/anoideaopen/foundation/core/types/big"
 	"github.com/anoideaopen/foundation/mock"
 	"github.com/anoideaopen/foundation/token"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -21,11 +20,42 @@ const (
 
 	testMessageEmptyNonce = "\"0\""
 
-	testGetNonceFnName = "getNonce"
+	testGetNonceFnName      = "getNonce"
+	testHelloWorldFnName    = "helloWorld"
+	testHelloWorldSetFnName = "helloWorldSet"
 )
 
 type TestToken struct {
 	token.BaseToken
+}
+
+type TestStruct struct {
+	hello string
+}
+
+func (s *TestStruct) EncodeToBytes() ([]byte, error) {
+	if s.hello == "" {
+		s.hello = "Hello World"
+	}
+
+	return []byte(s.hello), nil
+}
+
+func (s *TestStruct) DecodeFromBytes(in []byte) error {
+	if string(in) == "" {
+		return errors.New("hello world should not be empty")
+	}
+
+	s.hello = string(in)
+	return nil
+}
+
+func (tt *TestToken) QueryHelloWorld() (*TestStruct, error) {
+	return &TestStruct{}, nil
+}
+
+func (tt *TestToken) TxHelloWorldSet(in *TestStruct) error {
+	return nil
 }
 
 func (tt *TestToken) TxTestCall() error {
@@ -58,6 +88,44 @@ func (tt *TestToken) TxEmissionAdd(sender *types.Sender, address *types.Address,
 	return tt.EmissionAdd(amount)
 }
 
+func TestBytesEncoder(t *testing.T) {
+	ledgerMock := mock.NewLedger(t)
+	owner := ledgerMock.NewWallet()
+
+	tt := &TestToken{}
+	config := makeBaseTokenConfig(testTokenName, testTokenSymbol, 8,
+		owner.Address(), "", "", "", nil)
+
+	initMsg := ledgerMock.NewCC(testTokenCCName, tt, config)
+	require.Empty(t, initMsg)
+
+	t.Run("Get bytes encoded response", func(t *testing.T) {
+		helloWorld := owner.Invoke(testTokenCCName, testHelloWorldFnName)
+		require.Equal(t, helloWorld, "Hello World")
+	})
+}
+
+func TestBytesDecoder(t *testing.T) {
+	ledgerMock := mock.NewLedger(t)
+	owner := ledgerMock.NewWallet()
+
+	tt := &TestToken{}
+	config := makeBaseTokenConfig(testTokenName, testTokenSymbol, 8,
+		owner.Address(), "", "", "", nil)
+
+	initMsg := ledgerMock.NewCC(testTokenCCName, tt, config)
+	require.Empty(t, initMsg)
+
+	t.Run("Set bytes encoded response", func(t *testing.T) {
+		owner.Invoke(testTokenCCName, testHelloWorldSetFnName, "Hi!")
+	})
+
+	t.Run("Set bytes encoded response", func(t *testing.T) {
+		err := owner.InvokeWithError(testTokenCCName, testHelloWorldSetFnName, "")
+		require.Error(t, err)
+	})
+}
+
 // TestGetEmptyNonce - Checking that new wallet have empty nonce
 func TestGetEmptyNonce(t *testing.T) {
 	ledgerMock := mock.NewLedger(t)
@@ -72,7 +140,7 @@ func TestGetEmptyNonce(t *testing.T) {
 
 	t.Run("Get nonce with new wallet", func(t *testing.T) {
 		nonce := owner.Invoke(testTokenCCName, testGetNonceFnName, owner.Address())
-		assert.Equal(t, nonce, testMessageEmptyNonce)
+		require.Equal(t, nonce, testMessageEmptyNonce)
 	})
 }
 
@@ -92,7 +160,7 @@ func TestGetNonce(t *testing.T) {
 
 	t.Run("Get nonce with new wallet", func(t *testing.T) {
 		nonce := owner.Invoke(testTokenCCName, testGetNonceFnName, owner.Address())
-		assert.NotEqual(t, nonce, testMessageEmptyNonce)
+		require.NotEqual(t, nonce, testMessageEmptyNonce)
 	})
 }
 
@@ -107,7 +175,7 @@ func TestInit(t *testing.T) {
 
 	t.Run("Init new chaincode", func(t *testing.T) {
 		message := ledger.NewCC(testTokenCCName, tt, config)
-		assert.Empty(t, message)
+		require.Empty(t, message)
 	})
 }
 
@@ -125,6 +193,6 @@ func TestTxHealthCheck(t *testing.T) {
 
 	t.Run("Healthcheck checking", func(t *testing.T) {
 		txID := owner.SignedInvoke(testTokenCCName, "healthCheck")
-		assert.NotEmpty(t, txID)
+		require.NotEmpty(t, txID)
 	})
 }

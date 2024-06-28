@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/anoideaopen/foundation/core"
+	"github.com/anoideaopen/foundation/core/contract"
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/core/types/big"
 	"github.com/anoideaopen/foundation/proto"
@@ -17,7 +18,7 @@ const metadataKey = "tokenMetadata"
 // Tokener is the interface for tokens
 type Tokener interface {
 	core.BaseContractInterface
-	core.TokenConfigurable
+	contract.TokenConfigurator
 
 	EmissionAdd(*big.Int) error
 	EmissionSub(*big.Int) error
@@ -43,7 +44,7 @@ type BaseToken struct {
 
 // Issuer returns the issuer of the token
 func (bt *BaseToken) Issuer() *types.Address {
-	addr, err := types.AddrFromBase58Check(bt.tokenConfig.Issuer.Address)
+	addr, err := types.AddrFromBase58Check(bt.tokenConfig.GetIssuer().GetAddress())
 	if err != nil {
 		panic(err)
 	}
@@ -52,11 +53,11 @@ func (bt *BaseToken) Issuer() *types.Address {
 
 // FeeSetter returns the fee setter of the token
 func (bt *BaseToken) FeeSetter() *types.Address {
-	if bt.TokenConfig().FeeSetter == nil || bt.TokenConfig().FeeSetter.Address == "" {
+	if bt.TokenConfig().GetFeeSetter().GetAddress() == "" {
 		panic("feeSetter is not set or empty")
 	}
 
-	addr, err := types.AddrFromBase58Check(bt.TokenConfig().FeeSetter.Address)
+	addr, err := types.AddrFromBase58Check(bt.TokenConfig().GetFeeSetter().GetAddress())
 	if err != nil {
 		panic(fmt.Sprintf("parsing address: %s", err))
 	}
@@ -66,11 +67,11 @@ func (bt *BaseToken) FeeSetter() *types.Address {
 
 // FeeAddressSetter returns the fee address setter of the token
 func (bt *BaseToken) FeeAddressSetter() *types.Address {
-	if bt.TokenConfig().FeeAddressSetter == nil || bt.tokenConfig.FeeAddressSetter.Address == "" {
+	if bt.tokenConfig.GetFeeAddressSetter().GetAddress() == "" {
 		panic("feeAddressSetter is not set or empty")
 	}
 
-	addr, err := types.AddrFromBase58Check(bt.tokenConfig.FeeAddressSetter.Address)
+	addr, err := types.AddrFromBase58Check(bt.tokenConfig.GetFeeAddressSetter().GetAddress())
 	if err != nil {
 		panic(err)
 	}
@@ -79,7 +80,7 @@ func (bt *BaseToken) FeeAddressSetter() *types.Address {
 
 // GetID returns the ID of the token
 func (bt *BaseToken) GetID() string {
-	return bt.TokenConfig().Name
+	return bt.TokenConfig().GetName()
 }
 
 func (bt *BaseToken) loadConfigUnlessLoaded() error {
@@ -110,10 +111,10 @@ func (bt *BaseToken) EmissionAdd(amount *big.Int) error {
 	if err := bt.loadConfigUnlessLoaded(); err != nil {
 		return err
 	}
-	if bt.config.TotalEmission == nil {
+	if bt.config.GetTotalEmission() == nil {
 		bt.config.TotalEmission = new(big.Int).Bytes()
 	}
-	bt.config.TotalEmission = new(big.Int).Add(new(big.Int).SetBytes(bt.config.TotalEmission), amount).Bytes()
+	bt.config.TotalEmission = new(big.Int).Add(new(big.Int).SetBytes(bt.config.GetTotalEmission()), amount).Bytes()
 	return bt.saveConfig()
 }
 
@@ -122,13 +123,13 @@ func (bt *BaseToken) EmissionSub(amount *big.Int) error {
 	if err := bt.loadConfigUnlessLoaded(); err != nil {
 		return err
 	}
-	if bt.config.TotalEmission == nil {
+	if bt.config.GetTotalEmission() == nil {
 		bt.config.TotalEmission = new(big.Int).Bytes()
 	}
-	if new(big.Int).SetBytes(bt.config.TotalEmission).Cmp(amount) < 0 {
+	if new(big.Int).SetBytes(bt.config.GetTotalEmission()).Cmp(amount) < 0 {
 		return errors.New("emission can't become negative")
 	}
-	bt.config.TotalEmission = new(big.Int).Sub(new(big.Int).SetBytes(bt.config.TotalEmission), amount).Bytes()
+	bt.config.TotalEmission = new(big.Int).Sub(new(big.Int).SetBytes(bt.config.GetTotalEmission()), amount).Bytes()
 	return bt.saveConfig()
 }
 
@@ -137,11 +138,11 @@ func (bt *BaseToken) setFee(currency string, fee *big.Int, floor *big.Int, cap *
 		return err
 	}
 
-	if bt.config.Fee == nil {
+	if bt.config.GetFee() == nil {
 		bt.config.Fee = &proto.TokenFee{}
 	}
 
-	if currency == bt.ContractConfig().Symbol {
+	if currency == bt.ContractConfig().GetSymbol() {
 		bt.config.Fee.Currency = currency
 		bt.config.Fee.Fee = fee.Bytes()
 		bt.config.Fee.Floor = floor.Bytes()
@@ -149,8 +150,8 @@ func (bt *BaseToken) setFee(currency string, fee *big.Int, floor *big.Int, cap *
 		return bt.saveConfig()
 	}
 
-	for _, rate := range bt.config.Rates {
-		if rate.Currency == currency {
+	for _, rate := range bt.config.GetRates() {
+		if rate.GetCurrency() == currency {
 			bt.config.Fee.Currency = currency
 			bt.config.Fee.Fee = fee.Bytes()
 			bt.config.Fee.Floor = floor.Bytes()
@@ -167,8 +168,8 @@ func (bt *BaseToken) GetRateAndLimits(dealType string, currency string) (*proto.
 	if err := bt.loadConfigUnlessLoaded(); err != nil {
 		return nil, false, err
 	}
-	for _, r := range bt.config.Rates {
-		if r.DealType == dealType && r.Currency == currency {
+	for _, r := range bt.config.GetRates() {
+		if r.GetDealType() == dealType && r.GetCurrency() == currency {
 			return r, true, nil
 		}
 	}

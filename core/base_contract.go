@@ -3,11 +3,16 @@ package core
 import (
 	"embed"
 	"encoding/hex"
+	"errors"
 	"fmt"
+	"os"
 	"runtime/debug"
 	"sort"
 	"strconv"
 
+	"github.com/anoideaopen/foundation/core/contract"
+	"github.com/anoideaopen/foundation/core/reflectx"
+	"github.com/anoideaopen/foundation/core/stringsx"
 	"github.com/anoideaopen/foundation/core/telemetry"
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/core/types/big"
@@ -27,9 +32,19 @@ type BaseContract struct {
 	config         *pb.ContractConfig
 	traceCtx       telemetry.TraceContext
 	tracingHandler *telemetry.TracingHandler
+	isService      bool
+	router         contract.Router
 }
 
 var _ BaseContractInterface = &BaseContract{}
+
+func (bc *BaseContract) setRouter(router contract.Router) {
+	bc.router = router
+}
+
+func (bc *BaseContract) Router() contract.Router {
+	return bc.router
+}
 
 func (bc *BaseContract) setSrcFs(srcFs *embed.FS) {
 	bc.srcFs = srcFs
@@ -42,14 +57,18 @@ func (bc *BaseContract) GetStub() shim.ChaincodeStubInterface {
 
 // GetMethods returns list of methods
 func (bc *BaseContract) GetMethods(bci BaseContractInterface) []string {
-	contractMethods, err := parseContractMethods(bci)
+	router, err := buildRouter(bci)
 	if err != nil {
 		panic(err)
 	}
 
+	contractMethods := router.Methods()
+
 	methods := make([]string, 0, len(contractMethods))
-	for name := range contractMethods {
-		methods = append(methods, name)
+	for name, method := range contractMethods {
+		if !bc.isMethodDisabled(method) {
+			methods = append(methods, name)
+		}
 	}
 
 	sort.Strings(methods)
@@ -57,7 +76,24 @@ func (bc *BaseContract) GetMethods(bci BaseContractInterface) []string {
 	return methods
 }
 
-func (bc *BaseContract) setStub(stub shim.ChaincodeStubInterface) {
+func (bc *BaseContract) isMethodDisabled(method contract.Method) bool {
+	for _, disabled := range bc.config.GetOptions().GetDisabledFunctions() {
+		if method.MethodName == disabled {
+			return true
+		}
+		if bc.config.GetOptions().GetDisableSwaps() &&
+			stringsx.OneOf(method.MethodName, "QuerySwapGet", "TxSwapBegin", "TxSwapCancel") {
+			return true
+		}
+		if bc.config.GetOptions().GetDisableMultiSwaps() &&
+			stringsx.OneOf(method.MethodName, "QueryMultiSwapGet", "TxMultiSwapBegin", "TxMultiSwapCancel") {
+			return true
+		}
+	}
+	return false
+}
+
+func (bc *BaseContract) SetStub(stub shim.ChaincodeStubInterface) {
 	bc.stub = stub
 	bc.noncePrefix = StateKeyNonce
 }
@@ -82,7 +118,7 @@ func (bc *BaseContract) QueryGetNonce(owner *types.Address) (string, error) {
 			// let's just say it's an old nonsense
 			lastNonce.Nonce = []uint64{new(big.Int).SetBytes(data).Uint64()}
 		}
-		exist = strconv.FormatUint(lastNonce.Nonce[len(lastNonce.Nonce)-1], 10)
+		exist = strconv.FormatUint(lastNonce.GetNonce()[len(lastNonce.GetNonce())-1], 10)
 	}
 
 	return exist, nil
@@ -91,7 +127,7 @@ func (bc *BaseContract) QueryGetNonce(owner *types.Address) (string, error) {
 // QuerySrcFile returns file
 func (bc *BaseContract) QuerySrcFile(name string) (string, error) {
 	if bc.srcFs == nil {
-		return "", fmt.Errorf("embed fs is nil")
+		return "", errors.New("embed fs is nil")
 	}
 
 	b, err := bc.srcFs.ReadFile(name)
@@ -103,7 +139,7 @@ func (bc *BaseContract) QuerySrcFile(name string) (string, error) {
 // end   - exclude
 func (bc *BaseContract) QuerySrcPartFile(name string, start int, end int) (string, error) {
 	if bc.srcFs == nil {
-		return "", fmt.Errorf("embed fs is nil")
+		return "", errors.New("embed fs is nil")
 	}
 
 	f, err := bc.srcFs.ReadFile(name)
@@ -124,7 +160,7 @@ func (bc *BaseContract) QuerySrcPartFile(name string, start int, end int) (strin
 	}
 
 	if start > end {
-		return "", fmt.Errorf("start more then end")
+		return "", errors.New("start more then end")
 	}
 
 	return string(f[start:end]), nil
@@ -133,7 +169,7 @@ func (bc *BaseContract) QuerySrcPartFile(name string, start int, end int) (strin
 // QueryNameOfFiles returns list path/name of embed files
 func (bc *BaseContract) QueryNameOfFiles() ([]string, error) {
 	if bc.srcFs == nil {
-		return nil, fmt.Errorf("embed fs is nil")
+		return nil, errors.New("embed fs is nil")
 	}
 
 	fs, err := bc.srcFs.ReadDir(".")
@@ -206,8 +242,12 @@ func (bc *BaseContract) TxHealthCheck(_ *types.Sender) error {
 	return nil
 }
 
-func (bc *BaseContract) GetID() string {
-	return bc.config.Symbol
+func (bc *BaseContract) ID() string {
+	return bc.config.GetSymbol()
+}
+
+func (bc *BaseContract) GetID() string { // deprecated
+	return bc.ID()
 }
 
 func (bc *BaseContract) ValidateConfig(config []byte) error {
@@ -216,11 +256,11 @@ func (bc *BaseContract) ValidateConfig(config []byte) error {
 		return fmt.Errorf("unmarshalling base config data failed: %w", err)
 	}
 
-	if cfg.Contract == nil {
-		return fmt.Errorf("validating contract config: contract config is not set or broken")
+	if cfg.GetContract() == nil {
+		return errors.New("validating contract config: contract config is not set or broken")
 	}
 
-	if err := cfg.Contract.ValidateAll(); err != nil {
+	if err := cfg.GetContract().ValidateAll(); err != nil {
 		return fmt.Errorf("validating contract config: %w", err)
 	}
 
@@ -266,11 +306,37 @@ func (bc *BaseContract) TracingHandler() *telemetry.TracingHandler {
 	return bc.tracingHandler
 }
 
+// setIsService sets base contract isService
+func (bc *BaseContract) setIsService() {
+	bc.isService = true
+}
+
+// IsService returns true if chaincode runs as a service
+func (bc *BaseContract) IsService() bool {
+	return bc.isService
+}
+
 // setupTracing lazy telemetry tracing setup.
 func (bc *BaseContract) setupTracing() {
 	serviceName := "chaincode-" + bc.GetID()
 
-	telemetry.InstallTraceProvider(bc.ContractConfig().TracingCollectorEndpoint, serviceName)
+	// Check if the environment variable with the tracing collector endpoint exists
+	endpointFromEnv, ok := os.LookupEnv(telemetry.TracingCollectorEndpointEnv)
+
+	traceConfig := bc.ContractConfig().GetTracingCollectorEndpoint()
+
+	// If the chaincode is not operating as a service or the environment variable with the endpoint
+	// does not exist in the system, use the contract configuration for tracing.
+	if bc.IsService() && ok {
+		traceConfig = &pb.CollectorEndpoint{
+			Endpoint:                 endpointFromEnv,
+			AuthorizationHeaderKey:   os.Getenv(telemetry.TracingCollectorAuthHeaderKey),
+			AuthorizationHeaderValue: os.Getenv(telemetry.TracingCollectorAuthHeaderValue),
+			TlsCa:                    os.Getenv(telemetry.TracingCollectorCaPem),
+		}
+	}
+
+	telemetry.InstallTraceProvider(traceConfig, serviceName)
 
 	th := &telemetry.TracingHandler{}
 	th.Tracer = otel.Tracer(serviceName)
@@ -280,20 +346,37 @@ func (bc *BaseContract) setupTracing() {
 	bc.setTracingHandler(th)
 }
 
+func buildRouter(in any) (contract.Router, error) {
+	if bc, ok := in.(BaseContractInterface); ok {
+		if router := bc.Router(); router != nil {
+			return router, nil
+		}
+	}
+
+	if router, ok := in.(contract.Router); ok {
+		return router, nil
+	}
+
+	if contract, ok := in.(contract.Base); ok {
+		return reflectx.NewRouter(contract)
+	}
+
+	return nil, fmt.Errorf("invalid contract type: %T", in)
+}
+
 // BaseContractInterface represents BaseContract interface
 type BaseContractInterface interface { //nolint:interfacebloat
+	contract.Base
+
 	// WARNING!
 	// Private interface methods can only be implemented in this package.
 	// Bad practice. Can only be used to embed the necessary structure
 	// and no more. Needs refactoring in the future.
 
-	setStub(stub shim.ChaincodeStubInterface)
 	setSrcFs(*embed.FS)
 	tokenBalanceAdd(address *types.Address, amount *big.Int, token string) error
 
 	// ------------------------------------------------------------------
-
-	GetStub() shim.ChaincodeStubInterface
 	GetID() string
 
 	TokenBalanceTransfer(from *types.Address, to *types.Address, amount *big.Int, reason string) error
@@ -327,11 +410,9 @@ type BaseContractInterface interface { //nolint:interfacebloat
 	setTracingHandler(th *telemetry.TracingHandler)
 	TracingHandler() *telemetry.TracingHandler
 
-	ContractConfigurable
-}
+	setIsService()
+	IsService() bool
 
-type ContractConfigurable interface {
-	ValidateConfig(config []byte) error
-	ApplyContractConfig(config *pb.ContractConfig) error
-	ContractConfig() *pb.ContractConfig
+	setRouter(contract.Router)
+	Router() contract.Router
 }

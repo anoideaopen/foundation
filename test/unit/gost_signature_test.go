@@ -16,8 +16,11 @@ func TestGOSTSignatures(t *testing.T) {
 		user1            = m.NewWallet()
 		fiat             = NewFiatTestToken(token.BaseToken{})
 	)
+
+	owner.UseGOSTKey()
+
 	config := makeBaseTokenConfig("Test Token", "TT", 8,
-		owner.AddressGOST(), feeSetter.Address(), feeAddressSetter.Address(), "", nil)
+		owner.Address(), feeSetter.Address(), feeAddressSetter.Address(), "", nil)
 
 	m.NewCC(
 		"fiat",
@@ -25,7 +28,6 @@ func TestGOSTSignatures(t *testing.T) {
 		config,
 	)
 
-	owner.SetGOSTPrimary(true)
 	owner.SignedInvoke("fiat", "emit", user1.Address(), "1000")
 	user1.BalanceShouldBe("fiat", 1000)
 }
