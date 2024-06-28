@@ -25,7 +25,7 @@ const (
 
 	TracingCollectorAuthHeaderKey   = "CHAINCODE_TRACING_COLLECTOR_AUTH_HEADER_KEY"
 	TracingCollectorAuthHeaderValue = "CHAINCODE_TRACING_COLLECTOR_AUTH_HEADER_VALUE"
-	TracingCollectorCaPem           = "TRACING_COLLECTOR_CAPEM"
+	TracingCollectorCaPem           = "CHAINCODE_TRACING_COLLECTOR_CAPEM"
 )
 
 // InstallTraceProvider returns trace provider based on http otlp exporter .
