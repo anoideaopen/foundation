@@ -278,7 +278,7 @@ func (cc *Chaincode) batchedTxExecute(
 	span.AddEvent("load from batch")
 	pending, key, err := cc.loadFromBatch(stub, txID)
 	if err != nil && pending != nil {
-		if delErr := stub.ChaincodeStubInterface.DelState(key); delErr != nil {
+		if delErr := stub.DelState(key); delErr != nil {
 			log.Errorf("failed deleting key %s from state on txId: %s", key, delErr.Error())
 		}
 		ee := proto.ResponseError{Error: "function and args loading error: " + err.Error()}
@@ -293,7 +293,7 @@ func (cc *Chaincode) batchedTxExecute(
 				Error:  &ee,
 			}
 	} else if err != nil {
-		if delErr := stub.ChaincodeStubInterface.DelState(key); delErr != nil {
+		if delErr := stub.DelState(key); delErr != nil {
 			log.Errorf("failed deleting key %s from state: %s", key, delErr.Error())
 		}
 		ee := proto.ResponseError{Error: "function and args loading error: " + err.Error()}
@@ -314,7 +314,7 @@ func (cc *Chaincode) batchedTxExecute(
 		span.SetStatus(codes.Error, msg)
 		log.Info(msg)
 
-		_ = stub.ChaincodeStubInterface.DelState(key)
+		_ = stub.DelState(key)
 		ee := proto.ResponseError{Error: "unknown method " + pending.GetMethod()}
 		return &proto.TxResponse{
 				Id:     binaryTxID,
@@ -341,7 +341,7 @@ func (cc *Chaincode) batchedTxExecute(
 	span.AddEvent("calling method")
 	response, err := cc.InvokeContractMethod(traceCtx, txStub, method, pending.GetSender(), pending.GetArgs(), cfgBytes)
 	if err != nil {
-		_ = stub.ChaincodeStubInterface.DelState(key)
+		_ = stub.DelState(key)
 		ee := proto.ResponseError{Error: err.Error()}
 		span.SetStatus(codes.Error, "call method returned error")
 
