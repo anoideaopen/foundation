@@ -41,16 +41,14 @@ type Task struct {
 type TaskExecutor struct {
 	BatchCacheStub *cachestub.BatchCacheStub
 	Chaincode      *Chaincode
-	CfgBytes       []byte
 	SKI            string
 	TracingHandler *telemetry.TracingHandler
 }
 
 // NewTaskExecutor initializes a new TaskExecutor.
-func NewTaskExecutor(stub shim.ChaincodeStubInterface, cfgBytes []byte, cc *Chaincode, tracingHandler *telemetry.TracingHandler) *TaskExecutor {
+func NewTaskExecutor(stub shim.ChaincodeStubInterface, cc *Chaincode, tracingHandler *telemetry.TracingHandler) *TaskExecutor {
 	return &TaskExecutor{
 		BatchCacheStub: cachestub.NewBatchCacheStub(stub),
-		CfgBytes:       cfgBytes,
 		Chaincode:      cc,
 		TracingHandler: tracingHandler,
 	}
@@ -62,7 +60,6 @@ func NewTaskExecutor(stub shim.ChaincodeStubInterface, cfgBytes []byte, cc *Chai
 func TasksExecutorHandler(
 	traceCtx telemetry.TraceContext,
 	stub shim.ChaincodeStubInterface,
-	cfgBytes []byte,
 	args []string,
 	cc *Chaincode,
 ) ([]byte, error) {
@@ -96,7 +93,7 @@ func TasksExecutorHandler(
 		return nil, handleTasksError(span, err)
 	}
 
-	executor := NewTaskExecutor(stub, cfgBytes, cc, tracingHandler)
+	executor := NewTaskExecutor(stub, cc, tracingHandler)
 
 	response, event, err := executor.ExecuteTasks(traceCtx, executeTaskRequest.Tasks)
 	if err != nil {
@@ -137,7 +134,7 @@ func (e *TaskExecutor) ExecuteTasks(
 	batchEvent := &proto.BatchEvent{}
 
 	for _, task := range tasks {
-		txResponse, txEvent := e.ExecuteTask(traceCtx, task, e.BatchCacheStub, e.CfgBytes)
+		txResponse, txEvent := e.ExecuteTask(traceCtx, task, e.BatchCacheStub)
 		batchResponse.TxResponses = append(batchResponse.TxResponses, txResponse)
 		batchEvent.Events = append(batchEvent.Events, txEvent)
 	}
@@ -206,11 +203,7 @@ func (e *TaskExecutor) ExecuteTask(
 	traceCtx telemetry.TraceContext,
 	task Task,
 	batchCacheStub *cachestub.BatchCacheStub,
-	cfgBytes []byte,
-) (
-	*proto.TxResponse,
-	*proto.BatchTxEvent,
-) {
+) (*proto.TxResponse, *proto.BatchTxEvent) {
 	traceCtx, span := e.TracingHandler.StartNewSpan(traceCtx, "TaskExecutor.ExecuteTasks")
 	defer span.End()
 
@@ -224,13 +217,7 @@ func (e *TaskExecutor) ExecuteTask(
 	}()
 
 	txCacheStub := batchCacheStub.NewTxCacheStub(task.ID)
-
-	span.AddEvent("configuring chaincode")
-	if err := contract.Configure(e.Chaincode.contract, batchCacheStub, e.CfgBytes); err != nil {
-		err = fmt.Errorf("failed to configure chaincode for task %s: %w", task.ID, err)
-		span.SetStatus(codes.Error, err.Error())
-		return handleTaskError(span, task, err)
-	}
+	e.Chaincode.contract.SetStub(batchCacheStub)
 
 	span.AddEvent("validating tx sender method and args")
 	senderAddress, method, args, err := e.validatedTxSenderMethodAndArgs(traceCtx, batchCacheStub, task)
@@ -240,7 +227,7 @@ func (e *TaskExecutor) ExecuteTask(
 	}
 
 	span.AddEvent("calling method")
-	response, err := e.Chaincode.InvokeContractMethod(traceCtx, txCacheStub, method, senderAddress, args, cfgBytes)
+	response, err := e.Chaincode.InvokeContractMethod(traceCtx, txCacheStub, method, senderAddress, args)
 	if err != nil {
 		return handleTaskError(span, task, err)
 	}

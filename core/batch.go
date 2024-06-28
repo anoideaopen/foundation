@@ -151,7 +151,6 @@ func (cc *Chaincode) batchExecute(
 	traceCtx telemetry.TraceContext,
 	stub shim.ChaincodeStubInterface,
 	dataIn string,
-	cfgBytes []byte,
 ) peer.Response {
 	traceCtx, span := cc.contract.TracingHandler().StartNewSpan(traceCtx, BatchExecute)
 	defer span.End()
@@ -178,7 +177,7 @@ func (cc *Chaincode) batchExecute(
 	ids := make([]string, 0, len(batch.GetTxIDs()))
 	for _, txID := range batch.GetTxIDs() {
 		ids = append(ids, hex.EncodeToString(txID))
-		resp, event := cc.batchedTxExecute(traceCtx, btchStub, txID, cfgBytes)
+		resp, event := cc.batchedTxExecute(traceCtx, btchStub, txID)
 		response.TxResponses = append(response.TxResponses, resp)
 		events.Events = append(events.Events, event)
 	}
@@ -251,7 +250,6 @@ func (cc *Chaincode) batchedTxExecute(
 	traceCtx telemetry.TraceContext,
 	stub *cachestub.BatchCacheStub,
 	binaryTxID []byte,
-	cfgBytes []byte,
 ) (r *proto.TxResponse, e *proto.BatchTxEvent) {
 	traceCtx, span := cc.contract.TracingHandler().StartNewSpan(traceCtx, "batchTxExecute")
 	defer span.End()
@@ -283,28 +281,16 @@ func (cc *Chaincode) batchedTxExecute(
 		}
 		ee := proto.ResponseError{Error: "function and args loading error: " + err.Error()}
 		span.SetStatus(codes.Error, err.Error())
-		return &proto.TxResponse{
-				Id:     binaryTxID,
-				Method: pending.GetMethod(),
-				Error:  &ee,
-			}, &proto.BatchTxEvent{
-				Id:     binaryTxID,
-				Method: pending.GetMethod(),
-				Error:  &ee,
-			}
+		return &proto.TxResponse{Id: binaryTxID, Method: pending.GetMethod(), Error: &ee},
+			&proto.BatchTxEvent{Id: binaryTxID, Method: pending.GetMethod(), Error: &ee}
 	} else if err != nil {
 		if delErr := stub.DelState(key); delErr != nil {
 			log.Errorf("failed deleting key %s from state: %s", key, delErr.Error())
 		}
 		ee := proto.ResponseError{Error: "function and args loading error: " + err.Error()}
 		span.SetStatus(codes.Error, err.Error())
-		return &proto.TxResponse{
-				Id:    binaryTxID,
-				Error: &ee,
-			}, &proto.BatchTxEvent{
-				Id:    binaryTxID,
-				Error: &ee,
-			}
+		return &proto.TxResponse{Id: binaryTxID, Error: &ee},
+			&proto.BatchTxEvent{Id: binaryTxID, Error: &ee}
 	}
 
 	txStub := stub.NewTxCacheStub(txID)
@@ -316,15 +302,8 @@ func (cc *Chaincode) batchedTxExecute(
 
 		_ = stub.DelState(key)
 		ee := proto.ResponseError{Error: "unknown method " + pending.GetMethod()}
-		return &proto.TxResponse{
-				Id:     binaryTxID,
-				Method: pending.GetMethod(),
-				Error:  &ee,
-			}, &proto.BatchTxEvent{
-				Id:     binaryTxID,
-				Method: pending.GetMethod(),
-				Error:  &ee,
-			}
+		return &proto.TxResponse{Id: binaryTxID, Method: pending.GetMethod(), Error: &ee},
+			&proto.BatchTxEvent{Id: binaryTxID, Method: pending.GetMethod(), Error: &ee}
 	}
 	methodName = pending.GetMethod()
 	span.SetAttributes(attribute.String("method", methodName))
@@ -339,21 +318,14 @@ func (cc *Chaincode) batchedTxExecute(
 	}
 
 	span.AddEvent("calling method")
-	response, err := cc.InvokeContractMethod(traceCtx, txStub, method, pending.GetSender(), pending.GetArgs(), cfgBytes)
+	response, err := cc.InvokeContractMethod(traceCtx, txStub, method, pending.GetSender(), pending.GetArgs())
 	if err != nil {
 		_ = stub.DelState(key)
 		ee := proto.ResponseError{Error: err.Error()}
 		span.SetStatus(codes.Error, "call method returned error")
 
-		return &proto.TxResponse{
-				Id:     binaryTxID,
-				Method: pending.GetMethod(),
-				Error:  &ee,
-			}, &proto.BatchTxEvent{
-				Id:     binaryTxID,
-				Method: pending.GetMethod(),
-				Error:  &ee,
-			}
+		return &proto.TxResponse{Id: binaryTxID, Method: pending.GetMethod(), Error: &ee},
+			&proto.BatchTxEvent{Id: binaryTxID, Method: pending.GetMethod(), Error: &ee}
 	}
 
 	span.AddEvent("commit")
@@ -365,16 +337,9 @@ func (cc *Chaincode) batchedTxExecute(
 
 	span.SetStatus(codes.Ok, "")
 
-	return &proto.TxResponse{
-			Id:     binaryTxID,
-			Method: pending.GetMethod(),
-			Writes: writes,
-		},
+	return &proto.TxResponse{Id: binaryTxID, Method: pending.GetMethod(), Writes: writes},
 		&proto.BatchTxEvent{
-			Id:         binaryTxID,
-			Method:     pending.GetMethod(),
-			Accounting: txStub.Accounting,
-			Events:     events,
-			Result:     response,
+			Id: binaryTxID, Method: pending.GetMethod(),
+			Accounting: txStub.Accounting, Events: events, Result: response,
 		}
 }

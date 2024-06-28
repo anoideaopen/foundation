@@ -483,11 +483,6 @@ func (cc *Chaincode) Invoke(stub shim.ChaincodeStubInterface) (r peer.Response) 
 		return shim.Error("invoke: loading raw config: " + err.Error())
 	}
 
-	cfg, err := config.FromBytes(cfgBytes)
-	if err != nil {
-		return shim.Error(err.Error())
-	}
-
 	// Apply config on all layers: base contract (SKI's & chaincode options),
 	// token base attributes and extended token parameters.
 	if err = contract.Configure(cc.contract, stub, cfgBytes); err != nil {
@@ -559,7 +554,7 @@ func (cc *Chaincode) Invoke(stub shim.ChaincodeStubInterface) (r peer.Response) 
 				time.Since(start),
 			)
 		}()
-		return cc.batchExecuteHandler(traceCtx, stub, creatorSKI, hashedCert, arguments, cfgBytes)
+		return cc.batchExecuteHandler(traceCtx, stub, creatorSKI, hashedCert, arguments)
 
 	case SwapDone:
 		return cc.swapDoneHandler(arguments)
@@ -573,7 +568,7 @@ func (cc *Chaincode) Invoke(stub shim.ChaincodeStubInterface) (r peer.Response) 
 		CancelCCTransferFrom,
 		DeleteCCTransferFrom:
 
-		robotSKIBytes, _ := hex.DecodeString(cfg.GetContract().GetRobotSKI())
+		robotSKIBytes, _ := hex.DecodeString(cc.contract.ContractConfig().GetRobotSKI())
 		err = hlfcreator.ValidateSKI(robotSKIBytes, creatorSKI, hashedCert)
 		if err != nil {
 			errMsg := "invoke:unauthorized: robotSKI is not equal creatorSKI and hashedCert: " + err.Error()
@@ -592,7 +587,6 @@ func (cc *Chaincode) Invoke(stub shim.ChaincodeStubInterface) (r peer.Response) 
 		bytes, err := TasksExecutorHandler(
 			traceCtx,
 			stub,
-			cfgBytes,
 			arguments,
 			cc,
 		)
@@ -613,12 +607,12 @@ func (cc *Chaincode) Invoke(stub shim.ChaincodeStubInterface) (r peer.Response) 
 		return shim.Error(errMsg)
 	}
 
-	if cfg.GetContract().GetOptions() != nil {
+	if cc.contract.ContractConfig().GetOptions() != nil {
 		var (
 			swapMethods      = []string{"QuerySwapGet", "TxSwapBegin", "TxSwapCancel"}
 			multiSwapMethods = []string{"QueryMultiSwapGet", "TxMultiSwapBegin", "TxMultiSwapCancel"}
 			method           = method.MethodName
-			opts             = cfg.GetContract().GetOptions()
+			opts             = cc.contract.ContractConfig().GetOptions()
 		)
 
 		if stringsx.OneOf(method, opts.GetDisabledFunctions()...) ||
@@ -631,7 +625,7 @@ func (cc *Chaincode) Invoke(stub shim.ChaincodeStubInterface) (r peer.Response) 
 	// handle invoke and query methods executed without batch process
 	if method.Type == contract.MethodTypeInvoke || method.Type == contract.MethodTypeQuery {
 		span.SetAttributes(telemetry.MethodType(telemetry.MethodNbTx))
-		return cc.noBatchHandler(traceCtx, stub, method, arguments, cfgBytes)
+		return cc.noBatchHandler(traceCtx, stub, method, arguments)
 	}
 
 	// handle invoke method with batch process
@@ -683,7 +677,7 @@ func (cc *Chaincode) BatchHandler(
 	}
 
 	span.AddEvent("validating arguments")
-	if err := cc.Router().Check(method.MethodName, cc.PrependSender(method, sender, args)...); err != nil {
+	if err = cc.Router().Check(method.MethodName, cc.PrependSender(method, sender, args)...); err != nil {
 		span.SetStatus(codes.Error, "validating arguments failed")
 		return shim.Error(err.Error())
 	}
@@ -711,7 +705,6 @@ func (cc *Chaincode) noBatchHandler(
 	stub shim.ChaincodeStubInterface,
 	method contract.Method,
 	args []string,
-	cfgBytes []byte,
 ) peer.Response {
 	traceCtx, span := cc.contract.TracingHandler().StartNewSpan(traceCtx, "chaincode.NoBatchHandler")
 	defer span.End()
@@ -728,13 +721,13 @@ func (cc *Chaincode) noBatchHandler(
 	}
 
 	span.AddEvent("validating arguments")
-	if err := cc.Router().Check(method.MethodName, cc.PrependSender(method, sender, args)...); err != nil {
+	if err = cc.Router().Check(method.MethodName, cc.PrependSender(method, sender, args)...); err != nil {
 		span.SetStatus(codes.Error, "validating arguments failed")
 		return shim.Error(err.Error())
 	}
 
 	span.AddEvent("calling method")
-	resp, err := cc.InvokeContractMethod(traceCtx, stub, method, sender, args, cfgBytes)
+	resp, err := cc.InvokeContractMethod(traceCtx, stub, method, sender, args)
 	if err != nil {
 		span.SetStatus(codes.Error, err.Error())
 		return shim.Error(err.Error())
@@ -758,21 +751,15 @@ func (cc *Chaincode) batchExecuteHandler(
 	creatorSKI [32]byte,
 	hashedCert [32]byte,
 	args []string,
-	cfgBytes []byte,
 ) peer.Response {
-	cfg, err := config.FromBytes(cfgBytes)
-	if err != nil {
-		return peer.Response{}
-	}
+	robotSKIBytes, _ := hex.DecodeString(cc.contract.ContractConfig().GetRobotSKI())
 
-	robotSKIBytes, _ := hex.DecodeString(cfg.GetContract().GetRobotSKI())
-
-	err = hlfcreator.ValidateSKI(robotSKIBytes, creatorSKI, hashedCert)
+	err := hlfcreator.ValidateSKI(robotSKIBytes, creatorSKI, hashedCert)
 	if err != nil {
 		return shim.Error("unauthorized: robotSKI is not equal creatorSKI and hashedCert: " + err.Error())
 	}
 
-	return cc.batchExecute(traceCtx, stub, args[0], cfgBytes)
+	return cc.batchExecute(traceCtx, stub, args[0])
 }
 
 // Start begins the chaincode execution based on the environment configuration. It decides whether to

@@ -478,7 +478,7 @@ func BatchExecuteTest(t *testing.T, ser *serieBatchExecute, args []string) peer.
 	dataIn, err := pb.Marshal(&proto.Batch{TxIDs: [][]byte{ser.testIDBytes}})
 	require.NoError(t, err)
 
-	return chainCode.batchExecute(telemetry.TraceContext{}, ms, string(dataIn), nil)
+	return chainCode.batchExecute(telemetry.TraceContext{}, ms, string(dataIn))
 }
 
 // TestBatchedTxExecute tests positive test for batchedTxExecute
@@ -542,7 +542,6 @@ func TestBatchedTxExecute(t *testing.T) {
 		telemetry.TraceContext{},
 		btchStub,
 		txIDBytes,
-		nil,
 	)
 	require.NotNil(t, resp)
 	require.NotNil(t, event)

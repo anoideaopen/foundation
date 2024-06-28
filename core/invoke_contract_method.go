@@ -36,15 +36,11 @@ func (cc *Chaincode) InvokeContractMethod(
 	method contract.Method,
 	sender *proto.Address,
 	args []string,
-	cfgBytes []byte,
 ) ([]byte, error) {
 	_, span := cc.contract.TracingHandler().StartNewSpan(traceCtx, "chaincode.CallMethod")
 	defer span.End()
 
-	span.AddEvent("applying config")
-	if err := contract.Configure(cc.contract, stub, cfgBytes); err != nil {
-		return nil, err
-	}
+	cc.contract.SetStub(stub)
 
 	span.AddEvent("call")
 	result, err := cc.Router().Invoke(method.MethodName, cc.PrependSender(method, sender, args)...)
