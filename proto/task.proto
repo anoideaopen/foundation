@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package proto;
+
+option go_package = "github.com/anoideaopen/foundation/proto";
+
+
+message ExecuteTasksRequest {
+  repeated Task tasks = 1;
+}
+
+message Task {
+  string id = 1;
+  string method = 2;
+  repeated string args = 3;
+}

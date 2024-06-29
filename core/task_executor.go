@@ -1,7 +1,6 @@
 package core
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"sort"
@@ -24,18 +23,6 @@ import (
 const ExecuteTasksEvent = "executeTasks"
 
 var ErrTasksNotFound = errors.New("no tasks found")
-
-// ExecuteTasksRequest represents a request to execute a group of tasks.
-type ExecuteTasksRequest struct {
-	Tasks []Task `json:"tasks"`
-}
-
-// Task represents an individual task to be executed.
-type Task struct {
-	ID     string   `json:"id"`     // ID unique task ID
-	Method string   `json:"method"` // Method chaincode function to invoke
-	Args   []string `json:"args"`   // Args arguments for the chaincode function
-}
 
 // TaskExecutor handles the execution of a group of tasks.
 type TaskExecutor struct {
@@ -80,8 +67,8 @@ func TasksExecutorHandler(
 		return nil, handleTasksError(span, err)
 	}
 
-	var executeTaskRequest ExecuteTasksRequest
-	if err := json.Unmarshal([]byte(args[0]), &executeTaskRequest); err != nil {
+	var executeTaskRequest proto.ExecuteTasksRequest
+	if err := pb.Unmarshal([]byte(args[0]), &executeTaskRequest); err != nil {
 		err = fmt.Errorf("failed to unmarshal argument to ExecuteTasksRequest for transaction %s, argument: %s", txID, args[0])
 		return nil, handleTasksError(span, err)
 	}
@@ -121,7 +108,7 @@ func TasksExecutorHandler(
 // ExecuteTasks processes a group of tasks, returning a group response and event.
 func (e *TaskExecutor) ExecuteTasks(
 	traceCtx telemetry.TraceContext,
-	tasks []Task,
+	tasks []*proto.Task,
 ) (
 	*proto.BatchResponse,
 	*proto.BatchEvent,
@@ -150,30 +137,30 @@ func (e *TaskExecutor) ExecuteTasks(
 func (e *TaskExecutor) validatedTxSenderMethodAndArgs(
 	traceCtx telemetry.TraceContext,
 	batchCacheStub *cachestub.BatchCacheStub,
-	task Task,
+	task *proto.Task,
 ) (*proto.Address, contract.Method, []string, error) {
 	_, span := e.TracingHandler.StartNewSpan(traceCtx, "TaskExecutor.validatedTxSenderMethodAndArgs")
 	defer span.End()
 
 	span.AddEvent("parsing chaincode method")
-	method, err := e.Chaincode.Method(task.Method)
+	method, err := e.Chaincode.Method(task.GetMethod())
 	if err != nil {
-		err = fmt.Errorf("failed to parse chaincode method '%s' for task %s: %w", task.Method, task.ID, err)
+		err = fmt.Errorf("failed to parse chaincode method '%s' for task %s: %w", task.GetMethod(), task.GetId(), err)
 		span.SetStatus(codes.Error, err.Error())
 		return nil, contract.Method{}, nil, err
 	}
 
 	span.AddEvent("validating and extracting invocation context")
-	senderAddress, args, nonce, err := e.Chaincode.validateAndExtractInvocationContext(batchCacheStub, method, task.Args)
+	senderAddress, args, nonce, err := e.Chaincode.validateAndExtractInvocationContext(batchCacheStub, method, task.GetArgs())
 	if err != nil {
-		err = fmt.Errorf("failed to validate and extract invocation context for task %s: %w", task.ID, err)
+		err = fmt.Errorf("failed to validate and extract invocation context for task %s: %w", task.GetId(), err)
 		span.SetStatus(codes.Error, err.Error())
 		return nil, contract.Method{}, nil, err
 	}
 
 	span.AddEvent("validating authorization")
 	if !method.RequiresAuth || senderAddress == nil {
-		err = fmt.Errorf("failed to validate authorization for task %s: sender address is missing", task.ID)
+		err = fmt.Errorf("failed to validate authorization for task %s: sender address is missing", task.GetId())
 		span.SetStatus(codes.Error, err.Error())
 		return nil, contract.Method{}, nil, err
 	}
@@ -181,7 +168,7 @@ func (e *TaskExecutor) validatedTxSenderMethodAndArgs(
 
 	span.AddEvent("validating arguments")
 	if err = e.Chaincode.Router().Check(method.MethodName, argsToValidate...); err != nil {
-		err = fmt.Errorf("failed to validate arguments for task %s: %w", task.ID, err)
+		err = fmt.Errorf("failed to validate arguments for task %s: %w", task.GetId(), err)
 		span.SetStatus(codes.Error, err.Error())
 		return nil, contract.Method{}, nil, err
 	}
@@ -190,7 +177,7 @@ func (e *TaskExecutor) validatedTxSenderMethodAndArgs(
 	sender := types.NewSenderFromAddr((*types.Address)(senderAddress))
 	err = checkNonce(batchCacheStub, sender, nonce)
 	if err != nil {
-		err = fmt.Errorf("failed to validate nonce for task %s, nonce %d: %w", task.ID, nonce, err)
+		err = fmt.Errorf("failed to validate nonce for task %s, nonce %d: %w", task.GetId(), nonce, err)
 		span.SetStatus(codes.Error, err.Error())
 		return nil, contract.Method{}, nil, err
 	}
@@ -201,7 +188,7 @@ func (e *TaskExecutor) validatedTxSenderMethodAndArgs(
 // ExecuteTask processes an individual task, returning a transaction response and event.
 func (e *TaskExecutor) ExecuteTask(
 	traceCtx telemetry.TraceContext,
-	task Task,
+	task *proto.Task,
 	batchCacheStub *cachestub.BatchCacheStub,
 ) (*proto.TxResponse, *proto.BatchTxEvent) {
 	traceCtx, span := e.TracingHandler.StartNewSpan(traceCtx, "TaskExecutor.ExecuteTasks")
@@ -209,20 +196,20 @@ func (e *TaskExecutor) ExecuteTask(
 
 	log := logger.Logger()
 	start := time.Now()
-	span.SetAttributes(attribute.String("task_method", task.Method))
-	span.SetAttributes(attribute.StringSlice("task_args", task.Args))
-	span.SetAttributes(attribute.String("task_id", task.ID))
+	span.SetAttributes(attribute.String("task_method", task.GetMethod()))
+	span.SetAttributes(attribute.StringSlice("task_args", task.GetArgs()))
+	span.SetAttributes(attribute.String("task_id", task.GetId()))
 	defer func() {
-		log.Infof("task method %s task %s elapsed time %d ms", task.Method, task.ID, time.Since(start).Milliseconds())
+		log.Infof("task method %s task %s elapsed: %s", task.GetMethod(), task.GetId(), time.Since(start))
 	}()
 
-	txCacheStub := batchCacheStub.NewTxCacheStub(task.ID)
+	txCacheStub := batchCacheStub.NewTxCacheStub(task.GetId())
 	e.Chaincode.contract.SetStub(batchCacheStub)
 
 	span.AddEvent("validating tx sender method and args")
 	senderAddress, method, args, err := e.validatedTxSenderMethodAndArgs(traceCtx, batchCacheStub, task)
 	if err != nil {
-		err = fmt.Errorf("failed to validate transaction sender, method, and arguments for task %s: %w", task.ID, err)
+		err = fmt.Errorf("failed to validate transaction sender, method, and arguments for task %s: %w", task.GetId(), err)
 		return handleTaskError(span, task, err)
 	}
 
@@ -241,13 +228,13 @@ func (e *TaskExecutor) ExecuteTask(
 
 	span.SetStatus(codes.Ok, "")
 	return &proto.TxResponse{
-			Id:     []byte(task.ID),
-			Method: task.Method,
+			Id:     []byte(task.GetId()),
+			Method: task.GetMethod(),
 			Writes: writes,
 		},
 		&proto.BatchTxEvent{
-			Id:         []byte(task.ID),
-			Method:     task.Method,
+			Id:         []byte(task.GetId()),
+			Method:     task.GetMethod(),
 			Accounting: txCacheStub.Accounting,
 			Events:     events,
 			Result:     response,
@@ -260,18 +247,18 @@ func handleTasksError(span trace.Span, err error) error {
 	return err
 }
 
-func handleTaskError(span trace.Span, task Task, err error) (*proto.TxResponse, *proto.BatchTxEvent) {
-	logger.Logger().Errorf("%s: %s: %s", task.Method, task.ID, err)
+func handleTaskError(span trace.Span, task *proto.Task, err error) (*proto.TxResponse, *proto.BatchTxEvent) {
+	logger.Logger().Errorf("%s: %s: %s", task.GetMethod(), task.GetId(), err)
 	span.SetStatus(codes.Error, err.Error())
 
 	ee := proto.ResponseError{Error: err.Error()}
 	return &proto.TxResponse{
-			Id:     []byte(task.ID),
-			Method: task.Method,
+			Id:     []byte(task.GetId()),
+			Method: task.GetMethod(),
 			Error:  &ee,
 		}, &proto.BatchTxEvent{
-			Id:     []byte(task.ID),
-			Method: task.Method,
+			Id:     []byte(task.GetId()),
+			Method: task.GetMethod(),
 			Error:  &ee,
 		}
 }
