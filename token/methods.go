@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/anoideaopen/foundation/core"
+	"github.com/anoideaopen/foundation/core/document"
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/core/types/big"
 	"github.com/anoideaopen/foundation/proto"
@@ -101,8 +101,8 @@ func (bt *BaseToken) QueryLockedAllowedBalanceOf(address *types.Address, token s
 }
 
 // QueryDocumentsList - returns list of emission documents
-func (bt *BaseToken) QueryDocumentsList() ([]core.Doc, error) {
-	return core.DocumentsList(bt.GetStub())
+func (bt *BaseToken) QueryDocumentsList() ([]document.Document, error) {
+	return document.DocumentsList(bt.GetStub())
 }
 
 // TxAddDocs - adds docs to a token
@@ -111,7 +111,7 @@ func (bt *BaseToken) TxAddDocs(sender *types.Sender, rawDocs string) error {
 		return errors.New("unathorized")
 	}
 
-	return core.AddDocs(bt.GetStub(), rawDocs)
+	return document.AddDocuments(bt.GetStub(), rawDocs)
 }
 
 // TxDeleteDoc - deletes doc from state
@@ -120,7 +120,7 @@ func (bt *BaseToken) TxDeleteDoc(sender *types.Sender, docID string) error {
 		return errors.New("unathorized")
 	}
 
-	return core.DeleteDoc(bt.GetStub(), docID)
+	return document.DeleteDocument(bt.GetStub(), docID)
 }
 
 // TxSetRate sets token rate to an asset for a type of deal
