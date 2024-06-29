@@ -6,6 +6,7 @@ import (
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/core/types/big"
 	"github.com/anoideaopen/foundation/proto"
+	pb "github.com/hyperledger/fabric-protos-go/peer"
 )
 
 type TxCacheStub struct {
@@ -97,4 +98,8 @@ func (bts *TxCacheStub) Commit() ([]*proto.WriteElement, []*proto.Event) {
 func (bts *TxCacheStub) DelState(key string) error {
 	bts.txWriteCache[key] = &proto.WriteElement{Key: key, IsDeleted: true}
 	return nil
+}
+
+func (bts *TxCacheStub) InvokeChaincode(chaincodeName string, args [][]byte, channel string) pb.Response {
+	return bts.BatchCacheStub.InvokeChaincode(chaincodeName, args, channel)
 }

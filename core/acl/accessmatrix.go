@@ -39,7 +39,7 @@ func GetAccountRight(stub shim.ChaincodeStubInterface, params []string) (*pb.Hav
 	for _, param := range params {
 		args = append(args, []byte(param))
 	}
-	resp := stub.InvokeChaincode(CC, args, Ch)
+	resp := stub.InvokeChaincode(CcACL, args, ChACL)
 	if resp.GetStatus() != shim.OK {
 		return nil, errors.New(resp.GetMessage())
 	}

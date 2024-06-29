@@ -1,10 +1,10 @@
 package acl
 
-// Ch - ACL channel name,
-// CC - ACL chaincode name
+// ChACL - ACL channel name,
+// CcACL - ACL chaincode name
 const (
-	Ch = "acl"
-	CC = "acl"
+	ChACL = "acl"
+	CcACL = "acl"
 )
 
 // acl chaincode functions
