@@ -73,16 +73,16 @@ func TasksExecutorHandler(
 		return nil, handleTasksError(span, err)
 	}
 
-	log.Warningf("tasks executor: tx id: %s, txs: %d", txID, len(executeTaskRequest.Tasks))
+	log.Warningf("tasks executor: tx id: %s, txs: %d", txID, len(executeTaskRequest.GetTasks()))
 
-	if len(executeTaskRequest.Tasks) == 0 {
+	if len(executeTaskRequest.GetTasks()) == 0 {
 		err := fmt.Errorf("failed to validate argument: no tasks found in ExecuteTasksRequest for transaction %s: %w", txID, ErrTasksNotFound)
 		return nil, handleTasksError(span, err)
 	}
 
 	executor := NewTaskExecutor(stub, cc, tracingHandler)
 
-	response, event, err := executor.ExecuteTasks(traceCtx, executeTaskRequest.Tasks)
+	response, event, err := executor.ExecuteTasks(traceCtx, executeTaskRequest.GetTasks())
 	if err != nil {
 		return nil, handleTasksError(span, fmt.Errorf("failed to handle task for transaction %s: %w", txID, err))
 	}

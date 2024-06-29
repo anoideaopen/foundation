@@ -10,8 +10,7 @@ import (
 
 	"github.com/anoideaopen/foundation/core"
 	"github.com/anoideaopen/foundation/proto"
-	pb "github.com/golang/protobuf/proto"
-	proto2 "google.golang.org/protobuf/proto"
+	pb "google.golang.org/protobuf/proto"
 )
 
 type ExecutorRequest struct {
@@ -84,7 +83,7 @@ func (w *Wallet) TaskExecutor(r ExecutorRequest) (*ExecutorResponse, error) {
 	}
 
 	var batchResponse proto.BatchResponse
-	err = proto2.Unmarshal(peerResponse.GetPayload(), &batchResponse)
+	err = pb.Unmarshal(peerResponse.GetPayload(), &batchResponse)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal BatchResponse: %w", err)
 	}
@@ -113,7 +112,7 @@ func (w *Wallet) getEventByID(channel string, id string) (*proto.BatchTxEvent, e
 	e := <-w.ledger.stubs[channel].ChaincodeEventsChannel
 	if e.GetEventName() == core.ExecuteTasksEvent {
 		batchEvent := proto.BatchEvent{}
-		err := proto2.Unmarshal(e.GetPayload(), &batchEvent)
+		err := pb.Unmarshal(e.GetPayload(), &batchEvent)
 		if err != nil {
 			return nil, fmt.Errorf("failed to unmarshal BatchEvent: %w", err)
 		}
