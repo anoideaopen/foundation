@@ -24,15 +24,6 @@ const ExecuteTasksEvent = "executeTasks"
 
 var ErrTasksNotFound = errors.New("no tasks found")
 
-type job struct {
-	i             int
-	senderAddress *proto.Address
-	method        contract.Method
-	args          []string
-	nonce         uint64
-	err           error
-}
-
 // TaskExecutor handles the execution of a group of tasks.
 type TaskExecutor struct {
 	BatchCacheStub *cachestub.BatchCacheStub
@@ -125,47 +116,8 @@ func (e *TaskExecutor) ExecuteTasks(
 	batchResponse := &proto.BatchResponse{}
 	batchEvent := &proto.BatchEvent{}
 
-	work1 := make(chan *job, len(tasks))
-	work2 := make(chan *job, len(tasks))
-
-	go func() {
-		cur := 0
-		jobs := make([]*job, len(tasks))
-		for j := range work1 {
-			jobs[j.i] = j
-
-			for {
-				if cur >= len(tasks) || jobs[cur] == nil {
-					break
-				}
-
-				work2 <- jobs[cur]
-				cur++
-			}
-
-			if cur >= len(tasks) {
-				close(work2)
-				break
-			}
-		}
-	}()
-
-	for i := range tasks {
-		go func(i int) {
-			senderAddress, method, args, nonce, err := e.validatedTxSenderMethodAndArgs(traceCtx, e.BatchCacheStub, tasks[i])
-			work1 <- &job{
-				i:             i,
-				senderAddress: senderAddress,
-				method:        method,
-				args:          args,
-				nonce:         nonce,
-				err:           err,
-			}
-		}(i)
-	}
-
-	for j := range work2 {
-		txResponse, txEvent := e.ExecuteTask(traceCtx, j, e.BatchCacheStub, tasks[j.i])
+	for _, task := range tasks {
+		txResponse, txEvent := e.ExecuteTask(traceCtx, task, e.BatchCacheStub)
 		batchResponse.TxResponses = append(batchResponse.TxResponses, txResponse)
 		batchEvent.Events = append(batchEvent.Events, txEvent)
 	}
@@ -180,9 +132,9 @@ func (e *TaskExecutor) ExecuteTasks(
 // validatedTxSenderMethodAndArgs validates the sender, method, and arguments for a transaction.
 func (e *TaskExecutor) validatedTxSenderMethodAndArgs(
 	traceCtx telemetry.TraceContext,
-	batchCacheStub *cachestub.BatchCacheStub,
+	stub *cachestub.BatchCacheStub,
 	task *proto.Task,
-) (*proto.Address, contract.Method, []string, uint64, error) {
+) (*proto.Address, contract.Method, []string, error) {
 	_, span := e.TracingHandler.StartNewSpan(traceCtx, "TaskExecutor.validatedTxSenderMethodAndArgs")
 	defer span.End()
 
@@ -191,22 +143,22 @@ func (e *TaskExecutor) validatedTxSenderMethodAndArgs(
 	if err != nil {
 		err = fmt.Errorf("failed to parse chaincode method '%s' for task %s: %w", task.GetMethod(), task.GetId(), err)
 		span.SetStatus(codes.Error, err.Error())
-		return nil, contract.Method{}, nil, 0, err
+		return nil, contract.Method{}, nil, err
 	}
 
 	span.AddEvent("validating and extracting invocation context")
-	senderAddress, args, nonce, err := e.Chaincode.validateAndExtractInvocationContext(batchCacheStub, method, task.GetArgs())
+	senderAddress, args, nonce, err := e.Chaincode.validateAndExtractInvocationContext(stub, method, task.GetArgs())
 	if err != nil {
 		err = fmt.Errorf("failed to validate and extract invocation context for task %s: %w", task.GetId(), err)
 		span.SetStatus(codes.Error, err.Error())
-		return nil, contract.Method{}, nil, 0, err
+		return nil, contract.Method{}, nil, err
 	}
 
 	span.AddEvent("validating authorization")
 	if !method.RequiresAuth || senderAddress == nil {
 		err = fmt.Errorf("failed to validate authorization for task %s: sender address is missing", task.GetId())
 		span.SetStatus(codes.Error, err.Error())
-		return nil, contract.Method{}, nil, 0, err
+		return nil, contract.Method{}, nil, err
 	}
 	argsToValidate := append([]string{senderAddress.AddrString()}, args...)
 
@@ -214,18 +166,26 @@ func (e *TaskExecutor) validatedTxSenderMethodAndArgs(
 	if err = e.Chaincode.Router().Check(method.MethodName, argsToValidate...); err != nil {
 		err = fmt.Errorf("failed to validate arguments for task %s: %w", task.GetId(), err)
 		span.SetStatus(codes.Error, err.Error())
-		return nil, contract.Method{}, nil, 0, err
+		return nil, contract.Method{}, nil, err
 	}
 
-	return senderAddress, method, args[:method.NumArgs-1], nonce, nil
+	span.AddEvent("validating nonce")
+	sender := types.NewSenderFromAddr((*types.Address)(senderAddress))
+	err = checkNonce(stub, sender, nonce)
+	if err != nil {
+		err = fmt.Errorf("failed to validate nonce for task %s, nonce %d: %w", task.GetId(), nonce, err)
+		span.SetStatus(codes.Error, err.Error())
+		return nil, contract.Method{}, nil, err
+	}
+
+	return senderAddress, method, args[:method.NumArgs-1], nil
 }
 
 // ExecuteTask processes an individual task, returning a transaction response and event.
 func (e *TaskExecutor) ExecuteTask(
 	traceCtx telemetry.TraceContext,
-	j *job,
-	stub *cachestub.BatchCacheStub,
 	task *proto.Task,
+	stub *cachestub.BatchCacheStub,
 ) (*proto.TxResponse, *proto.BatchTxEvent) {
 	traceCtx, span := e.TracingHandler.StartNewSpan(traceCtx, "TaskExecutor.ExecuteTasks")
 	defer span.End()
@@ -239,22 +199,17 @@ func (e *TaskExecutor) ExecuteTask(
 		log.Infof("task method %s task %s elapsed: %s", task.GetMethod(), task.GetId(), time.Since(start))
 	}()
 
-	if j.err != nil {
-		err := fmt.Errorf("failed to validate for task %s: %w", task.GetId(), j.err)
-		return handleTaskError(span, task, err)
-	}
-
-	sender := types.NewSenderFromAddr((*types.Address)(j.senderAddress))
-	err := checkNonce(e.BatchCacheStub, sender, j.nonce)
-	if err != nil {
-		err = fmt.Errorf("failed to validate nonce for task %s, nonce %d: %w", task.GetId(), j.nonce, err)
-		return handleTaskError(span, task, err)
-	}
-
 	txCacheStub := stub.NewTxCacheStub(task.GetId())
 
+	span.AddEvent("validating tx sender method and args")
+	senderAddress, method, args, err := e.validatedTxSenderMethodAndArgs(traceCtx, stub, task)
+	if err != nil {
+		err = fmt.Errorf("failed to validate transaction sender, method, and arguments for task %s: %w", task.GetId(), err)
+		return handleTaskError(span, task, err)
+	}
+
 	span.AddEvent("calling method")
-	response, err := e.Chaincode.InvokeContractMethod(traceCtx, txCacheStub, j.method, j.senderAddress, j.args)
+	response, err := e.Chaincode.InvokeContractMethod(traceCtx, txCacheStub, method, senderAddress, args)
 	if err != nil {
 		return handleTaskError(span, task, err)
 	}

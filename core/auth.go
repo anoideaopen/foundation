@@ -8,7 +8,6 @@ import (
 
 	"github.com/anoideaopen/foundation/core/contract"
 	"github.com/anoideaopen/foundation/core/helpers"
-	"github.com/anoideaopen/foundation/core/logger"
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/keys"
 	pb "github.com/anoideaopen/foundation/proto"
@@ -52,8 +51,6 @@ func (cc *Chaincode) validateAndExtractInvocationContext(
 		return nil, args, 0, nil
 	}
 
-	log := logger.Logger()
-
 	invocation, err := parseInvocationDetails(method, args)
 	if err != nil {
 		return nil, nil, 0, err
@@ -65,7 +62,6 @@ func (cc *Chaincode) validateAndExtractInvocationContext(
 		invocation.chaincodeNameArg,
 		invocation.channelNameArg,
 	); err != nil {
-		log.Errorf("PFI01 %s", err.Error())
 		return nil, nil, 0, err
 	}
 
@@ -74,7 +70,6 @@ func (cc *Chaincode) validateAndExtractInvocationContext(
 	// Check the ACL (access control list).
 	acl, err := checkACLSignerStatus(stub, signers)
 	if err != nil {
-		log.Errorf("PFI02 %s", err.Error())
 		return nil, nil, 0, err
 	}
 
@@ -96,20 +91,17 @@ func (cc *Chaincode) validateAndExtractInvocationContext(
 	message := []byte(method.ChaincodeFunc + strings.Join(args[:len(args)-invocation.signersCount], ""))
 
 	if err = validateSignaturesInInvocation(invocation, message); err != nil {
-		log.Errorf("PFI03 %s", err.Error())
 		return nil, nil, 0, err
 	}
 
 	// Update the address if it has changed.
 	if err = helpers.AddAddrIfChanged(stub, acl.GetAddress()); err != nil {
-		log.Errorf("PFI04 %s", err.Error())
 		return nil, nil, 0, err
 	}
 
 	// Convert nonce from a string to a number.
 	nonce, err = strconv.ParseUint(invocation.nonceStringArg, 10, 64)
 	if err != nil {
-		log.Errorf("PFI05 %s", err.Error())
 		return nil, nil, 0, err
 	}
 
