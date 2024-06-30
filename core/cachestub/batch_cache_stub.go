@@ -1,19 +1,26 @@
 package cachestub
 
 import (
+	"math/rand"
 	"net/http"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/anoideaopen/foundation/proto"
 	"github.com/hyperledger/fabric-chaincode-go/shim"
 	pb "github.com/hyperledger/fabric-protos-go/peer"
 )
 
+const retry = 5
+
 type BatchCacheStub struct {
 	shim.ChaincodeStubInterface
 	batchWriteCache   map[string]*proto.WriteElement
 	batchReadeCache   map[string]*proto.WriteElement
+	readLock          sync.RWMutex
 	invokeResultCache map[string]pb.Response
+	invokeLock        sync.RWMutex
 	Swaps             []*proto.Swap
 	MultiSwaps        []*proto.MultiSwap
 }
@@ -33,7 +40,10 @@ func (bs *BatchCacheStub) GetState(key string) ([]byte, error) {
 		return existsElement.GetValue(), nil
 	}
 
-	if existsElement, ok := bs.batchReadeCache[key]; ok {
+	bs.readLock.RLock()
+	existsElement, ok := bs.batchReadeCache[key]
+	bs.readLock.RUnlock()
+	if ok {
 		return existsElement.GetValue(), nil
 	}
 
@@ -42,7 +52,9 @@ func (bs *BatchCacheStub) GetState(key string) ([]byte, error) {
 		return nil, err
 	}
 
+	bs.readLock.Lock()
 	bs.batchReadeCache[key] = &proto.WriteElement{Key: key, Value: value}
+	bs.readLock.Unlock()
 
 	return value, nil
 }
@@ -82,15 +94,31 @@ func (bs *BatchCacheStub) InvokeChaincode(chaincodeName string, args [][]byte, c
 	}
 	key := strings.Join(keys, "")
 
-	if result, ok := bs.invokeResultCache[key]; ok {
+	bs.invokeLock.RLock()
+	result, ok := bs.invokeResultCache[key]
+	bs.invokeLock.RUnlock()
+	if ok {
 		return result
 	}
 
-	resp := bs.ChaincodeStubInterface.InvokeChaincode(chaincodeName, args, channel)
+	var resp pb.Response
+
+	bs.invokeLock.Lock()
+	for i := 0; i < retry; i++ {
+		resp = bs.ChaincodeStubInterface.InvokeChaincode(chaincodeName, args, channel)
+
+		if resp.GetStatus() == http.StatusOK {
+			break
+		}
+
+		tt := time.Duration(float64(50*time.Millisecond) + 0.2*(rand.Float64()*2-1))
+		time.Sleep(tt)
+	}
 
 	if resp.GetStatus() == http.StatusOK && len(resp.GetPayload()) != 0 {
 		bs.invokeResultCache[key] = resp
 	}
+	bs.invokeLock.Unlock()
 
 	return resp
 }

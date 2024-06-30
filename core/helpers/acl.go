@@ -182,9 +182,10 @@ func GetAccountInfo(stub shim.ChaincodeStubInterface, addr string) (*pb.AccountI
 
 	if resp.GetStatus() != http.StatusOK {
 		return nil, fmt.Errorf(
-			"ACL status is not OK: status code: %d, message: %s",
+			"ACL status is not OK: status code: %d, message: '%s', payload: '%s'",
 			resp.GetStatus(),
 			resp.GetMessage(),
+			string(resp.GetPayload()),
 		)
 	}
 
