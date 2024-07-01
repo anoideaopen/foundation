@@ -368,13 +368,7 @@ func buildRouter(in any) (contract.Router, error) {
 type BaseContractInterface interface { //nolint:interfacebloat
 	contract.Base
 
-	// WARNING!
-	// Private interface methods can only be implemented in this package.
-	// Bad practice. Can only be used to embed the necessary structure
-	// and no more. Needs refactoring in the future.
-
 	setSrcFs(*embed.FS)
-	tokenBalanceAdd(address *types.Address, amount *big.Int, token string) error
 
 	// ------------------------------------------------------------------
 	GetID() string
