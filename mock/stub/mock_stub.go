@@ -18,6 +18,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/core/types/big"
 	"github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/golang/protobuf/ptypes/timestamp"
@@ -925,4 +926,21 @@ func (stub *Stub) SetDefaultCreatorCert(msp string) error {
 	}
 
 	return nil
+}
+
+func (stub *Stub) AddAccountingRecord(
+	token string,
+	from *types.Address,
+	to *types.Address,
+	amount *big.Int,
+	reason string,
+) {
+	stub.logger.Infof(
+		"AddAccountingRecord: token: %s, from: %v, to: %v, amount: %s, reason: %s",
+		token,
+		from,
+		to,
+		amount.String(),
+		reason,
+	)
 }
