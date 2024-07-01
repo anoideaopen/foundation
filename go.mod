@@ -20,7 +20,7 @@ require (
 	go.opentelemetry.io/otel/sdk v1.15.0-rc.1
 	go.opentelemetry.io/otel/trace v1.15.0-rc.1
 	golang.org/x/crypto v0.21.0
-	google.golang.org/grpc v1.57.1
+	google.golang.org/grpc v1.57.2
 	google.golang.org/protobuf v1.33.0
 )
 

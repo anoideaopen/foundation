@@ -6,6 +6,7 @@ import (
 
 	"github.com/anoideaopen/foundation/core"
 	"github.com/anoideaopen/foundation/core/grpc"
+	"github.com/anoideaopen/foundation/core/logger"
 	"github.com/anoideaopen/foundation/test/chaincode/fiat/service"
 )
 
@@ -13,8 +14,10 @@ import (
 var f embed.FS
 
 func main() {
-	token := NewFiatToken()
+	l := logger.Logger()
+	l.Warning("start fiat")
 
+	token := NewFiatToken()
 	router := grpc.NewRouter(
 		grpc.RouterConfig{Fallback: grpc.DefaultReflectxFallback(token)},
 	)

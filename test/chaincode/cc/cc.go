@@ -5,6 +5,7 @@ import (
 	"log"
 
 	"github.com/anoideaopen/foundation/core"
+	"github.com/anoideaopen/foundation/core/logger"
 	"github.com/anoideaopen/foundation/token"
 )
 
@@ -20,6 +21,9 @@ func NewCcToken() *CcToken {
 }
 
 func main() {
+	l := logger.Logger()
+	l.Warning("start cc")
+
 	cc, err := core.NewCC(NewCcToken(), core.WithSrcFS(&f))
 	if err != nil {
 		log.Fatal(err)

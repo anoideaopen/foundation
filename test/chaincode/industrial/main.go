@@ -6,6 +6,7 @@ import (
 	"log"
 
 	"github.com/anoideaopen/foundation/core"
+	"github.com/anoideaopen/foundation/core/logger"
 	"github.com/anoideaopen/foundation/core/types"
 	industrialtoken "github.com/anoideaopen/foundation/test/chaincode/industrial/industrial_token"
 )
@@ -56,6 +57,9 @@ func (it *IT) NBTxInitialize(sender *types.Sender) error {
 }
 
 func main() {
+	l := logger.Logger()
+	l.Warning("start industrial")
+
 	cc, err := core.NewCC(NewIT(), core.WithSrcFS(&f))
 	if err != nil {
 		log.Fatal(err)
