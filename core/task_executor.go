@@ -116,6 +116,8 @@ func (e *TaskExecutor) ExecuteTasks(
 	batchResponse := &proto.BatchResponse{}
 	batchEvent := &proto.BatchEvent{}
 
+	predictACLCalls(e.BatchCacheStub, tasks, e.Chaincode)
+
 	for _, task := range tasks {
 		txResponse, txEvent := e.ExecuteTask(traceCtx, task, e.BatchCacheStub)
 		batchResponse.TxResponses = append(batchResponse.TxResponses, txResponse)

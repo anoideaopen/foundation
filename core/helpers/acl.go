@@ -7,16 +7,23 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/anoideaopen/foundation/core/logger"
 	pb "github.com/anoideaopen/foundation/proto"
 	"github.com/btcsuite/btcutil/base58"
 	"github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/hyperledger/fabric-chaincode-go/shim"
+	"github.com/hyperledger/fabric-protos-go/peer"
 )
 
 const (
 	// accInfoPrefix         = "accountinfo"
 	replaceTxChangePrefix = "replacetx"
 	signedTxChangePrefix  = "signedtx"
+
+	FnGetAccountsInfo = "getAccountsInfo"
+	FnGetAccountInfo  = "getAccountInfo"
+	FnCheckAddress    = "checkAddress"
+	FnCheckKeys       = "checkKeys"
 )
 
 // AddAddrIfChanged looks to ACL for pb.Address saved for specific pubkeys
@@ -129,8 +136,9 @@ func CheckACL(stub shim.ChaincodeStubInterface, keys []string) (*pb.AclResponse,
 
 // GetAddress returns pb.AclResponse from the ACL
 func GetAddress(stub shim.ChaincodeStubInterface, keys string) (*pb.AclResponse, error) {
+	logger.Logger().Debugf("invoke acl chaincode, %s: %s: %s", stub.GetTxID(), FnCheckKeys, keys)
 	resp := stub.InvokeChaincode("acl", [][]byte{
-		[]byte("checkKeys"),
+		[]byte(FnCheckKeys),
 		[]byte(keys),
 	}, "acl")
 
@@ -152,8 +160,9 @@ func GetAddress(stub shim.ChaincodeStubInterface, keys string) (*pb.AclResponse,
 
 // GetFullAddress returns pb.Address from the ACL
 func GetFullAddress(stub shim.ChaincodeStubInterface, key string) (*pb.Address, error) {
+	logger.Logger().Debugf("invoke acl chaincode, %s: %s: %s", stub.GetTxID(), FnCheckAddress, key)
 	resp := stub.InvokeChaincode("acl", [][]byte{
-		[]byte("checkAddress"),
+		[]byte(FnCheckAddress),
 		[]byte(key),
 	}, "acl")
 
@@ -175,8 +184,9 @@ func GetFullAddress(stub shim.ChaincodeStubInterface, key string) (*pb.Address, 
 
 // GetAccountInfo returns pb.AccountInfo from the ACL
 func GetAccountInfo(stub shim.ChaincodeStubInterface, addr string) (*pb.AccountInfo, error) {
+	logger.Logger().Debugf("invoke acl chaincode, %s: %s: %s", stub.GetTxID(), FnGetAccountInfo, addr)
 	resp := stub.InvokeChaincode("acl", [][]byte{
-		[]byte("getAccountInfo"),
+		[]byte(FnGetAccountInfo),
 		[]byte(addr),
 	}, "acl")
 
@@ -199,4 +209,31 @@ func GetAccountInfo(stub shim.ChaincodeStubInterface, addr string) (*pb.AccountI
 	}
 
 	return &infoMsg, nil
+}
+
+// GetAccountsInfo execute group requests in single invoke request each of them contains own peer.Response
+func GetAccountsInfo(stub shim.ChaincodeStubInterface, bytes [][]byte) ([]peer.Response, error) {
+	logger.Logger().Debugf("invoke acl chaincode: %s", FnGetAccountsInfo)
+	args := append([][]byte{[]byte(FnGetAccountsInfo)}, bytes...)
+	resp := stub.InvokeChaincode("acl", args, "acl")
+
+	if resp.GetStatus() != http.StatusOK {
+		return nil, fmt.Errorf(
+			"ACL status is not OK: status code: %d, message: '%s', payload: '%s'",
+			resp.GetStatus(),
+			resp.GetMessage(),
+			string(resp.GetPayload()),
+		)
+	}
+
+	if len(resp.GetPayload()) == 0 {
+		return nil, errors.New("empty response")
+	}
+
+	var responses []peer.Response
+	if err := json.Unmarshal(resp.GetPayload(), &responses); err != nil {
+		return nil, err
+	}
+
+	return responses, nil
 }
