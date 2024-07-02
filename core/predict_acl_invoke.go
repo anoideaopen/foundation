@@ -45,9 +45,11 @@ func predictACLCalls(stub shim.ChaincodeStubInterface, tasks []*proto.Task, chai
 	}
 	wg.Wait()
 
-	var requestBytes [][]byte
+	requestBytes := make([][]byte, len(p.callsMap))
+	i := 0
 	for _, bytes := range p.callsMap {
-		requestBytes = append(requestBytes, bytes)
+		requestBytes[i] = bytes
+		i++
 	}
 
 	// TODO: need to add retry if error cause is network error
