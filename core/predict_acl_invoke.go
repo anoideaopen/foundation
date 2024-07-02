@@ -18,7 +18,7 @@ const (
 	FnTransfer = "transfer"
 )
 
-type predictAcl struct {
+type predictACL struct {
 	stub     shim.ChaincodeStubInterface
 	m        sync.RWMutex
 	callsMap map[string][]byte
@@ -26,7 +26,7 @@ type predictAcl struct {
 
 func predictACLCalls(stub shim.ChaincodeStubInterface, tasks []*proto.Task, chaincode *Chaincode) {
 	methods := chaincode.Router().Methods()
-	p := predictAcl{
+	p := predictACL{
 		stub:     stub,
 		m:        sync.RWMutex{},
 		callsMap: make(map[string][]byte),
@@ -59,7 +59,7 @@ func predictACLCalls(stub shim.ChaincodeStubInterface, tasks []*proto.Task, chai
 	}
 }
 
-func (p *predictAcl) predictTaskACLCalls(chaincode *Chaincode, task *proto.Task, method contract.Method) {
+func (p *predictACL) predictTaskACLCalls(chaincode *Chaincode, task *proto.Task, method contract.Method) {
 	signers := getSigners(method, task)
 	if signers != nil {
 		p.addCall(helpers.FnCheckKeys, strings.Join(signers, "/"))
@@ -106,7 +106,7 @@ func (p *predictAcl) predictTaskACLCalls(chaincode *Chaincode, task *proto.Task,
 	}
 }
 
-func (p *predictAcl) addCall(method string, arg string) {
+func (p *predictACL) addCall(method string, arg string) {
 	logger.Logger().Debugf("PredictAcl txID %s: adding acl call: method %s arg %s", p.stub.GetTxID(), method, arg)
 	if len(arg) == 0 {
 		return
