@@ -377,7 +377,16 @@ func (w *Wallet) InvokeWithPeerResponse(ch, fn string, args ...string) (peer.Res
 
 // SignArgs signs the arguments
 func (w *Wallet) SignArgs(ch, fn string, args ...string) []string {
-	resp, _ := w.sign(fn, ch, args...)
+	// Artificial delay to update the nonce value.
+	time.Sleep(time.Millisecond * 5)
+	// Generation of nonce based on current time in milliseconds.
+	nonce := strconv.FormatInt(time.Now().UnixNano()/1000000, 10)
+	resp, _ := w.sign(fn, ch, nonce, args...)
+	return resp
+}
+
+func (w *Wallet) WithNonceSignArgs(ch, fn string, nonce string, args ...string) []string {
+	resp, _ := w.sign(fn, ch, nonce, args...)
 	return resp
 }
 
@@ -440,12 +449,7 @@ func (w *Wallet) publicKeyBytes() []byte {
 	}
 }
 
-func (w *Wallet) sign(fn, ch string, args ...string) ([]string, string) {
-	// Artificial delay to update the nonce value.
-	time.Sleep(time.Millisecond * 5)
-
-	// Generation of nonce based on current time in milliseconds.
-	nonce := strconv.FormatInt(time.Now().UnixNano()/1000000, 10)
+func (w *Wallet) sign(fn, ch string, nonce string, args ...string) ([]string, string) {
 
 	// Forming a message for signature, including function name,
 	// empty string (placeholder), channel name, arguments and nonce.
@@ -536,7 +540,12 @@ func (w *Wallet) RawSignedMultiSwapInvoke(ch, fn string, args ...string) (string
 		return "", TxResponse{}, nil, nil
 	}
 	txID := txIDGen()
-	args, _ = w.sign(fn, ch, args...)
+	// Artificial delay to update the nonce value.
+	time.Sleep(time.Millisecond * 5)
+
+	// Generation of nonce based on current time in milliseconds.
+	nonce := strconv.FormatInt(time.Now().UnixNano()/1000000, 10)
+	args, _ = w.sign(fn, ch, nonce, args...)
 	cert, err := base64.StdEncoding.DecodeString(userCert)
 	require.NoError(w.ledger.t, err)
 	_ = w.ledger.stubs[ch].SetCreatorCert("platformMSP", cert)
@@ -587,7 +596,12 @@ func (w *Wallet) RawSignedInvokeWithErrorReturned(ch, fn string, args ...string)
 		return err
 	}
 	txID := txIDGen()
-	args, _ = w.sign(fn, ch, args...)
+	// Artificial delay to update the nonce value.
+	time.Sleep(time.Millisecond * 5)
+
+	// Generation of nonce based on current time in milliseconds.
+	nonce := strconv.FormatInt(time.Now().UnixNano()/1000000, 10)
+	args, _ = w.sign(fn, ch, nonce, args...)
 	cert, err := base64.StdEncoding.DecodeString(userCert)
 	require.NoError(w.ledger.t, err)
 	_ = w.ledger.stubs[ch].SetCreatorCert("platformMSP", cert)
@@ -788,7 +802,12 @@ func (w *Wallet) NbInvoke(ch string, fn string, args ...string) (string, string)
 		return "", ""
 	}
 	txID := txIDGen()
-	message, hash := w.sign(fn, ch, args...)
+	// Artificial delay to update the nonce value.
+	time.Sleep(time.Millisecond * 5)
+
+	// Generation of nonce based on current time in milliseconds.
+	nonce := strconv.FormatInt(time.Now().UnixNano()/1000000, 10)
+	message, hash := w.sign(fn, ch, nonce, args...)
 	cert, err := base64.StdEncoding.DecodeString(userCert)
 	require.NoError(w.ledger.t, err)
 	_ = w.ledger.stubs[ch].SetCreatorCert("platformMSP", cert)

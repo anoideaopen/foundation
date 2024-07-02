@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/anoideaopen/foundation/core/contract"
 	"github.com/anoideaopen/foundation/core/helpers"
@@ -25,6 +26,11 @@ type predictACL struct {
 }
 
 func predictACLCalls(stub shim.ChaincodeStubInterface, tasks []*proto.Task, chaincode *Chaincode) {
+	start := time.Now()
+	defer func() {
+		logger.Logger().Infof("predictACLCalls: tx id: %s, elapsed: %s", stub.GetTxID(), time.Since(start))
+	}()
+	logger.Logger().Infof("predictACLCalls: tx id: %s, started", stub.GetTxID())
 	methods := chaincode.Router().Methods()
 	p := predictACL{
 		stub:     stub,
@@ -55,8 +61,9 @@ func predictACLCalls(stub shim.ChaincodeStubInterface, tasks []*proto.Task, chai
 	// TODO: need to add retry if error cause is network error
 	_, err := helpers.GetAccountsInfo(stub, requestBytes)
 	if err != nil {
-		logger.Logger().Errorf("PredictAclCalls txID %s, failed to invoke acl calls: %v", stub.GetTxID(), err)
+		logger.Logger().Errorf("predictACLCalls txID %s, failed to invoke acl calls: %v", stub.GetTxID(), err)
 	}
+	logger.Logger().Infof("predictACLCalls: tx id: %s, found acl calls: %d", stub.GetTxID(), len(p.callsMap))
 }
 
 func (p *predictACL) predictTaskACLCalls(chaincode *Chaincode, task *proto.Task, method contract.Method) {
@@ -107,7 +114,7 @@ func (p *predictACL) predictTaskACLCalls(chaincode *Chaincode, task *proto.Task,
 }
 
 func (p *predictACL) addCall(method string, arg string) {
-	logger.Logger().Debugf("PredictAcl txID %s: adding acl call: method %s arg %s", p.stub.GetTxID(), method, arg)
+	logger.Logger().Infof("PredictAcl txID %s: adding acl call: method %s arg %s", p.stub.GetTxID(), method, arg)
 	if len(arg) == 0 {
 		return
 	}
