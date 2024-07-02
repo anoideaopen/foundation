@@ -6,6 +6,7 @@ import (
 
 	"github.com/anoideaopen/foundation/mock"
 	"github.com/anoideaopen/foundation/token"
+	"github.com/btcsuite/btcutil/base58"
 	"github.com/stretchr/testify/require"
 )
 
@@ -51,4 +52,8 @@ func TestGroupTxExecutorEmitAndTransfer(t *testing.T) {
 	require.NoError(t, err)
 	user1.BalanceShouldBe("fiat", 500)
 	user2.BalanceShouldBe("fiat", 400)
+
+	user1.PublicKeyBase58 = base58.Encode(user1.PublicKeyEd25519)
+	_, err = user2.ExecuteSignedInvoke("fiat", "accountsTest", user1.Address(), user1.PublicKeyBase58)
+	require.NoError(t, err)
 }

@@ -9,6 +9,7 @@ import (
 
 	"github.com/anoideaopen/foundation/core/acl"
 	"github.com/anoideaopen/foundation/core/types"
+	st "github.com/anoideaopen/foundation/mock/stub"
 	pb "github.com/anoideaopen/foundation/proto"
 	"github.com/btcsuite/btcutil/base58"
 	"github.com/golang/protobuf/proto" //nolint:staticcheck
@@ -26,7 +27,7 @@ func (ma *mockACL) Init(_ shim.ChaincodeStubInterface) peer.Response { // stub
 	return shim.Success(nil)
 }
 
-func (ma *mockACL) Invoke(stub shim.ChaincodeStubInterface) peer.Response { //nolint:funlen
+func (ma *mockACL) Invoke(stub shim.ChaincodeStubInterface) peer.Response { //nolint:funlen,gocognit
 	fn, args := stub.GetFunctionAndParameters()
 	switch fn {
 	case "checkAddress":
@@ -122,6 +123,31 @@ func (ma *mockACL) Invoke(stub shim.ChaincodeStubInterface) peer.Response { //no
 		}
 
 		return shim.Success(nil)
+	case "getAccountsInfo":
+		responses := make([]peer.Response, 0)
+		for _, a := range args {
+			var argsTmp []string
+			err := json.Unmarshal([]byte(a), &argsTmp)
+			if err != nil {
+				continue
+			}
+			argsTmp2 := make([][]byte, 0, len(argsTmp))
+			for _, a2 := range argsTmp {
+				argsTmp2 = append(argsTmp2, []byte(a2))
+			}
+			st1, ok := stub.(*st.Stub)
+			if !ok {
+				continue
+			}
+			st1.Args = argsTmp2
+			resp := ma.Invoke(stub)
+			responses = append(responses, resp)
+		}
+		b, err := json.Marshal(responses)
+		if err != nil {
+			return shim.Error(fmt.Sprintf("failed get accounts info: marshal GetAccountsInfoResponse: %s", err))
+		}
+		return shim.Success(b)
 	default:
 		panic("should not be here")
 	}

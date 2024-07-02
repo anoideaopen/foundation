@@ -1,6 +1,7 @@
 package cachestub
 
 import (
+	"encoding/json"
 	"net/http"
 	"strings"
 
@@ -77,52 +78,137 @@ func (bs *BatchCacheStub) DelState(key string) error {
 }
 
 func (bs *BatchCacheStub) InvokeChaincode(chaincodeName string, args [][]byte, channel string) peer.Response {
-	keys := []string{channel, chaincodeName}
-	for _, arg := range args {
-		keys = append(keys, string(arg))
-	}
-	key := strings.Join(keys, "")
+	var key string
+	if string(args[0]) != "getAccountsInfo" {
+		key = bs.makeKeyByte(channel, chaincodeName, args)
 
-	if result, ok := bs.invokeResultCache[key]; ok {
-		return result
+		if resp, ok := bs.invokeResultCache[key]; ok {
+			return resp
+		}
 	}
 
 	resp := bs.ChaincodeStubInterface.InvokeChaincode(chaincodeName, args, channel)
 
-	if resp.GetStatus() == http.StatusOK && len(resp.GetPayload()) != 0 { //nolint:nestif
-		if string(args[0]) == "checkKeys" {
-			func() {
-				addrMsg := &proto.AclResponse{}
-				if err := pb.Unmarshal(resp.GetPayload(), addrMsg); err != nil {
-					return
-				}
-
-				addr := addrMsg.GetAddress().GetAddress().AddrString()
-
-				address, err := pb.Marshal(addrMsg.GetAddress().GetAddress())
-				if err != nil {
-					return
-				}
-				keyCheck := channel + chaincodeName + "checkAddress" + addr
-				bs.invokeResultCache[keyCheck] = peer.Response{
-					Status:  http.StatusOK,
-					Payload: address,
-				}
-
-				accinfo, err := pb.Marshal(addrMsg.GetAccount())
-				if err != nil {
-					return
-				}
-				keyAccInfo := channel + chaincodeName + "getAccountInfo" + addr
-				bs.invokeResultCache[keyAccInfo] = peer.Response{
-					Status:  http.StatusOK,
-					Payload: accinfo,
-				}
-			}()
+	if resp.GetStatus() == http.StatusOK && len(resp.GetPayload()) != 0 {
+		switch string(args[0]) {
+		case "checkKeys":
+			bs.insertCacheCheckKeys(channel, chaincodeName, resp)
+			bs.invokeResultCache[key] = resp
+		case "getAccountsInfo":
+			bs.insertCacheGetAccountsInfo(channel, chaincodeName, args[1:], resp)
+		default:
+			bs.invokeResultCache[key] = resp
 		}
-
-		bs.invokeResultCache[key] = resp
 	}
 
 	return resp
+}
+
+func (bs *BatchCacheStub) insertCacheCheckKeys(
+	channel string,
+	chaincodeName string,
+	resp peer.Response,
+) {
+	addrMsg := &proto.AclResponse{}
+	if err := pb.Unmarshal(resp.GetPayload(), addrMsg); err != nil {
+		return
+	}
+
+	addr := addrMsg.GetAddress().GetAddress().AddrString()
+
+	address, err := pb.Marshal(addrMsg.GetAddress().GetAddress())
+	if err != nil {
+		return
+	}
+	keyCheck := channel + chaincodeName + "checkAddress" + addr
+	bs.invokeResultCache[keyCheck] = peer.Response{
+		Status:  http.StatusOK,
+		Payload: address,
+	}
+
+	accinfo, err := pb.Marshal(addrMsg.GetAccount())
+	if err != nil {
+		return
+	}
+	keyAccInfo := channel + chaincodeName + "getAccountInfo" + addr
+	bs.invokeResultCache[keyAccInfo] = peer.Response{
+		Status:  http.StatusOK,
+		Payload: accinfo,
+	}
+}
+
+func (bs *BatchCacheStub) insertCacheGetAccountsInfo(
+	channel string,
+	chaincodeName string,
+	args [][]byte,
+	resp peer.Response,
+) {
+	var responses []peer.Response
+	err := json.Unmarshal(resp.GetPayload(), &responses)
+	if err != nil {
+		return
+	}
+	if len(responses) != len(args) {
+		return
+	}
+
+	skip := make([]int, 0, len(responses))
+
+	for i, arg := range args {
+		var argsTmp []string
+		err = json.Unmarshal(arg, &argsTmp)
+		if err != nil {
+			continue
+		}
+
+		if argsTmp[0] != "checkKeys" {
+			skip = append(skip, i)
+			continue
+		}
+
+		key := bs.makeKeyString(channel, chaincodeName, argsTmp)
+		if _, ok := bs.invokeResultCache[key]; ok {
+			continue
+		}
+
+		bs.insertCacheCheckKeys(channel, chaincodeName, responses[i])
+		bs.invokeResultCache[key] = responses[i]
+	}
+
+	for _, i := range skip {
+		var argsTmp []string
+		err = json.Unmarshal(args[i], &argsTmp)
+		if err != nil {
+			continue
+		}
+
+		key := bs.makeKeyString(channel, chaincodeName, argsTmp)
+		if _, ok := bs.invokeResultCache[key]; ok {
+			continue
+		}
+
+		bs.invokeResultCache[key] = responses[i]
+	}
+}
+
+func (bs *BatchCacheStub) makeKeyByte(
+	channel string,
+	chaincodeName string,
+	args [][]byte,
+) string {
+	keys := []string{channel, chaincodeName}
+	for _, arg := range args {
+		keys = append(keys, string(arg))
+	}
+	return strings.Join(keys, "")
+}
+
+func (bs *BatchCacheStub) makeKeyString(
+	channel string,
+	chaincodeName string,
+	args []string,
+) string {
+	keys := []string{channel, chaincodeName}
+	keys = append(keys, args...)
+	return strings.Join(keys, "")
 }

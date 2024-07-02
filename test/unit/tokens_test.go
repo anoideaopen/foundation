@@ -72,6 +72,31 @@ func (ft *FiatTestToken) TxEmitIndustrial(sender *types.Sender, address *types.A
 	return ft.IndustrialBalanceAdd(token, address, amount, "txEmitIndustrial")
 }
 
+func (ft *FiatTestToken) TxAccountsTest(_ *types.Sender, addr string, pub string) error {
+	args := make([][]byte, 0)
+	args = append(args, []byte("getAccountsInfo"))
+	for i := 0; i < 2; i++ {
+		bytes, _ := json.Marshal([]string{"getAccountInfo", addr})
+		args = append(args, bytes)
+	}
+
+	for i := 0; i < 5; i++ {
+		bytes, _ := json.Marshal([]string{"checkKeys", pub})
+		args = append(args, bytes)
+	}
+
+	for i := 0; i < 3; i++ {
+		bytes, _ := json.Marshal([]string{"getAccountInfo", addr})
+		args = append(args, bytes)
+	}
+
+	stub := ft.GetStub()
+
+	_ = stub.InvokeChaincode("acl", args, "acl")
+
+	return nil
+}
+
 // QueryIndustrialBalanceOf - returns balance of the token for user address
 // WARNING: DO NOT USE CODE LIKE THIS IN REAL TOKENS AS `map[string]string` IS NOT ORDERED
 // AND WILL CAUSE ENDORSEMENT MISMATCH ON PEERS. THIS IS FOR TESTING PURPOSES ONLY.

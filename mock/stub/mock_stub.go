@@ -45,7 +45,7 @@ type Stub struct {
 	// A pointer back to the chaincode that will invoke this, set by constructor.
 	// If a peer calls this stub, the chaincode will be invoked from here.
 	cc                     shim.Chaincode
-	args                   [][]byte          // arguments the stub was called with
+	Args                   [][]byte          // arguments the stub was called with
 	Name                   string            // A nice name that can be used for logging
 	State                  map[string][]byte // State keeps name value pairs
 	Keys                   *list.List        // Keys stores the list of mapped values in lexical order registered list of other Stub chaincodes that can be called from this Stub
@@ -93,7 +93,7 @@ func (stub *Stub) GetChannelID() string {
 
 // GetArgs returns the arguments for the chaincode invocation request.
 func (stub *Stub) GetArgs() [][]byte {
-	return stub.args
+	return stub.Args
 }
 
 // GetStringArgs returns the arguments for the chaincode invocation request as strings.
@@ -152,7 +152,7 @@ func (stub *Stub) MockPeerChaincodeWithChannel(invokableChaincodeName string, ot
 
 // MockInit initializes this chaincode,  also starts and ends a transaction.
 func (stub *Stub) MockInit(uuid string, args [][]byte) pb.Response {
-	stub.args = args
+	stub.Args = args
 	stub.MockTransactionStart(uuid)
 	if stub.cc == nil {
 		panic(errors.New("can't init stub (shim.Chaincode) when stub.cc is nil"))
@@ -164,7 +164,7 @@ func (stub *Stub) MockInit(uuid string, args [][]byte) pb.Response {
 
 // MockInvoke invokes this chaincode, also starts and ends a transaction.
 func (stub *Stub) MockInvoke(uuid string, args [][]byte) pb.Response {
-	stub.args = args
+	stub.Args = args
 	stub.MockTransactionStart(uuid)
 	if stub.cc == nil {
 		panic(errors.New("can't invoke stub (shim.Chaincode) when stub.cc is nil"))
@@ -194,7 +194,7 @@ func (stub *Stub) MockInvokeWithSignedProposal(uuid string, args [][]byte, sp *p
 		return pb.Response{Message: "bad payload"}
 	}
 	stub.transientMap = payload.GetTransientMap()
-	stub.args = args
+	stub.Args = args
 	stub.MockTransactionStart(uuid)
 	stub.signedProposal = sp
 	if stub.cc == nil {
@@ -513,7 +513,7 @@ func (stub *Stub) GetQueryResultWithPagination(
 
 // InvokeChaincode calls a peered chaincode.
 // E.g. stub1.InvokeChaincode("stub2Hash", funcArgs, channel)
-// Before calling this make sure to create another Stub stub2, call stub2.MockInit(uuid, func, args)
+// Before calling this make sure to create another Stub stub2, call stub2.MockInit(uuid, func, Args)
 // and register it with stub1 by calling stub1.MockPeerChaincode("stub2Hash", stub2)
 func (stub *Stub) InvokeChaincode(chaincodeName string, args [][]byte, channel string) pb.Response {
 	// Internally we use chaincode name as a composite name
@@ -523,7 +523,7 @@ func (stub *Stub) InvokeChaincode(chaincodeName string, args [][]byte, channel s
 
 	otherStub := stub.Invokables[chaincodeName]
 	stub.logger.Debug("Stub", stub.Name, "Invoking peer chaincode", otherStub.Name, args)
-	//	function, strings := getFuncArgs(args)
+	//	function, strings := getFuncArgs(Args)
 	res := otherStub.MockInvoke(stub.TxID, args)
 	stub.logger.Debug("Stub", stub.Name, "Invoked peer chaincode", otherStub.Name, "got", fmt.Sprintf("%+v", res))
 	return res
@@ -583,7 +583,7 @@ func (stub *Stub) setSignedProposal(sp *pb.SignedProposal) {
 	stub.signedProposal = sp
 }
 
-// GetArgsSlice returns args slice. Not implemented
+// GetArgsSlice returns Args slice. Not implemented
 func (stub *Stub) GetArgsSlice() ([]byte, error) {
 	return nil, fmt.Errorf(ErrFuncNotImplemented, "GetArgsSlice")
 }
