@@ -15,55 +15,52 @@ import (
 )
 
 const (
-	FnCheckKeys      = "checkKeys"
-	FnGetAccountInfo = "getAccountInfo"
-	FnCheckAddress   = "checkAddress"
-
 	FnTransfer = "transfer"
 )
 
+type predictAcl struct {
+	stub     shim.ChaincodeStubInterface
+	m        sync.RWMutex
+	callsMap map[string][]byte
+}
+
 func predictACLCalls(stub shim.ChaincodeStubInterface, tasks []*proto.Task, chaincode *Chaincode) {
-	callsMap := make(map[string]map[string]struct{})
 	methods := chaincode.Router().Methods()
+	p := predictAcl{
+		stub:     stub,
+		m:        sync.RWMutex{},
+		callsMap: make(map[string][]byte),
+	}
 	wg := &sync.WaitGroup{}
 	for _, task := range tasks {
 		if task == nil {
-			break
+			continue
 		}
 		wg.Add(1)
 		go func(task *proto.Task) {
 			defer wg.Done()
 			method := methods[task.GetMethod()]
-
-			predictTaskACLCalls(chaincode, task, method, callsMap)
+			p.predictTaskACLCalls(chaincode, task, method)
 		}(task)
 	}
 	wg.Wait()
 
 	var requestBytes [][]byte
-	for fn, mArg := range callsMap {
-		for arg := range mArg {
-			logger.Logger().Debug("PredictAclCalls txID %s, fn: '%s', arg '%s'\n", stub.GetTxID(), fn, arg)
-			bytes, err := json.Marshal([]string{fn, arg})
-			if err == nil {
-				requestBytes = append(requestBytes, bytes)
-			} else {
-				logger.Logger().Errorf("PredictAclCalls txID %s, failed to marshal, fn: '%s', arg '%s': %v",
-					stub.GetTxID(), fn, arg, err)
-			}
-		}
+	for _, bytes := range p.callsMap {
+		requestBytes = append(requestBytes, bytes)
 	}
 
+	// TODO: need to add retry if error cause is network error
 	_, err := helpers.GetAccountsInfo(stub, requestBytes)
 	if err != nil {
 		logger.Logger().Errorf("PredictAclCalls txID %s, failed to invoke acl calls: %v", stub.GetTxID(), err)
 	}
 }
 
-func predictTaskACLCalls(chaincode *Chaincode, task *proto.Task, method contract.Method, callsMap map[string]map[string]struct{}) {
+func (p *predictAcl) predictTaskACLCalls(chaincode *Chaincode, task *proto.Task, method contract.Method) {
 	signers := getSigners(method, task)
 	if signers != nil {
-		addACLCall(callsMap, FnCheckKeys, strings.Join(signers, "/"))
+		p.addCall(helpers.FnCheckKeys, strings.Join(signers, "/"))
 	}
 
 	inputVal := reflect.ValueOf(chaincode.contract)
@@ -75,38 +72,61 @@ func predictTaskACLCalls(chaincode *Chaincode, task *proto.Task, method contract
 	methodArgs := task.GetArgs()[3 : 3+(method.NumArgs-1)]
 	methodType := methodVal.Type()
 
-	if methodType.NumIn()-len(signers) != len(methodArgs) {
+	// check method input args without signer, to skip signers in future for
+	lenSigners := len(signers)
+	if methodType.NumIn()-lenSigners != len(methodArgs) {
 		return
 	}
 	if strings.Contains(task.GetMethod(), FnTransfer) && len(methodArgs) > 0 {
-		addACLCall(callsMap, FnCheckAddress, methodArgs[0])
+		p.addCall(helpers.FnCheckAddress, methodArgs[0])
 	}
 
 	for i, arg := range methodArgs {
-		t := methodType.In(i)
+		// skip signers from methodType args
+		indexInputArg := i + lenSigners
+		if indexInputArg > methodType.NumIn() {
+			continue
+		}
+		t := methodType.In(indexInputArg)
 		if t.Kind() != reflect.Pointer {
 			continue
 		}
 		argInterface := reflect.New(t.Elem()).Interface()
 		_, ok := argInterface.(*types.Address)
-		if ok {
+		if !ok {
 			continue
 		}
 		_, err := types.AddrFromBase58Check(arg)
 		if err != nil {
 			continue
 		}
-		addACLCall(callsMap, FnGetAccountInfo, arg)
+		p.addCall(helpers.FnGetAccountInfo, arg)
 	}
 }
 
-func addACLCall(callsMap map[string]map[string]struct{}, method string, arg string) {
-	logger.Logger().Info("add acl call method %s arg %s", method, arg)
-	_, ok := callsMap[method]
-	if !ok {
-		callsMap[method] = map[string]struct{}{}
+func (p *predictAcl) addCall(method string, arg string) {
+	logger.Logger().Debugf("PredictAcl txID %s: adding acl call: method %s arg %s", p.stub.GetTxID(), method, arg)
+	if len(arg) == 0 {
+		return
 	}
-	callsMap[method][arg] = struct{}{}
+	key := method + arg
+	p.m.RLock()
+	_, ok := p.callsMap[key]
+	p.m.RUnlock()
+	if !ok {
+		p.m.Lock()
+		defer p.m.Unlock()
+		_, ok = p.callsMap[key]
+		if !ok {
+			bytes, err := json.Marshal([]string{method, arg})
+			if err != nil {
+				logger.Logger().Errorf("PredictAcl txID %s: adding acl call: failed to marshal, method: '%s', arg '%s': %v",
+					p.stub.GetTxID(), method, arg, err)
+				return
+			}
+			p.callsMap[key] = bytes
+		}
+	}
 }
 
 func getSigners(method contract.Method, task *proto.Task) []string {

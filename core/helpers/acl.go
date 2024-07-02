@@ -227,12 +227,12 @@ func GetAccountsInfo(stub shim.ChaincodeStubInterface, bytes [][]byte) ([]peer.R
 	}
 
 	if len(resp.GetPayload()) == 0 {
-		return nil, errors.New("empty response")
+		return nil, errors.New("invoke acl method getAccountsInfo: empty response")
 	}
 
 	var responses []peer.Response
 	if err := json.Unmarshal(resp.GetPayload(), &responses); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("invoke acl method getAccountsInfo: failed to unmarshal response: %w", err)
 	}
 
 	return responses, nil
