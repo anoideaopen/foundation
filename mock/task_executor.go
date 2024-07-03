@@ -38,7 +38,7 @@ func (w *Wallet) ExecuteSignedInvoke(ch string, fn string, args ...string) ([]by
 	executorRequest := NewExecutorRequest(ch, fn, args, true)
 	resp, err := w.TaskExecutor(executorRequest)
 	if err != nil {
-		return nil, fmt.Errorf("execute signed invoke: %v", err)
+		return nil, fmt.Errorf("execute signed invoke: %wt", err)
 	}
 
 	return resp.BatchTxEvent.GetResult(), nil
