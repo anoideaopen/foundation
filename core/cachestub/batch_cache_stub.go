@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
+	"time"
 
+	"github.com/anoideaopen/foundation/core/logger"
 	"github.com/anoideaopen/foundation/proto"
 	pb "github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/hyperledger/fabric-chaincode-go/shim"
@@ -39,7 +41,11 @@ func (bs *BatchCacheStub) GetState(key string) ([]byte, error) {
 		return existsElement.GetValue(), nil
 	}
 
+	l := logger.Logger()
+	start := time.Now()
+	l.Infof("BatchCacheStub: GetState begin TxID %s, key '%s'\n", bs.ChaincodeStubInterface.GetTxID(), key)
 	value, err := bs.ChaincodeStubInterface.GetState(key)
+	l.Infof("BatchCacheStub: GetState end: TxID %s, err '%t', key '%s', elapsed '%s'\n", bs.ChaincodeStubInterface.GetTxID(), err != nil, key, time.Since(start))
 	if err != nil {
 		return nil, err
 	}
@@ -59,11 +65,21 @@ func (bs *BatchCacheStub) PutState(key string, value []byte) error {
 func (bs *BatchCacheStub) Commit() error {
 	for key, element := range bs.batchWriteCache {
 		if element.GetIsDeleted() {
-			if err := bs.ChaincodeStubInterface.DelState(key); err != nil {
+			l := logger.Logger()
+			start := time.Now()
+			l.Infof("BatchCacheStub: DelState begin TxID %s, key '%s'\n", bs.ChaincodeStubInterface.GetTxID(), key)
+			err := bs.ChaincodeStubInterface.DelState(key)
+			l.Infof("BatchCacheStub: DelState end: TxID %s, err '%t', key '%s', elapsed '%s'\n", bs.ChaincodeStubInterface.GetTxID(), err != nil, key, time.Since(start))
+			if err != nil {
 				return err
 			}
 		} else {
-			if err := bs.ChaincodeStubInterface.PutState(key, element.GetValue()); err != nil {
+			l := logger.Logger()
+			start := time.Now()
+			l.Infof("BatchCacheStub: PutState begin TxID %s, key '%s'\n", bs.ChaincodeStubInterface.GetTxID(), key)
+			err := bs.ChaincodeStubInterface.PutState(key, element.GetValue())
+			l.Infof("BatchCacheStub: PutState end: TxID %s, err '%t', key '%s', elapsed '%s'\n", bs.ChaincodeStubInterface.GetTxID(), err != nil, key, time.Since(start))
+			if err != nil {
 				return err
 			}
 		}
@@ -87,7 +103,11 @@ func (bs *BatchCacheStub) InvokeChaincode(chaincodeName string, args [][]byte, c
 		}
 	}
 
+	l := logger.Logger()
+	start := time.Now()
+	l.Infof("BatchCacheStub: InvokeChaincode begin TxID %s, chaincodeName '%s', channel '%s'\n", bs.ChaincodeStubInterface.GetTxID(), chaincodeName, channel)
 	resp := bs.ChaincodeStubInterface.InvokeChaincode(chaincodeName, args, channel)
+	l.Infof("BatchCacheStub: InvokeChaincode end: TxID %s, err '%t', chaincodeName '%s', channel '%s', elapsed '%s'\n", bs.ChaincodeStubInterface.GetTxID(), resp.GetStatus() != http.StatusOK, chaincodeName, channel, time.Since(start))
 
 	if resp.GetStatus() == http.StatusOK && len(resp.GetPayload()) != 0 {
 		switch string(args[0]) {

@@ -136,7 +136,7 @@ func CheckACL(stub shim.ChaincodeStubInterface, keys []string) (*pb.AclResponse,
 
 // GetAddress returns pb.AclResponse from the ACL
 func GetAddress(stub shim.ChaincodeStubInterface, keys string) (*pb.AclResponse, error) {
-	logger.Logger().Infof("invoke acl chaincode, %s: %s: %s", stub.GetTxID(), FnCheckKeys, keys)
+	logger.Logger().Debugf("invoke acl chaincode, %s: %s: %s", stub.GetTxID(), FnCheckKeys, keys)
 	resp := stub.InvokeChaincode("acl", [][]byte{
 		[]byte(FnCheckKeys),
 		[]byte(keys),
@@ -160,7 +160,7 @@ func GetAddress(stub shim.ChaincodeStubInterface, keys string) (*pb.AclResponse,
 
 // GetFullAddress returns pb.Address from the ACL
 func GetFullAddress(stub shim.ChaincodeStubInterface, key string) (*pb.Address, error) {
-	logger.Logger().Infof("invoke acl chaincode, %s: %s: %s", stub.GetTxID(), FnCheckAddress, key)
+	logger.Logger().Debugf("invoke acl chaincode, %s: %s: %s", stub.GetTxID(), FnCheckAddress, key)
 	resp := stub.InvokeChaincode("acl", [][]byte{
 		[]byte(FnCheckAddress),
 		[]byte(key),
@@ -184,7 +184,7 @@ func GetFullAddress(stub shim.ChaincodeStubInterface, key string) (*pb.Address, 
 
 // GetAccountInfo returns pb.AccountInfo from the ACL
 func GetAccountInfo(stub shim.ChaincodeStubInterface, addr string) (*pb.AccountInfo, error) {
-	logger.Logger().Infof("invoke acl chaincode, %s: %s: %s", stub.GetTxID(), FnGetAccountInfo, addr)
+	logger.Logger().Debugf("invoke acl chaincode, %s: %s: %s", stub.GetTxID(), FnGetAccountInfo, addr)
 	resp := stub.InvokeChaincode("acl", [][]byte{
 		[]byte(FnGetAccountInfo),
 		[]byte(addr),
@@ -213,7 +213,7 @@ func GetAccountInfo(stub shim.ChaincodeStubInterface, addr string) (*pb.AccountI
 
 // GetAccountsInfo execute group requests in single invoke request each of them contains own peer.Response
 func GetAccountsInfo(stub shim.ChaincodeStubInterface, bytes [][]byte) ([]peer.Response, error) {
-	logger.Logger().Infof("invoke acl chaincode: %s", FnGetAccountsInfo)
+	logger.Logger().Debugf("invoke acl chaincode: %s", FnGetAccountsInfo)
 	args := append([][]byte{[]byte(FnGetAccountsInfo)}, bytes...)
 	resp := stub.InvokeChaincode("acl", args, "acl")
 

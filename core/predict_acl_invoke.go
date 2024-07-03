@@ -28,9 +28,9 @@ type predictACL struct {
 func predictACLCalls(stub shim.ChaincodeStubInterface, tasks []*proto.Task, chaincode *Chaincode) {
 	start := time.Now()
 	defer func() {
-		logger.Logger().Infof("predictACLCalls: tx id: %s, elapsed: %s", stub.GetTxID(), time.Since(start))
+		logger.Logger().Debugf("predictACLCalls: tx id: %s, elapsed: %s", stub.GetTxID(), time.Since(start))
 	}()
-	logger.Logger().Infof("predictACLCalls: tx id: %s, started", stub.GetTxID())
+	logger.Logger().Debugf("predictACLCalls: tx id: %s, started", stub.GetTxID())
 	methods := chaincode.Router().Methods()
 	p := predictACL{
 		stub:     stub,
@@ -63,7 +63,7 @@ func predictACLCalls(stub shim.ChaincodeStubInterface, tasks []*proto.Task, chai
 	if err != nil {
 		logger.Logger().Errorf("predictACLCalls txID %s, failed to invoke acl calls: %v", stub.GetTxID(), err)
 	}
-	logger.Logger().Infof("predictACLCalls: tx id: %s, found acl calls: %d", stub.GetTxID(), len(p.callsMap))
+	logger.Logger().Debugf("predictACLCalls: tx id: %s, found acl calls: %d", stub.GetTxID(), len(p.callsMap))
 }
 
 func (p *predictACL) predictTaskACLCalls(chaincode *Chaincode, task *proto.Task, method contract.Method) {
@@ -114,7 +114,7 @@ func (p *predictACL) predictTaskACLCalls(chaincode *Chaincode, task *proto.Task,
 }
 
 func (p *predictACL) addCall(method string, arg string) {
-	logger.Logger().Infof("PredictAcl txID %s: adding acl call: method %s arg %s", p.stub.GetTxID(), method, arg)
+	logger.Logger().Debugf("predictACLCalls: tx id: %s, adding acl call: method %s arg %s", p.stub.GetTxID(), method, arg)
 	if len(arg) == 0 {
 		return
 	}
