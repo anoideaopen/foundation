@@ -38,11 +38,6 @@ func (cc *Chaincode) saveToBatch(
 	log := logger.Logger()
 	txID := stub.GetTxID()
 
-	err := cc.Router().Check(method.MethodName, cc.PrependSender(method, sender, args)...)
-	if err != nil {
-		return err
-	}
-
 	key, err := stub.CreateCompositeKey(config.BatchPrefix, []string{txID})
 	if err != nil {
 		log.Errorf("Couldn't create composite key for tx %s: %s", txID, err.Error())

@@ -110,21 +110,16 @@ func TestSaveToBatchWithWrongArgs(t *testing.T) {
 	mockStub.MockTransactionStart(testEncodedTxID)
 	mockStub.TxTimestamp = s.timestamp
 
-	batchTimestamp, err := mockStub.GetTxTimestamp()
-	require.NoError(t, err)
-
 	ep, err := chainCode.Method(s.FnName)
 	require.NoError(t, err)
 
-	errSave := chainCode.saveToBatch(
+	resp := chainCode.BatchHandler(
 		telemetry.TraceContext{},
 		mockStub,
 		ep,
-		sender,
 		wrongArgs,
-		uint64(batchTimestamp.Seconds),
 	)
-	require.EqualError(t, errSave, "incorrect number of arguments: found 2 but expected 5: validate TxTestFnWithFiveArgsMethod")
+	require.Equal(t, resp.GetMessage(), "incorrect number of arguments: found 2 but expected 5: validate TxTestFnWithFiveArgsMethod")
 }
 
 // TestSaveToBatchWithSignedArgs - negative test with wrong Args in saveToBatch
@@ -206,17 +201,14 @@ func TestSaveToBatchWithWrongSignedArgs(t *testing.T) {
 	config, _ := protojson.Marshal(cfgEtl)
 
 	idBytes := [16]byte(uuid.New())
-	mockStub.MockInit(hex.EncodeToString(idBytes[:]), [][]byte{[]byte(config)})
+	mockStub.MockInit(hex.EncodeToString(idBytes[:]), [][]byte{config})
 
-	err := contract.Configure(chainCode.contract, mockStub, []byte(config))
+	err := contract.Configure(chainCode.contract, mockStub, config)
 	require.NoError(t, err)
 
 	mockStub.TxID = testEncodedTxID
 	mockStub.MockTransactionStart(testEncodedTxID)
 	mockStub.TxTimestamp = s.timestamp
-
-	batchTimestamp, err := mockStub.GetTxTimestamp()
-	require.NoError(t, err)
 
 	_, err = buildRouter(chainCode.contract)
 	require.NoError(t, err)
@@ -224,14 +216,7 @@ func TestSaveToBatchWithWrongSignedArgs(t *testing.T) {
 	ep, err := chainCode.Method(s.FnName)
 	require.NoError(t, err)
 
-	err = chainCode.saveToBatch(
-		telemetry.TraceContext{},
-		mockStub,
-		ep,
-		sender,
-		wrongArgs,
-		uint64(batchTimestamp.Seconds),
-	)
+	err = chainCode.Router().Check(ep.MethodName, chainCode.PrependSender(ep, sender, wrongArgs)...)
 	require.EqualError(t, err, "invalid argument value: 'arg0': for type 'int64': validate TxTestFnWithSignedTwoArgs, argument 1")
 }
 

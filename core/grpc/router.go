@@ -209,7 +209,7 @@ func (r *Router) Check(method string, args ...string) error {
 			handler grpc.UnaryHandler,
 		) (resp any, err error) {
 			if validator, ok := req.(contract.Validator); ok {
-				if err := validator.Validate(); err != nil {
+				if err = validator.Validate(); err != nil {
 					return resp, err
 				}
 			}
