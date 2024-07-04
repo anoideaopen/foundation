@@ -201,7 +201,6 @@ func (e *TaskExecutor) ExecuteTask(
 		log.Infof("task method %s task %s elapsed: %s", task.GetMethod(), task.GetId(), time.Since(start))
 	}()
 
-	e.Chaincode.contract.SetStub(stub)
 	txCacheStub := stub.NewTxCacheStub(task.GetId())
 
 	span.AddEvent("validating tx sender method and args")

@@ -11,6 +11,8 @@ import (
 
 	"github.com/anoideaopen/foundation/core/balance"
 	"github.com/anoideaopen/foundation/core/cachestub"
+	"github.com/anoideaopen/foundation/core/ledger"
+	"github.com/anoideaopen/foundation/core/routing/reflectx"
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/core/types/big"
 	"github.com/anoideaopen/foundation/proto"
@@ -109,8 +111,16 @@ func RobotDone(stub *cachestub.BatchCacheStub, swapID []byte, key string) (r *pr
 	return &proto.SwapResponse{Id: swapID, Writes: writes}
 }
 
-func UserDone(bc BaseContractInterface, swapID string, key string) peer.Response {
-	swap, err := Load(bc.GetStub(), swapID)
+type OnMultiSwapDoneEventListener interface {
+	OnMultiSwapDoneEvent(
+		token string,
+		owner *types.Address,
+		assets []*proto.Asset,
+	)
+}
+
+func UserDone(bci any, stub shim.ChaincodeStubInterface, symbol string, swapID string, key string) peer.Response {
+	swap, err := Load(stub, swapID)
 	if err != nil {
 		return shim.Error(err.Error())
 	}
@@ -123,22 +133,22 @@ func UserDone(bc BaseContractInterface, swapID string, key string) peer.Response
 		return shim.Error(ErrIncorrectMultiSwap)
 	}
 	if swap.GetToken() == swap.GetFrom() {
-		if err = bc.AllowedIndustrialBalanceAdd(types.AddrFromBytes(swap.GetOwner()), swap.GetAssets(), "multi-swap done"); err != nil {
+		if err = ledger.AllowedIndustrialBalanceAdd(stub, types.AddrFromBytes(swap.GetOwner()), swap.GetAssets(), "multi-swap done"); err != nil {
 			return shim.Error(err.Error())
 		}
 	} else {
 		for _, asset := range swap.GetAssets() {
-			if err = bc.TokenBalanceAddWithTicker(types.AddrFromBytes(swap.GetOwner()), new(big.Int).SetBytes(asset.GetAmount()), asset.GetGroup(), "reverse multi-swap done"); err != nil {
+			if err = ledger.TokenBalanceAddWithTicker(stub, symbol, types.AddrFromBytes(swap.GetOwner()), new(big.Int).SetBytes(asset.GetAmount()), asset.GetGroup(), "reverse multi-swap done"); err != nil {
 				return shim.Error(err.Error())
 			}
 		}
 	}
 
-	if err = Delete(bc.GetStub(), swapID); err != nil {
+	if err = Delete(stub, swapID); err != nil {
 		return shim.Error(err.Error())
 	}
 	e := strings.Join([]string{swap.GetFrom(), swapID, key}, "\t")
-	if err = bc.GetStub().SetEvent(MultiSwapKeyEvent, []byte(e)); err != nil {
+	if err = stub.SetEvent(MultiSwapKeyEvent, []byte(e)); err != nil {
 		return shim.Error(err.Error())
 	}
 
@@ -148,14 +158,17 @@ func UserDone(bc BaseContractInterface, swapID string, key string) peer.Response
 	// If you want to catch that events you need implement
 	// method `OnMultiSwapDoneEvent` in chaincode.
 	// This code is for chaincode PFT, for handling user bar tokens balance changes.
-	if f, ok := bc.(interface {
-		OnMultiSwapDoneEvent(
-			token string,
-			owner *types.Address,
-			assets []*proto.Asset,
-		)
-	}); ok {
-		f.OnMultiSwapDoneEvent(
+	if _, ok := bci.(OnMultiSwapDoneEventListener); ok {
+		bciCopy, ok := reflectx.Clone(bci).(OnMultiSwapDoneEventListener)
+		if !ok {
+			return shim.Error("failed to clone bci")
+		}
+
+		if stubSetter, ok := bci.(reflectx.StubSetter); ok {
+			stubSetter.SetStub(stub)
+		}
+
+		bciCopy.OnMultiSwapDoneEvent(
 			swap.GetToken(),
 			types.AddrFromBytes(swap.GetOwner()),
 			swap.GetAssets(),

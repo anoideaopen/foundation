@@ -40,8 +40,6 @@ func (cc *Chaincode) InvokeContractMethod(
 	_, span := cc.contract.TracingHandler().StartNewSpan(traceCtx, "chaincode.CallMethod")
 	defer span.End()
 
-	cc.contract.SetStub(stub)
-
 	span.AddEvent("call")
 	result, err := cc.Router().Invoke(stub, method.MethodName, cc.PrependSender(method, sender, args)...)
 	if err != nil {

@@ -37,6 +37,7 @@ func TestGRPCRouter(t *testing.T) {
 	// Create gRPC router.
 	grpcRouter := grpc.NewRouter(grpc.RouterConfig{
 		Fallback: grpc.DefaultReflectxFallback(balanceToken),
+		UseNames: true,
 	})
 
 	// Register gRPC service.
@@ -97,7 +98,6 @@ func TestGRPCRouterWithURLs(t *testing.T) {
 	// Create gRPC router.
 	grpcRouter := grpc.NewRouter(grpc.RouterConfig{
 		Fallback: grpc.DefaultReflectxFallback(balanceToken),
-		UseURLs:  true,
 	})
 
 	// Register gRPC service.

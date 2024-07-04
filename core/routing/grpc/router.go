@@ -33,9 +33,9 @@ type RouterConfig struct {
 	// Fallback is the router to use if the method is not defined in the contract.
 	Fallback routing.Router
 
-	// Use URLs instead of contract function names.
-	// Example: /foundationtoken.FiatService/AddBalanceByAdmin instead of addBalanceByAdmin.
-	UseURLs bool
+	// Use function names instead of contract URLs.
+	// Example: addBalanceByAdmin instead of /foundationtoken.FiatService/AddBalanceByAdmin.
+	UseNames bool
 }
 
 // Router routes method calls to contract methods based on gRPC service description.
@@ -65,7 +65,7 @@ func NewRouter(cfg RouterConfig) *Router {
 
 	return &Router{
 		fallback: cfg.Fallback,
-		useURLs:  cfg.UseURLs,
+		useURLs:  !cfg.UseNames,
 		methods:  methods,
 		handlers: make(map[methodName]handler),
 	}

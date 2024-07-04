@@ -546,12 +546,10 @@ func (cc *Chaincode) Invoke(stub shim.ChaincodeStubInterface) (r peer.Response) 
 		return cc.batchExecuteHandler(traceCtx, stub, creatorSKI, hashedCert, arguments)
 
 	case SwapDone:
-		cc.contract.SetStub(stub)
-		return cc.swapDoneHandler(arguments)
+		return cc.swapDoneHandler(stub, arguments)
 
 	case MultiSwapDone:
-		cc.contract.SetStub(stub)
-		return cc.multiSwapDoneHandler(arguments)
+		return cc.multiSwapDoneHandler(stub, cc.contract.ContractConfig().GetSymbol(), arguments)
 
 	case CreateCCTransferTo,
 		DeleteCCTransferTo,
@@ -712,8 +710,6 @@ func (cc *Chaincode) noBatchHandler(
 	}
 
 	span.AddEvent("validating arguments")
-
-	cc.contract.SetStub(stub)
 
 	if err = cc.Router().Check(stub, method.MethodName, cc.PrependSender(method, sender, args)...); err != nil {
 		span.SetStatus(codes.Error, "validating arguments failed")
