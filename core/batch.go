@@ -10,9 +10,9 @@ import (
 
 	"github.com/anoideaopen/foundation/core/cachestub"
 	"github.com/anoideaopen/foundation/core/config"
-	"github.com/anoideaopen/foundation/core/contract"
 	"github.com/anoideaopen/foundation/core/logger"
 	"github.com/anoideaopen/foundation/core/multiswap"
+	"github.com/anoideaopen/foundation/core/routing"
 	"github.com/anoideaopen/foundation/core/swap"
 	"github.com/anoideaopen/foundation/core/telemetry"
 	"github.com/anoideaopen/foundation/core/types"
@@ -30,7 +30,7 @@ const robotSideTimeout = 300 // 5 minutes
 func (cc *Chaincode) saveToBatch(
 	traceCtx telemetry.TraceContext,
 	stub shim.ChaincodeStubInterface,
-	method contract.Method,
+	method routing.Method,
 	sender *proto.Address,
 	args []string,
 	nonce uint64,

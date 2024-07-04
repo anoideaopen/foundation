@@ -6,7 +6,7 @@ import (
 	mbig "math/big"
 
 	"github.com/anoideaopen/foundation/core/balance"
-	"github.com/anoideaopen/foundation/core/grpc"
+	"github.com/anoideaopen/foundation/core/routing/grpc"
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/core/types/big"
 	"github.com/anoideaopen/foundation/test/chaincode/fiat/service"

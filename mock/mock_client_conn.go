@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"net/http"
 
-	coregrpc "github.com/anoideaopen/foundation/core/grpc"
+	coregrpc "github.com/anoideaopen/foundation/core/routing/grpc"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"

@@ -5,8 +5,8 @@ import (
 	"log"
 
 	"github.com/anoideaopen/foundation/core"
-	"github.com/anoideaopen/foundation/core/grpc"
 	"github.com/anoideaopen/foundation/core/logger"
+	"github.com/anoideaopen/foundation/core/routing/grpc"
 	"github.com/anoideaopen/foundation/test/chaincode/fiat/service"
 )
 

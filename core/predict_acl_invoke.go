@@ -6,9 +6,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/anoideaopen/foundation/core/contract"
 	"github.com/anoideaopen/foundation/core/helpers"
 	"github.com/anoideaopen/foundation/core/logger"
+	"github.com/anoideaopen/foundation/core/routing"
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/proto"
 	"github.com/hyperledger/fabric-chaincode-go/shim"
@@ -59,7 +59,7 @@ func predictACLCalls(stub shim.ChaincodeStubInterface, tasks []*proto.Task, chai
 	}
 }
 
-func (p *predictACL) predictTaskACLCalls(chaincode *Chaincode, task *proto.Task, method contract.Method) {
+func (p *predictACL) predictTaskACLCalls(chaincode *Chaincode, task *proto.Task, method routing.Method) {
 	signers := getSigners(method, task)
 	if signers != nil {
 		p.addCall(helpers.FnCheckKeys, strings.Join(signers, "/"))
@@ -131,7 +131,7 @@ func (p *predictACL) addCall(method string, arg string) {
 	}
 }
 
-func getSigners(method contract.Method, task *proto.Task) []string {
+func getSigners(method routing.Method, task *proto.Task) []string {
 	if !method.RequiresAuth {
 		return nil
 	}

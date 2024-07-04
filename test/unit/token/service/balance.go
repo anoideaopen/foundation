@@ -6,7 +6,7 @@ import (
 	"math/big"
 
 	"github.com/anoideaopen/foundation/core/balance"
-	"github.com/anoideaopen/foundation/core/grpc"
+	"github.com/anoideaopen/foundation/core/routing/grpc"
 	"github.com/anoideaopen/foundation/test/unit/token/proto"
 	"github.com/anoideaopen/foundation/token"
 	"google.golang.org/protobuf/types/known/emptypb"

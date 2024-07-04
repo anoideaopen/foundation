@@ -11,7 +11,7 @@ import (
 	"strconv"
 
 	"github.com/anoideaopen/foundation/core/config"
-	"github.com/anoideaopen/foundation/core/contract"
+	"github.com/anoideaopen/foundation/core/routing"
 	"github.com/anoideaopen/foundation/core/stringsx"
 	"github.com/anoideaopen/foundation/core/telemetry"
 	"github.com/anoideaopen/foundation/core/types"
@@ -33,16 +33,16 @@ type BaseContract struct {
 	traceCtx       telemetry.TraceContext
 	tracingHandler *telemetry.TracingHandler
 	isService      bool
-	router         contract.Router
+	router         routing.Router
 }
 
 var _ BaseContractInterface = &BaseContract{}
 
-func (bc *BaseContract) setRouter(router contract.Router) {
+func (bc *BaseContract) setRouter(router routing.Router) {
 	bc.router = router
 }
 
-func (bc *BaseContract) Router() contract.Router {
+func (bc *BaseContract) Router() routing.Router {
 	return bc.router
 }
 
@@ -71,7 +71,7 @@ func (bc *BaseContract) GetMethods(bci BaseContractInterface) []string {
 	return methods
 }
 
-func (bc *BaseContract) isMethodDisabled(method contract.Method) bool {
+func (bc *BaseContract) isMethodDisabled(method routing.Method) bool {
 	for _, disabled := range bc.config.GetOptions().GetDisabledFunctions() {
 		if method.MethodName == disabled {
 			return true
@@ -343,7 +343,6 @@ func (bc *BaseContract) setupTracing() {
 
 // BaseContractInterface represents BaseContract interface
 type BaseContractInterface interface { //nolint:interfacebloat
-	contract.Base
 	config.Configurator
 
 	setSrcFs(*embed.FS)
@@ -385,6 +384,9 @@ type BaseContractInterface interface { //nolint:interfacebloat
 	setIsService()
 	IsService() bool
 
-	setRouter(contract.Router)
-	Router() contract.Router
+	setRouter(routing.Router)
+	Router() routing.Router
+
+	SetStub(shim.ChaincodeStubInterface)
+	GetStub() shim.ChaincodeStubInterface
 }

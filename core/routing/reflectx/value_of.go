@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"unicode/utf8"
 
+	"github.com/anoideaopen/foundation/core/types"
 	"github.com/hyperledger/fabric-chaincode-go/shim"
 )
 
@@ -57,7 +58,7 @@ func valueOf(s string, t reflect.Type, stub shim.ChaincodeStubInterface) (reflec
 
 	argInterface := argValue.Interface()
 
-	if decoder, ok := argInterface.(BytesDecoder); ok {
+	if decoder, ok := argInterface.(types.BytesDecoder); ok {
 		if err := decoder.DecodeFromBytes(argRaw); err != nil {
 			return outValue, NewValueError(s, t, err)
 		}
@@ -65,7 +66,7 @@ func valueOf(s string, t reflect.Type, stub shim.ChaincodeStubInterface) (reflec
 		return outValue, nil
 	}
 
-	if decoder, ok := argInterface.(StubBytesDecoder); ok && stub != nil {
+	if decoder, ok := argInterface.(types.StubBytesDecoder); ok && stub != nil {
 		if err := decoder.DecodeFromBytesWithStub(stub, argRaw); err != nil {
 			return outValue, NewValueError(s, t, err)
 		}

@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/anoideaopen/foundation/core/contract"
 	"github.com/anoideaopen/foundation/core/helpers"
+	"github.com/anoideaopen/foundation/core/routing"
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/keys"
 	pb "github.com/anoideaopen/foundation/proto"
@@ -43,7 +43,7 @@ type invocationDetails struct {
 //   - User address, method call arguments, nonce and error, if any.
 func (cc *Chaincode) validateAndExtractInvocationContext(
 	stub shim.ChaincodeStubInterface,
-	method contract.Method,
+	method routing.Method,
 	args []string,
 ) (sender *pb.Address, invocationArgs []string, nonce uint64, err error) {
 	// If authorization is not required, return the arguments unchanged.
@@ -155,7 +155,7 @@ func checkACLSignerStatus(stub shim.ChaincodeStubInterface, signers []string) (*
 }
 
 func parseInvocationDetails(
-	method contract.Method,
+	method routing.Method,
 	args []string,
 ) (*invocationDetails, error) {
 	// Calculating the positions of arguments in an array.

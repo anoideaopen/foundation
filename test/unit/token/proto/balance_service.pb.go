@@ -7,7 +7,7 @@
 package proto
 
 import (
-	_ "github.com/anoideaopen/foundation/core/grpc"
+	_ "github.com/anoideaopen/foundation/core/routing/grpc"
 	_ "github.com/envoyproxy/protoc-gen-validate/validate"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"

@@ -11,9 +11,9 @@ import (
 
 	"github.com/anoideaopen/foundation/core/balance"
 	"github.com/anoideaopen/foundation/core/config"
-	"github.com/anoideaopen/foundation/core/contract"
 	"github.com/anoideaopen/foundation/core/logger"
-	"github.com/anoideaopen/foundation/core/reflectx"
+	"github.com/anoideaopen/foundation/core/routing"
+	"github.com/anoideaopen/foundation/core/routing/reflectx"
 	"github.com/anoideaopen/foundation/core/stringsx"
 	"github.com/anoideaopen/foundation/core/telemetry"
 	"github.com/anoideaopen/foundation/hlfcreator"
@@ -96,7 +96,7 @@ type chaincodeOptions struct {
 	SrcFS        *embed.FS           // SrcFS is a file system that contains the source files for the chaincode.
 	TLS          *TLS                // TLS contains the TLS configuration for the chaincode.
 	ConfigMapper config.ConfigMapper // ConfigMapper maps the arguments to a proto.Config instance.
-	Router       contract.Router     // Router for routing contract calls.
+	Router       routing.Router      // Router for routing contract calls.
 }
 
 // Chaincode defines the structure for a chaincode instance, with methods,
@@ -109,14 +109,14 @@ type Chaincode struct {
 // Router returns the contract router for the Chaincode.
 //
 // It first checks if the router is already initialized and returns it if so.
-// Then, it checks if the contract implements the contract.Router interface and returns it if it does.
+// Then, it checks if the contract implements the routing.Router interface and returns it if it does.
 // If neither of these conditions are met, it initializes the router using the reflectx.NewRouter function
 // with the contract and a reflectx.RouterConfig containing the swaps and multi-swaps disabled options
 // from the contract's configuration.
 //
 // Returns:
-// - contract.Router: the contract router.
-func (cc *Chaincode) Router() contract.Router {
+// - routing.Router: the contract router.
+func (cc *Chaincode) Router() routing.Router {
 	return cc.contract.Router()
 }
 
@@ -126,14 +126,14 @@ func (cc *Chaincode) Router() contract.Router {
 // - functionName: the name of the function.
 //
 // Returns:
-// - contract.Method: the method associated with the function name.
+// - routing.Method: the method associated with the function name.
 // - error: an error if the method is not found.
-func (cc *Chaincode) Method(functionName string) (contract.Method, error) {
+func (cc *Chaincode) Method(functionName string) (routing.Method, error) {
 	if method, ok := cc.Router().Methods()[functionName]; ok {
 		return method, nil
 	}
 
-	return contract.Method{}, fmt.Errorf("method '%s' not found", functionName)
+	return routing.Method{}, fmt.Errorf("method '%s' not found", functionName)
 }
 
 // WithRouter returns a ChaincodeOption function that sets the router in the chaincode options.
@@ -142,7 +142,7 @@ func (cc *Chaincode) Method(functionName string) (contract.Method, error) {
 // - router: the contract router to set.
 // Return type:
 // - ChaincodeOption: a function that sets the router in the chaincode options.
-func WithRouter(router contract.Router) ChaincodeOption {
+func WithRouter(router routing.Router) ChaincodeOption {
 	return func(o *chaincodeOptions) error {
 		o.Router = router
 		return nil
@@ -369,7 +369,7 @@ func NewCC(
 	cc.setSrcFs(chOpts.SrcFS)
 
 	// Set up the router.
-	var router contract.Router
+	var router routing.Router
 	if chOpts.Router != nil {
 		router = chOpts.Router
 	} else {
@@ -614,7 +614,7 @@ func (cc *Chaincode) Invoke(stub shim.ChaincodeStubInterface) (r peer.Response) 
 	}
 
 	// handle invoke and query methods executed without batch process
-	if method.Type == contract.MethodTypeInvoke || method.Type == contract.MethodTypeQuery {
+	if method.Type == routing.MethodTypeInvoke || method.Type == routing.MethodTypeQuery {
 		span.SetAttributes(telemetry.MethodType(telemetry.MethodNbTx))
 		return cc.noBatchHandler(traceCtx, stub, method, arguments)
 	}
@@ -654,7 +654,7 @@ func (cc *Chaincode) ValidateTxID(stub shim.ChaincodeStubInterface) error {
 func (cc *Chaincode) BatchHandler(
 	traceCtx telemetry.TraceContext,
 	stub shim.ChaincodeStubInterface,
-	method contract.Method,
+	method routing.Method,
 	args []string,
 ) peer.Response {
 	traceCtx, span := cc.contract.TracingHandler().StartNewSpan(traceCtx, "chaincode.BatchHandler")
@@ -668,7 +668,7 @@ func (cc *Chaincode) BatchHandler(
 	}
 
 	span.AddEvent("validating arguments")
-	if err = cc.Router().Check(method.MethodName, cc.PrependSender(method, sender, args)...); err != nil {
+	if err = cc.Router().Check(stub, method.MethodName, cc.PrependSender(method, sender, args)...); err != nil {
 		span.SetStatus(codes.Error, "validating arguments failed")
 		return shim.Error(err.Error())
 	}
@@ -694,13 +694,13 @@ func (cc *Chaincode) BatchHandler(
 func (cc *Chaincode) noBatchHandler(
 	traceCtx telemetry.TraceContext,
 	stub shim.ChaincodeStubInterface,
-	method contract.Method,
+	method routing.Method,
 	args []string,
 ) peer.Response {
 	traceCtx, span := cc.contract.TracingHandler().StartNewSpan(traceCtx, "chaincode.NoBatchHandler")
 	defer span.End()
 
-	if method.Type == contract.MethodTypeQuery {
+	if method.Type == routing.MethodTypeQuery {
 		stub = newQueryStub(stub)
 	}
 
@@ -715,7 +715,7 @@ func (cc *Chaincode) noBatchHandler(
 
 	cc.contract.SetStub(stub)
 
-	if err = cc.Router().Check(method.MethodName, cc.PrependSender(method, sender, args)...); err != nil {
+	if err = cc.Router().Check(stub, method.MethodName, cc.PrependSender(method, sender, args)...); err != nil {
 		span.SetStatus(codes.Error, "validating arguments failed")
 		return shim.Error(err.Error())
 	}
@@ -883,7 +883,7 @@ func (cc *Chaincode) createIndexHandler(traceCtx telemetry.TraceContext, stub sh
 	return shim.Success([]byte(`{"status": "success"}`))
 }
 
-func (cc *Chaincode) PrependSender(method contract.Method, sender *proto.Address, args []string) []string {
+func (cc *Chaincode) PrependSender(method routing.Method, sender *proto.Address, args []string) []string {
 	if method.RequiresAuth {
 		args = append([]string{sender.AddrString()}, args...)
 	}

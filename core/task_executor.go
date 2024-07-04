@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/anoideaopen/foundation/core/cachestub"
-	"github.com/anoideaopen/foundation/core/contract"
 	"github.com/anoideaopen/foundation/core/logger"
+	"github.com/anoideaopen/foundation/core/routing"
 	"github.com/anoideaopen/foundation/core/telemetry"
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/proto"
@@ -136,7 +136,7 @@ func (e *TaskExecutor) validatedTxSenderMethodAndArgs(
 	traceCtx telemetry.TraceContext,
 	stub *cachestub.BatchCacheStub,
 	task *proto.Task,
-) (*proto.Address, contract.Method, []string, error) {
+) (*proto.Address, routing.Method, []string, error) {
 	_, span := e.TracingHandler.StartNewSpan(traceCtx, "TaskExecutor.validatedTxSenderMethodAndArgs")
 	defer span.End()
 
@@ -145,7 +145,7 @@ func (e *TaskExecutor) validatedTxSenderMethodAndArgs(
 	if err != nil {
 		err = fmt.Errorf("failed to parse chaincode method '%s' for task %s: %w", task.GetMethod(), task.GetId(), err)
 		span.SetStatus(codes.Error, err.Error())
-		return nil, contract.Method{}, nil, err
+		return nil, routing.Method{}, nil, err
 	}
 
 	span.AddEvent("validating and extracting invocation context")
@@ -153,22 +153,22 @@ func (e *TaskExecutor) validatedTxSenderMethodAndArgs(
 	if err != nil {
 		err = fmt.Errorf("failed to validate and extract invocation context for task %s: %w", task.GetId(), err)
 		span.SetStatus(codes.Error, err.Error())
-		return nil, contract.Method{}, nil, err
+		return nil, routing.Method{}, nil, err
 	}
 
 	span.AddEvent("validating authorization")
 	if !method.RequiresAuth || senderAddress == nil {
 		err = fmt.Errorf("failed to validate authorization for task %s: sender address is missing", task.GetId())
 		span.SetStatus(codes.Error, err.Error())
-		return nil, contract.Method{}, nil, err
+		return nil, routing.Method{}, nil, err
 	}
 	argsToValidate := append([]string{senderAddress.AddrString()}, args...)
 
 	span.AddEvent("validating arguments")
-	if err = e.Chaincode.Router().Check(method.MethodName, argsToValidate...); err != nil {
+	if err = e.Chaincode.Router().Check(stub, method.MethodName, argsToValidate...); err != nil {
 		err = fmt.Errorf("failed to validate arguments for task %s: %w", task.GetId(), err)
 		span.SetStatus(codes.Error, err.Error())
-		return nil, contract.Method{}, nil, err
+		return nil, routing.Method{}, nil, err
 	}
 
 	span.AddEvent("validating nonce")
@@ -177,7 +177,7 @@ func (e *TaskExecutor) validatedTxSenderMethodAndArgs(
 	if err != nil {
 		err = fmt.Errorf("failed to validate nonce for task %s, nonce %d: %w", task.GetId(), nonce, err)
 		span.SetStatus(codes.Error, err.Error())
-		return nil, contract.Method{}, nil, err
+		return nil, routing.Method{}, nil, err
 	}
 
 	return senderAddress, method, args[:method.NumArgs-1], nil

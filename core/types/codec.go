@@ -1,4 +1,4 @@
-package reflectx
+package types
 
 import "github.com/hyperledger/fabric-chaincode-go/shim"
 

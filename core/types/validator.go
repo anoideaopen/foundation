@@ -1,4 +1,4 @@
-package contract
+package types
 
 import "github.com/hyperledger/fabric-chaincode-go/shim"
 

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/anoideaopen/foundation/core/contract"
+	"github.com/anoideaopen/foundation/core/types"
 	"github.com/hyperledger/fabric-chaincode-go/shim"
 )
 
@@ -53,8 +53,8 @@ func ValidateArguments(v any, method string, stub shim.ChaincodeStubInterface, a
 
 		iface := value.Interface()
 
-		if validator, ok := iface.(contract.Validator); ok {
-			if err = validator.Validate(); err != nil {
+		if validator, ok := iface.(types.Validator); ok {
+			if err := validator.Validate(); err != nil {
 				return fmt.Errorf(
 					"%w: '%s': validation failed: '%v': validate %s, argument %d",
 					ErrInvalidArgumentValue,
@@ -69,8 +69,8 @@ func ValidateArguments(v any, method string, stub shim.ChaincodeStubInterface, a
 		if stub == nil {
 			continue
 		}
-		if validator, ok := iface.(contract.ValidatorWithStub); ok {
-			if err = validator.ValidateWithStub(stub); err != nil {
+		if validator, ok := iface.(types.ValidatorWithStub); ok {
+			if err := validator.ValidateWithStub(stub); err != nil {
 				return fmt.Errorf(
 					"%w: '%s': validation failed: '%v': validate %s, argument %d",
 					ErrInvalidArgumentValue,

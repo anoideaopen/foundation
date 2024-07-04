@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/anoideaopen/foundation/core/contract"
+	"github.com/anoideaopen/foundation/core/routing"
 	"github.com/anoideaopen/foundation/core/stringsx"
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/hyperledger/fabric-chaincode-go/shim"
@@ -25,8 +25,8 @@ var (
 
 // Router routes method calls to contract methods based on reflection.
 type Router struct {
-	contract contract.Base
-	methods  map[contract.Function]contract.Method
+	contract any
+	methods  map[routing.Function]routing.Method
 }
 
 // NewRouter creates a new Router instance with the given contract.
@@ -38,14 +38,14 @@ type Router struct {
 // Returns:
 //   - *Router: A new Router instance.
 //   - error: An error if the router setup fails.
-func NewRouter(baseContract contract.Base) (*Router, error) {
+func NewRouter(contract any) (*Router, error) {
 	r := &Router{
-		contract: baseContract,
-		methods:  make(map[contract.Function]contract.Method),
+		contract: contract,
+		methods:  make(map[routing.Function]routing.Method),
 	}
 
-	for _, method := range Methods(baseContract) {
-		ep, err := newReflectEndpoint(method, baseContract)
+	for _, method := range Methods(contract) {
+		ep, err := newReflectEndpoint(method, contract)
 		if err != nil {
 			if errors.Is(err, ErrUnsupportedMethod) {
 				continue
@@ -68,31 +68,28 @@ func NewRouter(baseContract contract.Base) (*Router, error) {
 // It returns an error if the validation fails.
 //
 // Parameters:
+//   - stub: The ChaincodeStubInterface instance to use for the validation.
 //   - method: The name of the method to validate arguments for.
 //   - args: The arguments to validate.
 //
 // Returns:
 //   - error: An error if the validation fails.
-func (r *Router) Check(method string, args ...string) error {
-	return ValidateArguments(r.contract, method, r.contract.GetStub(), args...)
+func (r *Router) Check(stub shim.ChaincodeStubInterface, method string, args ...string) error {
+	return ValidateArguments(r.contract, method, stub, args...)
 }
 
 // Invoke calls the specified method with the provided arguments.
 // It returns a slice of return values and an error if the invocation fails.
 //
 // Parameters:
+//   - stub: The ChaincodeStubInterface instance to use for the invocation.
 //   - method: The name of the method to invoke.
 //   - args: The arguments to pass to the method.
 //
 // Returns:
 //   - []byte: A slice of bytes (JSON) representing the return values.
 //   - error: An error if the invocation fails.
-func (r *Router) Invoke(method string, args ...string) ([]byte, error) {
-	var stub shim.ChaincodeStubInterface
-	if stubGetter, ok := r.contract.(contract.StubGetSetter); ok {
-		stub = stubGetter.GetStub()
-	}
-
+func (r *Router) Invoke(stub shim.ChaincodeStubInterface, method string, args ...string) ([]byte, error) {
 	result, err := Call(r.contract, method, stub, args...)
 	if err != nil {
 		return nil, err
@@ -110,10 +107,10 @@ func (r *Router) Invoke(method string, args ...string) ([]byte, error) {
 	case 0:
 		return json.Marshal(nil)
 	case 1:
-		if encoder, ok := result[0].(BytesEncoder); ok {
+		if encoder, ok := result[0].(types.BytesEncoder); ok {
 			return encoder.EncodeToBytes()
 		}
-		if encoder, ok := result[0].(StubBytesEncoder); ok {
+		if encoder, ok := result[0].(types.StubBytesEncoder); ok {
 			return encoder.EncodeToBytesWithStub(stub)
 		}
 		return json.Marshal(result[0])
@@ -125,8 +122,8 @@ func (r *Router) Invoke(method string, args ...string) ([]byte, error) {
 // Methods retrieves a map of all available methods, keyed by their chaincode function names.
 //
 // Returns:
-//   - map[contract.Function]contract.Method: A map of all available methods.
-func (r *Router) Methods() map[contract.Function]contract.Method {
+//   - map[routing.Function]routing.Method: A map of all available methods.
+func (r *Router) Methods() map[routing.Function]routing.Method {
 	return r.methods
 }
 
@@ -138,16 +135,16 @@ func (r *Router) Methods() map[contract.Function]contract.Method {
 //   - of: The contract instance.
 //
 // Returns:
-//   - *contract.Method: A new Method instance.
+//   - *routing.Method: A new Method instance.
 //   - error: An error if the method creation fails.
-func newReflectEndpoint(name string, of any) (*contract.Method, error) {
+func newReflectEndpoint(name string, of any) (*routing.Method, error) {
 	const (
 		batchedTransactionPrefix      = "Tx"
 		transactionWithoutBatchPrefix = "NBTx"
 		queryTransactionPrefix        = "Query"
 	)
 
-	method := &contract.Method{
+	method := &routing.Method{
 		Type:          0,
 		ChaincodeFunc: "",
 		MethodName:    name,
@@ -157,15 +154,15 @@ func newReflectEndpoint(name string, of any) (*contract.Method, error) {
 
 	switch {
 	case strings.HasPrefix(method.MethodName, batchedTransactionPrefix):
-		method.Type = contract.MethodTypeTransaction
+		method.Type = routing.MethodTypeTransaction
 		method.ChaincodeFunc = strings.TrimPrefix(method.MethodName, batchedTransactionPrefix)
 
 	case strings.HasPrefix(method.MethodName, transactionWithoutBatchPrefix):
-		method.Type = contract.MethodTypeInvoke
+		method.Type = routing.MethodTypeInvoke
 		method.ChaincodeFunc = strings.TrimPrefix(method.MethodName, transactionWithoutBatchPrefix)
 
 	case strings.HasPrefix(method.MethodName, queryTransactionPrefix):
-		method.Type = contract.MethodTypeQuery
+		method.Type = routing.MethodTypeQuery
 		method.ChaincodeFunc = strings.TrimPrefix(method.MethodName, queryTransactionPrefix)
 
 	default:

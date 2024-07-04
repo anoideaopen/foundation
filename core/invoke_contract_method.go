@@ -1,7 +1,7 @@
 package core
 
 import (
-	"github.com/anoideaopen/foundation/core/contract"
+	"github.com/anoideaopen/foundation/core/routing"
 	"github.com/anoideaopen/foundation/core/telemetry"
 	"github.com/anoideaopen/foundation/proto"
 	"github.com/hyperledger/fabric-chaincode-go/shim"
@@ -13,7 +13,7 @@ import (
 // Parameters:
 //   - traceCtx: The telemetry trace context for tracing the method invocation.
 //   - stub: The ChaincodeStubInterface instance used for invoking the method.
-//   - method: The contract.Method instance representing the method to be invoked.
+//   - method: The routing.Method instance representing the method to be invoked.
 //   - sender: The sender's address, if the method requires authentication.
 //   - args: A slice of strings representing the arguments to be passed to the method.
 //   - cfgBytes: A byte slice containing the configuration data for the contract.
@@ -33,7 +33,7 @@ import (
 func (cc *Chaincode) InvokeContractMethod(
 	traceCtx telemetry.TraceContext,
 	stub shim.ChaincodeStubInterface,
-	method contract.Method,
+	method routing.Method,
 	sender *proto.Address,
 	args []string,
 ) ([]byte, error) {
@@ -43,7 +43,7 @@ func (cc *Chaincode) InvokeContractMethod(
 	cc.contract.SetStub(stub)
 
 	span.AddEvent("call")
-	result, err := cc.Router().Invoke(method.MethodName, cc.PrependSender(method, sender, args)...)
+	result, err := cc.Router().Invoke(stub, method.MethodName, cc.PrependSender(method, sender, args)...)
 	if err != nil {
 		span.SetStatus(codes.Error, err.Error())
 		return nil, err

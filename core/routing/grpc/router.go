@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/anoideaopen/foundation/core/contract"
+	"github.com/anoideaopen/foundation/core/routing"
 	"github.com/anoideaopen/foundation/core/stringsx"
+	"github.com/anoideaopen/foundation/core/types"
+	"github.com/hyperledger/fabric-chaincode-go/shim"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -29,7 +31,7 @@ var (
 // RouterConfig holds configuration options for the Router.
 type RouterConfig struct {
 	// Fallback is the router to use if the method is not defined in the contract.
-	Fallback contract.Router
+	Fallback routing.Router
 
 	// Use URLs instead of contract function names.
 	// Example: /foundationtoken.FiatService/AddBalanceByAdmin instead of addBalanceByAdmin.
@@ -38,10 +40,10 @@ type RouterConfig struct {
 
 // Router routes method calls to contract methods based on gRPC service description.
 type Router struct {
-	fallback contract.Router
+	fallback routing.Router
 	useURLs  bool
 
-	methods  map[contract.Function]contract.Method
+	methods  map[routing.Function]routing.Method
 	handlers map[methodName]handler
 }
 
@@ -54,11 +56,11 @@ type Router struct {
 // Returns:
 //   - *Router: A new Router instance.
 func NewRouter(cfg RouterConfig) *Router {
-	var methods map[contract.Function]contract.Method
+	var methods map[routing.Function]routing.Method
 	if cfg.Fallback != nil {
 		methods = cfg.Fallback.Methods()
 	} else {
-		methods = make(map[contract.Function]contract.Method)
+		methods = make(map[routing.Function]routing.Method)
 	}
 
 	return &Router{
@@ -106,28 +108,28 @@ func (r *Router) RegisterService(desc *grpc.ServiceDesc, impl any) {
 			panic(fmt.Sprintf("contract function '%s' is already registered", contractFn))
 		}
 
-		methodType := contract.MethodTypeTransaction
+		methodType := routing.MethodTypeTransaction
 		if ext, ok := proto.GetExtension(md.Options(), E_MethodType).(MethodType); ok {
 			switch ext {
 			case MethodType_METHOD_TYPE_TRANSACTION:
-				methodType = contract.MethodTypeTransaction
+				methodType = routing.MethodTypeTransaction
 
 			case MethodType_METHOD_TYPE_INVOKE:
-				methodType = contract.MethodTypeInvoke
+				methodType = routing.MethodTypeInvoke
 
 			case MethodType_METHOD_TYPE_QUERY:
-				methodType = contract.MethodTypeQuery
+				methodType = routing.MethodTypeQuery
 			}
 		}
 
 		var requireAuth bool
 		switch methodType {
-		case contract.MethodTypeTransaction:
+		case routing.MethodTypeTransaction:
 			requireAuth = true
 
 		case
-			contract.MethodTypeInvoke,
-			contract.MethodTypeQuery:
+			routing.MethodTypeInvoke,
+			routing.MethodTypeQuery:
 			requireAuth = false
 		}
 
@@ -146,7 +148,7 @@ func (r *Router) RegisterService(desc *grpc.ServiceDesc, impl any) {
 			numArgs = 2
 		}
 
-		cm := contract.Method{
+		cm := routing.Method{
 			Type:          methodType,
 			ChaincodeFunc: contractFn,
 			MethodName:    method.MethodName,
@@ -168,16 +170,17 @@ func (r *Router) RegisterService(desc *grpc.ServiceDesc, impl any) {
 // It returns an error if the validation fails.
 //
 // Parameters:
+//   - stub: The ChaincodeStubInterface instance to use for the validation.
 //   - method: The name of the method to validate arguments for.
 //   - args: The arguments to validate.
 //
 // Returns:
 //   - error: An error if the validation fails.
-func (r *Router) Check(method string, args ...string) error {
+func (r *Router) Check(stub shim.ChaincodeStubInterface, method string, args ...string) error {
 	h, ok := r.handlers[method]
 	if !ok {
 		if r.fallback != nil {
-			return r.fallback.Check(method, args...)
+			return r.fallback.Check(stub, method, args...)
 		}
 
 		return ErrUnsupportedMethod
@@ -208,19 +211,14 @@ func (r *Router) Check(method string, args ...string) error {
 			info *grpc.UnaryServerInfo,
 			handler grpc.UnaryHandler,
 		) (resp any, err error) {
-			if validator, ok := req.(contract.Validator); ok {
-				if err = validator.Validate(); err != nil {
+			if validator, ok := req.(types.Validator); ok {
+				if err := validator.Validate(); err != nil {
 					return resp, err
 				}
 			}
 
-			stubGetter, ok := h.service.(contract.StubGetSetter)
-			if !ok {
-				return resp, nil
-			}
-
-			if validator, ok := h.service.(contract.ValidatorWithStub); ok {
-				return resp, validator.ValidateWithStub(stubGetter.GetStub())
+			if validator, ok := h.service.(types.ValidatorWithStub); ok {
+				return resp, validator.ValidateWithStub(stub)
 			}
 
 			return resp, nil
@@ -234,17 +232,18 @@ func (r *Router) Check(method string, args ...string) error {
 // It returns a slice of return values and an error if the invocation fails.
 //
 // Parameters:
+//   - stub: The ChaincodeStubInterface instance to use for the invocation.
 //   - method: The name of the method to invoke.
 //   - args: The arguments to pass to the method.
 //
 // Returns:
 //   - []byte: A slice of bytes (protojson JSON) representing the return values.
 //   - error: An error if the invocation fails.
-func (r *Router) Invoke(method string, args ...string) ([]byte, error) {
+func (r *Router) Invoke(stub shim.ChaincodeStubInterface, method string, args ...string) ([]byte, error) {
 	h, ok := r.handlers[method]
 	if !ok {
 		if r.fallback != nil {
-			return r.fallback.Invoke(method, args...)
+			return r.fallback.Invoke(stub, method, args...)
 		}
 
 		return nil, ErrUnsupportedMethod
@@ -261,13 +260,9 @@ func (r *Router) Invoke(method string, args ...string) ([]byte, error) {
 		args = args[1:]
 	}
 
-	if stubGetter, ok := h.service.(contract.StubGetSetter); ok {
-		ctx = ContextWithStub(ctx, stubGetter.GetStub())
-	}
-
 	resp, err := h.methodDesc.Handler(
 		h.service,
-		ctx,
+		ContextWithStub(ctx, stub),
 		func(in any) error {
 			msg, ok := in.(proto.Message)
 			if !ok {
@@ -292,8 +287,8 @@ func (r *Router) Invoke(method string, args ...string) ([]byte, error) {
 // Methods retrieves a map of all available methods, keyed by their chaincode function names.
 //
 // Returns:
-//   - map[contract.Function]contract.Method: A map of all available methods.
-func (r *Router) Methods() map[contract.Function]contract.Method {
+//   - map[routing.Function]routing.Method: A map of all available methods.
+func (r *Router) Methods() map[routing.Function]routing.Method {
 	return r.methods
 }
 
@@ -301,7 +296,7 @@ func (r *Router) Methods() map[contract.Function]contract.Method {
 // and its corresponding gRPC method description.
 type handler struct {
 	service          any
-	contractMethod   contract.Method
+	contractMethod   routing.Method
 	methodDesc       grpc.MethodDesc
 	methodDescriptor protoreflect.MethodDescriptor
 }
