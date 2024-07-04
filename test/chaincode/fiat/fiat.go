@@ -19,7 +19,10 @@ func main() {
 
 	token := NewFiatToken()
 	router := grpc.NewRouter(
-		grpc.RouterConfig{Fallback: grpc.DefaultReflectxFallback(token)},
+		grpc.RouterConfig{
+			Fallback: grpc.DefaultReflectxFallback(token),
+			UseNames: true,
+		},
 	)
 
 	service.RegisterFiatServiceServer(router, token)
