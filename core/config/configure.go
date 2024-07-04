@@ -1,11 +1,9 @@
-package contract
+package config
 
 import (
 	"fmt"
 
-	"github.com/anoideaopen/foundation/core/config"
 	"github.com/anoideaopen/foundation/proto"
-	"github.com/hyperledger/fabric-chaincode-go/shim"
 )
 
 // ConfigMapper defines a method for mapping Init arguments to a Config instance.
@@ -76,17 +74,12 @@ type ExternalConfigurator interface {
 //
 // Example:
 //
-//	err := contract.Configure(myContract, myStub, configBytes)
+//	err := config.Configure(myContract, myStub, configBytes)
 //	if err != nil {
 //	    log.Fatalf("Failed to configure contract: %v", err)
 //	}
-func Configure(contract Base, stub shim.ChaincodeStubInterface, rawCfg []byte) error {
-	contract.SetStub(stub)
-	if rawCfg == nil {
-		return nil
-	}
-
-	cfg, err := config.FromBytes(rawCfg)
+func Configure(contract Configurator, rawCfg []byte) error {
+	cfg, err := FromBytes(rawCfg)
 	if err != nil {
 		return fmt.Errorf("parsing config: %w", err)
 	}
@@ -110,7 +103,7 @@ func Configure(contract Base, stub shim.ChaincodeStubInterface, rawCfg []byte) e
 	return nil
 }
 
-// ValidateConfig validates the contract configuration for the given ContractConfigurable instance.
+// Validate validates the contract configuration for the given ContractConfigurable instance.
 //
 // This function attempts to perform the following steps:
 // 1. If the contract implements the Configurator interface, it validates the contract configuration.
@@ -126,11 +119,11 @@ func Configure(contract Base, stub shim.ChaincodeStubInterface, rawCfg []byte) e
 //
 // Example:
 //
-//	err := contract.ValidateConfig(myContract, configBytes)
+//	err := contract.Validate(myContract, configBytes)
 //	if err != nil {
 //	    log.Fatalf("Failed to validate contract: %v", err)
 //	}
-func ValidateConfig(contract Base, rawCfg []byte) error {
+func Validate(contract Configurator, rawCfg []byte) error {
 	if err := contract.ValidateConfig(rawCfg); err != nil {
 		return fmt.Errorf("validating base config: %w", err)
 	}

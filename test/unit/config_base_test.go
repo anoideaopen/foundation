@@ -8,7 +8,6 @@ import (
 
 	"github.com/anoideaopen/foundation/core"
 	"github.com/anoideaopen/foundation/core/config"
-	"github.com/anoideaopen/foundation/core/contract"
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/mock"
 	"github.com/anoideaopen/foundation/proto"
@@ -40,7 +39,7 @@ func (*disabledFnContract) GetID() string {
 	return "TEST"
 }
 
-var _ contract.TokenConfigurator = &TestConfigToken{}
+var _ config.TokenConfigurator = &TestConfigToken{}
 
 func (tct *TestConfigToken) QueryConfig() (ConfigData, error) {
 	return ConfigData{

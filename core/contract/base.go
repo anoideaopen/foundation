@@ -4,6 +4,5 @@ package contract
 type Base interface {
 	ID() string // ID retrieves the unique identifier for the contract.
 
-	Configurator
 	StubGetSetter
 }

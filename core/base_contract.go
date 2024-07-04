@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strconv"
 
+	"github.com/anoideaopen/foundation/core/config"
 	"github.com/anoideaopen/foundation/core/contract"
 	"github.com/anoideaopen/foundation/core/stringsx"
 	"github.com/anoideaopen/foundation/core/telemetry"
@@ -343,6 +344,7 @@ func (bc *BaseContract) setupTracing() {
 // BaseContractInterface represents BaseContract interface
 type BaseContractInterface interface { //nolint:interfacebloat
 	contract.Base
+	config.Configurator
 
 	setSrcFs(*embed.FS)
 

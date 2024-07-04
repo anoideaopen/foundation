@@ -93,17 +93,17 @@ type TLS struct {
 // chaincodeOptions is a structure that holds advanced options for configuring
 // a ChainCode instance.
 type chaincodeOptions struct {
-	SrcFS        *embed.FS             // SrcFS is a file system that contains the source files for the chaincode.
-	TLS          *TLS                  // TLS contains the TLS configuration for the chaincode.
-	ConfigMapper contract.ConfigMapper // ConfigMapper maps the arguments to a proto.Config instance.
-	Router       contract.Router       // Router for routing contract calls.
+	SrcFS        *embed.FS           // SrcFS is a file system that contains the source files for the chaincode.
+	TLS          *TLS                // TLS contains the TLS configuration for the chaincode.
+	ConfigMapper config.ConfigMapper // ConfigMapper maps the arguments to a proto.Config instance.
+	Router       contract.Router     // Router for routing contract calls.
 }
 
 // Chaincode defines the structure for a chaincode instance, with methods,
 // configuration, and options for transaction processing.
 type Chaincode struct {
 	contract     BaseContractInterface // Contract interface containing the chaincode logic.
-	configMapper contract.ConfigMapper // ConfigMapper maps the arguments to a proto.Config instance.
+	configMapper config.ConfigMapper   // ConfigMapper maps the arguments to a proto.Config instance.
 }
 
 // Router returns the contract router for the Chaincode.
@@ -159,7 +159,7 @@ func WithRouter(router contract.Router) ChaincodeOption {
 //
 //	configMapper := myCustomConfigMapper{}
 //	chaincode := core.NewCC(cc, core.WithConfigMapper(configMapper))
-func WithConfigMapper(cm contract.ConfigMapper) ChaincodeOption {
+func WithConfigMapper(cm config.ConfigMapper) ChaincodeOption {
 	return func(o *chaincodeOptions) error {
 		o.ConfigMapper = cm
 		return nil
@@ -209,7 +209,7 @@ func WithConfigMapper(cm contract.ConfigMapper) ChaincodeOption {
 //	        },
 //	    }, nil
 //	}))
-func WithConfigMapperFunc(cmf contract.ConfigMapperFunc) ChaincodeOption {
+func WithConfigMapperFunc(cmf config.ConfigMapperFunc) ChaincodeOption {
 	return func(o *chaincodeOptions) error {
 		o.ConfigMapper = cmf
 		return nil
@@ -435,7 +435,7 @@ func (cc *Chaincode) Init(stub shim.ChaincodeStubInterface) peer.Response {
 		}
 	}
 
-	if err = contract.ValidateConfig(cc.contract, cfgBytes); err != nil {
+	if err = config.Validate(cc.contract, cfgBytes); err != nil {
 		return shim.Error("init: validating config: " + err.Error())
 	}
 
@@ -474,7 +474,7 @@ func (cc *Chaincode) Invoke(stub shim.ChaincodeStubInterface) (r peer.Response) 
 
 	// Apply config on all layers: base contract (SKI's & chaincode options),
 	// token base attributes and extended token parameters.
-	if err = contract.Configure(cc.contract, stub, cfgBytes); err != nil {
+	if err = config.Configure(cc.contract, cfgBytes); err != nil {
 		return shim.Error("applying configutarion: " + err.Error())
 	}
 
@@ -546,9 +546,11 @@ func (cc *Chaincode) Invoke(stub shim.ChaincodeStubInterface) (r peer.Response) 
 		return cc.batchExecuteHandler(traceCtx, stub, creatorSKI, hashedCert, arguments)
 
 	case SwapDone:
+		cc.contract.SetStub(stub)
 		return cc.swapDoneHandler(arguments)
 
 	case MultiSwapDone:
+		cc.contract.SetStub(stub)
 		return cc.multiSwapDoneHandler(arguments)
 
 	case CreateCCTransferTo,
@@ -710,6 +712,9 @@ func (cc *Chaincode) noBatchHandler(
 	}
 
 	span.AddEvent("validating arguments")
+
+	cc.contract.SetStub(stub)
+
 	if err = cc.Router().Check(method.MethodName, cc.PrependSender(method, sender, args)...); err != nil {
 		span.SetStatus(codes.Error, "validating arguments failed")
 		return shim.Error(err.Error())

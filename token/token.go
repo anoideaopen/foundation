@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/anoideaopen/foundation/core"
-	"github.com/anoideaopen/foundation/core/contract"
+	"github.com/anoideaopen/foundation/core/config"
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/core/types/big"
 	"github.com/anoideaopen/foundation/proto"
@@ -18,7 +18,7 @@ const metadataKey = "tokenMetadata"
 // Tokener is the interface for tokens
 type Tokener interface {
 	core.BaseContractInterface
-	contract.TokenConfigurator
+	config.TokenConfigurator
 
 	EmissionAdd(*big.Int) error
 	EmissionSub(*big.Int) error
