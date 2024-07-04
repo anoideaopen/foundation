@@ -1,42 +1,17 @@
 package unit
 
 import (
-	"encoding/hex"
-	"fmt"
 	"testing"
 
 	"github.com/anoideaopen/foundation/core"
 	"github.com/anoideaopen/foundation/core/reflectx"
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/core/types/big"
-	"github.com/anoideaopen/foundation/mock/stub"
-	pb "github.com/anoideaopen/foundation/proto"
-	"github.com/anoideaopen/foundation/test/unit/fixtures_test"
 	"github.com/anoideaopen/foundation/token"
-	"github.com/google/uuid"
-	"github.com/hyperledger/fabric-chaincode-go/shim"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/encoding/protojson"
 )
 
 func TestDuplicateNames(t *testing.T) {
-	chName := "DN"
-
-	cfg := &pb.Config{
-		Contract: &pb.ContractConfig{
-			Symbol:   chName,
-			RobotSKI: fixtures_test.RobotHashedCert,
-			Admin:    fixtures_test.Admin,
-		},
-		Token: &pb.TokenConfig{
-			Name:     chName + " Token",
-			Decimals: 8,
-			Issuer:   fixtures_test.Admin,
-		},
-	}
-
-	cfgBytes, _ := protojson.Marshal(cfg)
-
 	tt := []struct {
 		name string
 		bci  core.BaseContractInterface
@@ -50,36 +25,25 @@ func TestDuplicateNames(t *testing.T) {
 		{
 			name: "variant #1",
 			bci:  &DuplicateNamesT1{},
-			err:  fmt.Errorf("init: validating contract methods: %w, method: '%s'", reflectx.ErrMethodAlreadyDefined, "allowedBalanceAdd"),
+			err:  reflectx.ErrMethodAlreadyDefined,
 		},
 		{
 			name: "variant #2",
 			bci:  &DuplicateNamesT2{},
-			err:  fmt.Errorf("init: validating contract methods: %w, method: '%s'", reflectx.ErrMethodAlreadyDefined, "allowedBalanceAdd"),
+			err:  reflectx.ErrMethodAlreadyDefined,
 		},
 		{
 			name: "variant #3",
 			bci:  &DuplicateNamesT3{},
-			err:  fmt.Errorf("init: validating contract methods: %w, method: '%s'", reflectx.ErrMethodAlreadyDefined, "allowedBalanceAdd"),
+			err:  reflectx.ErrMethodAlreadyDefined,
 		},
 	}
 
 	t.Parallel()
 	for _, test := range tt {
 		t.Run(test.name, func(t *testing.T) {
-			cc, _ := core.NewCC(test.bci)
-			ms := stub.NewMockStub(chName, cc)
-
-			_ = ms.SetAdminCreatorCert("platformMSP")
-
-			idBytes := [16]byte(uuid.New())
-			rsp := ms.MockInit(hex.EncodeToString(idBytes[:]), [][]byte{cfgBytes})
-			if test.err == nil {
-				require.Empty(t, rsp.GetMessage())
-			} else {
-				require.Equal(t, int32(shim.ERROR), rsp.GetStatus())
-				require.Contains(t, rsp.GetMessage(), test.err.Error())
-			}
+			_, err := core.NewCC(test.bci)
+			require.ErrorIs(t, err, test.err)
 		})
 	}
 }

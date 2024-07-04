@@ -11,7 +11,6 @@ import (
 	"strconv"
 
 	"github.com/anoideaopen/foundation/core/contract"
-	"github.com/anoideaopen/foundation/core/reflectx"
 	"github.com/anoideaopen/foundation/core/stringsx"
 	"github.com/anoideaopen/foundation/core/telemetry"
 	"github.com/anoideaopen/foundation/core/types"
@@ -57,12 +56,7 @@ func (bc *BaseContract) GetStub() shim.ChaincodeStubInterface {
 
 // GetMethods returns list of methods
 func (bc *BaseContract) GetMethods(bci BaseContractInterface) []string {
-	router, err := buildRouter(bci)
-	if err != nil {
-		panic(err)
-	}
-
-	contractMethods := router.Methods()
+	contractMethods := bci.Router().Methods()
 
 	methods := make([]string, 0, len(contractMethods))
 	for name, method := range contractMethods {
@@ -344,24 +338,6 @@ func (bc *BaseContract) setupTracing() {
 	th.TracingInit()
 
 	bc.setTracingHandler(th)
-}
-
-func buildRouter(in any) (contract.Router, error) {
-	if bc, ok := in.(BaseContractInterface); ok {
-		if router := bc.Router(); router != nil {
-			return router, nil
-		}
-	}
-
-	if router, ok := in.(contract.Router); ok {
-		return router, nil
-	}
-
-	if contract, ok := in.(contract.Base); ok {
-		return reflectx.NewRouter(contract)
-	}
-
-	return nil, fmt.Errorf("invalid contract type: %T", in)
 }
 
 // BaseContractInterface represents BaseContract interface

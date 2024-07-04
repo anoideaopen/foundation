@@ -117,20 +117,7 @@ type Chaincode struct {
 // Returns:
 // - contract.Router: the contract router.
 func (cc *Chaincode) Router() contract.Router {
-	if router := cc.contract.Router(); router != nil {
-		return router
-	}
-
-	if router, ok := cc.contract.(contract.Router); ok {
-		cc.contract.setRouter(router)
-		return router
-	}
-
-	// Error is checked in Init.
-	router, _ := reflectx.NewRouter(cc.contract)
-	cc.contract.setRouter(router)
-
-	return router
+	return cc.contract.Router()
 }
 
 // Method retrieves a contract method by its function name.
@@ -380,7 +367,19 @@ func NewCC(
 
 	// Initialize the contract.
 	cc.setSrcFs(chOpts.SrcFS)
-	cc.setRouter(chOpts.Router)
+
+	// Set up the router.
+	var router contract.Router
+	if chOpts.Router != nil {
+		router = chOpts.Router
+	} else {
+		var err error
+		if router, err = reflectx.NewRouter(cc); err != nil {
+			return empty, err
+		}
+	}
+
+	cc.setRouter(router)
 
 	// Set up the ChainCode structure.
 	out := &Chaincode{
@@ -442,16 +441,6 @@ func (cc *Chaincode) Init(stub shim.ChaincodeStubInterface) peer.Response {
 
 	if err = config.Save(stub, cfgBytes); err != nil {
 		return shim.Error("init: saving config: " + err.Error())
-	}
-
-	// Check if the contract implements the Router interface or router is already provided.
-	if _, ok := cc.contract.(contract.Router); ok || cc.contract.Router() != nil {
-		return shim.Success(nil)
-	}
-
-	// Check for duplicate methods.
-	if _, err = reflectx.NewRouter(cc.contract); err != nil {
-		return shim.Error("init: validating contract methods: " + err.Error())
 	}
 
 	return shim.Success(nil)

@@ -158,9 +158,6 @@ func TestSaveToBatchWithSignedArgs(t *testing.T) {
 	batchTimestamp, err := mockStub.GetTxTimestamp()
 	require.NoError(t, err)
 
-	_, err = buildRouter(chainCode.contract)
-	require.NoError(t, err)
-
 	ep, err := chainCode.Method(s.FnName)
 	require.NoError(t, err)
 
@@ -210,9 +207,6 @@ func TestSaveToBatchWithWrongSignedArgs(t *testing.T) {
 	mockStub.MockTransactionStart(testEncodedTxID)
 	mockStub.TxTimestamp = s.timestamp
 
-	_, err = buildRouter(chainCode.contract)
-	require.NoError(t, err)
-
 	ep, err := chainCode.Method(s.FnName)
 	require.NoError(t, err)
 
@@ -253,9 +247,6 @@ func TestSaveToBatchWrongFnName(t *testing.T) {
 	cfgBytes, _ := protojson.Marshal(cfg)
 
 	err = contract.Configure(chainCode.contract, ms, cfgBytes)
-	require.NoError(t, err)
-
-	_, err = buildRouter(chainCode.contract)
 	require.NoError(t, err)
 
 	_, err = chainCode.Method(s.FnName)
@@ -309,9 +300,6 @@ func SaveAndLoadToBatchTest(t *testing.T, ser *serieBatches, args []string) {
 	}
 
 	batchTimestamp, err := ms.GetTxTimestamp()
-	require.NoError(t, err)
-
-	_, err = buildRouter(chainCode.contract)
 	require.NoError(t, err)
 
 	ep, err := chainCode.Method(ser.FnName)
@@ -432,9 +420,6 @@ func BatchExecuteTest(t *testing.T, ser *serieBatchExecute, args []string) peer.
 	batchTimestamp, err := ms.GetTxTimestamp()
 	require.NoError(t, err)
 
-	_, err = buildRouter(chainCode.contract)
-	require.NoError(t, err)
-
 	ep, err := chainCode.Method(testFnWithFiveArgsMethod)
 	require.NoError(t, err)
 
@@ -495,9 +480,6 @@ func TestBatchedTxExecute(t *testing.T) {
 	err = contract.Configure(chainCode.contract, ms, cfgBytes)
 	require.NoError(t, err)
 
-	_, err = buildRouter(chainCode.contract)
-	require.NoError(t, err)
-
 	ms.TxID = testEncodedTxID
 
 	btchStub := cachestub.NewBatchCacheStub(ms)
@@ -505,9 +487,6 @@ func TestBatchedTxExecute(t *testing.T) {
 	ms.MockTransactionStart(testEncodedTxID)
 
 	batchTimestamp, err := ms.GetTxTimestamp()
-	require.NoError(t, err)
-
-	_, err = buildRouter(chainCode.contract)
 	require.NoError(t, err)
 
 	ep, err := chainCode.Method(testFnWithFiveArgsMethod)
