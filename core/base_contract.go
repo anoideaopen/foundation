@@ -11,6 +11,7 @@ import (
 	"strconv"
 
 	"github.com/anoideaopen/foundation/core/config"
+	"github.com/anoideaopen/foundation/core/logger"
 	"github.com/anoideaopen/foundation/core/routing"
 	"github.com/anoideaopen/foundation/core/stringsx"
 	"github.com/anoideaopen/foundation/core/telemetry"
@@ -234,6 +235,7 @@ func (bc *BaseContract) QuerySystemEnv() (map[string]string, error) {
 // TxHealthCheck can be called by an administrator of the contract for checking if
 // the business logic of the chaincode is still alive.
 func (bc *BaseContract) TxHealthCheck(_ *types.Sender) error {
+	logger.Logger().Warning("HealthCheck", "txId", bc.GetStub().GetTxID())
 	return nil
 }
 
@@ -274,6 +276,7 @@ func (bc *BaseContract) ContractConfig() *pb.ContractConfig {
 
 // NBTxHealthCheckNb - the same but not batched
 func (bc *BaseContract) NBTxHealthCheckNb(_ *types.Sender) error {
+	logger.Logger().Warning("HealthCheckNb", "txId", bc.GetStub().GetTxID())
 	return nil
 }
 
