@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package foundation;
 
-option go_package = "github.com/anoideaopen/foundation/core/grpc";
+option go_package = "github.com/anoideaopen/foundation/core/routing/grpc;grpc";
 
 import "google/protobuf/descriptor.proto";
 
