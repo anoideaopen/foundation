@@ -9,6 +9,7 @@ import (
 	"runtime/debug"
 	"sort"
 	"strconv"
+	"sync"
 
 	"github.com/anoideaopen/foundation/core/config"
 	"github.com/anoideaopen/foundation/core/logger"
@@ -28,11 +29,11 @@ import (
 // BaseContract is a base contract for all contracts
 type BaseContract struct {
 	stub           shim.ChaincodeStubInterface
-	noncePrefix    byte
 	srcFs          *embed.FS
 	config         *pb.ContractConfig
 	traceCtx       telemetry.TraceContext
 	tracingHandler *telemetry.TracingHandler
+	lockTH         sync.RWMutex
 	isService      bool
 	router         routing.Router
 }
@@ -91,11 +92,10 @@ func (bc *BaseContract) isMethodDisabled(method routing.Method) bool {
 
 func (bc *BaseContract) SetStub(stub shim.ChaincodeStubInterface) {
 	bc.stub = stub
-	bc.noncePrefix = StateKeyNonce
 }
 
 func (bc *BaseContract) QueryGetNonce(owner *types.Address) (string, error) {
-	prefix := hex.EncodeToString([]byte{bc.noncePrefix})
+	prefix := hex.EncodeToString([]byte{StateKeyNonce})
 	key, err := bc.stub.CreateCompositeKey(prefix, []string{owner.String()})
 	if err != nil {
 		return "", err
@@ -297,9 +297,28 @@ func (bc *BaseContract) setTracingHandler(th *telemetry.TracingHandler) {
 
 // TracingHandler returns base contract tracingHandler
 func (bc *BaseContract) TracingHandler() *telemetry.TracingHandler {
-	if bc.tracingHandler == nil {
-		bc.setupTracing()
+	var th *telemetry.TracingHandler
+
+	// read
+	bc.lockTH.RLock()
+	if bc.tracingHandler != nil {
+		th = bc.tracingHandler
 	}
+	bc.lockTH.RUnlock()
+
+	if th != nil {
+		return th
+	}
+
+	// set
+	bc.lockTH.Lock()
+	defer bc.lockTH.Unlock()
+
+	if bc.tracingHandler != nil {
+		return bc.tracingHandler
+	}
+
+	bc.setupTracing()
 
 	return bc.tracingHandler
 }
