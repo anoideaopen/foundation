@@ -70,7 +70,7 @@ func (bc *BaseContract) TxMultiSwapBegin(sender *types.Sender, token string, mul
 		Owner:   sender.Address().Bytes(),
 		Assets:  assets,
 		Token:   token,
-		From:    bc.config.GetSymbol(),
+		From:    bc.ContractConfig().GetSymbol(),
 		To:      contractTo,
 		Hash:    hash,
 		Timeout: ts.GetSeconds() + userSideTimeout,
@@ -95,7 +95,7 @@ func (bc *BaseContract) TxMultiSwapBegin(sender *types.Sender, token string, mul
 		return "", err
 	}
 
-	if btchTxStub, ok := bc.stub.(*cachestub.TxCacheStub); ok {
+	if btchTxStub, ok := bc.GetStub().(*cachestub.TxCacheStub); ok {
 		btchTxStub.MultiSwaps = append(btchTxStub.MultiSwaps, &swap)
 	}
 	return bc.GetStub().GetTxID(), nil

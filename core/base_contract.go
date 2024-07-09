@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"embed"
 	"encoding/hex"
 	"errors"
@@ -28,24 +29,29 @@ import (
 
 // BaseContract is a base contract for all contracts
 type BaseContract struct {
-	stub           shim.ChaincodeStubInterface
-	srcFs          *embed.FS
-	config         *pb.ContractConfig
-	traceCtx       telemetry.TraceContext
-	tracingHandler *telemetry.TracingHandler
-	lockTH         sync.RWMutex
-	isService      bool
-	router         routing.Router
+	ctx       context.Context
+	srcFs     *embed.FS
+	lockTH    sync.RWMutex
+	isService bool
 }
 
 var _ BaseContractInterface = &BaseContract{}
 
-func (bc *BaseContract) setRouter(router routing.Router) {
-	bc.router = router
+func (bc *BaseContract) WithContext(ctx context.Context) any {
+	return &BaseContract{
+		ctx:       ctx,
+		srcFs:     bc.srcFs,
+		lockTH:    sync.RWMutex{},
+		isService: bc.isService,
+	}
 }
 
 func (bc *BaseContract) Router() routing.Router {
-	return bc.router
+	if inv := ChaincodeInvocationFromContext(bc.ctx); inv != nil {
+		return inv.Router
+	}
+
+	return nil
 }
 
 func (bc *BaseContract) setSrcFs(srcFs *embed.FS) {
@@ -54,7 +60,11 @@ func (bc *BaseContract) setSrcFs(srcFs *embed.FS) {
 
 // GetStub returns stub
 func (bc *BaseContract) GetStub() shim.ChaincodeStubInterface {
-	return bc.stub
+	if inv := ChaincodeInvocationFromContext(bc.ctx); inv != nil {
+		return inv.Stub
+	}
+
+	return nil
 }
 
 // GetMethods returns list of methods
@@ -74,15 +84,20 @@ func (bc *BaseContract) GetMethods(bci BaseContractInterface) []string {
 }
 
 func (bc *BaseContract) isMethodDisabled(method routing.Method) bool {
-	for _, disabled := range bc.config.GetOptions().GetDisabledFunctions() {
+	inv := ChaincodeInvocationFromContext(bc.ctx)
+	if inv == nil {
+		return false
+	}
+
+	for _, disabled := range inv.Config.GetOptions().GetDisabledFunctions() {
 		if method.MethodName == disabled {
 			return true
 		}
-		if bc.config.GetOptions().GetDisableSwaps() &&
+		if inv.Config.GetOptions().GetDisableSwaps() &&
 			stringsx.OneOf(method.MethodName, "QuerySwapGet", "TxSwapBegin", "TxSwapCancel") {
 			return true
 		}
-		if bc.config.GetOptions().GetDisableMultiSwaps() &&
+		if inv.Config.GetOptions().GetDisableMultiSwaps() &&
 			stringsx.OneOf(method.MethodName, "QueryMultiSwapGet", "TxMultiSwapBegin", "TxMultiSwapCancel") {
 			return true
 		}
@@ -91,17 +106,17 @@ func (bc *BaseContract) isMethodDisabled(method routing.Method) bool {
 }
 
 func (bc *BaseContract) SetStub(stub shim.ChaincodeStubInterface) {
-	bc.stub = stub
+
 }
 
 func (bc *BaseContract) QueryGetNonce(owner *types.Address) (string, error) {
 	prefix := hex.EncodeToString([]byte{StateKeyNonce})
-	key, err := bc.stub.CreateCompositeKey(prefix, []string{owner.String()})
+	key, err := bc.GetStub().CreateCompositeKey(prefix, []string{owner.String()})
 	if err != nil {
 		return "", err
 	}
 
-	data, err := bc.stub.GetState(key)
+	data, err := bc.GetStub().GetState(key)
 	if err != nil {
 		return "", err
 	}
@@ -240,7 +255,7 @@ func (bc *BaseContract) TxHealthCheck(_ *types.Sender) error {
 }
 
 func (bc *BaseContract) ID() string {
-	return bc.config.GetSymbol()
+	return bc.ContractConfig().GetSymbol()
 }
 
 func (bc *BaseContract) GetID() string { // deprecated
@@ -265,13 +280,15 @@ func (bc *BaseContract) ValidateConfig(config []byte) error {
 }
 
 func (bc *BaseContract) ApplyContractConfig(config *pb.ContractConfig) error {
-	bc.config = config
-
-	return nil
+	return nil // May be overridden in derived contract.
 }
 
 func (bc *BaseContract) ContractConfig() *pb.ContractConfig {
-	return bc.config
+	if inv := ChaincodeInvocationFromContext(bc.ctx); inv != nil {
+		return inv.Config
+	}
+
+	return &pb.ContractConfig{}
 }
 
 // NBTxHealthCheckNb - the same but not batched
@@ -287,7 +304,11 @@ func (bc *BaseContract) setTraceContext(traceCtx telemetry.TraceContext) {
 
 // GetTraceContext returns trace context. Using for call methods only
 func (bc *BaseContract) GetTraceContext() telemetry.TraceContext {
-	return bc.traceCtx
+	if inv := ChaincodeInvocationFromContext(bc.ctx); inv != nil {
+		return inv.TraceCtx
+	}
+
+	return nil
 }
 
 // setTracingHandler sets base contract tracingHandler
@@ -406,7 +427,6 @@ type BaseContractInterface interface { //nolint:interfacebloat
 	setIsService()
 	IsService() bool
 
-	setRouter(routing.Router)
 	Router() routing.Router
 
 	SetStub(shim.ChaincodeStubInterface)

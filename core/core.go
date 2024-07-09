@@ -104,6 +104,7 @@ type chaincodeOptions struct {
 // configuration, and options for transaction processing.
 type Chaincode struct {
 	contract     BaseContractInterface // Contract interface containing the chaincode logic.
+	router       routing.Router        // Router for routing contract calls.
 	configMapper config.ConfigMapper   // ConfigMapper maps the arguments to a proto.Config instance.
 }
 
@@ -118,7 +119,7 @@ type Chaincode struct {
 // Returns:
 // - routing.Router: the contract router.
 func (cc *Chaincode) Router() routing.Router {
-	return cc.contract.Router()
+	return cc.router
 }
 
 // Method retrieves a contract method by its function name.
@@ -380,11 +381,10 @@ func NewCC(
 		}
 	}
 
-	cc.setRouter(router)
-
 	// Set up the ChainCode structure.
 	out := &Chaincode{
 		contract:     cc,
+		router:       router,
 		configMapper: chOpts.ConfigMapper,
 	}
 
