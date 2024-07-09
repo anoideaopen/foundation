@@ -37,8 +37,14 @@ func (cc *Chaincode) InvokeContractMethod(
 	sender *proto.Address,
 	args []string,
 ) ([]byte, error) {
-	_, span := cc.contract.TracingHandler().StartNewSpan(traceCtx, "chaincode.CallMethod")
+	traceCtx, span := cc.contract.TracingHandler().StartNewSpan(traceCtx, "chaincode.CallMethod")
 	defer span.End()
+
+	cc.contract.setEnv(&environment{
+		Stub:  stub,
+		Trace: traceCtx,
+	})
+	defer cc.contract.delEnv()
 
 	span.AddEvent("call")
 	result, err := cc.Router().Invoke(stub, method.MethodName, cc.PrependSender(method, sender, args)...)

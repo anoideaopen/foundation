@@ -12,7 +12,6 @@ import (
 	"github.com/anoideaopen/foundation/core/balance"
 	"github.com/anoideaopen/foundation/core/cachestub"
 	"github.com/anoideaopen/foundation/core/ledger"
-	"github.com/anoideaopen/foundation/core/routing/reflectx"
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/core/types/big"
 	"github.com/anoideaopen/foundation/proto"
@@ -158,17 +157,8 @@ func UserDone(bci any, stub shim.ChaincodeStubInterface, symbol string, swapID s
 	// If you want to catch that events you need implement
 	// method `OnMultiSwapDoneEvent` in chaincode.
 	// This code is for chaincode PFT, for handling user bar tokens balance changes.
-	if _, ok := bci.(OnMultiSwapDoneEventListener); ok {
-		bciCopy, ok := reflectx.Clone(bci).(OnMultiSwapDoneEventListener)
-		if !ok {
-			return shim.Error("failed to clone bci")
-		}
-
-		if stubSetter, ok := bci.(reflectx.StubSetter); ok {
-			stubSetter.SetStub(stub)
-		}
-
-		bciCopy.OnMultiSwapDoneEvent(
+	if listener, ok := bci.(OnMultiSwapDoneEventListener); ok {
+		listener.OnMultiSwapDoneEvent(
 			swap.GetToken(),
 			types.AddrFromBytes(swap.GetOwner()),
 			swap.GetAssets(),

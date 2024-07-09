@@ -11,7 +11,6 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/hyperledger/fabric-chaincode-go v0.0.0-20230228194215-b84622ba6a7a
 	github.com/hyperledger/fabric-protos-go v0.3.0
-	github.com/lmlat/go-clone v0.0.0-20231010034613-735b540a2ee8
 	github.com/op/go-logging v0.0.0-20160315200505-970db520ece7
 	github.com/sirupsen/logrus v1.8.1
 	github.com/stretchr/testify v1.8.2

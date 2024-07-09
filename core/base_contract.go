@@ -6,9 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"runtime"
 	"runtime/debug"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/anoideaopen/foundation/core/config"
@@ -28,10 +30,9 @@ import (
 
 // BaseContract is a base contract for all contracts
 type BaseContract struct {
-	stub           shim.ChaincodeStubInterface
+	envs           sync.Map // map[int64]*environment: (goid -> environment)
 	srcFs          *embed.FS
 	config         *pb.ContractConfig
-	traceCtx       telemetry.TraceContext
 	tracingHandler *telemetry.TracingHandler
 	lockTH         sync.RWMutex
 	isService      bool
@@ -39,6 +40,38 @@ type BaseContract struct {
 }
 
 var _ BaseContractInterface = &BaseContract{}
+
+type environment struct {
+	Stub  shim.ChaincodeStubInterface
+	Trace telemetry.TraceContext
+}
+
+func (bc *BaseContract) setEnv(env *environment) {
+	bc.envs.Store(goid(), env)
+}
+
+func (bc *BaseContract) getEnv() *environment {
+	if env, ok := bc.envs.Load(goid()); ok {
+		return env.(*environment) //nolint:forcetypeassert
+	}
+
+	return nil
+}
+
+func (bc *BaseContract) delEnv() {
+	bc.envs.Delete(goid())
+}
+
+func goid() int {
+	var buf [64]byte
+	n := runtime.Stack(buf[:], false)
+	idField := strings.Fields(strings.TrimPrefix(string(buf[:n]), "goroutine "))[0]
+	id, err := strconv.Atoi(idField)
+	if err != nil {
+		panic(fmt.Sprintf("cannot get goroutine id: %v", err))
+	}
+	return id
+}
 
 func (bc *BaseContract) setRouter(router routing.Router) {
 	bc.router = router
@@ -54,7 +87,11 @@ func (bc *BaseContract) setSrcFs(srcFs *embed.FS) {
 
 // GetStub returns stub
 func (bc *BaseContract) GetStub() shim.ChaincodeStubInterface {
-	return bc.stub
+	if env := bc.getEnv(); env != nil {
+		return env.Stub
+	}
+
+	return nil
 }
 
 // GetMethods returns list of methods
@@ -74,15 +111,15 @@ func (bc *BaseContract) GetMethods(bci BaseContractInterface) []string {
 }
 
 func (bc *BaseContract) isMethodDisabled(method routing.Method) bool {
-	for _, disabled := range bc.config.GetOptions().GetDisabledFunctions() {
+	for _, disabled := range bc.ContractConfig().GetOptions().GetDisabledFunctions() {
 		if method.MethodName == disabled {
 			return true
 		}
-		if bc.config.GetOptions().GetDisableSwaps() &&
+		if bc.ContractConfig().GetOptions().GetDisableSwaps() &&
 			stringsx.OneOf(method.MethodName, "QuerySwapGet", "TxSwapBegin", "TxSwapCancel") {
 			return true
 		}
-		if bc.config.GetOptions().GetDisableMultiSwaps() &&
+		if bc.ContractConfig().GetOptions().GetDisableMultiSwaps() &&
 			stringsx.OneOf(method.MethodName, "QueryMultiSwapGet", "TxMultiSwapBegin", "TxMultiSwapCancel") {
 			return true
 		}
@@ -90,18 +127,14 @@ func (bc *BaseContract) isMethodDisabled(method routing.Method) bool {
 	return false
 }
 
-func (bc *BaseContract) SetStub(stub shim.ChaincodeStubInterface) {
-	bc.stub = stub
-}
-
 func (bc *BaseContract) QueryGetNonce(owner *types.Address) (string, error) {
 	prefix := hex.EncodeToString([]byte{StateKeyNonce})
-	key, err := bc.stub.CreateCompositeKey(prefix, []string{owner.String()})
+	key, err := bc.GetStub().CreateCompositeKey(prefix, []string{owner.String()})
 	if err != nil {
 		return "", err
 	}
 
-	data, err := bc.stub.GetState(key)
+	data, err := bc.GetStub().GetState(key)
 	if err != nil {
 		return "", err
 	}
@@ -239,12 +272,8 @@ func (bc *BaseContract) TxHealthCheck(_ *types.Sender) error {
 	return nil
 }
 
-func (bc *BaseContract) ID() string {
-	return bc.config.GetSymbol()
-}
-
 func (bc *BaseContract) GetID() string { // deprecated
-	return bc.ID()
+	return bc.ContractConfig().GetSymbol()
 }
 
 func (bc *BaseContract) ValidateConfig(config []byte) error {
@@ -280,14 +309,13 @@ func (bc *BaseContract) NBTxHealthCheckNb(_ *types.Sender) error {
 	return nil
 }
 
-// setTraceContext sets context for telemetry. For call methods only
-func (bc *BaseContract) setTraceContext(traceCtx telemetry.TraceContext) {
-	bc.traceCtx = traceCtx
-}
-
 // GetTraceContext returns trace context. Using for call methods only
 func (bc *BaseContract) GetTraceContext() telemetry.TraceContext {
-	return bc.traceCtx
+	if env := bc.getEnv(); env != nil {
+		return env.Trace
+	}
+
+	return telemetry.TraceContext{}
 }
 
 // setTracingHandler sets base contract tracingHandler
@@ -397,18 +425,18 @@ type BaseContractInterface interface { //nolint:interfacebloat
 	AllowedIndustrialBalanceSub(address *types.Address, industrialAssets []*pb.Asset, reason string) error
 	AllowedIndustrialBalanceTransfer(from *types.Address, to *types.Address, industrialAssets []*pb.Asset, reason string) error
 
-	setTraceContext(traceCtx telemetry.TraceContext)
-	GetTraceContext() telemetry.TraceContext
+	setIsService()
+	IsService() bool
 
 	setTracingHandler(th *telemetry.TracingHandler)
 	TracingHandler() *telemetry.TracingHandler
 
-	setIsService()
-	IsService() bool
-
 	setRouter(routing.Router)
 	Router() routing.Router
 
-	SetStub(shim.ChaincodeStubInterface)
+	GetTraceContext() telemetry.TraceContext
 	GetStub() shim.ChaincodeStubInterface
+
+	setEnv(env *environment)
+	delEnv()
 }
