@@ -2,6 +2,7 @@ package core
 
 import (
 	"bytes"
+	"context"
 	"encoding/hex"
 	"fmt"
 	"testing"
@@ -114,6 +115,7 @@ func TestSaveToBatchWithWrongArgs(t *testing.T) {
 	require.NoError(t, err)
 
 	resp := chainCode.BatchHandler(
+		context.Background(),
 		telemetry.TraceContext{},
 		mockStub,
 		ep,
@@ -210,7 +212,7 @@ func TestSaveToBatchWithWrongSignedArgs(t *testing.T) {
 	ep, err := chainCode.Method(s.FnName)
 	require.NoError(t, err)
 
-	err = chainCode.Router().Check(mockStub, ep.MethodName, chainCode.PrependSender(ep, sender, wrongArgs)...)
+	err = chainCode.Router().Check(context.Background(), mockStub, ep.MethodName, chainCode.PrependSender(ep, sender, wrongArgs)...)
 	require.EqualError(t, err, "invalid argument value: 'arg0': for type 'int64': validate TxTestFnWithSignedTwoArgs, argument 1")
 }
 
@@ -448,7 +450,7 @@ func BatchExecuteTest(t *testing.T, ser *serieBatchExecute, args []string) peer.
 	dataIn, err := pb.Marshal(&proto.Batch{TxIDs: [][]byte{ser.testIDBytes}})
 	require.NoError(t, err)
 
-	return chainCode.batchExecute(telemetry.TraceContext{}, ms, string(dataIn))
+	return chainCode.batchExecute(context.Background(), telemetry.TraceContext{}, ms, string(dataIn))
 }
 
 // TestBatchedTxExecute tests positive test for batchedTxExecute
@@ -503,6 +505,7 @@ func TestBatchedTxExecute(t *testing.T) {
 	ms.MockTransactionEnd(testEncodedTxID)
 
 	resp, event := chainCode.batchedTxExecute(
+		context.Background(),
 		telemetry.TraceContext{},
 		btchStub,
 		txIDBytes,

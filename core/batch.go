@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"encoding/hex"
 	"fmt"
 	"runtime/debug"
@@ -143,6 +144,7 @@ func (cc *Chaincode) loadFromBatch(
 
 //nolint:funlen
 func (cc *Chaincode) batchExecute(
+	ctx context.Context,
 	traceCtx telemetry.TraceContext,
 	stub shim.ChaincodeStubInterface,
 	dataIn string,
@@ -172,7 +174,7 @@ func (cc *Chaincode) batchExecute(
 	ids := make([]string, 0, len(batch.GetTxIDs()))
 	for _, txID := range batch.GetTxIDs() {
 		ids = append(ids, hex.EncodeToString(txID))
-		resp, event := cc.batchedTxExecute(traceCtx, btchStub, txID)
+		resp, event := cc.batchedTxExecute(ctx, traceCtx, btchStub, txID)
 		response.TxResponses = append(response.TxResponses, resp)
 		events.Events = append(events.Events, event)
 	}
@@ -242,6 +244,7 @@ type TxResponse struct {
 }
 
 func (cc *Chaincode) batchedTxExecute(
+	ctx context.Context,
 	traceCtx telemetry.TraceContext,
 	stub *cachestub.BatchCacheStub,
 	binaryTxID []byte,
@@ -313,7 +316,7 @@ func (cc *Chaincode) batchedTxExecute(
 	}
 
 	span.AddEvent("calling method")
-	response, err := cc.InvokeContractMethod(traceCtx, txStub, method, pending.GetSender(), pending.GetArgs())
+	response, err := cc.InvokeContractMethod(ctx, traceCtx, txStub, method, pending.GetSender(), pending.GetArgs())
 	if err != nil {
 		_ = stub.DelState(key)
 		ee := proto.ResponseError{Error: err.Error()}

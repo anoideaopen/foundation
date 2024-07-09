@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"sort"
@@ -45,6 +46,7 @@ func NewTaskExecutor(stub shim.ChaincodeStubInterface, cc *Chaincode, tracingHan
 // using cached state between tasks to solve the MVCC problem. Each request in the arguments contains its own set of
 // arguments for the respective chaincode method calls.
 func TasksExecutorHandler(
+	ctx context.Context,
 	traceCtx telemetry.TraceContext,
 	stub shim.ChaincodeStubInterface,
 	args []string,
@@ -82,7 +84,7 @@ func TasksExecutorHandler(
 
 	executor := NewTaskExecutor(stub, cc, tracingHandler)
 
-	response, event, err := executor.ExecuteTasks(traceCtx, executeTaskRequest.GetTasks())
+	response, event, err := executor.ExecuteTasks(ctx, traceCtx, executeTaskRequest.GetTasks())
 	if err != nil {
 		return nil, handleTasksError(span, fmt.Errorf("failed to handle task for transaction %s: %w", txID, err))
 	}
@@ -107,6 +109,7 @@ func TasksExecutorHandler(
 
 // ExecuteTasks processes a group of tasks, returning a group response and event.
 func (e *TaskExecutor) ExecuteTasks(
+	ctx context.Context,
 	traceCtx telemetry.TraceContext,
 	tasks []*proto.Task,
 ) (*proto.BatchResponse, *proto.BatchEvent, error) {
@@ -119,7 +122,7 @@ func (e *TaskExecutor) ExecuteTasks(
 	predictACLCalls(e.BatchCacheStub, tasks, e.Chaincode)
 
 	for _, task := range tasks {
-		txResponse, txEvent := e.ExecuteTask(traceCtx, task, e.BatchCacheStub)
+		txResponse, txEvent := e.ExecuteTask(ctx, traceCtx, task, e.BatchCacheStub)
 		batchResponse.TxResponses = append(batchResponse.TxResponses, txResponse)
 		batchEvent.Events = append(batchEvent.Events, txEvent)
 	}
@@ -133,6 +136,7 @@ func (e *TaskExecutor) ExecuteTasks(
 
 // validatedTxSenderMethodAndArgs validates the sender, method, and arguments for a transaction.
 func (e *TaskExecutor) validatedTxSenderMethodAndArgs(
+	ctx context.Context,
 	traceCtx telemetry.TraceContext,
 	stub *cachestub.BatchCacheStub,
 	task *proto.Task,
@@ -165,7 +169,7 @@ func (e *TaskExecutor) validatedTxSenderMethodAndArgs(
 	argsToValidate := append([]string{senderAddress.AddrString()}, args...)
 
 	span.AddEvent("validating arguments")
-	if err = e.Chaincode.Router().Check(stub, method.MethodName, argsToValidate...); err != nil {
+	if err = e.Chaincode.Router().Check(ctx, stub, method.MethodName, argsToValidate...); err != nil {
 		err = fmt.Errorf("failed to validate arguments for task %s: %w", task.GetId(), err)
 		span.SetStatus(codes.Error, err.Error())
 		return nil, routing.Method{}, nil, err
@@ -185,6 +189,7 @@ func (e *TaskExecutor) validatedTxSenderMethodAndArgs(
 
 // ExecuteTask processes an individual task, returning a transaction response and event.
 func (e *TaskExecutor) ExecuteTask(
+	ctx context.Context,
 	traceCtx telemetry.TraceContext,
 	task *proto.Task,
 	stub *cachestub.BatchCacheStub,
@@ -204,14 +209,14 @@ func (e *TaskExecutor) ExecuteTask(
 	txCacheStub := stub.NewTxCacheStub(task.GetId())
 
 	span.AddEvent("validating tx sender method and args")
-	senderAddress, method, args, err := e.validatedTxSenderMethodAndArgs(traceCtx, stub, task)
+	senderAddress, method, args, err := e.validatedTxSenderMethodAndArgs(ctx, traceCtx, stub, task)
 	if err != nil {
 		err = fmt.Errorf("failed to validate transaction sender, method, and arguments for task %s: %w", task.GetId(), err)
 		return handleTaskError(span, task, err)
 	}
 
 	span.AddEvent("calling method")
-	response, err := e.Chaincode.InvokeContractMethod(traceCtx, txCacheStub, method, senderAddress, args)
+	response, err := e.Chaincode.InvokeContractMethod(ctx, traceCtx, txCacheStub, method, senderAddress, args)
 	if err != nil {
 		return handleTaskError(span, task, err)
 	}

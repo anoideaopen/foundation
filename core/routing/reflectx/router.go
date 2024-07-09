@@ -1,6 +1,7 @@
 package reflectx
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -79,7 +80,12 @@ func NewRouter(contract any) (*Router, error) {
 //
 // Returns:
 //   - error: An error if the validation fails.
-func (r *Router) Check(stub shim.ChaincodeStubInterface, method string, args ...string) error {
+func (r *Router) Check(
+	_ context.Context,
+	stub shim.ChaincodeStubInterface,
+	method string,
+	args ...string,
+) error {
 	return ValidateArguments(r.contract, method, stub, args...)
 }
 
@@ -94,7 +100,12 @@ func (r *Router) Check(stub shim.ChaincodeStubInterface, method string, args ...
 // Returns:
 //   - []byte: A slice of bytes (JSON) representing the return values.
 //   - error: An error if the invocation fails.
-func (r *Router) Invoke(stub shim.ChaincodeStubInterface, method string, args ...string) ([]byte, error) {
+func (r *Router) Invoke(
+	_ context.Context,
+	stub shim.ChaincodeStubInterface,
+	method string,
+	args ...string,
+) ([]byte, error) {
 	contract := Clone(r.contract)
 
 	if stubSetter, ok := contract.(StubSetter); ok {
