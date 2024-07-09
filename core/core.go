@@ -547,8 +547,8 @@ func (cc *Chaincode) Invoke(stub shim.ChaincodeStubInterface) (r peer.Response) 
 
 	case SwapDone:
 		cc.contract.setEnv(&environment{
-			Stub:  stub,
-			Trace: traceCtx,
+			stub:  stub,
+			trace: traceCtx,
 		})
 		defer cc.contract.delEnv()
 
@@ -556,8 +556,8 @@ func (cc *Chaincode) Invoke(stub shim.ChaincodeStubInterface) (r peer.Response) 
 
 	case MultiSwapDone:
 		cc.contract.setEnv(&environment{
-			Stub:  stub,
-			Trace: traceCtx,
+			stub:  stub,
+			trace: traceCtx,
 		})
 		defer cc.contract.delEnv()
 

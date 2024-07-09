@@ -42,8 +42,8 @@ type BaseContract struct {
 var _ BaseContractInterface = &BaseContract{}
 
 type environment struct {
-	Stub  shim.ChaincodeStubInterface
-	Trace telemetry.TraceContext
+	stub  shim.ChaincodeStubInterface
+	trace telemetry.TraceContext
 }
 
 func (bc *BaseContract) setEnv(env *environment) {
@@ -88,7 +88,7 @@ func (bc *BaseContract) setSrcFs(srcFs *embed.FS) {
 // GetStub returns stub
 func (bc *BaseContract) GetStub() shim.ChaincodeStubInterface {
 	if env := bc.getEnv(); env != nil {
-		return env.Stub
+		return env.stub
 	}
 
 	return nil
@@ -312,7 +312,7 @@ func (bc *BaseContract) NBTxHealthCheckNb(_ *types.Sender) error {
 // GetTraceContext returns trace context. Using for call methods only
 func (bc *BaseContract) GetTraceContext() telemetry.TraceContext {
 	if env := bc.getEnv(); env != nil {
-		return env.Trace
+		return env.trace
 	}
 
 	return telemetry.TraceContext{}

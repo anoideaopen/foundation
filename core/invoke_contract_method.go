@@ -41,8 +41,8 @@ func (cc *Chaincode) InvokeContractMethod(
 	defer span.End()
 
 	cc.contract.setEnv(&environment{
-		Stub:  stub,
-		Trace: traceCtx,
+		stub:  stub,
+		trace: traceCtx,
 	})
 	defer cc.contract.delEnv()
 
