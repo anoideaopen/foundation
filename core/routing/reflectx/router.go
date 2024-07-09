@@ -24,9 +24,9 @@ var (
 	ErrInvalidMethodName = errors.New("invalid method name")
 )
 
-// StubSetter represents an object that can set the ChaincodeStubInterface.
-type StubSetter interface {
-	SetStub(shim.ChaincodeStubInterface)
+// ContextSetter represents an object that can set the context.
+type ContextSetter interface {
+	SetContext(context.Context)
 }
 
 // Router routes method calls to contract methods based on reflection.
@@ -101,15 +101,15 @@ func (r *Router) Check(
 //   - []byte: A slice of bytes (JSON) representing the return values.
 //   - error: An error if the invocation fails.
 func (r *Router) Invoke(
-	_ context.Context,
+	ctx context.Context,
 	stub shim.ChaincodeStubInterface,
 	method string,
 	args ...string,
 ) ([]byte, error) {
 	contract := Clone(r.contract)
 
-	if stubSetter, ok := contract.(StubSetter); ok {
-		stubSetter.SetStub(stub)
+	if contextSetter, ok := contract.(ContextSetter); ok {
+		contextSetter.SetContext(ctx)
 	}
 
 	result, err := Call(contract, method, stub, args...)

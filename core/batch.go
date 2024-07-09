@@ -267,7 +267,7 @@ func (cc *Chaincode) batchedTxExecute(
 	e = &proto.BatchTxEvent{Id: binaryTxID, Error: &proto.ResponseError{Error: "panic batchedTxExecute"}}
 	defer func() {
 		if rc := recover(); rc != nil {
-			log.Criticalf("Tx %s panicked:\n%s", txID, string(debug.Stack()))
+			log.Criticalf("Tx %s panicked:\n%s\n%v", txID, string(debug.Stack()), rc)
 		}
 	}()
 

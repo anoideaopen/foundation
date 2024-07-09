@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"embed"
 	"encoding/hex"
 	"errors"
@@ -28,9 +29,7 @@ import (
 
 // BaseContract is a base contract for all contracts
 type BaseContract struct {
-	stub     shim.ChaincodeStubInterface
-	traceCtx telemetry.TraceContext
-
+	ctx            context.Context
 	srcFs          *embed.FS
 	config         *pb.ContractConfig
 	tracingHandler *telemetry.TracingHandler
@@ -40,6 +39,10 @@ type BaseContract struct {
 }
 
 var _ BaseContractInterface = &BaseContract{}
+
+func (bc *BaseContract) SetContext(ctx context.Context) {
+	bc.ctx = ctx
+}
 
 func (bc *BaseContract) setRouter(router routing.Router) {
 	bc.router = router
@@ -55,7 +58,11 @@ func (bc *BaseContract) setSrcFs(srcFs *embed.FS) {
 
 // GetStub returns stub
 func (bc *BaseContract) GetStub() shim.ChaincodeStubInterface {
-	return bc.stub
+	if inv := ChaincodeInvocationFromContext(bc.ctx); inv != nil {
+		return inv.Stub
+	}
+
+	return nil
 }
 
 // GetMethods returns list of methods
@@ -89,10 +96,6 @@ func (bc *BaseContract) isMethodDisabled(method routing.Method) bool {
 		}
 	}
 	return false
-}
-
-func (bc *BaseContract) SetStub(stub shim.ChaincodeStubInterface) {
-	bc.stub = stub
 }
 
 func (bc *BaseContract) QueryGetNonce(owner *types.Address) (string, error) {
@@ -281,14 +284,13 @@ func (bc *BaseContract) NBTxHealthCheckNb(_ *types.Sender) error {
 	return nil
 }
 
-// setTraceContext sets context for telemetry. For call methods only
-func (bc *BaseContract) setTraceContext(traceCtx telemetry.TraceContext) {
-	bc.traceCtx = traceCtx
-}
-
 // GetTraceContext returns trace context. Using for call methods only
 func (bc *BaseContract) GetTraceContext() telemetry.TraceContext {
-	return bc.traceCtx
+	if inv := ChaincodeInvocationFromContext(bc.ctx); inv != nil {
+		return inv.Trace
+	}
+
+	return telemetry.TraceContext{}
 }
 
 // setTracingHandler sets base contract tracingHandler
@@ -369,6 +371,9 @@ type BaseContractInterface interface { //nolint:interfacebloat
 	config.Configurator
 
 	setSrcFs(*embed.FS)
+	setIsService()
+	setTracingHandler(th *telemetry.TracingHandler)
+	setRouter(routing.Router)
 
 	// ------------------------------------------------------------------
 	GetID() string
@@ -398,18 +403,13 @@ type BaseContractInterface interface { //nolint:interfacebloat
 	AllowedIndustrialBalanceSub(address *types.Address, industrialAssets []*pb.Asset, reason string) error
 	AllowedIndustrialBalanceTransfer(from *types.Address, to *types.Address, industrialAssets []*pb.Asset, reason string) error
 
-	setTraceContext(traceCtx telemetry.TraceContext)
-	GetTraceContext() telemetry.TraceContext
-
-	setTracingHandler(th *telemetry.TracingHandler)
-	TracingHandler() *telemetry.TracingHandler
-
-	setIsService()
 	IsService() bool
 
-	setRouter(routing.Router)
-	Router() routing.Router
+	TracingHandler() *telemetry.TracingHandler
+	GetTraceContext() telemetry.TraceContext
 
-	SetStub(shim.ChaincodeStubInterface)
+	Router() routing.Router
 	GetStub() shim.ChaincodeStubInterface
+
+	SetContext(context.Context)
 }

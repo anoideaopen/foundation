@@ -467,7 +467,17 @@ func (cc *Chaincode) Invoke(stub shim.ChaincodeStubInterface) (r peer.Response) 
 
 	start := time.Now()
 
-	ctx := context.Background()
+	// Getting carrier from transient map and creating tracing span
+	traceCtx := cc.contract.TracingHandler().ContextFromStub(stub)
+	traceCtx, span := cc.contract.TracingHandler().StartNewSpan(traceCtx, "cc.Invoke")
+
+	ctx := ContextWithChaincodeInvocation(
+		context.Background(),
+		&ChaincodeInvocation{
+			Stub:  stub,
+			Trace: traceCtx,
+		},
+	)
 
 	// getting contract config
 	cfgBytes, err := config.Load(stub)
@@ -480,10 +490,6 @@ func (cc *Chaincode) Invoke(stub shim.ChaincodeStubInterface) (r peer.Response) 
 	if err = config.Configure(cc.contract, cfgBytes); err != nil {
 		return shim.Error("applying configutarion: " + err.Error())
 	}
-
-	// Getting carrier from transient map and creating tracing span
-	traceCtx := cc.contract.TracingHandler().ContextFromStub(stub)
-	traceCtx, span := cc.contract.TracingHandler().StartNewSpan(traceCtx, "cc.Invoke")
 
 	// Transaction context.
 	span.AddEvent("get transactionID")

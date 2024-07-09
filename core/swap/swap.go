@@ -115,7 +115,7 @@ type OnSwapDoneEventListener interface {
 	)
 }
 
-func UserDone(_ context.Context, bci any, stub shim.ChaincodeStubInterface, swapID string, key string) peer.Response {
+func UserDone(ctx context.Context, bci any, stub shim.ChaincodeStubInterface, swapID string, key string) peer.Response {
 	s, err := Load(stub, swapID)
 	if err != nil {
 		return shim.Error(err.Error())
@@ -158,8 +158,8 @@ func UserDone(_ context.Context, bci any, stub shim.ChaincodeStubInterface, swap
 			return shim.Error("failed to clone bci")
 		}
 
-		if stubSetter, ok := bciClone.(reflectx.StubSetter); ok {
-			stubSetter.SetStub(stub)
+		if stubSetter, ok := bciClone.(reflectx.ContextSetter); ok {
+			stubSetter.SetContext(ctx)
 		}
 
 		bciClone.OnSwapDoneEvent(
