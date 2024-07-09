@@ -152,17 +152,12 @@ func UserDone(ctx context.Context, bci any, stub shim.ChaincodeStubInterface, sw
 	// If you want to catch that events you need implement
 	// method `OnSwapDoneEvent` in chaincode.
 	// This code is for chaincode PFT, for handling user bar tokens balance changes.
-	if _, ok := bci.(OnSwapDoneEventListener); ok {
-		bciClone, ok := reflectx.Clone(bci).(OnSwapDoneEventListener)
-		if !ok {
-			return shim.Error("failed to clone bci")
+	if listener, ok := bci.(OnSwapDoneEventListener); ok {
+		if contextSetter, ok := bci.(reflectx.ContextSetter); ok {
+			contextSetter.SetContext(ctx)
 		}
 
-		if stubSetter, ok := bciClone.(reflectx.ContextSetter); ok {
-			stubSetter.SetContext(ctx)
-		}
-
-		bciClone.OnSwapDoneEvent(
+		listener.OnSwapDoneEvent(
 			s.GetToken(),
 			types.AddrFromBytes(s.GetOwner()),
 			new(big.Int).SetBytes(s.GetAmount()),

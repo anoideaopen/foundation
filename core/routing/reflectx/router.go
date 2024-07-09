@@ -106,18 +106,16 @@ func (r *Router) Invoke(
 	method string,
 	args ...string,
 ) ([]byte, error) {
-	contract := Clone(r.contract)
-
-	if contextSetter, ok := contract.(ContextSetter); ok {
+	if contextSetter, ok := r.contract.(ContextSetter); ok {
 		contextSetter.SetContext(ctx)
 	}
 
-	result, err := Call(contract, method, stub, args...)
+	result, err := Call(r.contract, method, stub, args...)
 	if err != nil {
 		return nil, err
 	}
 
-	if MethodReturnsError(contract, method) {
+	if MethodReturnsError(r.contract, method) {
 		if errorValue := result[len(result)-1]; errorValue != nil {
 			return nil, errorValue.(error) //nolint:forcetypeassert
 		}

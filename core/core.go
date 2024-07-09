@@ -478,6 +478,8 @@ func (cc *Chaincode) Invoke(stub shim.ChaincodeStubInterface) (r peer.Response) 
 			Trace: traceCtx,
 		},
 	)
+	cc.contract.SetContext(ctx)
+	defer cc.contract.delContext()
 
 	// getting contract config
 	cfgBytes, err := config.Load(stub)

@@ -7,9 +7,11 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"runtime"
 	"runtime/debug"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/anoideaopen/foundation/core/config"
@@ -29,7 +31,7 @@ import (
 
 // BaseContract is a base contract for all contracts
 type BaseContract struct {
-	ctx            context.Context
+	ctx            sync.Map
 	srcFs          *embed.FS
 	config         *pb.ContractConfig
 	tracingHandler *telemetry.TracingHandler
@@ -40,8 +42,31 @@ type BaseContract struct {
 
 var _ BaseContractInterface = &BaseContract{}
 
+func goid() int {
+	var buf [64]byte
+	n := runtime.Stack(buf[:], false)
+	idField := strings.Fields(strings.TrimPrefix(string(buf[:n]), "goroutine "))[0]
+	id, err := strconv.Atoi(idField)
+	if err != nil {
+		panic(fmt.Sprintf("cannot get goroutine id: %v", err))
+	}
+	return id
+}
+
 func (bc *BaseContract) SetContext(ctx context.Context) {
-	bc.ctx = ctx
+	bc.ctx.Store(goid(), ctx)
+}
+
+func (bc *BaseContract) delContext() {
+	bc.ctx.Delete(goid())
+}
+
+func (bc *BaseContract) getContext() context.Context {
+	if ctx, ok := bc.ctx.Load(goid()); ok {
+		return ctx.(context.Context)
+	}
+
+	return context.Background()
 }
 
 func (bc *BaseContract) setRouter(router routing.Router) {
@@ -58,7 +83,7 @@ func (bc *BaseContract) setSrcFs(srcFs *embed.FS) {
 
 // GetStub returns stub
 func (bc *BaseContract) GetStub() shim.ChaincodeStubInterface {
-	if inv := ChaincodeInvocationFromContext(bc.ctx); inv != nil {
+	if inv := ChaincodeInvocationFromContext(bc.getContext()); inv != nil {
 		return inv.Stub
 	}
 
@@ -286,7 +311,7 @@ func (bc *BaseContract) NBTxHealthCheckNb(_ *types.Sender) error {
 
 // GetTraceContext returns trace context. Using for call methods only
 func (bc *BaseContract) GetTraceContext() telemetry.TraceContext {
-	if inv := ChaincodeInvocationFromContext(bc.ctx); inv != nil {
+	if inv := ChaincodeInvocationFromContext(bc.getContext()); inv != nil {
 		return inv.Trace
 	}
 
@@ -371,9 +396,6 @@ type BaseContractInterface interface { //nolint:interfacebloat
 	config.Configurator
 
 	setSrcFs(*embed.FS)
-	setIsService()
-	setTracingHandler(th *telemetry.TracingHandler)
-	setRouter(routing.Router)
 
 	// ------------------------------------------------------------------
 	GetID() string
@@ -403,13 +425,18 @@ type BaseContractInterface interface { //nolint:interfacebloat
 	AllowedIndustrialBalanceSub(address *types.Address, industrialAssets []*pb.Asset, reason string) error
 	AllowedIndustrialBalanceTransfer(from *types.Address, to *types.Address, industrialAssets []*pb.Asset, reason string) error
 
+	setIsService()
 	IsService() bool
 
+	setTracingHandler(th *telemetry.TracingHandler)
 	TracingHandler() *telemetry.TracingHandler
 	GetTraceContext() telemetry.TraceContext
 
+	setRouter(routing.Router)
 	Router() routing.Router
+
 	GetStub() shim.ChaincodeStubInterface
 
+	delContext()
 	SetContext(context.Context)
 }
