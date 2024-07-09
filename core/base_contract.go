@@ -63,7 +63,7 @@ func (bc *BaseContract) delContext() {
 
 func (bc *BaseContract) getContext() context.Context {
 	if ctx, ok := bc.ctx.Load(goid()); ok {
-		return ctx.(context.Context)
+		return ctx.(context.Context) //nolint:forcetypeassert
 	}
 
 	return context.Background()
