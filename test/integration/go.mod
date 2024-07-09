@@ -20,7 +20,7 @@ require (
 	github.com/onsi/gomega v1.31.0
 	github.com/tedsuo/ifrit v0.0.0-20220120221754-dd274de71113
 	golang.org/x/crypto v0.24.0
-	google.golang.org/grpc v1.64.0
+	google.golang.org/grpc v1.64.1
 	google.golang.org/protobuf v1.33.0
 )
 
@@ -148,7 +148,7 @@ require (
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
-	golang.org/x/net v0.25.0 // indirect
+	golang.org/x/net v0.26.0 // indirect
 	golang.org/x/sync v0.7.0 // indirect
 	golang.org/x/sys v0.21.0 // indirect
 	golang.org/x/text v0.16.0 // indirect
