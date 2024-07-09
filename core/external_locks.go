@@ -55,7 +55,7 @@ func (bc *BaseContract) TxLockTokenBalance(
 	req *proto.BalanceLockRequest,
 ) error {
 	if req.GetId() == "" {
-		req.Id = bc.stub.GetTxID()
+		req.Id = bc.GetStub().GetTxID()
 	}
 
 	err := bc.verifyLockedArgs(sender, req)
@@ -96,7 +96,7 @@ func (bc *BaseContract) TxLockTokenBalance(
 	}
 
 	prefix := hex.EncodeToString([]byte{byte(balance.BalanceTypeTokenExternalLocked)})
-	key, err := bc.stub.CreateCompositeKey(prefix, []string{balanceLock.GetId()})
+	key, err := bc.GetStub().CreateCompositeKey(prefix, []string{balanceLock.GetId()})
 	if err != nil {
 		return fmt.Errorf("create key: %w", err)
 	}
@@ -120,11 +120,11 @@ func (bc *BaseContract) TxLockTokenBalance(
 		return err
 	}
 
-	if err = bc.stub.SetEvent(BalanceTokenLockedEvent, event); err != nil {
+	if err = bc.GetStub().SetEvent(BalanceTokenLockedEvent, event); err != nil {
 		return err
 	}
 
-	return bc.stub.PutState(key, data)
+	return bc.GetStub().PutState(key, data)
 }
 
 // TxUnlockTokenBalance - unblocks (fully or partially) tokens on the user's token balance
@@ -176,7 +176,7 @@ func (bc *BaseContract) TxUnlockTokenBalance( //nolint:funlen
 	balanceLock.CurrentAmount = new(big.Int).Sub(cur, amount).String()
 
 	prefix := hex.EncodeToString([]byte{byte(balance.BalanceTypeTokenExternalLocked)})
-	key, err := bc.stub.CreateCompositeKey(prefix, []string{balanceLock.GetId()})
+	key, err := bc.GetStub().CreateCompositeKey(prefix, []string{balanceLock.GetId()})
 	if err != nil {
 		return fmt.Errorf("create key: %w", err)
 	}
@@ -201,15 +201,15 @@ func (bc *BaseContract) TxUnlockTokenBalance( //nolint:funlen
 		return err
 	}
 
-	if err = bc.stub.SetEvent(BalanceTokenUnlockedEvent, event); err != nil {
+	if err = bc.GetStub().SetEvent(BalanceTokenUnlockedEvent, event); err != nil {
 		return err
 	}
 
 	if isDelete {
-		return bc.stub.DelState(key)
+		return bc.GetStub().DelState(key)
 	}
 
-	return bc.stub.PutState(key, data)
+	return bc.GetStub().PutState(key, data)
 }
 
 // QueryGetLockedTokenBalance - returns an existing balance token lock TokenBalanceLock
@@ -226,7 +226,7 @@ func (bc *BaseContract) TxLockAllowedBalance(
 	req *proto.BalanceLockRequest,
 ) error {
 	if req.GetId() == "" {
-		req.Id = bc.stub.GetTxID()
+		req.Id = bc.GetStub().GetTxID()
 	}
 
 	err := bc.verifyLockedArgs(sender, req)
@@ -267,7 +267,7 @@ func (bc *BaseContract) TxLockAllowedBalance(
 	}
 
 	prefix := hex.EncodeToString([]byte{byte(balance.BalanceTypeAllowedExternalLocked)})
-	key, err := bc.stub.CreateCompositeKey(prefix, []string{balanceLock.GetId()})
+	key, err := bc.GetStub().CreateCompositeKey(prefix, []string{balanceLock.GetId()})
 	if err != nil {
 		return fmt.Errorf("create key: %w", err)
 	}
@@ -291,11 +291,11 @@ func (bc *BaseContract) TxLockAllowedBalance(
 		return err
 	}
 
-	if err = bc.stub.SetEvent(BalanceAllowedLockedEvent, event); err != nil {
+	if err = bc.GetStub().SetEvent(BalanceAllowedLockedEvent, event); err != nil {
 		return err
 	}
 
-	return bc.stub.PutState(key, data)
+	return bc.GetStub().PutState(key, data)
 }
 
 // TxUnlockAllowedBalance - unblocks (fully or partially) tokens on the user's allowedbalance
@@ -347,7 +347,7 @@ func (bc *BaseContract) TxUnlockAllowedBalance( //nolint:funlen
 	balanceLock.CurrentAmount = new(big.Int).Sub(cur, amount).String()
 
 	prefix := hex.EncodeToString([]byte{byte(balance.BalanceTypeAllowedExternalLocked)})
-	key, err := bc.stub.CreateCompositeKey(prefix, []string{balanceLock.GetId()})
+	key, err := bc.GetStub().CreateCompositeKey(prefix, []string{balanceLock.GetId()})
 	if err != nil {
 		return fmt.Errorf("create key: %w", err)
 	}
@@ -372,14 +372,14 @@ func (bc *BaseContract) TxUnlockAllowedBalance( //nolint:funlen
 		return err
 	}
 
-	if err = bc.stub.SetEvent(BalanceAllowedUnlockedEvent, event); err != nil {
+	if err = bc.GetStub().SetEvent(BalanceAllowedUnlockedEvent, event); err != nil {
 		return err
 	}
 
 	if isDelete {
-		return bc.stub.DelState(key)
+		return bc.GetStub().DelState(key)
 	}
-	return bc.stub.PutState(key, data)
+	return bc.GetStub().PutState(key, data)
 }
 
 // QueryGetLockedAllowedBalance - returns the existing blocking of the allowedbalance AllowedBalanceLock
@@ -394,12 +394,12 @@ func (bc *BaseContract) getLockedTokenBalance(lockID string) (*proto.TokenBalanc
 		return nil, ErrEmptyLockID
 	}
 	prefix := hex.EncodeToString([]byte{byte(balance.BalanceTypeTokenExternalLocked)})
-	key, err := bc.stub.CreateCompositeKey(prefix, []string{lockID})
+	key, err := bc.GetStub().CreateCompositeKey(prefix, []string{lockID})
 	if err != nil {
 		return nil, fmt.Errorf("create key: %w", err)
 	}
 
-	data, err := bc.stub.GetState(key)
+	data, err := bc.GetStub().GetState(key)
 	if err != nil {
 		return nil, fmt.Errorf("get token balance lock from state: %w", err)
 	}
@@ -421,12 +421,12 @@ func (bc *BaseContract) getLockedAllowedBalance(lockID string) (*proto.AllowedBa
 		return nil, ErrEmptyLockID
 	}
 	prefix := hex.EncodeToString([]byte{byte(balance.BalanceTypeAllowedExternalLocked)})
-	key, err := bc.stub.CreateCompositeKey(prefix, []string{lockID})
+	key, err := bc.GetStub().CreateCompositeKey(prefix, []string{lockID})
 	if err != nil {
 		return nil, fmt.Errorf("create key: %w", err)
 	}
 
-	data, err := bc.stub.GetState(key)
+	data, err := bc.GetStub().GetState(key)
 	if err != nil {
 		return nil, fmt.Errorf("get allowed balance lock from state: %w", err)
 	}
@@ -448,11 +448,11 @@ func (bc *BaseContract) verifyLockedArgs(
 	req *proto.BalanceLockRequest,
 ) error {
 	// Sender verification
-	if !bc.config.IsAdminSet() {
+	if !bc.ContractConfig().IsAdminSet() {
 		return ErrAdminNotSet
 	}
 
-	if admin, err := types.AddrFromBase58Check(bc.config.GetAdmin().GetAddress()); err == nil {
+	if admin, err := types.AddrFromBase58Check(bc.ContractConfig().GetAdmin().GetAddress()); err == nil {
 		if !sender.Equal(admin) {
 			return ErrUnauthorisedNotAdmin
 		}

@@ -62,11 +62,11 @@ func (bc *BaseContract) TxChannelTransferByAdmin(
 	amount *big.Int,
 ) (string, error) {
 	// Checks
-	if !bc.config.IsAdminSet() {
+	if !bc.ContractConfig().IsAdminSet() {
 		return "", cctransfer.ErrAdminNotSet
 	}
 
-	if admin, err := types.AddrFromBase58Check(bc.config.GetAdmin().GetAddress()); err == nil {
+	if admin, err := types.AddrFromBase58Check(bc.ContractConfig().GetAdmin().GetAddress()); err == nil {
 		if !sender.Equal(admin) {
 			return "", cctransfer.ErrUnauthorisedNotAdmin
 		}
@@ -89,13 +89,13 @@ func (bc *BaseContract) createCCTransferFrom(
 	token string,
 	amount *big.Int,
 ) (string, error) {
-	if strings.EqualFold(bc.config.GetSymbol(), to) {
+	if strings.EqualFold(bc.ContractConfig().GetSymbol(), to) {
 		return "", cctransfer.ErrInvalidChannel
 	}
 
 	t := tokenSymbol(token)
 
-	if !strings.EqualFold(bc.config.GetSymbol(), t) && !strings.EqualFold(to, t) {
+	if !strings.EqualFold(bc.ContractConfig().GetSymbol(), t) && !strings.EqualFold(to, t) {
 		return "", cctransfer.ErrInvalidToken
 	}
 
@@ -114,12 +114,12 @@ func (bc *BaseContract) createCCTransferFrom(
 
 	tr := &pb.CCTransfer{
 		Id:               idTransfer,
-		From:             bc.config.GetSymbol(),
+		From:             bc.ContractConfig().GetSymbol(),
 		To:               to,
 		Token:            token,
 		User:             idUser.Bytes(),
 		Amount:           amount.Bytes(),
-		ForwardDirection: strings.EqualFold(bc.config.GetSymbol(), t),
+		ForwardDirection: strings.EqualFold(bc.ContractConfig().GetSymbol(), t),
 		TimeAsNanos:      ts.AsTime().UnixNano(),
 	}
 
@@ -162,7 +162,7 @@ func (bc *BaseContract) TxCreateCCTransferTo(dataIn string) (string, error) {
 		return "", cctransfer.ErrIDTransferExist
 	}
 
-	if !strings.EqualFold(bc.config.GetSymbol(), tr.GetFrom()) && !strings.EqualFold(bc.config.GetSymbol(), tr.GetTo()) {
+	if !strings.EqualFold(bc.ContractConfig().GetSymbol(), tr.GetFrom()) && !strings.EqualFold(bc.ContractConfig().GetSymbol(), tr.GetTo()) {
 		return "", cctransfer.ErrInvalidChannel
 	}
 

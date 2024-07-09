@@ -21,11 +21,11 @@ func (bc *BaseContract) TxTransferBalance(
 	sender *types.Sender,
 	req *proto.TransferRequest,
 ) error {
-	if !bc.config.IsAdminSet() {
+	if !bc.ContractConfig().IsAdminSet() {
 		return ErrAdminNotSet
 	}
 
-	if admin, err := types.AddrFromBase58Check(bc.config.GetAdmin().GetAddress()); err == nil {
+	if admin, err := types.AddrFromBase58Check(bc.ContractConfig().GetAdmin().GetAddress()); err == nil {
 		if !sender.Equal(admin) {
 			return ErrUnauthorisedNotAdmin
 		}
@@ -34,7 +34,7 @@ func (bc *BaseContract) TxTransferBalance(
 	}
 
 	if req.GetRequestId() == "" {
-		req.RequestId = bc.stub.GetTxID()
+		req.RequestId = bc.GetStub().GetTxID()
 	}
 
 	fromAddress, err := types.AddrFromBase58Check(req.GetFromAddress())

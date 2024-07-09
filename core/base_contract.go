@@ -28,10 +28,11 @@ import (
 
 // BaseContract is a base contract for all contracts
 type BaseContract struct {
-	stub           shim.ChaincodeStubInterface
+	stub     shim.ChaincodeStubInterface
+	traceCtx telemetry.TraceContext
+
 	srcFs          *embed.FS
 	config         *pb.ContractConfig
-	traceCtx       telemetry.TraceContext
 	tracingHandler *telemetry.TracingHandler
 	lockTH         sync.RWMutex
 	isService      bool
@@ -74,15 +75,15 @@ func (bc *BaseContract) GetMethods(bci BaseContractInterface) []string {
 }
 
 func (bc *BaseContract) isMethodDisabled(method routing.Method) bool {
-	for _, disabled := range bc.config.GetOptions().GetDisabledFunctions() {
+	for _, disabled := range bc.ContractConfig().GetOptions().GetDisabledFunctions() {
 		if method.MethodName == disabled {
 			return true
 		}
-		if bc.config.GetOptions().GetDisableSwaps() &&
+		if bc.ContractConfig().GetOptions().GetDisableSwaps() &&
 			stringsx.OneOf(method.MethodName, "QuerySwapGet", "TxSwapBegin", "TxSwapCancel") {
 			return true
 		}
-		if bc.config.GetOptions().GetDisableMultiSwaps() &&
+		if bc.ContractConfig().GetOptions().GetDisableMultiSwaps() &&
 			stringsx.OneOf(method.MethodName, "QueryMultiSwapGet", "TxMultiSwapBegin", "TxMultiSwapCancel") {
 			return true
 		}
@@ -96,12 +97,12 @@ func (bc *BaseContract) SetStub(stub shim.ChaincodeStubInterface) {
 
 func (bc *BaseContract) QueryGetNonce(owner *types.Address) (string, error) {
 	prefix := hex.EncodeToString([]byte{StateKeyNonce})
-	key, err := bc.stub.CreateCompositeKey(prefix, []string{owner.String()})
+	key, err := bc.GetStub().CreateCompositeKey(prefix, []string{owner.String()})
 	if err != nil {
 		return "", err
 	}
 
-	data, err := bc.stub.GetState(key)
+	data, err := bc.GetStub().GetState(key)
 	if err != nil {
 		return "", err
 	}
@@ -240,7 +241,7 @@ func (bc *BaseContract) TxHealthCheck(_ *types.Sender) error {
 }
 
 func (bc *BaseContract) ID() string {
-	return bc.config.GetSymbol()
+	return bc.ContractConfig().GetSymbol()
 }
 
 func (bc *BaseContract) GetID() string { // deprecated
