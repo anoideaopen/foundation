@@ -20,11 +20,11 @@ func ContextWithChaincodeInvocation(parent context.Context, inv *ChaincodeInvoca
 
 // ChaincodeInvocationFromContext retrieves a ChaincodeInvocation from the context.
 func ChaincodeInvocationFromContext(ctx context.Context) *ChaincodeInvocation {
-	inv, ok := ctx.Value(chaincodeInvocationKey).(*ChaincodeInvocation)
-	if !ok {
-		return nil
+	if inv, ok := ctx.Value(chaincodeInvocationKey).(*ChaincodeInvocation); ok {
+		return inv
 	}
-	return inv
+
+	return nil
 }
 
 // ctxKey is a type used for keys in context values.
