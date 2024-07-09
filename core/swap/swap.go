@@ -2,6 +2,7 @@ package swap
 
 import (
 	"bytes"
+	"context"
 	"encoding/hex"
 	"fmt"
 	"log"
@@ -114,7 +115,7 @@ type OnSwapDoneEventListener interface {
 	)
 }
 
-func UserDone(bci any, stub shim.ChaincodeStubInterface, swapID string, key string) peer.Response {
+func UserDone(_ context.Context, bci any, stub shim.ChaincodeStubInterface, swapID string, key string) peer.Response {
 	s, err := Load(stub, swapID)
 	if err != nil {
 		return shim.Error(err.Error())

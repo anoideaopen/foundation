@@ -2,6 +2,7 @@ package core
 
 import (
 	"bytes"
+	"context"
 	"encoding/hex"
 	"errors"
 	mathbig "math/big"
@@ -29,6 +30,7 @@ const (
 // Returns a shim.Success response if the swap done logic executes successfully.
 // Otherwise, it returns a shim.Error response.
 func (cc *Chaincode) swapDoneHandler(
+	ctx context.Context,
 	stub shim.ChaincodeStubInterface,
 	args []string,
 ) peer.Response {
@@ -36,7 +38,7 @@ func (cc *Chaincode) swapDoneHandler(
 		return shim.Error("handling swap done failed, " + ErrSwapDisabled.Error())
 	}
 
-	return swap.UserDone(cc.contract, stub, args[0], args[1])
+	return swap.UserDone(ctx, cc.contract, stub, args[0], args[1])
 }
 
 // QuerySwapGet returns swap by id

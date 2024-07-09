@@ -2,6 +2,7 @@ package core
 
 import (
 	"bytes"
+	"context"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -26,6 +27,7 @@ import (
 // Returns a shim.Success response if the multi-swap done logic executes successfully.
 // Otherwise, it returns a shim.Error response.
 func (cc *Chaincode) multiSwapDoneHandler(
+	ctx context.Context,
 	stub shim.ChaincodeStubInterface,
 	symbol string,
 	args []string,
@@ -34,7 +36,7 @@ func (cc *Chaincode) multiSwapDoneHandler(
 		return shim.Error("handling multi-swap done failed, " + ErrMultiSwapDisabled.Error())
 	}
 
-	return multiswap.UserDone(cc.contract, stub, symbol, args[0], args[1])
+	return multiswap.UserDone(ctx, cc.contract, stub, symbol, args[0], args[1])
 }
 
 // QueryMultiSwapGet - returns multiswap by id

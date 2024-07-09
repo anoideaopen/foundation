@@ -2,6 +2,7 @@ package multiswap
 
 import (
 	"bytes"
+	"context"
 	"encoding/hex"
 	"errors"
 	"log"
@@ -119,7 +120,7 @@ type OnMultiSwapDoneEventListener interface {
 	)
 }
 
-func UserDone(bci any, stub shim.ChaincodeStubInterface, symbol string, swapID string, key string) peer.Response {
+func UserDone(_ context.Context, bci any, stub shim.ChaincodeStubInterface, symbol string, swapID string, key string) peer.Response {
 	swap, err := Load(stub, swapID)
 	if err != nil {
 		return shim.Error(err.Error())

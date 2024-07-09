@@ -549,10 +549,10 @@ func (cc *Chaincode) Invoke(stub shim.ChaincodeStubInterface) (r peer.Response) 
 		return cc.batchExecuteHandler(ctx, traceCtx, stub, creatorSKI, hashedCert, arguments)
 
 	case SwapDone:
-		return cc.swapDoneHandler(stub, arguments)
+		return cc.swapDoneHandler(ctx, stub, arguments)
 
 	case MultiSwapDone:
-		return cc.multiSwapDoneHandler(stub, cc.contract.ContractConfig().GetSymbol(), arguments)
+		return cc.multiSwapDoneHandler(ctx, stub, cc.contract.ContractConfig().GetSymbol(), arguments)
 
 	case CreateCCTransferTo,
 		DeleteCCTransferTo,
