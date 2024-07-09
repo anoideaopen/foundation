@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"embed"
 	"encoding/hex"
 	"errors"
@@ -464,6 +465,8 @@ func (cc *Chaincode) Invoke(stub shim.ChaincodeStubInterface) (r peer.Response) 
 		}
 	}()
 
+	ctx := context.TODO() // TODO: Set the context.
+
 	start := time.Now()
 
 	// getting contract config
@@ -543,7 +546,7 @@ func (cc *Chaincode) Invoke(stub shim.ChaincodeStubInterface) (r peer.Response) 
 				time.Since(start),
 			)
 		}()
-		return cc.batchExecuteHandler(traceCtx, stub, creatorSKI, hashedCert, arguments)
+		return cc.batchExecuteHandler(ctx, traceCtx, stub, creatorSKI, hashedCert, arguments)
 
 	case SwapDone:
 		return cc.swapDoneHandler(stub, arguments)
@@ -574,6 +577,7 @@ func (cc *Chaincode) Invoke(stub shim.ChaincodeStubInterface) (r peer.Response) 
 			)
 		}()
 		bytes, err := TasksExecutorHandler(
+			ctx,
 			traceCtx,
 			stub,
 			arguments,
@@ -614,11 +618,11 @@ func (cc *Chaincode) Invoke(stub shim.ChaincodeStubInterface) (r peer.Response) 
 	// handle invoke and query methods executed without batch process
 	if method.Type == routing.MethodTypeInvoke || method.Type == routing.MethodTypeQuery {
 		span.SetAttributes(telemetry.MethodType(telemetry.MethodNbTx))
-		return cc.noBatchHandler(traceCtx, stub, method, arguments)
+		return cc.noBatchHandler(ctx, traceCtx, stub, method, arguments)
 	}
 
 	// handle invoke method with batch process
-	return cc.BatchHandler(traceCtx, stub, method, arguments)
+	return cc.BatchHandler(ctx, traceCtx, stub, method, arguments)
 }
 
 // ValidateTxID validates the transaction ID to ensure it is correctly formatted.
@@ -650,6 +654,7 @@ func (cc *Chaincode) ValidateTxID(stub shim.ChaincodeStubInterface) error {
 // - A success response if the batching is successful.
 // - An error response if there is any failure in authentication, preparation, or saving to batch.
 func (cc *Chaincode) BatchHandler(
+	ctx context.Context,
 	traceCtx telemetry.TraceContext,
 	stub shim.ChaincodeStubInterface,
 	method routing.Method,
@@ -666,7 +671,12 @@ func (cc *Chaincode) BatchHandler(
 	}
 
 	span.AddEvent("validating arguments")
-	if err = cc.Router().Check(stub, method.MethodName, cc.PrependSender(method, sender, args)...); err != nil {
+	if err = cc.Router().Check(
+		ctx,
+		stub,
+		method.MethodName,
+		cc.PrependSender(method, sender, args)...,
+	); err != nil {
 		span.SetStatus(codes.Error, "validating arguments failed")
 		return shim.Error(err.Error())
 	}
@@ -690,6 +700,7 @@ func (cc *Chaincode) BatchHandler(
 //
 // Returns a shim.Success response if the function invocation is successful. Otherwise, it returns a shim.Error response.
 func (cc *Chaincode) noBatchHandler(
+	ctx context.Context,
 	traceCtx telemetry.TraceContext,
 	stub shim.ChaincodeStubInterface,
 	method routing.Method,
@@ -711,13 +722,18 @@ func (cc *Chaincode) noBatchHandler(
 
 	span.AddEvent("validating arguments")
 
-	if err = cc.Router().Check(stub, method.MethodName, cc.PrependSender(method, sender, args)...); err != nil {
+	if err = cc.Router().Check(
+		ctx,
+		stub,
+		method.MethodName,
+		cc.PrependSender(method, sender, args)...,
+	); err != nil {
 		span.SetStatus(codes.Error, "validating arguments failed")
 		return shim.Error(err.Error())
 	}
 
 	span.AddEvent("calling method")
-	resp, err := cc.InvokeContractMethod(traceCtx, stub, method, sender, args)
+	resp, err := cc.InvokeContractMethod(ctx, traceCtx, stub, method, sender, args)
 	if err != nil {
 		span.SetStatus(codes.Error, err.Error())
 		return shim.Error(err.Error())
@@ -736,6 +752,7 @@ func (cc *Chaincode) noBatchHandler(
 // Returns a shim.Success response if the batch execution is successful. Otherwise, it returns a shim.Error response
 // indicating either an incorrect transaction ID or unauthorized access.
 func (cc *Chaincode) batchExecuteHandler(
+	ctx context.Context,
 	traceCtx telemetry.TraceContext,
 	stub shim.ChaincodeStubInterface,
 	creatorSKI [32]byte,
@@ -749,7 +766,7 @@ func (cc *Chaincode) batchExecuteHandler(
 		return shim.Error("unauthorized: robotSKI is not equal creatorSKI and hashedCert: " + err.Error())
 	}
 
-	return cc.batchExecute(traceCtx, stub, args[0])
+	return cc.batchExecute(ctx, traceCtx, stub, args[0])
 }
 
 // Start begins the chaincode execution based on the environment configuration. It decides whether to

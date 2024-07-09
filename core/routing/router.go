@@ -1,6 +1,10 @@
 package routing
 
-import "github.com/hyperledger/fabric-chaincode-go/shim"
+import (
+	"context"
+
+	"github.com/hyperledger/fabric-chaincode-go/shim"
+)
 
 // MethodType represents the type of a method in the contract.
 type MethodType int
@@ -28,11 +32,21 @@ type Method struct {
 type Router interface {
 	// Check validates the provided arguments for the specified method.
 	// It returns an error if the validation fails.
-	Check(stub shim.ChaincodeStubInterface, method string, args ...string) error
+	Check(
+		ctx context.Context,
+		stub shim.ChaincodeStubInterface,
+		method string,
+		args ...string,
+	) error
 
 	// Invoke calls the specified method with the provided arguments.
 	// It returns a byte slice of response and an error if the invocation fails.
-	Invoke(stub shim.ChaincodeStubInterface, method string, args ...string) ([]byte, error)
+	Invoke(
+		ctx context.Context,
+		stub shim.ChaincodeStubInterface,
+		method string,
+		args ...string,
+	) ([]byte, error)
 
 	// Methods retrieves a map of all available methods, keyed by their chaincode function names.
 	Methods() map[Function]Method

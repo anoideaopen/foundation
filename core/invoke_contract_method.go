@@ -1,6 +1,8 @@
 package core
 
 import (
+	"context"
+
 	"github.com/anoideaopen/foundation/core/routing"
 	"github.com/anoideaopen/foundation/core/telemetry"
 	"github.com/anoideaopen/foundation/proto"
@@ -31,6 +33,7 @@ import (
 //  7. Processes the return error if the method returns an error.
 //  8. Sets the trace status to Ok if no error occurs and returns the result.
 func (cc *Chaincode) InvokeContractMethod(
+	ctx context.Context,
 	traceCtx telemetry.TraceContext,
 	stub shim.ChaincodeStubInterface,
 	method routing.Method,
@@ -41,7 +44,12 @@ func (cc *Chaincode) InvokeContractMethod(
 	defer span.End()
 
 	span.AddEvent("call")
-	result, err := cc.Router().Invoke(stub, method.MethodName, cc.PrependSender(method, sender, args)...)
+	result, err := cc.Router().Invoke(
+		ctx,
+		stub,
+		method.MethodName,
+		cc.PrependSender(method, sender, args)...,
+	)
 	if err != nil {
 		span.SetStatus(codes.Error, err.Error())
 		return nil, err

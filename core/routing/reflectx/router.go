@@ -1,6 +1,7 @@
 package reflectx
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -71,30 +72,23 @@ func NewRouter(contract any) (*Router, error) {
 
 // Check validates the provided arguments for the specified method.
 // It returns an error if the validation fails.
-//
-// Parameters:
-//   - stub: The ChaincodeStubInterface instance to use for the validation.
-//   - method: The name of the method to validate arguments for.
-//   - args: The arguments to validate.
-//
-// Returns:
-//   - error: An error if the validation fails.
-func (r *Router) Check(stub shim.ChaincodeStubInterface, method string, args ...string) error {
+func (r *Router) Check(
+	_ context.Context,
+	stub shim.ChaincodeStubInterface,
+	method string,
+	args ...string,
+) error {
 	return ValidateArguments(r.contract, method, stub, args...)
 }
 
 // Invoke calls the specified method with the provided arguments.
 // It returns a slice of return values and an error if the invocation fails.
-//
-// Parameters:
-//   - stub: The ChaincodeStubInterface instance to use for the invocation.
-//   - method: The name of the method to invoke.
-//   - args: The arguments to pass to the method.
-//
-// Returns:
-//   - []byte: A slice of bytes (JSON) representing the return values.
-//   - error: An error if the invocation fails.
-func (r *Router) Invoke(stub shim.ChaincodeStubInterface, method string, args ...string) ([]byte, error) {
+func (r *Router) Invoke(
+	_ context.Context,
+	stub shim.ChaincodeStubInterface,
+	method string,
+	args ...string,
+) ([]byte, error) {
 	contract := Clone(r.contract)
 
 	if stubSetter, ok := contract.(StubSetter); ok {
@@ -131,9 +125,6 @@ func (r *Router) Invoke(stub shim.ChaincodeStubInterface, method string, args ..
 }
 
 // Methods retrieves a map of all available methods, keyed by their chaincode function names.
-//
-// Returns:
-//   - map[routing.Function]routing.Method: A map of all available methods.
 func (r *Router) Methods() map[routing.Function]routing.Method {
 	return r.methods
 }

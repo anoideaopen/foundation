@@ -168,19 +168,16 @@ func (r *Router) RegisterService(desc *grpc.ServiceDesc, impl any) {
 
 // Check validates the provided arguments for the specified method.
 // It returns an error if the validation fails.
-//
-// Parameters:
-//   - stub: The ChaincodeStubInterface instance to use for the validation.
-//   - method: The name of the method to validate arguments for.
-//   - args: The arguments to validate.
-//
-// Returns:
-//   - error: An error if the validation fails.
-func (r *Router) Check(stub shim.ChaincodeStubInterface, method string, args ...string) error {
+func (r *Router) Check(
+	ctx context.Context,
+	stub shim.ChaincodeStubInterface,
+	method string,
+	args ...string,
+) error {
 	h, ok := r.handlers[method]
 	if !ok {
 		if r.fallback != nil {
-			return r.fallback.Check(stub, method, args...)
+			return r.fallback.Check(ctx, stub, method, args...)
 		}
 
 		return ErrUnsupportedMethod
@@ -230,20 +227,16 @@ func (r *Router) Check(stub shim.ChaincodeStubInterface, method string, args ...
 
 // Invoke calls the specified method with the provided arguments.
 // It returns a slice of return values and an error if the invocation fails.
-//
-// Parameters:
-//   - stub: The ChaincodeStubInterface instance to use for the invocation.
-//   - method: The name of the method to invoke.
-//   - args: The arguments to pass to the method.
-//
-// Returns:
-//   - []byte: A slice of bytes (protojson JSON) representing the return values.
-//   - error: An error if the invocation fails.
-func (r *Router) Invoke(stub shim.ChaincodeStubInterface, method string, args ...string) ([]byte, error) {
+func (r *Router) Invoke(
+	ctx context.Context,
+	stub shim.ChaincodeStubInterface,
+	method string,
+	args ...string,
+) ([]byte, error) {
 	h, ok := r.handlers[method]
 	if !ok {
 		if r.fallback != nil {
-			return r.fallback.Invoke(stub, method, args...)
+			return r.fallback.Invoke(ctx, stub, method, args...)
 		}
 
 		return nil, ErrUnsupportedMethod
@@ -252,8 +245,6 @@ func (r *Router) Invoke(stub shim.ChaincodeStubInterface, method string, args ..
 	if len(args) != h.contractMethod.NumArgs {
 		return nil, ErrInvalidNumberOfArguments
 	}
-
-	ctx := context.Background()
 
 	if h.contractMethod.RequiresAuth {
 		ctx = ContextWithSender(ctx, args[0])
