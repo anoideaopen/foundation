@@ -14,7 +14,7 @@ type FeeTransferRequestDTO struct {
 	Amount           *big.Int       `json:"amount,omitempty"`
 }
 
-func (r FeeTransferRequestDTO) Validate() error {
+func (r FeeTransferRequestDTO) Check() error {
 	if r.SenderAddress == nil || r.SenderAddress.String() == "" {
 		return errors.New("sender address can't be empty")
 	}

@@ -65,9 +65,9 @@ func (a *Address) MarshalJSON() ([]byte, error) {
 	return json.Marshal(a.String())
 }
 
-// Validate checks if the address is blacklisted by querying the account
+// CheckWithStub checks if the address is blacklisted by querying the account
 // information from the provided ChaincodeStubInterface.
-func (a *Address) ValidateWithStub(stub shim.ChaincodeStubInterface) error {
+func (a *Address) CheckWithStub(stub shim.ChaincodeStubInterface) error {
 	accInfo, err := helpers.GetAccountInfo(stub, a.String())
 	if err != nil {
 		return err

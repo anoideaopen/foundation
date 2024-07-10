@@ -8,7 +8,6 @@ import (
 
 	"github.com/anoideaopen/foundation/core/routing"
 	"github.com/anoideaopen/foundation/core/stringsx"
-	"github.com/anoideaopen/foundation/core/types"
 	"github.com/hyperledger/fabric-chaincode-go/shim"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -211,14 +210,10 @@ func (r *Router) Check(stub shim.ChaincodeStubInterface, method string, args ...
 			info *grpc.UnaryServerInfo,
 			handler grpc.UnaryHandler,
 		) (resp any, err error) {
-			if validator, ok := req.(types.Validator); ok {
+			if validator, ok := req.(interface{ Validate() error }); ok {
 				if err := validator.Validate(); err != nil {
 					return resp, err
 				}
-			}
-
-			if validator, ok := h.service.(types.ValidatorWithStub); ok {
-				return resp, validator.ValidateWithStub(stub)
 			}
 
 			return resp, nil

@@ -53,8 +53,8 @@ func ValidateArguments(v any, method string, stub shim.ChaincodeStubInterface, a
 
 		iface := value.Interface()
 
-		if validator, ok := iface.(types.Validator); ok {
-			if err := validator.Validate(); err != nil {
+		if checker, ok := iface.(types.Checker); ok {
+			if err := checker.Check(); err != nil {
 				return fmt.Errorf(
 					"%w: '%s': validation failed: '%v': validate %s, argument %d",
 					ErrInvalidArgumentValue,
@@ -69,8 +69,8 @@ func ValidateArguments(v any, method string, stub shim.ChaincodeStubInterface, a
 		if stub == nil {
 			continue
 		}
-		if validator, ok := iface.(types.ValidatorWithStub); ok {
-			if err := validator.ValidateWithStub(stub); err != nil {
+		if checker, ok := iface.(types.CheckerWithStub); ok {
+			if err := checker.CheckWithStub(stub); err != nil {
 				return fmt.Errorf(
 					"%w: '%s': validation failed: '%v': validate %s, argument %d",
 					ErrInvalidArgumentValue,

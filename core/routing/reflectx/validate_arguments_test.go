@@ -77,7 +77,7 @@ type TestValidator struct {
 	Value string
 }
 
-func (v *TestValidator) Validate() error {
+func (v *TestValidator) Check() error {
 	if v.Value == "" {
 		return fmt.Errorf("invalid value")
 	}
