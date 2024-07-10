@@ -5,7 +5,7 @@ go 1.22.5
 require (
 	github.com/IBM/idemix v0.0.2-0.20231011101252-a4feda90f3f7
 	github.com/anoideaopen/acl v0.0.4-0.20240709131543-bf642c53380c
-	github.com/anoideaopen/channel-transfer v0.0.2-alpha
+	github.com/anoideaopen/channel-transfer v0.0.2
 	github.com/anoideaopen/foundation v0.0.3
 	github.com/anoideaopen/robot v0.0.2
 	github.com/btcsuite/btcutil v1.0.3-0.20201208143702-a53e38424cce
@@ -65,6 +65,7 @@ require (
 	github.com/felixge/httpsnoop v1.0.3 // indirect
 	github.com/flowchartsman/swaggerui v0.0.0-20221017034628-909ed4f3701b // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
+	github.com/go-errors/errors v1.5.1 // indirect
 	github.com/go-kit/kit v0.10.0 // indirect
 	github.com/go-logfmt/logfmt v0.5.1 // indirect
 	github.com/go-logr/logr v1.4.2 // indirect

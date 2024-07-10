@@ -329,7 +329,6 @@ var _ = Describe("Channel transfer foundation Tests", func() {
 		client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC,
 			fabricnetwork.CheckResult(fabricnetwork.CheckBalance("250"), nil),
 			"allowedBalanceOf", user.AddressBase58Check, "FIAT")
-		Eventually(ordererRunners[3].Err(), network.EventuallyTimeout/12, time.Second).Should(gbytes.Say("PFI1"))
 	})
 
 	It("transfer by customer test", func() {

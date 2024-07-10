@@ -659,8 +659,8 @@ github.com/allegro/bigcache v1.2.1-0.20190218064605-e24eb225f156/go.mod h1:Cb/ax
 github.com/andybalholm/brotli v1.0.4/go.mod h1:fO7iG3H7G2nSZ7m0zPUDn85XEX2GTukHGRSepvi9Eig=
 github.com/anoideaopen/acl v0.0.4-0.20240709131543-bf642c53380c h1:sEpbALmki6CXUmH+TG/bYLczfZ0eVGLKjivNfvvS+r8=
 github.com/anoideaopen/acl v0.0.4-0.20240709131543-bf642c53380c/go.mod h1:t2MkA2fxlOAcH3XU0twKFIksVuKkDZsEOWmi0J5nxCY=
-github.com/anoideaopen/channel-transfer v0.0.2-alpha h1:FThrPQet//XGZhsUpwM4MY777zbqY2dNSh+ROG3/nLw=
-github.com/anoideaopen/channel-transfer v0.0.2-alpha/go.mod h1:Pkf/4OedTTtn0zccSX4h+t+tfy1XeRT/PyZailGtsfw=
+github.com/anoideaopen/channel-transfer v0.0.2 h1:fP1A2anjqpiCdZwnuly6E7d8zlRSC89MvMEyvL+6tMY=
+github.com/anoideaopen/channel-transfer v0.0.2/go.mod h1:Snf5CMfhXx8AUFP2zfDhIHIAkLtmI3h+k3u24fSm0Bs=
 github.com/anoideaopen/common-component v0.0.5 h1:X4TLWE0+GBT7lgTw3cu2u8xyA15H09yV87nqzjcKoPU=
 github.com/anoideaopen/common-component v0.0.5/go.mod h1:m1adEQdkVfAy4efFlY3+uqL73dAKXRSOiTsklHOzf3c=
 github.com/anoideaopen/fabric-sdk-go v0.0.1 h1:SCnrPPqqBLredJ2AbqbpPrQlrmfWVTZiUUjBLrRnIuk=
@@ -858,6 +858,8 @@ github.com/getsentry/raven-go v0.0.0-20180121060056-563b81fc02b7/go.mod h1:KungG
 github.com/getsentry/sentry-go v0.18.0 h1:MtBW5H9QgdcJabtZcuJG80BMOwaBpkRDZkxRkNC1sN0=
 github.com/getsentry/sentry-go v0.18.0/go.mod h1:Kgon4Mby+FJ7ZWHFUAZgVaIa8sxHtnRJRLTXZr51aKQ=
 github.com/ghodss/yaml v1.0.0/go.mod h1:4dBDuWmgqj2HViK6kFavaiC9ZROes6MMH2rRYeMEF04=
+github.com/go-errors/errors v1.5.1 h1:ZwEMSLRCapFLflTpT7NKaAc7ukJ8ZPEjzlxt8rPN8bk=
+github.com/go-errors/errors v1.5.1/go.mod h1:sIVyrIiJhuEF+Pj9Ebtd6P/rEYROXFi3BopGUQ5a5Og=
 github.com/go-fonts/dejavu v0.1.0/go.mod h1:4Wt4I4OU2Nq9asgDCteaAaWZOV24E+0/Pwo0gppep4g=
 github.com/go-fonts/latin-modern v0.2.0/go.mod h1:rQVLdDMK+mK1xscDwsqM5J8U2jrRa3T0ecnM9pNujks=
 github.com/go-fonts/liberation v0.1.1/go.mod h1:K6qoJYypsmfVjWg8KOVDQhLc8UDgIK2HYqyqAO9z7GY=
