@@ -12,7 +12,6 @@ import (
 	"github.com/anoideaopen/foundation/test/integration/cmn/client"
 	"github.com/anoideaopen/foundation/test/integration/cmn/fabricnetwork"
 	"github.com/anoideaopen/foundation/test/integration/cmn/runner"
-	"github.com/bsm/gomega/gexec"
 	docker "github.com/fsouza/go-dockerclient"
 	"github.com/hyperledger/fabric/integration/nwo"
 	"github.com/hyperledger/fabric/integration/nwo/commands"
@@ -21,6 +20,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gbytes"
+	"github.com/onsi/gomega/gexec"
 	"github.com/tedsuo/ifrit"
 	ginkgomon "github.com/tedsuo/ifrit/ginkgomon_v2"
 )
@@ -90,13 +90,6 @@ var _ = Describe("Basic foundation Tests", func() {
 			redisProcess = ifrit.Invoke(redisDB)
 			Eventually(redisProcess.Ready(), runnerFbk.DefaultStartTimeout).Should(BeClosed())
 			Consistently(redisProcess.Wait()).ShouldNot(Receive())
-		})
-		AfterEach(func() {
-			By("stop redis " + redisDB.Address())
-			if redisProcess != nil {
-				redisProcess.Signal(syscall.SIGTERM)
-				Eventually(redisProcess.Wait(), time.Minute).Should(Receive())
-			}
 		})
 		BeforeEach(func() {
 			networkConfig := nwo.MultiNodeSmartBFT()
@@ -198,6 +191,13 @@ var _ = Describe("Basic foundation Tests", func() {
 			if robotProc != nil {
 				robotProc.Signal(syscall.SIGTERM)
 				Eventually(robotProc.Wait(), network.EventuallyTimeout).Should(Receive())
+			}
+		})
+		AfterEach(func() {
+			By("stop redis " + redisDB.Address())
+			if redisProcess != nil {
+				redisProcess.Signal(syscall.SIGTERM)
+				Eventually(redisProcess.Wait(), time.Minute).Should(Receive())
 			}
 		})
 

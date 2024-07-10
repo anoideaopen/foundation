@@ -86,14 +86,6 @@ var _ = Describe("Swap Tests", func() {
 		Consistently(redisProcess.Wait()).ShouldNot(Receive())
 	})
 
-	AfterEach(func() {
-		By("stop redis " + redisDB.Address())
-		if redisProcess != nil {
-			redisProcess.Signal(syscall.SIGTERM)
-			Eventually(redisProcess.Wait(), time.Minute).Should(Receive())
-		}
-	})
-
 	BeforeEach(func() {
 		networkConfig := nwo.MultiNodeSmartBFT()
 		networkConfig.Channels = nil
@@ -196,6 +188,14 @@ var _ = Describe("Swap Tests", func() {
 		if robotProc != nil {
 			robotProc.Signal(syscall.SIGTERM)
 			Eventually(robotProc.Wait(), network.EventuallyTimeout).Should(Receive())
+		}
+	})
+
+	AfterEach(func() {
+		By("stop redis " + redisDB.Address())
+		if redisProcess != nil {
+			redisProcess.Signal(syscall.SIGTERM)
+			Eventually(redisProcess.Wait(), time.Minute).Should(Receive())
 		}
 	})
 

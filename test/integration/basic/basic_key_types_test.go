@@ -87,13 +87,6 @@ var _ = Describe("Basic foundation tests with different key types", func() {
 			Eventually(redisProcess.Ready(), runnerFbk.DefaultStartTimeout).Should(BeClosed())
 			Consistently(redisProcess.Wait()).ShouldNot(Receive())
 		})
-		AfterEach(func() {
-			By("stop redis " + redisDB.Address())
-			if redisProcess != nil {
-				redisProcess.Signal(syscall.SIGTERM)
-				Eventually(redisProcess.Wait(), time.Minute).Should(Receive())
-			}
-		})
 		BeforeEach(func() {
 			networkConfig := nwo.MultiNodeSmartBFT()
 			networkConfig.Channels = nil
@@ -192,6 +185,13 @@ var _ = Describe("Basic foundation tests with different key types", func() {
 			if robotProc != nil {
 				robotProc.Signal(syscall.SIGTERM)
 				Eventually(robotProc.Wait(), network.EventuallyTimeout).Should(Receive())
+			}
+		})
+		AfterEach(func() {
+			By("stop redis " + redisDB.Address())
+			if redisProcess != nil {
+				redisProcess.Signal(syscall.SIGTERM)
+				Eventually(redisProcess.Wait(), time.Minute).Should(Receive())
 			}
 		})
 

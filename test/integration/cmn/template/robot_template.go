@@ -16,7 +16,7 @@ defaultRobotExecOpts:
   executeTimeout: 30s
 delayAfterChRobotError: 3s
 logLevel: debug
-logType: lr-json-dev
+logType: lr-txt
 profilePath: {{ .ConnectionPath User }}
 redisStor:
   addr:{{ range .Robot.RedisAddresses }}

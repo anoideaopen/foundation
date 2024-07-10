@@ -102,13 +102,6 @@ var _ = Describe("Channel transfer foundation Tests", func() {
 		Eventually(redisProcess.Ready(), runnerFbk.DefaultStartTimeout).Should(BeClosed())
 		Consistently(redisProcess.Wait()).ShouldNot(Receive())
 	})
-	AfterEach(func() {
-		By("stop redis " + redisDB.Address())
-		if redisProcess != nil {
-			redisProcess.Signal(syscall.SIGTERM)
-			Eventually(redisProcess.Wait(), time.Minute).Should(Receive())
-		}
-	})
 	BeforeEach(func() {
 		networkConfig := nwo.MultiNodeSmartBFT()
 		networkConfig.Channels = nil
@@ -223,6 +216,13 @@ var _ = Describe("Channel transfer foundation Tests", func() {
 			Eventually(channelTransferProc.Wait(), network.EventuallyTimeout).Should(Receive())
 		}
 	})
+	AfterEach(func() {
+		By("stop redis " + redisDB.Address())
+		if redisProcess != nil {
+			redisProcess.Signal(syscall.SIGTERM)
+			Eventually(redisProcess.Wait(), time.Minute).Should(Receive())
+		}
+	})
 
 	BeforeEach(func() {
 		By("add admin to acl")
@@ -257,7 +257,7 @@ var _ = Describe("Channel transfer foundation Tests", func() {
 
 		var err error
 
-		conn, err = grpc.Dial(grpcAddress, grpc.WithTransportCredentials(transportCredentials))
+		conn, err = grpc.NewClient(grpcAddress, grpc.WithTransportCredentials(transportCredentials))
 		Expect(err).NotTo(HaveOccurred())
 		defer func() {
 			err := conn.Close()
@@ -329,7 +329,9 @@ var _ = Describe("Channel transfer foundation Tests", func() {
 		client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC,
 			fabricnetwork.CheckResult(fabricnetwork.CheckBalance("250"), nil),
 			"allowedBalanceOf", user.AddressBase58Check, "FIAT")
+		Eventually(ordererRunners[3].Err(), network.EventuallyTimeout/12, time.Second).Should(gbytes.Say("PFI1"))
 	})
+
 	It("transfer by customer test", func() {
 		By("creating grpc connection")
 		clientCtx = metadata.NewOutgoingContext(context.Background(), metadata.Pairs("authorization", networkFound.ChannelTransfer.AccessToken))
@@ -339,7 +341,7 @@ var _ = Describe("Channel transfer foundation Tests", func() {
 
 		var err error
 
-		conn, err = grpc.Dial(grpcAddress, grpc.WithTransportCredentials(transportCredentials))
+		conn, err = grpc.NewClient(grpcAddress, grpc.WithTransportCredentials(transportCredentials))
 		Expect(err).NotTo(HaveOccurred())
 		defer func() {
 			err := conn.Close()
@@ -421,7 +423,7 @@ var _ = Describe("Channel transfer foundation Tests", func() {
 
 		var err error
 
-		conn, err = grpc.Dial(grpcAddress, grpc.WithTransportCredentials(transportCredentials))
+		conn, err = grpc.NewClient(grpcAddress, grpc.WithTransportCredentials(transportCredentials))
 		Expect(err).NotTo(HaveOccurred())
 		defer func() {
 			err := conn.Close()
@@ -448,7 +450,7 @@ var _ = Describe("Channel transfer foundation Tests", func() {
 
 		var err error
 
-		conn, err = grpc.Dial(grpcAddress, grpc.WithTransportCredentials(transportCredentials))
+		conn, err = grpc.NewClient(grpcAddress, grpc.WithTransportCredentials(transportCredentials))
 		Expect(err).NotTo(HaveOccurred())
 		defer func() {
 			err := conn.Close()
@@ -522,7 +524,7 @@ var _ = Describe("Channel transfer foundation Tests", func() {
 
 		var err error
 
-		conn, err = grpc.Dial(grpcAddress, grpc.WithTransportCredentials(transportCredentials))
+		conn, err = grpc.NewClient(grpcAddress, grpc.WithTransportCredentials(transportCredentials))
 		Expect(err).NotTo(HaveOccurred())
 		defer func() {
 			err := conn.Close()
@@ -561,7 +563,7 @@ var _ = Describe("Channel transfer foundation Tests", func() {
 
 		var err error
 
-		conn, err = grpc.Dial(grpcAddress, grpc.WithTransportCredentials(transportCredentials))
+		conn, err = grpc.NewClient(grpcAddress, grpc.WithTransportCredentials(transportCredentials))
 		Expect(err).NotTo(HaveOccurred())
 		defer func() {
 			err := conn.Close()
@@ -600,7 +602,7 @@ var _ = Describe("Channel transfer foundation Tests", func() {
 
 		var err error
 
-		conn, err = grpc.Dial(grpcAddress, grpc.WithTransportCredentials(transportCredentials))
+		conn, err = grpc.NewClient(grpcAddress, grpc.WithTransportCredentials(transportCredentials))
 		Expect(err).NotTo(HaveOccurred())
 		defer func() {
 			err := conn.Close()
@@ -639,7 +641,7 @@ var _ = Describe("Channel transfer foundation Tests", func() {
 
 		var err error
 
-		conn, err = grpc.Dial(grpcAddress, grpc.WithTransportCredentials(transportCredentials))
+		conn, err = grpc.NewClient(grpcAddress, grpc.WithTransportCredentials(transportCredentials))
 		Expect(err).NotTo(HaveOccurred())
 		defer func() {
 			err := conn.Close()
