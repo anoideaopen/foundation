@@ -41,16 +41,16 @@ func WithUseNames() routerOption {
 type Router struct {
 	useURLs bool
 
-	methods  map[routing.Function]routing.Method
-	handlers map[methodName]handler
+	methods  map[string]routing.Method // map[function]method
+	handlers map[string]handler        // map[method]handler
 }
 
 // NewRouter creates a new grpc.Router instance with the given options.
 func NewRouter(options ...routerOption) *Router {
 	r := &Router{
 		useURLs:  true,
-		methods:  make(map[routing.Function]routing.Method),
-		handlers: make(map[methodName]handler),
+		methods:  make(map[string]routing.Method),
+		handlers: make(map[string]handler),
 	}
 
 	for _, opt := range options {
@@ -138,11 +138,11 @@ func (r *Router) RegisterService(desc *grpc.ServiceDesc, impl any) {
 		}
 
 		cm := routing.Method{
-			Type:          methodType,
-			ChaincodeFunc: contractFn,
-			MethodName:    method.MethodName,
-			RequiresAuth:  requireAuth,
-			NumArgs:       numArgs,
+			Type:         methodType,
+			Function:     contractFn,
+			Method:       method.MethodName,
+			AuthRequired: requireAuth,
+			ArgCount:     numArgs,
 		}
 
 		r.methods[contractFn] = cm
@@ -163,11 +163,11 @@ func (r *Router) Check(stub shim.ChaincodeStubInterface, method string, args ...
 		return ErrUnsupportedMethod
 	}
 
-	if len(args) != h.contractMethod.NumArgs {
+	if len(args) != h.contractMethod.ArgCount {
 		return ErrInvalidNumberOfArguments
 	}
 
-	if h.contractMethod.RequiresAuth {
+	if h.contractMethod.AuthRequired {
 		args = args[1:]
 	}
 
@@ -209,13 +209,13 @@ func (r *Router) Invoke(stub shim.ChaincodeStubInterface, method string, args ..
 		return nil, ErrUnsupportedMethod
 	}
 
-	if len(args) != h.contractMethod.NumArgs {
+	if len(args) != h.contractMethod.ArgCount {
 		return nil, ErrInvalidNumberOfArguments
 	}
 
 	ctx := context.Background()
 
-	if h.contractMethod.RequiresAuth {
+	if h.contractMethod.AuthRequired {
 		ctx = ContextWithSender(ctx, args[0])
 		args = args[1:]
 	}
@@ -245,7 +245,7 @@ func (r *Router) Invoke(stub shim.ChaincodeStubInterface, method string, args ..
 }
 
 // Methods retrieves a map of all available methods, keyed by their chaincode function names.
-func (r *Router) Methods() map[routing.Function]routing.Method {
+func (r *Router) Methods() map[string]routing.Method {
 	return r.methods
 }
 
@@ -257,9 +257,6 @@ type handler struct {
 	methodDesc       grpc.MethodDesc
 	methodDescriptor protoreflect.MethodDescriptor
 }
-
-// methodName represents the name of a method in the contract.
-type methodName = string
 
 // FullNameToURL transforms a method name from "package.Service.Method" to "/package.Service/Method"
 func FullNameToURL(fullMethodName string) string {

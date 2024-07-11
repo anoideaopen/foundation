@@ -630,7 +630,7 @@ func (cc *Chaincode) Invoke(stub shim.ChaincodeStubInterface) (r peer.Response) 
 		var (
 			swapMethods      = []string{"QuerySwapGet", "TxSwapBegin", "TxSwapCancel"}
 			multiSwapMethods = []string{"QueryMultiSwapGet", "TxMultiSwapBegin", "TxMultiSwapCancel"}
-			method           = method.MethodName
+			method           = method.Method
 			opts             = cc.contract.ContractConfig().GetOptions()
 		)
 
@@ -642,7 +642,7 @@ func (cc *Chaincode) Invoke(stub shim.ChaincodeStubInterface) (r peer.Response) 
 	}
 
 	// handle invoke and query methods executed without batch process
-	if method.Type == routing.MethodTypeInvoke || method.Type == routing.MethodTypeQuery {
+	if method.IsInvoke() || method.IsQuery() {
 		span.SetAttributes(telemetry.MethodType(telemetry.MethodNbTx))
 		return cc.noBatchHandler(traceCtx, stub, method, arguments)
 	}
@@ -696,7 +696,7 @@ func (cc *Chaincode) BatchHandler(
 	}
 
 	span.AddEvent("validating arguments")
-	if err = cc.Router().Check(stub, method.MethodName, cc.PrependSender(method, sender, args)...); err != nil {
+	if err = cc.Router().Check(stub, method.Method, cc.PrependSender(method, sender, args)...); err != nil {
 		span.SetStatus(codes.Error, "validating arguments failed")
 		return shim.Error(err.Error())
 	}
@@ -728,7 +728,7 @@ func (cc *Chaincode) noBatchHandler(
 	traceCtx, span := cc.contract.TracingHandler().StartNewSpan(traceCtx, "chaincode.NoBatchHandler")
 	defer span.End()
 
-	if method.Type == routing.MethodTypeQuery {
+	if method.IsQuery() {
 		stub = newQueryStub(stub)
 	}
 
@@ -741,7 +741,7 @@ func (cc *Chaincode) noBatchHandler(
 
 	span.AddEvent("validating arguments")
 
-	if err = cc.Router().Check(stub, method.MethodName, cc.PrependSender(method, sender, args)...); err != nil {
+	if err = cc.Router().Check(stub, method.Method, cc.PrependSender(method, sender, args)...); err != nil {
 		span.SetStatus(codes.Error, "validating arguments failed")
 		return shim.Error(err.Error())
 	}
@@ -910,7 +910,7 @@ func (cc *Chaincode) createIndexHandler(traceCtx telemetry.TraceContext, stub sh
 }
 
 func (cc *Chaincode) PrependSender(method routing.Method, sender *proto.Address, args []string) []string {
-	if method.RequiresAuth {
+	if method.AuthRequired {
 		args = append([]string{sender.AddrString()}, args...)
 	}
 

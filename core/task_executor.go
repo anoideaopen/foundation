@@ -157,7 +157,7 @@ func (e *TaskExecutor) validatedTxSenderMethodAndArgs(
 	}
 
 	span.AddEvent("validating authorization")
-	if !method.RequiresAuth || senderAddress == nil {
+	if !method.AuthRequired || senderAddress == nil {
 		err = fmt.Errorf("failed to validate authorization for task %s: sender address is missing", task.GetId())
 		span.SetStatus(codes.Error, err.Error())
 		return nil, routing.Method{}, nil, err
@@ -165,7 +165,7 @@ func (e *TaskExecutor) validatedTxSenderMethodAndArgs(
 	argsToValidate := append([]string{senderAddress.AddrString()}, args...)
 
 	span.AddEvent("validating arguments")
-	if err = e.Chaincode.Router().Check(stub, method.MethodName, argsToValidate...); err != nil {
+	if err = e.Chaincode.Router().Check(stub, method.Method, argsToValidate...); err != nil {
 		err = fmt.Errorf("failed to validate arguments for task %s: %w", task.GetId(), err)
 		span.SetStatus(codes.Error, err.Error())
 		return nil, routing.Method{}, nil, err
@@ -180,7 +180,7 @@ func (e *TaskExecutor) validatedTxSenderMethodAndArgs(
 		return nil, routing.Method{}, nil, err
 	}
 
-	return senderAddress, method, args[:method.NumArgs-1], nil
+	return senderAddress, method, args[:method.ArgCount-1], nil
 }
 
 // ExecuteTask processes an individual task, returning a transaction response and event.

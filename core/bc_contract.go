@@ -111,15 +111,15 @@ func (bc *BaseContract) GetMethods(bci BaseContractInterface) []string {
 
 func (bc *BaseContract) isMethodDisabled(method routing.Method) bool {
 	for _, disabled := range bc.ContractConfig().GetOptions().GetDisabledFunctions() {
-		if method.MethodName == disabled {
+		if method.Method == disabled {
 			return true
 		}
 		if bc.ContractConfig().GetOptions().GetDisableSwaps() &&
-			stringsx.OneOf(method.MethodName, "QuerySwapGet", "TxSwapBegin", "TxSwapCancel") {
+			stringsx.OneOf(method.Method, "QuerySwapGet", "TxSwapBegin", "TxSwapCancel") {
 			return true
 		}
 		if bc.ContractConfig().GetOptions().GetDisableMultiSwaps() &&
-			stringsx.OneOf(method.MethodName, "QueryMultiSwapGet", "TxMultiSwapBegin", "TxMultiSwapCancel") {
+			stringsx.OneOf(method.Method, "QueryMultiSwapGet", "TxMultiSwapBegin", "TxMultiSwapCancel") {
 			return true
 		}
 	}

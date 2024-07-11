@@ -47,7 +47,7 @@ func (cc *Chaincode) validateAndExtractInvocationContext(
 	args []string,
 ) (sender *pb.Address, invocationArgs []string, nonce uint64, err error) {
 	// If authorization is not required, return the arguments unchanged.
-	if !method.RequiresAuth {
+	if !method.AuthRequired {
 		return nil, args, 0, nil
 	}
 
@@ -88,7 +88,7 @@ func (cc *Chaincode) validateAndExtractInvocationContext(
 	}
 
 	// Form a message to verify the signature.
-	message := []byte(method.ChaincodeFunc + strings.Join(args[:len(args)-invocation.signersCount], ""))
+	message := []byte(method.Function + strings.Join(args[:len(args)-invocation.signersCount], ""))
 
 	if err = validateSignaturesInInvocation(invocation, message); err != nil {
 		return nil, nil, 0, err
@@ -106,7 +106,7 @@ func (cc *Chaincode) validateAndExtractInvocationContext(
 	}
 
 	// Return the signer's address, method arguments, and nonce.
-	return acl.GetAddress().GetAddress(), args[3 : 3+(method.NumArgs-1)], nonce, nil
+	return acl.GetAddress().GetAddress(), args[3 : 3+(method.ArgCount-1)], nonce, nil
 }
 
 func validateSignaturesInInvocation(
@@ -160,8 +160,8 @@ func parseInvocationDetails(
 ) (*invocationDetails, error) {
 	// Calculating the positions of arguments in an array.
 	var (
-		expectedArgsCount = (method.NumArgs - 1) + 4 // +4 for reqId, cc, ch, nonce
-		authArgsStartPos  = expectedArgsCount        // Authorization arguments start position
+		expectedArgsCount = (method.ArgCount - 1) + 4 // +4 for reqId, cc, ch, nonce
+		authArgsStartPos  = expectedArgsCount         // Authorization arguments start position
 	)
 
 	// We check that the number of arguments is not less than expected.

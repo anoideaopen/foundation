@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/anoideaopen/foundation/core/routing"
+	"github.com/anoideaopen/foundation/core/routing/v2"
 	"github.com/hyperledger/fabric-chaincode-go/shim"
 )
 

@@ -210,7 +210,7 @@ func TestSaveToBatchWithWrongSignedArgs(t *testing.T) {
 	ep, err := chainCode.Method(s.FnName)
 	require.NoError(t, err)
 
-	err = chainCode.Router().Check(mockStub, ep.MethodName, chainCode.PrependSender(ep, sender, wrongArgs)...)
+	err = chainCode.Router().Check(mockStub, ep.Method, chainCode.PrependSender(ep, sender, wrongArgs)...)
 	require.EqualError(t, err, "invalid argument value: 'arg0': for type 'int64': validate TxTestFnWithSignedTwoArgs, argument 1")
 }
 

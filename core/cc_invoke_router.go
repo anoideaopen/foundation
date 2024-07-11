@@ -47,7 +47,7 @@ func (cc *Chaincode) InvokeContractMethod(
 	defer cc.contract.delEnv()
 
 	span.AddEvent("call")
-	result, err := cc.Router().Invoke(stub, method.MethodName, cc.PrependSender(method, sender, args)...)
+	result, err := cc.Router().Invoke(stub, method.Method, cc.PrependSender(method, sender, args)...)
 	if err != nil {
 		span.SetStatus(codes.Error, err.Error())
 		return nil, err

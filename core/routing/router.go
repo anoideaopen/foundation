@@ -12,16 +12,28 @@ const (
 	MethodTypeQuery                         // Query-prefixed transaction when using reflectx.Router.
 )
 
-// Function represents the name of a chaincode function.
-type Function = string
-
 // Method represents an endpoint of a contract.
 type Method struct {
-	Type          MethodType // The type of the method.
-	ChaincodeFunc Function   // The name of the chaincode function being called.
-	MethodName    string     // The actual method name to be invoked.
-	RequiresAuth  bool       // Indicates if the method requires authentication.
-	NumArgs       int        // Number of arguments the method takes (excluding the receiver).
+	Method       string     // The actual method name to be invoked.
+	Function     string     // The name of the chaincode function being called.
+	ArgCount     int        // Number of arguments the method takes (excluding the receiver).
+	AuthRequired bool       // Indicates if the method requires authentication.
+	Type         MethodType // The type of the method.
+}
+
+// IsInvoke checks if the method is an invoke type.
+func (m Method) IsInvoke() bool {
+	return m.Type == MethodTypeInvoke
+}
+
+// IsQuery checks if the method is a query type.
+func (m Method) IsQuery() bool {
+	return m.Type == MethodTypeQuery
+}
+
+// IsTransaction checks if the method is a transaction type.
+func (m Method) IsTransaction() bool {
+	return m.Type == MethodTypeTransaction
 }
 
 // Router defines the interface for managing contract methods and routing calls.
@@ -35,5 +47,5 @@ type Router interface {
 	Invoke(stub shim.ChaincodeStubInterface, method string, args ...string) ([]byte, error)
 
 	// Methods retrieves a map of all available methods, keyed by their chaincode function names.
-	Methods() map[Function]Method
+	Methods() map[string]Method
 }

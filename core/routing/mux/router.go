@@ -28,11 +28,11 @@ func NewRouter(router ...routing.Router) (*Router, error) {
 
 	for _, r := range router {
 		for _, method := range r.Methods() {
-			if _, ok := methods[method.MethodName]; ok {
+			if _, ok := methods[method.Method]; ok {
 				return nil, ErrMethodAlreadyDefined
 			}
 
-			methods[method.MethodName] = r
+			methods[method.Method] = r
 		}
 	}
 
@@ -63,8 +63,8 @@ func (r *Router) Invoke(stub shim.ChaincodeStubInterface, method string, args ..
 }
 
 // Methods retrieves a map of all available methods, keyed by their chaincode function names.
-func (r *Router) Methods() map[routing.Function]routing.Method {
-	methods := make(map[routing.Function]routing.Method, len(r.methods))
+func (r *Router) Methods() map[string]routing.Method {
+	methods := make(map[string]routing.Method, len(r.methods))
 
 	for _, r := range r.routers {
 		for fn, m := range r.Methods() {

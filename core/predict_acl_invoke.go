@@ -66,12 +66,12 @@ func (p *predictACL) predictTaskACLCalls(chaincode *Chaincode, task *proto.Task,
 	}
 
 	inputVal := reflect.ValueOf(chaincode.contract)
-	methodVal := inputVal.MethodByName(method.MethodName)
+	methodVal := inputVal.MethodByName(method.Method)
 	if !methodVal.IsValid() {
 		return
 	}
 
-	methodArgs := task.GetArgs()[3 : 3+(method.NumArgs-1)]
+	methodArgs := task.GetArgs()[3 : 3+(method.ArgCount-1)]
 	methodType := methodVal.Type()
 
 	// check method input args without signer, to skip signers in future for
@@ -132,7 +132,7 @@ func (p *predictACL) addCall(method string, arg string) {
 }
 
 func getSigners(method routing.Method, task *proto.Task) []string {
-	if !method.RequiresAuth {
+	if !method.AuthRequired {
 		return nil
 	}
 

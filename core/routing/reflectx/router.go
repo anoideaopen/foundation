@@ -26,7 +26,7 @@ var (
 // Router routes method calls to contract methods based on reflection.
 type Router struct {
 	contract any
-	methods  map[routing.Function]routing.Method
+	methods  map[string]routing.Method
 }
 
 // NewRouter creates a new Router instance with the given contract.
@@ -34,7 +34,7 @@ type Router struct {
 func NewRouter(contract any) (*Router, error) {
 	r := &Router{
 		contract: contract,
-		methods:  make(map[routing.Function]routing.Method),
+		methods:  make(map[string]routing.Method),
 	}
 
 	for _, method := range Methods(contract) {
@@ -47,11 +47,11 @@ func NewRouter(contract any) (*Router, error) {
 			return nil, err
 		}
 
-		if _, ok := r.methods[ep.ChaincodeFunc]; ok {
-			return nil, fmt.Errorf("%w, method: '%s'", ErrMethodAlreadyDefined, ep.ChaincodeFunc)
+		if _, ok := r.methods[ep.Function]; ok {
+			return nil, fmt.Errorf("%w, method: '%s'", ErrMethodAlreadyDefined, ep.Function)
 		}
 
-		r.methods[ep.ChaincodeFunc] = *ep
+		r.methods[ep.Function] = *ep
 	}
 
 	return r, nil
@@ -106,7 +106,7 @@ func (r *Router) Invoke(stub shim.ChaincodeStubInterface, method string, args ..
 }
 
 // Methods retrieves a map of all available methods, keyed by their chaincode function names.
-func (r *Router) Methods() map[routing.Function]routing.Method {
+func (r *Router) Methods() map[string]routing.Method {
 	return r.methods
 }
 
@@ -120,37 +120,37 @@ func newReflectEndpoint(name string, of any) (*routing.Method, error) {
 	)
 
 	method := &routing.Method{
-		Type:          0,
-		ChaincodeFunc: "",
-		MethodName:    name,
-		NumArgs:       0,
-		RequiresAuth:  false,
+		Type:         0,
+		Function:     "",
+		Method:       name,
+		ArgCount:     0,
+		AuthRequired: false,
 	}
 
 	switch {
-	case strings.HasPrefix(method.MethodName, batchedTransactionPrefix):
+	case strings.HasPrefix(method.Method, batchedTransactionPrefix):
 		method.Type = routing.MethodTypeTransaction
-		method.ChaincodeFunc = strings.TrimPrefix(method.MethodName, batchedTransactionPrefix)
+		method.Function = strings.TrimPrefix(method.Method, batchedTransactionPrefix)
 
-	case strings.HasPrefix(method.MethodName, transactionWithoutBatchPrefix):
+	case strings.HasPrefix(method.Method, transactionWithoutBatchPrefix):
 		method.Type = routing.MethodTypeInvoke
-		method.ChaincodeFunc = strings.TrimPrefix(method.MethodName, transactionWithoutBatchPrefix)
+		method.Function = strings.TrimPrefix(method.Method, transactionWithoutBatchPrefix)
 
-	case strings.HasPrefix(method.MethodName, queryTransactionPrefix):
+	case strings.HasPrefix(method.Method, queryTransactionPrefix):
 		method.Type = routing.MethodTypeQuery
-		method.ChaincodeFunc = strings.TrimPrefix(method.MethodName, queryTransactionPrefix)
+		method.Function = strings.TrimPrefix(method.Method, queryTransactionPrefix)
 
 	default:
-		return nil, fmt.Errorf("%w: %s", ErrUnsupportedMethod, method.MethodName)
+		return nil, fmt.Errorf("%w: %s", ErrUnsupportedMethod, method.Method)
 	}
 
-	if len(method.ChaincodeFunc) == 0 {
-		return nil, fmt.Errorf("%w: %s", ErrInvalidMethodName, method.MethodName)
+	if len(method.Function) == 0 {
+		return nil, fmt.Errorf("%w: %s", ErrInvalidMethodName, method.Method)
 	}
 
-	method.ChaincodeFunc = stringsx.LowerFirstChar(method.ChaincodeFunc)
-	method.NumArgs, _ = MethodParamCounts(of, method.MethodName)
-	method.RequiresAuth = IsArgOfType(of, method.MethodName, 0, &types.Sender{})
+	method.Function = stringsx.LowerFirstChar(method.Function)
+	method.ArgCount, _ = MethodParamCounts(of, method.Method)
+	method.AuthRequired = IsArgOfType(of, method.Method, 0, &types.Sender{})
 
 	return method, nil
 }

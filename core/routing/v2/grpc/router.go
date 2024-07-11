@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	pb "github.com/anoideaopen/foundation/core/routing2/grpc/proto"
+	pb "github.com/anoideaopen/foundation/core/routing/v2/grpc/proto"
 	"github.com/hyperledger/fabric-chaincode-go/shim"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/encoding/protojson"

@@ -51,7 +51,7 @@ func (cc *Chaincode) saveToBatch(
 	}
 
 	pending := &proto.PendingTx{
-		Method:    method.ChaincodeFunc,
+		Method:    method.Function,
 		Sender:    sender,
 		Args:      args,
 		Timestamp: txTimestamp.GetSeconds(),
@@ -123,7 +123,7 @@ func (cc *Chaincode) loadFromBatch(
 		return pending, key, fmt.Errorf("unknown method %s in tx %s", pending.GetMethod(), txID)
 	}
 
-	if !method.RequiresAuth {
+	if !method.AuthRequired {
 		return pending, key, nil
 	}
 
