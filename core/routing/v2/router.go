@@ -10,7 +10,7 @@ type Router interface {
 	// Invoke calls the specified method with the provided arguments.
 	Invoke(stub shim.ChaincodeStubInterface, method string, args ...string) ([]byte, error)
 
-	// Handlers retrieves a map of all available methods, mapped by their chaincode functions.
+	// Handlers returns a map of method names to chaincode functions.
 	Handlers() map[string]string // map[method]function
 
 	// Method retrieves the method associated with the specified chaincode function.

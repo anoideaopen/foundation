@@ -64,7 +64,7 @@ func (r *Router) Invoke(stub shim.ChaincodeStubInterface, method string, args ..
 	return nil, ErrUnsupportedMethod
 }
 
-// Handlers retrieves a map of all available methods, mapped by their chaincode functions.
+// Handlers returns a map of method names to chaincode functions.
 func (r *Router) Handlers() map[string]string { // map[method]function
 	return r.handlers
 }
