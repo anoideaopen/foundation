@@ -156,9 +156,9 @@ func WithRouter(router routing.Router) ChaincodeOption {
 // - router: the contract router to set.
 // Return type:
 // - ChaincodeOption: a function that sets the router in the chaincode options.
-func WithRouters(router ...routing.Router) ChaincodeOption {
+func WithRouters(routers ...routing.Router) ChaincodeOption {
 	return func(o *chaincodeOptions) error {
-		o.Routers = append(o.Routers, router...)
+		o.Routers = append(o.Routers, routers...)
 		return nil
 	}
 }
