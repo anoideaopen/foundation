@@ -18,32 +18,31 @@ var (
 
 // Router is a multiplexer that routes methods to the appropriate handler.
 type Router struct {
-	methods   map[string]routing.Router // method -> router
-	functions map[string]routing.Router // function -> router
-	routers   []routing.Router
+	methods  map[string]routing.Router // method -> router
+	handlers map[string]string         // method -> function
 }
 
 // NewRouter creates a new Router with the provided routing.Router instances.
 // It returns an error if any chaincode function is defined more than once.
 func NewRouter(router ...routing.Router) (*Router, error) {
 	var (
-		methods   = make(map[string]routing.Router)
-		functions = make(map[string]routing.Router)
+		methods  = make(map[string]routing.Router)
+		handlers = make(map[string]string)
 	)
 	for _, r := range router {
-		for function, method := range r.Handlers() {
-			if _, ok := functions[function]; ok {
+		for method, function := range r.Handlers() {
+			if _, ok := handlers[function]; ok {
 				return nil, fmt.Errorf("%w, function: '%s'", ErrChaincodeFunction, function)
 			}
 
 			methods[method] = r
-			functions[function] = r
+			handlers[method] = function
 		}
 	}
 
 	return &Router{
-		methods: methods,
-		routers: router,
+		methods:  methods,
+		handlers: handlers,
 	}, nil
 }
 
@@ -66,20 +65,13 @@ func (r *Router) Invoke(stub shim.ChaincodeStubInterface, method string, args ..
 }
 
 // Handlers retrieves a map of all available methods, mapped by their chaincode functions.
-func (r *Router) Handlers() map[string]string {
-	handlers := make(map[string]string, len(r.methods))
-	for _, router := range r.routers {
-		for function, method := range router.Handlers() {
-			handlers[method] = function
-		}
-	}
-
-	return handlers
+func (r *Router) Handlers() map[string]string { // map[method]function
+	return r.handlers
 }
 
 // Method retrieves the method associated with the specified chaincode function.
 func (r *Router) Method(function string) string {
-	if router, ok := r.functions[function]; ok {
+	if router, ok := r.methods[function]; ok {
 		return router.Method(function)
 	}
 
