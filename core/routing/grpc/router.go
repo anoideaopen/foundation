@@ -27,47 +27,37 @@ var (
 	ErrInputNotProtoMessage = errors.New("input is not a proto.Message")
 )
 
-// RouterConfig holds configuration options for the Router.
-type RouterConfig struct {
-	// Fallback is the router to use if the method is not defined in the contract.
-	Fallback routing.Router
+// routerOption is a function that configures the Router.
+type routerOption func(*Router)
 
-	// Use function names instead of contract URLs.
-	// Example: addBalanceByAdmin instead of /foundationtoken.FiatService/AddBalanceByAdmin.
-	UseNames bool
+// WithUseNames configures the Router to use function names instead of contract URLs.
+func WithUseNames() routerOption {
+	return func(r *Router) {
+		r.useURLs = false
+	}
 }
 
 // Router routes method calls to contract methods based on gRPC service description.
 type Router struct {
-	fallback routing.Router
-	useURLs  bool
+	useURLs bool
 
 	methods  map[routing.Function]routing.Method
 	handlers map[methodName]handler
 }
 
-// NewRouter creates a new grpc.Router instance with the given contract and configuration.
-//
-// Parameters:
-//   - baseContract: The contract instance to route methods for.
-//   - cfg: Configuration options for the router.
-//
-// Returns:
-//   - *Router: A new Router instance.
-func NewRouter(cfg RouterConfig) *Router {
-	var methods map[routing.Function]routing.Method
-	if cfg.Fallback != nil {
-		methods = cfg.Fallback.Methods()
-	} else {
-		methods = make(map[routing.Function]routing.Method)
-	}
-
-	return &Router{
-		fallback: cfg.Fallback,
-		useURLs:  !cfg.UseNames,
-		methods:  methods,
+// NewRouter creates a new grpc.Router instance with the given options.
+func NewRouter(options ...routerOption) *Router {
+	r := &Router{
+		useURLs:  true,
+		methods:  make(map[routing.Function]routing.Method),
 		handlers: make(map[methodName]handler),
 	}
+
+	for _, opt := range options {
+		opt(r)
+	}
+
+	return r
 }
 
 // RegisterService registers a service and its implementation to the
@@ -167,21 +157,9 @@ func (r *Router) RegisterService(desc *grpc.ServiceDesc, impl any) {
 
 // Check validates the provided arguments for the specified method.
 // It returns an error if the validation fails.
-//
-// Parameters:
-//   - stub: The ChaincodeStubInterface instance to use for the validation.
-//   - method: The name of the method to validate arguments for.
-//   - args: The arguments to validate.
-//
-// Returns:
-//   - error: An error if the validation fails.
 func (r *Router) Check(stub shim.ChaincodeStubInterface, method string, args ...string) error {
 	h, ok := r.handlers[method]
 	if !ok {
-		if r.fallback != nil {
-			return r.fallback.Check(stub, method, args...)
-		}
-
 		return ErrUnsupportedMethod
 	}
 
@@ -225,22 +203,9 @@ func (r *Router) Check(stub shim.ChaincodeStubInterface, method string, args ...
 
 // Invoke calls the specified method with the provided arguments.
 // It returns a slice of return values and an error if the invocation fails.
-//
-// Parameters:
-//   - stub: The ChaincodeStubInterface instance to use for the invocation.
-//   - method: The name of the method to invoke.
-//   - args: The arguments to pass to the method.
-//
-// Returns:
-//   - []byte: A slice of bytes (protojson JSON) representing the return values.
-//   - error: An error if the invocation fails.
 func (r *Router) Invoke(stub shim.ChaincodeStubInterface, method string, args ...string) ([]byte, error) {
 	h, ok := r.handlers[method]
 	if !ok {
-		if r.fallback != nil {
-			return r.fallback.Invoke(stub, method, args...)
-		}
-
 		return nil, ErrUnsupportedMethod
 	}
 
@@ -280,9 +245,6 @@ func (r *Router) Invoke(stub shim.ChaincodeStubInterface, method string, args ..
 }
 
 // Methods retrieves a map of all available methods, keyed by their chaincode function names.
-//
-// Returns:
-//   - map[routing.Function]routing.Method: A map of all available methods.
 func (r *Router) Methods() map[routing.Function]routing.Method {
 	return r.methods
 }

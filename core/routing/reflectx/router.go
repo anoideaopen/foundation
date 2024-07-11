@@ -31,13 +31,6 @@ type Router struct {
 
 // NewRouter creates a new Router instance with the given contract.
 // It reflects on the methods of the provided contract and sets up routing for them.
-//
-// Parameters:
-//   - baseContract: The contract instance to route methods for.
-//
-// Returns:
-//   - *Router: A new Router instance.
-//   - error: An error if the router setup fails.
 func NewRouter(contract any) (*Router, error) {
 	r := &Router{
 		contract: contract,
@@ -64,31 +57,24 @@ func NewRouter(contract any) (*Router, error) {
 	return r, nil
 }
 
+// MustNewRouter creates a new Router instance with the given contract and panics if an error occurs.
+func MustNewRouter(contract any) *Router {
+	r, err := NewRouter(contract)
+	if err != nil {
+		panic(err)
+	}
+
+	return r
+}
+
 // Check validates the provided arguments for the specified method.
 // It returns an error if the validation fails.
-//
-// Parameters:
-//   - stub: The ChaincodeStubInterface instance to use for the validation.
-//   - method: The name of the method to validate arguments for.
-//   - args: The arguments to validate.
-//
-// Returns:
-//   - error: An error if the validation fails.
 func (r *Router) Check(stub shim.ChaincodeStubInterface, method string, args ...string) error {
 	return ValidateArguments(r.contract, method, stub, args...)
 }
 
 // Invoke calls the specified method with the provided arguments.
 // It returns a slice of return values and an error if the invocation fails.
-//
-// Parameters:
-//   - stub: The ChaincodeStubInterface instance to use for the invocation.
-//   - method: The name of the method to invoke.
-//   - args: The arguments to pass to the method.
-//
-// Returns:
-//   - []byte: A slice of bytes (JSON) representing the return values.
-//   - error: An error if the invocation fails.
 func (r *Router) Invoke(stub shim.ChaincodeStubInterface, method string, args ...string) ([]byte, error) {
 	result, err := Call(r.contract, method, stub, args...)
 	if err != nil {
@@ -120,23 +106,12 @@ func (r *Router) Invoke(stub shim.ChaincodeStubInterface, method string, args ..
 }
 
 // Methods retrieves a map of all available methods, keyed by their chaincode function names.
-//
-// Returns:
-//   - map[routing.Function]routing.Method: A map of all available methods.
 func (r *Router) Methods() map[routing.Function]routing.Method {
 	return r.methods
 }
 
 // newReflectEndpoint creates a new Method instance for the given method name and contract.
 // It infers the method type, chaincode function name, and other attributes based on the method name and contract.
-//
-// Parameters:
-//   - name: The name of the method.
-//   - of: The contract instance.
-//
-// Returns:
-//   - *routing.Method: A new Method instance.
-//   - error: An error if the method creation fails.
 func newReflectEndpoint(name string, of any) (*routing.Method, error) {
 	const (
 		batchedTransactionPrefix      = "Tx"

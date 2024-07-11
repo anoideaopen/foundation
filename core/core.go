@@ -13,6 +13,7 @@ import (
 	"github.com/anoideaopen/foundation/core/config"
 	"github.com/anoideaopen/foundation/core/logger"
 	"github.com/anoideaopen/foundation/core/routing"
+	"github.com/anoideaopen/foundation/core/routing/mux"
 	"github.com/anoideaopen/foundation/core/routing/reflectx"
 	"github.com/anoideaopen/foundation/core/stringsx"
 	"github.com/anoideaopen/foundation/core/telemetry"
@@ -96,7 +97,7 @@ type chaincodeOptions struct {
 	SrcFS        *embed.FS           // SrcFS is a file system that contains the source files for the chaincode.
 	TLS          *TLS                // TLS contains the TLS configuration for the chaincode.
 	ConfigMapper config.ConfigMapper // ConfigMapper maps the arguments to a proto.Config instance.
-	Router       routing.Router      // Router for routing contract calls.
+	Routers      []routing.Router    // Routers is a list of routers for the chaincode.
 }
 
 // Chaincode defines the structure for a chaincode instance, with methods,
@@ -144,7 +145,20 @@ func (cc *Chaincode) Method(functionName string) (routing.Method, error) {
 // - ChaincodeOption: a function that sets the router in the chaincode options.
 func WithRouter(router routing.Router) ChaincodeOption {
 	return func(o *chaincodeOptions) error {
-		o.Router = router
+		o.Routers = append(o.Routers, router)
+		return nil
+	}
+}
+
+// WithRouters returns a ChaincodeOption function that sets the router in the chaincode options.
+//
+// Parameters:
+// - router: the contract router to set.
+// Return type:
+// - ChaincodeOption: a function that sets the router in the chaincode options.
+func WithRouters(router ...routing.Router) ChaincodeOption {
+	return func(o *chaincodeOptions) error {
+		o.Routers = append(o.Routers, router...)
 		return nil
 	}
 }
@@ -369,14 +383,18 @@ func NewCC(
 	cc.setSrcFs(chOpts.SrcFS)
 
 	// Set up the router.
-	var router routing.Router
-	if chOpts.Router != nil {
-		router = chOpts.Router
+	var (
+		router routing.Router
+		err    error
+	)
+	if len(chOpts.Routers) > 0 {
+		router, err = mux.NewRouter(chOpts.Routers...)
 	} else {
-		var err error
-		if router, err = reflectx.NewRouter(cc); err != nil {
-			return empty, err
-		}
+		router, err = reflectx.NewRouter(cc)
+	}
+
+	if err != nil {
+		return empty, err
 	}
 
 	cc.setRouter(router)

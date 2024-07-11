@@ -6,6 +6,7 @@ import (
 
 	"github.com/anoideaopen/foundation/core"
 	"github.com/anoideaopen/foundation/core/routing/grpc"
+	"github.com/anoideaopen/foundation/core/routing/reflectx"
 	"github.com/anoideaopen/foundation/mock"
 	"github.com/anoideaopen/foundation/test/unit/token/proto"
 	"github.com/anoideaopen/foundation/test/unit/token/service"
@@ -31,14 +32,11 @@ func TestGRPCRouter(t *testing.T) {
 		owner.Address(),
 		nil,
 	)
-
-	balanceToken := &service.Balance{} // gRPC service.
-
-	// Create gRPC router.
-	grpcRouter := grpc.NewRouter(grpc.RouterConfig{
-		Fallback: grpc.DefaultReflectxFallback(balanceToken),
-		UseNames: true,
-	})
+	var (
+		balanceToken  = &service.Balance{} // gRPC service.
+		grpcRouter    = grpc.NewRouter(grpc.WithUseNames())
+		reflectRouter = reflectx.MustNewRouter(balanceToken)
+	)
 
 	// Register gRPC service.
 	proto.RegisterBalanceServiceServer(grpcRouter, balanceToken)
@@ -48,7 +46,7 @@ func TestGRPCRouter(t *testing.T) {
 		"cc",
 		balanceToken,
 		ccConfig,
-		core.WithRouter(grpcRouter),
+		core.WithRouters(reflectRouter, grpcRouter),
 	)
 	require.Empty(t, initMsg)
 
@@ -93,12 +91,11 @@ func TestGRPCRouterWithURLs(t *testing.T) {
 		nil,
 	)
 
-	balanceToken := &service.Balance{} // gRPC service.
-
-	// Create gRPC router.
-	grpcRouter := grpc.NewRouter(grpc.RouterConfig{
-		Fallback: grpc.DefaultReflectxFallback(balanceToken),
-	})
+	var (
+		balanceToken  = &service.Balance{} // gRPC service.
+		grpcRouter    = grpc.NewRouter()
+		reflectRouter = reflectx.MustNewRouter(balanceToken)
+	)
 
 	// Register gRPC service.
 	proto.RegisterBalanceServiceServer(grpcRouter, balanceToken)
@@ -108,7 +105,7 @@ func TestGRPCRouterWithURLs(t *testing.T) {
 		ch,
 		balanceToken,
 		ccConfig,
-		core.WithRouter(grpcRouter),
+		core.WithRouters(reflectRouter, grpcRouter),
 	)
 	require.Empty(t, initMsg)
 
