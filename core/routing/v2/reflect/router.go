@@ -20,18 +20,18 @@ var (
 
 // Router routes method calls to contract methods based on reflection.
 type Router struct {
-	service   any
-	handlers  map[string]handler // map[method]handler
-	methods   map[string]string  // map[method]function
-	functions map[string]string  // map[function]method
+	service          any
+	methodHandler    map[string]handler // map[method]handler
+	methodToFunction map[string]string  // map[method]function
+	functionToMethod map[string]string  // map[function]method
 }
 
 // NewRouter creates a new Router instance with the given contract.
 func NewRouter(contract any) (*Router, error) {
 	var (
-		handlers  = make(map[string]handler)
-		methods   = make(map[string]string)
-		functions = make(map[string]string)
+		methodHandler    = make(map[string]handler)
+		methodToFunction = make(map[string]string)
+		functionToMethod = make(map[string]string)
 	)
 	for _, method := range Methods(contract) {
 		h, err := newHandler(method, contract)
@@ -43,20 +43,20 @@ func NewRouter(contract any) (*Router, error) {
 			return nil, err
 		}
 
-		if _, ok := methods[h.function]; ok {
+		if _, ok := methodToFunction[h.function]; ok {
 			return nil, fmt.Errorf("%w, method: '%s'", ErrMethodAlreadyDefined, h.function)
 		}
 
-		handlers[h.function] = h
-		methods[h.method] = h.function
-		functions[h.function] = h.method
+		methodHandler[h.function] = h
+		methodToFunction[h.method] = h.function
+		functionToMethod[h.function] = h.method
 	}
 
 	return &Router{
-		service:   contract,
-		handlers:  handlers,
-		methods:   methods,
-		functions: functions,
+		service:          contract,
+		methodHandler:    methodHandler,
+		methodToFunction: methodToFunction,
+		functionToMethod: functionToMethod,
 	}, nil
 }
 
@@ -109,42 +109,42 @@ func (r *Router) Invoke(stub shim.ChaincodeStubInterface, method string, args ..
 
 // Handlers returns a map of method names to chaincode functions.
 func (r *Router) Handlers() map[string]string { // map[method]function
-	return r.methods
+	return r.methodToFunction
 }
 
 // Method retrieves the method associated with the specified chaincode function.
 func (r *Router) Method(function string) (method string) {
-	return r.functions[function]
+	return r.functionToMethod[function]
 }
 
 // Function returns the name of the chaincode function by the specified method.
 func (r *Router) Function(method string) (function string) {
-	return r.methods[method]
+	return r.methodToFunction[method]
 }
 
 // AuthRequired indicates if the method requires authentication.
 func (r *Router) AuthRequired(method string) bool {
-	return r.handlers[method].authRequired
+	return r.methodHandler[method].authRequired
 }
 
 // ArgCount returns the number of arguments the method takes (excluding the receiver).
 func (r *Router) ArgCount(method string) int {
-	return r.handlers[method].argCount
+	return r.methodHandler[method].argCount
 }
 
 // IsTransaction checks if the method is a transaction type.
 func (r *Router) IsTransaction(method string) bool {
-	return r.handlers[method].isTransaction
+	return r.methodHandler[method].isTransaction
 }
 
 // IsInvoke checks if the method is an invoke type.
 func (r *Router) IsInvoke(method string) bool {
-	return r.handlers[method].isInvoke
+	return r.methodHandler[method].isInvoke
 }
 
 // IsQuery checks if the method is a query type.
 func (r *Router) IsQuery(method string) bool {
-	return r.handlers[method].isQuery
+	return r.methodHandler[method].isQuery
 }
 
 type handler struct {

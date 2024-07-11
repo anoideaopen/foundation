@@ -22,17 +22,17 @@ var (
 
 // Router routes method calls to contract methods based on gRPC service description.
 type Router struct {
-	handlers  map[string]handler // map[protoreflect.FullName]handler
-	methods   map[string]string  // map[protoreflect.FullName]URL
-	functions map[string]string  // map[URL]protoreflect.FullName
+	methodHandler    map[string]handler // map[protoreflect.FullName]handler
+	methodToFunction map[string]string  // map[protoreflect.FullName]URL
+	functionToMethod map[string]string  // map[URL]protoreflect.FullName
 }
 
 // NewRouter creates a new grpc.Router instance.
 func NewRouter() *Router {
 	return &Router{
-		handlers:  make(map[string]handler),
-		methods:   make(map[string]string),
-		functions: make(map[string]string),
+		methodHandler:    make(map[string]handler),
+		methodToFunction: make(map[string]string),
+		functionToMethod: make(map[string]string),
 	}
 }
 
@@ -56,7 +56,7 @@ func (r *Router) RegisterService(desc *grpc.ServiceDesc, impl any) {
 
 		methodFullName := string(md.FullName())
 
-		if _, ok := r.handlers[methodFullName]; ok {
+		if _, ok := r.methodHandler[methodFullName]; ok {
 			panic(fmt.Sprintf("method '%s' is already registered", methodFullName))
 		}
 
@@ -93,15 +93,15 @@ func (r *Router) RegisterService(desc *grpc.ServiceDesc, impl any) {
 
 		url := FullNameToURL(methodFullName)
 
-		r.handlers[methodFullName] = h
-		r.methods[methodFullName] = url
-		r.functions[url] = methodFullName
+		r.methodHandler[methodFullName] = h
+		r.methodToFunction[methodFullName] = url
+		r.functionToMethod[url] = methodFullName
 	}
 }
 
 // Check validates the provided arguments for the specified method.
 func (r *Router) Check(stub shim.ChaincodeStubInterface, method string, args ...string) error {
-	h, ok := r.handlers[method]
+	h, ok := r.methodHandler[method]
 	if !ok {
 		return ErrUnsupportedMethod
 	}
@@ -146,7 +146,7 @@ func (r *Router) Check(stub shim.ChaincodeStubInterface, method string, args ...
 
 // Invoke calls the specified method with the provided arguments.
 func (r *Router) Invoke(stub shim.ChaincodeStubInterface, method string, args ...string) ([]byte, error) {
-	h, ok := r.handlers[method]
+	h, ok := r.methodHandler[method]
 	if !ok {
 		return nil, ErrUnsupportedMethod
 	}
@@ -189,42 +189,42 @@ func (r *Router) Invoke(stub shim.ChaincodeStubInterface, method string, args ..
 
 // Handlers returns a map of method names to chaincode functions.
 func (r *Router) Handlers() map[string]string { // map[method]function
-	return r.methods
+	return r.methodToFunction
 }
 
 // Method retrieves the method associated with the specified chaincode function.
 func (r *Router) Method(function string) (method string) {
-	return r.functions[function]
+	return r.functionToMethod[function]
 }
 
 // Function returns the name of the chaincode function by the specified method.
 func (r *Router) Function(method string) (function string) {
-	return r.methods[method]
+	return r.methodToFunction[method]
 }
 
 // AuthRequired indicates if the method requires authentication.
 func (r *Router) AuthRequired(method string) bool {
-	return r.handlers[method].authRequired
+	return r.methodHandler[method].authRequired
 }
 
 // ArgCount returns the number of arguments the method takes (excluding the receiver).
 func (r *Router) ArgCount(method string) int {
-	return r.handlers[method].argCount()
+	return r.methodHandler[method].argCount()
 }
 
 // IsTransaction checks if the method is a transaction type.
 func (r *Router) IsTransaction(method string) bool {
-	return r.handlers[method].isTransaction
+	return r.methodHandler[method].isTransaction
 }
 
 // IsInvoke checks if the method is an invoke type.
 func (r *Router) IsInvoke(method string) bool {
-	return r.handlers[method].isInvoke
+	return r.methodHandler[method].isInvoke
 }
 
 // IsQuery checks if the method is a query type.
 func (r *Router) IsQuery(method string) bool {
-	return r.handlers[method].isQuery
+	return r.methodHandler[method].isQuery
 }
 
 type handler struct {
