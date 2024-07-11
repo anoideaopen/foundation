@@ -23,8 +23,8 @@ var (
 // Router routes method calls to contract methods based on gRPC service description.
 type Router struct {
 	handlers  map[string]handler // map[protoreflect.FullName]handler
-	methods   map[string]string  // map[protoreflect.FullName] protoreflect.FullName
-	functions map[string]string  // map[function]protoreflect.FullName
+	methods   map[string]string  // map[protoreflect.FullName]URL
+	functions map[string]string  // map[URL]protoreflect.FullName
 }
 
 // NewRouter creates a new grpc.Router instance.
