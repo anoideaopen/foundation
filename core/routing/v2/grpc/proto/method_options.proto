@@ -22,6 +22,6 @@ enum MethodAuth {
 
 // Define custom extensions for methods.
 extend google.protobuf.MethodOptions {
-    MethodType method_type       = 50001;
-    MethodAuth method_auth       = 50002;
+    MethodType method_type = 50001;
+    MethodAuth method_auth = 50002;
 }
