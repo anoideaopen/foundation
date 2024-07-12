@@ -25,7 +25,6 @@ const _ = grpc.SupportPackageIsVersion7
 type BalanceServiceClient interface {
 	AddBalanceByAdmin(ctx context.Context, in *BalanceAdjustmentRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	HelloWorld(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*HelloWorldResponse, error)
-	AddBalanceByAdmin2(ctx context.Context, in *BalanceAdjustmentRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 }
 
 type balanceServiceClient struct {
@@ -54,22 +53,12 @@ func (c *balanceServiceClient) HelloWorld(ctx context.Context, in *emptypb.Empty
 	return out, nil
 }
 
-func (c *balanceServiceClient) AddBalanceByAdmin2(ctx context.Context, in *BalanceAdjustmentRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
-	out := new(emptypb.Empty)
-	err := c.cc.Invoke(ctx, "/foundation.token.BalanceService/AddBalanceByAdmin2", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 // BalanceServiceServer is the server API for BalanceService service.
 // All implementations must embed UnimplementedBalanceServiceServer
 // for forward compatibility
 type BalanceServiceServer interface {
 	AddBalanceByAdmin(context.Context, *BalanceAdjustmentRequest) (*emptypb.Empty, error)
 	HelloWorld(context.Context, *emptypb.Empty) (*HelloWorldResponse, error)
-	AddBalanceByAdmin2(context.Context, *BalanceAdjustmentRequest) (*emptypb.Empty, error)
 	mustEmbedUnimplementedBalanceServiceServer()
 }
 
@@ -82,9 +71,6 @@ func (UnimplementedBalanceServiceServer) AddBalanceByAdmin(context.Context, *Bal
 }
 func (UnimplementedBalanceServiceServer) HelloWorld(context.Context, *emptypb.Empty) (*HelloWorldResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method HelloWorld not implemented")
-}
-func (UnimplementedBalanceServiceServer) AddBalanceByAdmin2(context.Context, *BalanceAdjustmentRequest) (*emptypb.Empty, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method AddBalanceByAdmin2 not implemented")
 }
 func (UnimplementedBalanceServiceServer) mustEmbedUnimplementedBalanceServiceServer() {}
 
@@ -135,24 +121,6 @@ func _BalanceService_HelloWorld_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
-func _BalanceService_AddBalanceByAdmin2_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(BalanceAdjustmentRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(BalanceServiceServer).AddBalanceByAdmin2(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/foundation.token.BalanceService/AddBalanceByAdmin2",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(BalanceServiceServer).AddBalanceByAdmin2(ctx, req.(*BalanceAdjustmentRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 // BalanceService_ServiceDesc is the grpc.ServiceDesc for BalanceService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -167,10 +135,6 @@ var BalanceService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "HelloWorld",
 			Handler:    _BalanceService_HelloWorld_Handler,
-		},
-		{
-			MethodName: "AddBalanceByAdmin2",
-			Handler:    _BalanceService_AddBalanceByAdmin2_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	coregrpc "github.com/anoideaopen/foundation/core/routing/grpc"
+	corepb "github.com/anoideaopen/foundation/core/routing/grpc/proto"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -43,7 +44,7 @@ func (m *MockClientConn) Invoke(ctx context.Context, method string, args interfa
 
 	rawJSON, _ := protojson.Marshal(protoMessage)
 
-	serviceName, methodName := coregrpc.ServiceAndMethod(method)
+	serviceName, methodName := coregrpc.URLToServiceAndMethod(method)
 
 	sd := coregrpc.FindServiceDescriptor(serviceName)
 	if sd == nil {
@@ -56,12 +57,12 @@ func (m *MockClientConn) Invoke(ctx context.Context, method string, args interfa
 	}
 
 	var resp TxResponse
-	if ext, ok := proto.GetExtension(md.Options(), coregrpc.E_MethodType).(coregrpc.MethodType); ok {
+	if ext, ok := proto.GetExtension(md.Options(), corepb.E_MethodType).(corepb.MethodType); ok {
 		switch ext {
-		case coregrpc.MethodType_METHOD_TYPE_TRANSACTION:
+		case corepb.MethodType_METHOD_TYPE_TRANSACTION:
 			_, resp, _ = m.caller.RawSignedInvoke(m.ch, method, string(rawJSON))
 
-		case coregrpc.MethodType_METHOD_TYPE_QUERY:
+		case corepb.MethodType_METHOD_TYPE_QUERY:
 			peerResp, err := m.caller.InvokeWithPeerResponse(m.ch, method, string(rawJSON))
 			if err != nil {
 				return err

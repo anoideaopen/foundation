@@ -65,7 +65,3 @@ func (ft *FiatToken) AddBalanceByAdmin(ctx context.Context, req *service.Balance
 		value,
 	)
 }
-
-func (ft *FiatToken) AddBalanceByAdmin2(ctx context.Context, req *service.BalanceAdjustmentRequest) (*emptypb.Empty, error) {
-	return ft.AddBalanceByAdmin(ctx, req)
-}

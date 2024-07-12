@@ -17,13 +17,12 @@ const (
 //
 // Returns a shim.Success response if the swap done logic executes successfully.
 // Otherwise, it returns a shim.Error response.
-func (cc *Chaincode) swapDoneHandler(
-	stub shim.ChaincodeStubInterface,
-	args []string,
-) peer.Response {
+func (cc *Chaincode) swapDoneHandler(stub shim.ChaincodeStubInterface) peer.Response {
 	if cc.contract.ContractConfig().GetOptions().GetDisableSwaps() {
 		return shim.Error("handling swap done failed, " + ErrSwapDisabled.Error())
 	}
+
+	_, args := stub.GetFunctionAndParameters()
 
 	return swap.UserDone(cc.contract, stub, args[0], args[1])
 }

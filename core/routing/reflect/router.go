@@ -43,11 +43,11 @@ func NewRouter(contract any) (*Router, error) {
 			return nil, err
 		}
 
-		if _, ok := methodToFunction[h.function]; ok {
+		if _, ok := functionToMethod[h.function]; ok {
 			return nil, fmt.Errorf("%w, method: '%s'", ErrMethodAlreadyDefined, h.function)
 		}
 
-		methodHandler[h.function] = h
+		methodHandler[h.method] = h
 		methodToFunction[h.method] = h.function
 		functionToMethod[h.function] = h.method
 	}

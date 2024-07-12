@@ -4,60 +4,36 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 
-	"github.com/anoideaopen/foundation/core/routing"
-	"github.com/anoideaopen/foundation/core/stringsx"
+	pb "github.com/anoideaopen/foundation/core/routing/grpc/proto"
 	"github.com/hyperledger/fabric-chaincode-go/shim"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
-	"google.golang.org/protobuf/reflect/protoregistry"
 )
 
+// Routing errors.
 var (
-	// ErrUnsupportedMethod is returned when a method is not supported by the router.
-	ErrUnsupportedMethod = errors.New("unsupported method")
-
-	// ErrInvalidNumberOfArguments is returned when the number of arguments provided is not equal to the number required by the method.
+	ErrUnsupportedMethod        = errors.New("unsupported method")
 	ErrInvalidNumberOfArguments = errors.New("invalid number of arguments")
-
-	// ErrInputNotProtoMessage is returned when the input is not a proto.Message.
-	ErrInputNotProtoMessage = errors.New("input is not a proto.Message")
+	ErrInterfaceNotProtoMessage = errors.New("interface is not a proto.Message")
 )
-
-// routerOption is a function that configures the Router.
-type routerOption func(*Router)
-
-// WithUseNames configures the Router to use function names instead of contract URLs.
-func WithUseNames() routerOption {
-	return func(r *Router) {
-		r.useURLs = false
-	}
-}
 
 // Router routes method calls to contract methods based on gRPC service description.
 type Router struct {
-	useURLs bool
-
-	methods  map[string]routing.Method // map[function]method
-	handlers map[string]handler        // map[method]handler
+	methodHandler    map[string]handler // map[protoreflect.FullName]handler
+	methodToFunction map[string]string  // map[protoreflect.FullName]URL
+	functionToMethod map[string]string  // map[URL]protoreflect.FullName
 }
 
-// NewRouter creates a new grpc.Router instance with the given options.
-func NewRouter(options ...routerOption) *Router {
-	r := &Router{
-		useURLs:  true,
-		methods:  make(map[string]routing.Method),
-		handlers: make(map[string]handler),
+// NewRouter creates a new grpc.Router instance.
+func NewRouter() *Router {
+	return &Router{
+		methodHandler:    make(map[string]handler),
+		methodToFunction: make(map[string]string),
+		functionToMethod: make(map[string]string),
 	}
-
-	for _, opt := range options {
-		opt(r)
-	}
-
-	return r
 }
 
 // RegisterService registers a service and its implementation to the
@@ -75,118 +51,85 @@ func (r *Router) RegisterService(desc *grpc.ServiceDesc, impl any) {
 		panic(fmt.Sprintf("service '%s' not found", desc.ServiceName))
 	}
 
-	for _, method := range desc.Methods {
-		md := sd.Methods().ByName(protoreflect.Name(method.MethodName))
+	for _, methodDesc := range desc.Methods {
+		md := sd.Methods().ByName(protoreflect.Name(methodDesc.MethodName))
 
-		var contractFn string
-		if ext, ok := proto.GetExtension(md.Options(), E_ContractFunction).(string); ok && ext != "" {
-			contractFn = ext
-		} else if r.useURLs {
-			// Example:
-			// "foundation.token.BalanceService.AddBalanceByAdmin" ->
-			// "/foundation.token.BalanceService/AddBalanceByAdmin"
-			contractFn = FullNameToURL(string(md.FullName()))
-		} else {
-			// Example:
-			// "AddBalanceByAdmin" ->
-			// "addBalanceByAdmin"
-			contractFn = stringsx.LowerFirstChar(method.MethodName)
+		methodFullName := string(md.FullName())
+
+		if _, ok := r.methodHandler[methodFullName]; ok {
+			panic(fmt.Sprintf("method '%s' is already registered", methodFullName))
 		}
 
-		if _, ok := r.methods[contractFn]; ok {
-			panic(fmt.Sprintf("contract function '%s' is already registered", contractFn))
+		h := handler{
+			service:       impl,
+			authRequired:  true, // auth required by default
+			isTransaction: true, // transaction by default
+			methodDesc:    methodDesc,
 		}
 
-		methodType := routing.MethodTypeTransaction
-		if ext, ok := proto.GetExtension(md.Options(), E_MethodType).(MethodType); ok {
+		if ext, ok := proto.GetExtension(md.Options(), pb.E_MethodType).(pb.MethodType); ok {
 			switch ext {
-			case MethodType_METHOD_TYPE_TRANSACTION:
-				methodType = routing.MethodTypeTransaction
+			case pb.MethodType_METHOD_TYPE_INVOKE:
+				h.authRequired = false
+				h.isTransaction = false
+				h.isInvoke = true
 
-			case MethodType_METHOD_TYPE_INVOKE:
-				methodType = routing.MethodTypeInvoke
-
-			case MethodType_METHOD_TYPE_QUERY:
-				methodType = routing.MethodTypeQuery
+			case pb.MethodType_METHOD_TYPE_QUERY:
+				h.authRequired = false
+				h.isTransaction = false
+				h.isQuery = true
 			}
 		}
 
-		var requireAuth bool
-		switch methodType {
-		case routing.MethodTypeTransaction:
-			requireAuth = true
-
-		case
-			routing.MethodTypeInvoke,
-			routing.MethodTypeQuery:
-			requireAuth = false
-		}
-
-		if ext, ok := proto.GetExtension(md.Options(), E_MethodAuth).(MethodAuth); ok {
+		if ext, ok := proto.GetExtension(md.Options(), pb.E_MethodAuth).(pb.MethodAuth); ok {
 			switch ext {
-			case MethodAuth_METHOD_AUTH_ENABLED:
-				requireAuth = true
+			case pb.MethodAuth_METHOD_AUTH_ENABLED:
+				h.authRequired = true
 
-			case MethodAuth_METHOD_AUTH_DISABLED:
-				requireAuth = false
+			case pb.MethodAuth_METHOD_AUTH_DISABLED:
+				h.authRequired = false
 			}
 		}
 
-		numArgs := 1
-		if requireAuth {
-			numArgs = 2
-		}
+		url := FullNameToURL(methodFullName)
 
-		cm := routing.Method{
-			Type:         methodType,
-			Function:     contractFn,
-			Method:       method.MethodName,
-			AuthRequired: requireAuth,
-			ArgCount:     numArgs,
-		}
-
-		r.methods[contractFn] = cm
-		r.handlers[method.MethodName] = handler{
-			service:          impl,
-			contractMethod:   cm,
-			methodDesc:       method,
-			methodDescriptor: md,
-		}
+		r.methodHandler[methodFullName] = h
+		r.methodToFunction[methodFullName] = url
+		r.functionToMethod[url] = methodFullName
 	}
 }
 
 // Check validates the provided arguments for the specified method.
-// It returns an error if the validation fails.
 func (r *Router) Check(stub shim.ChaincodeStubInterface, method string, args ...string) error {
-	h, ok := r.handlers[method]
+	h, ok := r.methodHandler[method]
 	if !ok {
 		return ErrUnsupportedMethod
 	}
 
-	if len(args) != h.contractMethod.ArgCount {
+	if len(args) != h.argCount() {
 		return ErrInvalidNumberOfArguments
 	}
 
-	if h.contractMethod.AuthRequired {
+	if h.authRequired {
 		args = args[1:]
 	}
 
 	_, err := h.methodDesc.Handler(
 		h.service,
 		context.Background(),
-		func(in any) error {
-			msg, ok := in.(proto.Message)
+		func(req any) error {
+			msg, ok := req.(proto.Message)
 			if !ok {
-				return ErrInputNotProtoMessage
+				return ErrInterfaceNotProtoMessage
 			}
 
 			return protojson.Unmarshal([]byte(args[0]), msg)
 		},
 		func(
-			ctx context.Context,
+			_ context.Context,
 			req any,
-			info *grpc.UnaryServerInfo,
-			handler grpc.UnaryHandler,
+			_ *grpc.UnaryServerInfo,
+			_ grpc.UnaryHandler,
 		) (resp any, err error) {
 			if validator, ok := req.(interface{ Validate() error }); ok {
 				if err := validator.Validate(); err != nil {
@@ -202,20 +145,19 @@ func (r *Router) Check(stub shim.ChaincodeStubInterface, method string, args ...
 }
 
 // Invoke calls the specified method with the provided arguments.
-// It returns a slice of return values and an error if the invocation fails.
 func (r *Router) Invoke(stub shim.ChaincodeStubInterface, method string, args ...string) ([]byte, error) {
-	h, ok := r.handlers[method]
+	h, ok := r.methodHandler[method]
 	if !ok {
 		return nil, ErrUnsupportedMethod
 	}
 
-	if len(args) != h.contractMethod.ArgCount {
+	if len(args) != h.argCount() {
 		return nil, ErrInvalidNumberOfArguments
 	}
 
 	ctx := context.Background()
 
-	if h.contractMethod.AuthRequired {
+	if h.authRequired {
 		ctx = ContextWithSender(ctx, args[0])
 		args = args[1:]
 	}
@@ -226,7 +168,7 @@ func (r *Router) Invoke(stub shim.ChaincodeStubInterface, method string, args ..
 		func(in any) error {
 			msg, ok := in.(proto.Message)
 			if !ok {
-				return ErrInputNotProtoMessage
+				return ErrInterfaceNotProtoMessage
 			}
 
 			return protojson.Unmarshal([]byte(args[0]), msg)
@@ -237,79 +179,77 @@ func (r *Router) Invoke(stub shim.ChaincodeStubInterface, method string, args ..
 		return nil, err
 	}
 
-	if protoMsg, ok := resp.(proto.Message); ok {
-		return protojson.Marshal(protoMsg)
+	protoMsg, ok := resp.(proto.Message)
+	if !ok {
+		return nil, ErrInterfaceNotProtoMessage
 	}
 
-	return nil, ErrInputNotProtoMessage
+	return protojson.Marshal(protoMsg)
 }
 
-// Methods retrieves a map of all available methods, keyed by their chaincode function names.
-func (r *Router) Methods() map[string]routing.Method {
-	return r.methods
+// Handlers returns a map of method names to chaincode functions.
+func (r *Router) Handlers() map[string]string { // map[method]function
+	return r.methodToFunction
 }
 
-// handler defines a handler that contains information about a contract method
-// and its corresponding gRPC method description.
+// Method retrieves the method associated with the specified chaincode function.
+func (r *Router) Method(function string) (method string) {
+	return r.functionToMethod[function]
+}
+
+// Function returns the name of the chaincode function by the specified method.
+func (r *Router) Function(method string) (function string) {
+	return r.methodToFunction[method]
+}
+
+// AuthRequired indicates if the method requires authentication.
+func (r *Router) AuthRequired(method string) bool {
+	return r.methodHandler[method].authRequired
+}
+
+// ArgCount returns the number of arguments the method takes (excluding the receiver).
+func (r *Router) ArgCount(method string) int {
+	return r.methodHandler[method].argCount()
+}
+
+// IsTransaction checks if the method is a transaction type.
+func (r *Router) IsTransaction(method string) bool {
+	return r.methodHandler[method].isTransaction
+}
+
+// IsInvoke checks if the method is an invoke type.
+func (r *Router) IsInvoke(method string) bool {
+	return r.methodHandler[method].isInvoke
+}
+
+// IsQuery checks if the method is a query type.
+func (r *Router) IsQuery(method string) bool {
+	return r.methodHandler[method].isQuery
+}
+
 type handler struct {
-	service          any
-	contractMethod   routing.Method
-	methodDesc       grpc.MethodDesc
-	methodDescriptor protoreflect.MethodDescriptor
+	service       any
+	authRequired  bool
+	isTransaction bool
+	isInvoke      bool
+	isQuery       bool
+	methodDesc    grpc.MethodDesc
 }
 
-// FullNameToURL transforms a method name from "package.Service.Method" to "/package.Service/Method"
-func FullNameToURL(fullMethodName string) string {
-	parts := strings.Split(fullMethodName, ".")
-	if len(parts) < 2 {
-		return ""
-	}
-
-	var (
-		methodName  = parts[len(parts)-1]
-		serviceName = parts[len(parts)-2]
-		packageName = strings.Join(parts[:len(parts)-2], ".")
+func (h handler) argCount() int {
+	const (
+		invalidFunction  = 0
+		messageOnly      = 1
+		senderAndMessage = 2
 	)
 
-	return fmt.Sprintf("/%s.%s/%s", packageName, serviceName, methodName)
-}
-
-// ServiceAndMethod extracts the service name and method name from a URL.
-func ServiceAndMethod(url string) (string, string) {
-	if len(url) == 0 || url[0] != '/' {
-		return "", ""
+	if h.service == nil {
+		return invalidFunction
 	}
 
-	// Split the trimmed URL by '/'
-	parts := strings.Split(url[1:], "/")
-	if len(parts) != 2 {
-		return "", ""
+	if !h.authRequired {
+		return messageOnly
 	}
 
-	var (
-		serviceName = parts[0]
-		methodName  = parts[1]
-	)
-
-	return serviceName, methodName
-}
-
-// FindServiceDescriptor finds the service descriptor by the given service name.
-func FindServiceDescriptor(serviceName string) protoreflect.ServiceDescriptor {
-	var sd protoreflect.ServiceDescriptor
-
-	protoregistry.GlobalFiles.RangeFiles(func(fd protoreflect.FileDescriptor) bool {
-		for i := 0; i < fd.Services().Len(); i++ {
-			sd = fd.Services().Get(i)
-			if sd.FullName() == protoreflect.FullName(serviceName) {
-				return false
-			}
-		}
-		return true
-	})
-	if sd == nil || sd.FullName() != protoreflect.FullName(serviceName) {
-		return nil
-	}
-
-	return sd
+	return senderAndMessage
 }

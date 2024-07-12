@@ -39,13 +39,6 @@ func (b *Balance) AddBalanceByAdmin(
 	)
 }
 
-func (b *Balance) AddBalanceByAdmin2(
-	ctx context.Context,
-	req *proto.BalanceAdjustmentRequest,
-) (*emptypb.Empty, error) {
-	return b.AddBalanceByAdmin(ctx, req)
-}
-
 func (b *Balance) HelloWorld(context.Context, *emptypb.Empty) (*proto.HelloWorldResponse, error) {
 	return &proto.HelloWorldResponse{
 		Message: "Hello World!",

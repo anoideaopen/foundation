@@ -7,7 +7,7 @@ import (
 	"github.com/anoideaopen/foundation/core"
 	"github.com/anoideaopen/foundation/core/logger"
 	"github.com/anoideaopen/foundation/core/routing/grpc"
-	"github.com/anoideaopen/foundation/core/routing/reflectx"
+	"github.com/anoideaopen/foundation/core/routing/reflect"
 	"github.com/anoideaopen/foundation/test/chaincode/fiat/service"
 )
 
@@ -20,8 +20,8 @@ func main() {
 
 	var (
 		token         = NewFiatToken()
-		grpcRouter    = grpc.NewRouter(grpc.WithUseNames())
-		reflectRouter = reflectx.MustNewRouter(token)
+		grpcRouter    = grpc.NewRouter()
+		reflectRouter = reflect.MustNewRouter(token)
 	)
 
 	service.RegisterFiatServiceServer(grpcRouter, token)

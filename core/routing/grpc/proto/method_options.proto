@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package foundation;
 
-option go_package = "github.com/anoideaopen/foundation/core/routing/grpc;grpc";
+option go_package = "github.com/anoideaopen/foundation/core/routing/grpc/proto;proto";
 
 import "google/protobuf/descriptor.proto";
 
@@ -22,7 +22,6 @@ enum MethodAuth {
 
 // Define custom extensions for methods.
 extend google.protobuf.MethodOptions {
-    MethodType method_type       = 50001;
-    MethodAuth method_auth       = 50002;
-    string     contract_function = 50003;
+    MethodType method_type = 50001;
+    MethodAuth method_auth = 50002;
 }

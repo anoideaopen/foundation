@@ -8,7 +8,6 @@ import (
 
 	"github.com/anoideaopen/foundation/core/helpers"
 	"github.com/anoideaopen/foundation/core/logger"
-	"github.com/anoideaopen/foundation/core/routing"
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/proto"
 	"github.com/hyperledger/fabric-chaincode-go/shim"
@@ -19,35 +18,38 @@ const (
 )
 
 type predictACL struct {
-	stub     shim.ChaincodeStubInterface
-	m        sync.RWMutex
-	callsMap map[string][]byte
+	stub             shim.ChaincodeStubInterface
+	invosationBuffer map[string][]byte // [method + arg] -> invosation bytes
+	mu               sync.RWMutex
 }
 
 func predictACLCalls(stub shim.ChaincodeStubInterface, tasks []*proto.Task, chaincode *Chaincode) {
-	methods := chaincode.Router().Methods()
 	p := predictACL{
-		stub:     stub,
-		m:        sync.RWMutex{},
-		callsMap: make(map[string][]byte),
+		stub:             stub,
+		invosationBuffer: make(map[string][]byte),
+		mu:               sync.RWMutex{},
 	}
+
 	wg := &sync.WaitGroup{}
+
 	for _, task := range tasks {
 		if task == nil {
 			continue
 		}
+
 		wg.Add(1)
 		go func(task *proto.Task) {
 			defer wg.Done()
-			method := methods[task.GetMethod()]
-			p.predictTaskACLCalls(chaincode, task, method)
+
+			p.predictTaskACLCalls(chaincode, task)
 		}(task)
 	}
+
 	wg.Wait()
 
-	requestBytes := make([][]byte, len(p.callsMap))
+	requestBytes := make([][]byte, len(p.invosationBuffer))
 	i := 0
-	for _, bytes := range p.callsMap {
+	for _, bytes := range p.invosationBuffer {
 		requestBytes[i] = bytes
 		i++
 	}
@@ -59,19 +61,25 @@ func predictACLCalls(stub shim.ChaincodeStubInterface, tasks []*proto.Task, chai
 	}
 }
 
-func (p *predictACL) predictTaskACLCalls(chaincode *Chaincode, task *proto.Task, method routing.Method) {
-	signers := getSigners(method, task)
+func (p *predictACL) predictTaskACLCalls(chaincode *Chaincode, task *proto.Task) {
+	var (
+		method       = chaincode.Router().Method(task.GetMethod())
+		authRequired = chaincode.Router().AuthRequired(method)
+		argCount     = chaincode.Router().ArgCount(method)
+	)
+
+	signers := getSigners(authRequired, argCount, task)
 	if signers != nil {
 		p.addCall(helpers.FnCheckKeys, strings.Join(signers, "/"))
 	}
 
 	inputVal := reflect.ValueOf(chaincode.contract)
-	methodVal := inputVal.MethodByName(method.Method)
+	methodVal := inputVal.MethodByName(method)
 	if !methodVal.IsValid() {
 		return
 	}
 
-	methodArgs := task.GetArgs()[3 : 3+(method.ArgCount-1)]
+	methodArgs := task.GetArgs()[3 : 3+(argCount-1)]
 	methodType := methodVal.Type()
 
 	// check method input args without signer, to skip signers in future for
@@ -89,15 +97,18 @@ func (p *predictACL) predictTaskACLCalls(chaincode *Chaincode, task *proto.Task,
 		if indexInputArg > methodType.NumIn() {
 			continue
 		}
+
 		t := methodType.In(indexInputArg)
 		if t.Kind() != reflect.Pointer {
 			continue
 		}
+
 		argInterface := reflect.New(t.Elem()).Interface()
 		_, ok := argInterface.(*types.Address)
 		if !ok {
 			continue
 		}
+
 		_, err := types.AddrFromBase58Check(arg)
 		if err != nil {
 			continue
@@ -108,35 +119,46 @@ func (p *predictACL) predictTaskACLCalls(chaincode *Chaincode, task *proto.Task,
 
 func (p *predictACL) addCall(method string, arg string) {
 	logger.Logger().Debugf("PredictAcl txID %s: adding acl call: method %s arg %s", p.stub.GetTxID(), method, arg)
+
 	if len(arg) == 0 {
 		return
 	}
+
 	key := method + arg
-	p.m.RLock()
-	_, ok := p.callsMap[key]
-	p.m.RUnlock()
+
+	p.mu.RLock()
+	_, ok := p.invosationBuffer[key]
+	p.mu.RUnlock()
+
 	if !ok {
-		p.m.Lock()
-		defer p.m.Unlock()
-		_, ok = p.callsMap[key]
-		if !ok {
+		p.mu.Lock()
+		defer p.mu.Unlock()
+
+		if _, ok = p.invosationBuffer[key]; !ok {
 			bytes, err := json.Marshal([]string{method, arg})
 			if err != nil {
-				logger.Logger().Errorf("PredictAcl txID %s: adding acl call: failed to marshal, method: '%s', arg '%s': %v",
-					p.stub.GetTxID(), method, arg, err)
+				logger.Logger().Errorf(
+					"PredictAcl txID %s: adding acl call: failed to marshal, method: '%s', arg '%s': %v",
+					p.stub.GetTxID(),
+					method,
+					arg,
+					err,
+				)
+
 				return
 			}
-			p.callsMap[key] = bytes
+
+			p.invosationBuffer[key] = bytes
 		}
 	}
 }
 
-func getSigners(method routing.Method, task *proto.Task) []string {
-	if !method.AuthRequired {
+func getSigners(authRequired bool, argCount int, task *proto.Task) []string {
+	if !authRequired {
 		return nil
 	}
 
-	invocation, err := parseInvocationDetails(method, task.GetArgs())
+	invocation, err := parseInvocationDetails(argCount, task.GetArgs())
 	if err != nil {
 		return nil
 	}

@@ -16,11 +16,12 @@ import (
 func (cc *Chaincode) multiSwapDoneHandler(
 	stub shim.ChaincodeStubInterface,
 	symbol string,
-	args []string,
 ) peer.Response {
 	if cc.contract.ContractConfig().GetOptions().GetDisableMultiSwaps() {
 		return shim.Error("handling multi-swap done failed, " + ErrMultiSwapDisabled.Error())
 	}
+
+	_, args := stub.GetFunctionAndParameters()
 
 	return multiswap.UserDone(cc.contract, stub, symbol, args[0], args[1])
 }

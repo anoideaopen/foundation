@@ -1,7 +1,6 @@
 package core
 
 import (
-	"github.com/anoideaopen/foundation/core/routing"
 	"github.com/anoideaopen/foundation/core/telemetry"
 	"github.com/anoideaopen/foundation/proto"
 	"github.com/hyperledger/fabric-chaincode-go/shim"
@@ -13,8 +12,8 @@ import (
 func (cc *Chaincode) InvokeContractMethod(
 	traceCtx telemetry.TraceContext,
 	stub shim.ChaincodeStubInterface,
-	method routing.Method,
 	sender *proto.Address,
+	method string,
 	args []string,
 ) ([]byte, error) {
 	traceCtx, span := cc.contract.TracingHandler().StartNewSpan(traceCtx, "chaincode.CallMethod")
@@ -27,7 +26,7 @@ func (cc *Chaincode) InvokeContractMethod(
 	defer cc.contract.delEnv()
 
 	span.AddEvent("call")
-	result, err := cc.Router().Invoke(stub, method.Method, cc.PrependSender(method, sender, args)...)
+	result, err := cc.Router().Invoke(stub, method, cc.PrependSender(method, sender, args)...)
 	if err != nil {
 		span.SetStatus(codes.Error, err.Error())
 		return nil, err

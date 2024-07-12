@@ -9,7 +9,6 @@ import (
 
 	"github.com/anoideaopen/foundation/core/cachestub"
 	"github.com/anoideaopen/foundation/core/logger"
-	"github.com/anoideaopen/foundation/core/routing"
 	"github.com/anoideaopen/foundation/core/telemetry"
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/proto"
@@ -47,7 +46,6 @@ func NewTaskExecutor(stub shim.ChaincodeStubInterface, cc *Chaincode, tracingHan
 func TasksExecutorHandler(
 	traceCtx telemetry.TraceContext,
 	stub shim.ChaincodeStubInterface,
-	args []string,
 	cc *Chaincode,
 ) ([]byte, error) {
 	tracingHandler := cc.contract.TracingHandler()
@@ -61,6 +59,8 @@ func TasksExecutorHandler(
 	defer func() {
 		log.Infof("tasks executor: tx id: %s, elapsed: %s", txID, time.Since(start))
 	}()
+
+	_, args := stub.GetFunctionAndParameters()
 
 	if len(args) != 1 {
 		err := fmt.Errorf("failed to validate args for transaction %s: expected exactly 1 argument, received %d", txID, len(args))
@@ -136,39 +136,48 @@ func (e *TaskExecutor) validatedTxSenderMethodAndArgs(
 	traceCtx telemetry.TraceContext,
 	stub *cachestub.BatchCacheStub,
 	task *proto.Task,
-) (*proto.Address, routing.Method, []string, error) {
+) (*proto.Address, string, []string, error) {
 	_, span := e.TracingHandler.StartNewSpan(traceCtx, "TaskExecutor.validatedTxSenderMethodAndArgs")
 	defer span.End()
 
 	span.AddEvent("parsing chaincode method")
-	method, err := e.Chaincode.Method(task.GetMethod())
-	if err != nil {
-		err = fmt.Errorf("failed to parse chaincode method '%s' for task %s: %w", task.GetMethod(), task.GetId(), err)
+	method := e.Chaincode.Router().Method(task.GetMethod())
+	if method == "" {
+		err := fmt.Errorf(
+			"failed to parse chaincode method '%s' for task %s: method '%s' not found",
+			task.GetMethod(),
+			task.GetId(),
+			task.GetMethod(),
+		)
 		span.SetStatus(codes.Error, err.Error())
-		return nil, routing.Method{}, nil, err
+		return nil, "", nil, err
 	}
 
 	span.AddEvent("validating and extracting invocation context")
-	senderAddress, args, nonce, err := e.Chaincode.validateAndExtractInvocationContext(stub, method, task.GetArgs())
+	senderAddress, invocationArgs, nonce, err := e.Chaincode.validateAndExtractInvocationContext(
+		stub,
+		task.GetMethod(),
+		task.GetArgs(),
+	)
 	if err != nil {
 		err = fmt.Errorf("failed to validate and extract invocation context for task %s: %w", task.GetId(), err)
 		span.SetStatus(codes.Error, err.Error())
-		return nil, routing.Method{}, nil, err
+		return nil, "", nil, err
 	}
 
 	span.AddEvent("validating authorization")
-	if !method.AuthRequired || senderAddress == nil {
+	if !e.Chaincode.Router().AuthRequired(method) || senderAddress == nil {
 		err = fmt.Errorf("failed to validate authorization for task %s: sender address is missing", task.GetId())
 		span.SetStatus(codes.Error, err.Error())
-		return nil, routing.Method{}, nil, err
+		return nil, "", nil, err
 	}
-	argsToValidate := append([]string{senderAddress.AddrString()}, args...)
+	argsToValidate := append([]string{senderAddress.AddrString()}, invocationArgs...)
 
 	span.AddEvent("validating arguments")
-	if err = e.Chaincode.Router().Check(stub, method.Method, argsToValidate...); err != nil {
+	if err = e.Chaincode.Router().Check(stub, method, argsToValidate...); err != nil {
 		err = fmt.Errorf("failed to validate arguments for task %s: %w", task.GetId(), err)
 		span.SetStatus(codes.Error, err.Error())
-		return nil, routing.Method{}, nil, err
+		return nil, "", nil, err
 	}
 
 	span.AddEvent("validating nonce")
@@ -177,10 +186,12 @@ func (e *TaskExecutor) validatedTxSenderMethodAndArgs(
 	if err != nil {
 		err = fmt.Errorf("failed to validate nonce for task %s, nonce %d: %w", task.GetId(), nonce, err)
 		span.SetStatus(codes.Error, err.Error())
-		return nil, routing.Method{}, nil, err
+		return nil, "", nil, err
 	}
 
-	return senderAddress, method, args[:method.ArgCount-1], nil
+	argCount := e.Chaincode.Router().ArgCount(method)
+
+	return senderAddress, method, invocationArgs[:argCount-1], nil
 }
 
 // ExecuteTask processes an individual task, returning a transaction response and event.
@@ -211,7 +222,7 @@ func (e *TaskExecutor) ExecuteTask(
 	}
 
 	span.AddEvent("calling method")
-	response, err := e.Chaincode.InvokeContractMethod(traceCtx, txCacheStub, method, senderAddress, args)
+	response, err := e.Chaincode.InvokeContractMethod(traceCtx, txCacheStub, senderAddress, method, args)
 	if err != nil {
 		return handleTaskError(span, task, err)
 	}

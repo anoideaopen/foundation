@@ -95,31 +95,31 @@ func (bc *BaseContract) GetStub() shim.ChaincodeStubInterface {
 
 // GetMethods returns list of methods
 func (bc *BaseContract) GetMethods(bci BaseContractInterface) []string {
-	contractMethods := bci.Router().Methods()
+	handlers := bci.Router().Handlers()
 
-	methods := make([]string, 0, len(contractMethods))
-	for name, method := range contractMethods {
+	functions := make([]string, 0, len(handlers))
+	for method, function := range handlers {
 		if !bc.isMethodDisabled(method) {
-			methods = append(methods, name)
+			functions = append(functions, function)
 		}
 	}
 
-	sort.Strings(methods)
+	sort.Strings(functions)
 
-	return methods
+	return functions
 }
 
-func (bc *BaseContract) isMethodDisabled(method routing.Method) bool {
+func (bc *BaseContract) isMethodDisabled(method string) bool {
 	for _, disabled := range bc.ContractConfig().GetOptions().GetDisabledFunctions() {
-		if method.Method == disabled {
+		if method == disabled {
 			return true
 		}
 		if bc.ContractConfig().GetOptions().GetDisableSwaps() &&
-			stringsx.OneOf(method.Method, "QuerySwapGet", "TxSwapBegin", "TxSwapCancel") {
+			stringsx.OneOf(method, "QuerySwapGet", "TxSwapBegin", "TxSwapCancel") {
 			return true
 		}
 		if bc.ContractConfig().GetOptions().GetDisableMultiSwaps() &&
-			stringsx.OneOf(method.Method, "QueryMultiSwapGet", "TxMultiSwapBegin", "TxMultiSwapCancel") {
+			stringsx.OneOf(method, "QueryMultiSwapGet", "TxMultiSwapBegin", "TxMultiSwapCancel") {
 			return true
 		}
 	}

@@ -24,7 +24,6 @@ const _ = grpc.SupportPackageIsVersion7
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type FiatServiceClient interface {
 	AddBalanceByAdmin(ctx context.Context, in *BalanceAdjustmentRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
-	AddBalanceByAdmin2(ctx context.Context, in *BalanceAdjustmentRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 }
 
 type fiatServiceClient struct {
@@ -44,21 +43,11 @@ func (c *fiatServiceClient) AddBalanceByAdmin(ctx context.Context, in *BalanceAd
 	return out, nil
 }
 
-func (c *fiatServiceClient) AddBalanceByAdmin2(ctx context.Context, in *BalanceAdjustmentRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
-	out := new(emptypb.Empty)
-	err := c.cc.Invoke(ctx, "/foundationtoken.FiatService/AddBalanceByAdmin2", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 // FiatServiceServer is the server API for FiatService service.
 // All implementations must embed UnimplementedFiatServiceServer
 // for forward compatibility
 type FiatServiceServer interface {
 	AddBalanceByAdmin(context.Context, *BalanceAdjustmentRequest) (*emptypb.Empty, error)
-	AddBalanceByAdmin2(context.Context, *BalanceAdjustmentRequest) (*emptypb.Empty, error)
 	mustEmbedUnimplementedFiatServiceServer()
 }
 
@@ -68,9 +57,6 @@ type UnimplementedFiatServiceServer struct {
 
 func (UnimplementedFiatServiceServer) AddBalanceByAdmin(context.Context, *BalanceAdjustmentRequest) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AddBalanceByAdmin not implemented")
-}
-func (UnimplementedFiatServiceServer) AddBalanceByAdmin2(context.Context, *BalanceAdjustmentRequest) (*emptypb.Empty, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method AddBalanceByAdmin2 not implemented")
 }
 func (UnimplementedFiatServiceServer) mustEmbedUnimplementedFiatServiceServer() {}
 
@@ -103,24 +89,6 @@ func _FiatService_AddBalanceByAdmin_Handler(srv interface{}, ctx context.Context
 	return interceptor(ctx, in, info, handler)
 }
 
-func _FiatService_AddBalanceByAdmin2_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(BalanceAdjustmentRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(FiatServiceServer).AddBalanceByAdmin2(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/foundationtoken.FiatService/AddBalanceByAdmin2",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(FiatServiceServer).AddBalanceByAdmin2(ctx, req.(*BalanceAdjustmentRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 // FiatService_ServiceDesc is the grpc.ServiceDesc for FiatService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -131,10 +99,6 @@ var FiatService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "AddBalanceByAdmin",
 			Handler:    _FiatService_AddBalanceByAdmin_Handler,
-		},
-		{
-			MethodName: "AddBalanceByAdmin2",
-			Handler:    _FiatService_AddBalanceByAdmin2_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

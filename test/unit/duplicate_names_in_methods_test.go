@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/anoideaopen/foundation/core"
-	"github.com/anoideaopen/foundation/core/routing/reflectx"
+	"github.com/anoideaopen/foundation/core/routing/reflect"
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/core/types/big"
 	"github.com/anoideaopen/foundation/token"
@@ -25,17 +25,17 @@ func TestDuplicateNames(t *testing.T) {
 		{
 			name: "variant #1",
 			bci:  &DuplicateNamesT1{},
-			err:  reflectx.ErrMethodAlreadyDefined,
+			err:  reflect.ErrMethodAlreadyDefined,
 		},
 		{
 			name: "variant #2",
 			bci:  &DuplicateNamesT2{},
-			err:  reflectx.ErrMethodAlreadyDefined,
+			err:  reflect.ErrMethodAlreadyDefined,
 		},
 		{
 			name: "variant #3",
 			bci:  &DuplicateNamesT3{},
-			err:  reflectx.ErrMethodAlreadyDefined,
+			err:  reflect.ErrMethodAlreadyDefined,
 		},
 	}
 

@@ -37,10 +37,4 @@ service BalanceService {
     rpc HelloWorld(google.protobuf.Empty) returns (HelloWorldResponse) {
         option (foundation.method_type) = METHOD_TYPE_QUERY;
     }
-
-    rpc AddBalanceByAdmin2(BalanceAdjustmentRequest) returns (google.protobuf.Empty) {
-        option (foundation.method_type) = METHOD_TYPE_INVOKE;       // NBTx-prefixed transaction when using reflectx.Router.
-        option (foundation.method_auth) = METHOD_AUTH_ENABLED;      // Enable authorization.
-        option (foundation.contract_function) = "CustomAddBalance"; // Custom function name.
-    }
 }
