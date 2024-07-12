@@ -7,8 +7,8 @@ import (
 	pb "github.com/anoideaopen/foundation/proto"
 )
 
-func (bc *BaseContract) TokenBalanceAdd(address *types.Address, amount *big.Int, token string) error {
-	return ledger.TokenBalanceAdd(bc.GetStub(), address, amount, token)
+func (bc *BaseContract) TokenBalanceAdd(address *types.Address, amount *big.Int, reason string) error {
+	return ledger.TokenBalanceAdd(bc.GetStub(), bc.ContractConfig().GetSymbol(), address, amount, reason)
 }
 
 func (bc *BaseContract) IndustrialBalanceGet(address *types.Address) (map[string]string, error) {

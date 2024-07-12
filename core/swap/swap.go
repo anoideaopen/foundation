@@ -113,7 +113,7 @@ type OnSwapDoneEventListener interface {
 	)
 }
 
-func UserDone(bci any, stub shim.ChaincodeStubInterface, swapID string, key string) peer.Response {
+func UserDone(bci any, stub shim.ChaincodeStubInterface, symbol, swapID string, key string) peer.Response {
 	s, err := Load(stub, swapID)
 	if err != nil {
 		return shim.Error(err.Error())
@@ -131,7 +131,7 @@ func UserDone(bci any, stub shim.ChaincodeStubInterface, swapID string, key stri
 			return shim.Error(err.Error())
 		}
 	} else {
-		if err = ledger.TokenBalanceAdd(stub, types.AddrFromBytes(s.GetOwner()), new(big.Int).SetBytes(s.GetAmount()), s.GetToken()); err != nil {
+		if err = ledger.TokenBalanceAdd(stub, symbol, types.AddrFromBytes(s.GetOwner()), new(big.Int).SetBytes(s.GetAmount()), s.GetToken()); err != nil {
 			return shim.Error(err.Error())
 		}
 	}
