@@ -17,35 +17,35 @@ var (
 
 // Router is a multiplexer that routes methods to the appropriate handler.
 type Router struct {
-	methods map[string]routing.Router // Method -> Router
-	routers []routing.Router
+	methodRouter map[string]routing.Router // Method -> Router
+	routers      []routing.Router
 }
 
 // NewRouter creates a new Router with the provided routing.Router instances.
 // It returns an error if any method is defined more than once.
 func NewRouter(router ...routing.Router) (*Router, error) {
-	methods := make(map[string]routing.Router)
+	methodRouter := make(map[string]routing.Router)
 
 	for _, r := range router {
 		for _, method := range r.Methods() {
-			if _, ok := methods[method.Method]; ok {
+			if _, ok := methodRouter[method.Method]; ok {
 				return nil, ErrMethodAlreadyDefined
 			}
 
-			methods[method.Method] = r
+			methodRouter[method.Method] = r
 		}
 	}
 
 	return &Router{
-		methods: methods,
-		routers: router,
+		methodRouter: methodRouter,
+		routers:      router,
 	}, nil
 }
 
 // Check validates the provided arguments for the specified method.
 // It returns an error if the validation fails.
 func (r *Router) Check(stub shim.ChaincodeStubInterface, method string, args ...string) error {
-	if m, ok := r.methods[method]; ok {
+	if m, ok := r.methodRouter[method]; ok {
 		return m.Check(stub, method, args...)
 	}
 
@@ -55,7 +55,7 @@ func (r *Router) Check(stub shim.ChaincodeStubInterface, method string, args ...
 // Invoke calls the specified method with the provided arguments.
 // It returns a byte slice of response and an error if the invocation fails.
 func (r *Router) Invoke(stub shim.ChaincodeStubInterface, method string, args ...string) ([]byte, error) {
-	if m, ok := r.methods[method]; ok {
+	if m, ok := r.methodRouter[method]; ok {
 		return m.Invoke(stub, method, args...)
 	}
 
@@ -64,7 +64,7 @@ func (r *Router) Invoke(stub shim.ChaincodeStubInterface, method string, args ..
 
 // Methods retrieves a map of all available methods, keyed by their chaincode function names.
 func (r *Router) Methods() map[string]routing.Method {
-	methods := make(map[string]routing.Method, len(r.methods))
+	methods := make(map[string]routing.Method, len(r.methodRouter))
 
 	for _, r := range r.routers {
 		for fn, m := range r.Methods() {
