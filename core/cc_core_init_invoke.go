@@ -186,7 +186,7 @@ func (cc *Chaincode) Invoke(stub shim.ChaincodeStubInterface) (r peer.Response) 
 		robotSKIBytes, _ := hex.DecodeString(cc.contract.ContractConfig().GetRobotSKI())
 		err = hlfcreator.ValidateSKI(robotSKIBytes, creatorSKI, hashedCert)
 		if err != nil {
-			errMsg := fmt.Sprintf("invoke: unauthorized: robotSKI is not equal creatorSKI and hashedCert: %s", err.Error())
+			errMsg := "invoke: unauthorized: robotSKI is not equal creatorSKI and hashedCert: " + err.Error()
 			span.SetStatus(codes.Error, errMsg)
 			return shim.Error(errMsg)
 		}
