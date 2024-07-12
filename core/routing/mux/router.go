@@ -33,7 +33,7 @@ func NewRouter(router ...routing.Router) (*Router, error) {
 	)
 	for _, r := range router {
 		for method, function := range r.Handlers() {
-			if _, ok := methodToFunction[method]; ok {
+			if _, ok := functionToMethod[function]; ok {
 				return nil, fmt.Errorf("%w, function: '%s'", ErrChaincodeFunction, function)
 			}
 
