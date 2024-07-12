@@ -2,6 +2,7 @@ package unit
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
 	"github.com/anoideaopen/foundation/core"
@@ -10,6 +11,7 @@ import (
 	"github.com/anoideaopen/foundation/mock"
 	"github.com/anoideaopen/foundation/test/unit/token/proto"
 	"github.com/anoideaopen/foundation/test/unit/token/service"
+	"github.com/anoideaopen/foundation/token"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
@@ -72,4 +74,13 @@ func TestGRPCRouter(t *testing.T) {
 	hello, err := client.HelloWorld(context.Background(), &emptypb.Empty{})
 	require.NoError(t, err)
 	require.Equal(t, "Hello World!", hello.Message)
+
+	resp := user1.Invoke(ch, "metadata")
+
+	var meta token.Metadata
+	err = json.Unmarshal([]byte(resp), &meta)
+	require.NoError(t, err)
+
+	require.Equal(t, meta.Methods[0], "/foundation.token.BalanceService/AddBalanceByAdmin")
+	require.Equal(t, meta.Methods[1], "/foundation.token.BalanceService/HelloWorld")
 }
