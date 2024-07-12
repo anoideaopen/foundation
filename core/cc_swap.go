@@ -19,11 +19,12 @@ const (
 // Otherwise, it returns a shim.Error response.
 func (cc *Chaincode) swapDoneHandler(
 	stub shim.ChaincodeStubInterface,
+	symbol string,
 	args []string,
 ) peer.Response {
 	if cc.contract.ContractConfig().GetOptions().GetDisableSwaps() {
 		return shim.Error("handling swap done failed, " + ErrSwapDisabled.Error())
 	}
 
-	return swap.UserDone(cc.contract, stub, args[0], args[1])
+	return swap.UserDone(cc.contract, stub, symbol, args[0], args[1])
 }

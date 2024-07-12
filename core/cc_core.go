@@ -570,7 +570,7 @@ func (cc *Chaincode) Invoke(stub shim.ChaincodeStubInterface) (r peer.Response) 
 		})
 		defer cc.contract.delEnv()
 
-		return cc.swapDoneHandler(stub, arguments)
+		return cc.swapDoneHandler(stub, cc.contract.ContractConfig().GetSymbol(), arguments)
 
 	case MultiSwapDone:
 		cc.contract.setEnv(&environment{
