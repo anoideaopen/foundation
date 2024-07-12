@@ -13,15 +13,31 @@ import (
 
 func TokenBalanceAdd(
 	stub shim.ChaincodeStubInterface,
+	symbol string,
+	address *types.Address,
+	amount *big.Int,
+	reason string,
+) error {
+	if stub, ok := stub.(Accounting); ok {
+		stub.AddAccountingRecord(symbol, &types.Address{}, address, amount, reason)
+	}
+
+	return balance.Add(stub, balance.BalanceTypeToken, address.String(), "", &amount.Int)
+}
+
+func TokenBalanceAddLastPart(
+	stub shim.ChaincodeStubInterface,
 	address *types.Address,
 	amount *big.Int,
 	token string,
 ) error {
 	parts := strings.Split(token, "_")
+
 	tokenName := ""
 	if len(parts) > 1 {
 		tokenName = parts[len(parts)-1]
 	}
+
 	return balance.Add(stub, balance.BalanceTypeToken, address.String(), tokenName, &amount.Int)
 }
 

@@ -131,7 +131,7 @@ func UserDone(bci any, stub shim.ChaincodeStubInterface, swapID string, key stri
 			return shim.Error(err.Error())
 		}
 	} else {
-		if err = ledger.TokenBalanceAdd(stub, types.AddrFromBytes(s.GetOwner()), new(big.Int).SetBytes(s.GetAmount()), s.GetToken()); err != nil {
+		if err = ledger.TokenBalanceAddLastPart(stub, types.AddrFromBytes(s.GetOwner()), new(big.Int).SetBytes(s.GetAmount()), s.GetToken()); err != nil {
 			return shim.Error(err.Error())
 		}
 	}
