@@ -165,7 +165,7 @@ func (cc *Chaincode) Invoke(stub shim.ChaincodeStubInterface) (r peer.Response) 
 		})
 		defer cc.contract.delEnv()
 
-		return cc.swapDoneHandler(stub, cc.contract.ContractConfig().GetSymbol())
+		return cc.swapDoneHandler(stub)
 
 	case MultiSwapDone:
 		cc.contract.setEnv(&environment{
@@ -174,7 +174,7 @@ func (cc *Chaincode) Invoke(stub shim.ChaincodeStubInterface) (r peer.Response) 
 		})
 		defer cc.contract.delEnv()
 
-		return cc.multiSwapDoneHandler(stub, cc.contract.ContractConfig().GetSymbol())
+		return cc.multiSwapDoneHandler(stub)
 
 	case
 		CreateCCTransferTo,
@@ -182,8 +182,8 @@ func (cc *Chaincode) Invoke(stub shim.ChaincodeStubInterface) (r peer.Response) 
 		CommitCCTransferFrom,
 		CancelCCTransferFrom,
 		DeleteCCTransferFrom:
-
 		robotSKIBytes, _ := hex.DecodeString(cc.contract.ContractConfig().GetRobotSKI())
+
 		err = hlfcreator.ValidateSKI(robotSKIBytes, creatorSKI, hashedCert)
 		if err != nil {
 			errMsg := "invoke: unauthorized: robotSKI is not equal creatorSKI and hashedCert: " + err.Error()
