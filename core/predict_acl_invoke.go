@@ -19,14 +19,14 @@ const (
 
 type predictACL struct {
 	stub             shim.ChaincodeStubInterface
-	invosationBuffer map[string][]byte // [method + arg] -> invosation bytes
+	invocationBuffer map[string][]byte // [method + arg] -> invocation bytes
 	mu               sync.RWMutex
 }
 
 func predictACLCalls(stub shim.ChaincodeStubInterface, tasks []*proto.Task, chaincode *Chaincode) {
 	p := predictACL{
 		stub:             stub,
-		invosationBuffer: make(map[string][]byte),
+		invocationBuffer: make(map[string][]byte),
 		mu:               sync.RWMutex{},
 	}
 
@@ -47,9 +47,9 @@ func predictACLCalls(stub shim.ChaincodeStubInterface, tasks []*proto.Task, chai
 
 	wg.Wait()
 
-	requestBytes := make([][]byte, len(p.invosationBuffer))
+	requestBytes := make([][]byte, len(p.invocationBuffer))
 	i := 0
-	for _, bytes := range p.invosationBuffer {
+	for _, bytes := range p.invocationBuffer {
 		requestBytes[i] = bytes
 		i++
 	}
@@ -127,14 +127,14 @@ func (p *predictACL) addCall(method string, arg string) {
 	key := method + arg
 
 	p.mu.RLock()
-	_, ok := p.invosationBuffer[key]
+	_, ok := p.invocationBuffer[key]
 	p.mu.RUnlock()
 
 	if !ok {
 		p.mu.Lock()
 		defer p.mu.Unlock()
 
-		if _, ok = p.invosationBuffer[key]; !ok {
+		if _, ok = p.invocationBuffer[key]; !ok {
 			bytes, err := json.Marshal([]string{method, arg})
 			if err != nil {
 				logger.Logger().Errorf(
@@ -148,7 +148,7 @@ func (p *predictACL) addCall(method string, arg string) {
 				return
 			}
 
-			p.invosationBuffer[key] = bytes
+			p.invocationBuffer[key] = bytes
 		}
 	}
 }

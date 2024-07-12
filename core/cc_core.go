@@ -372,7 +372,7 @@ func (cc *Chaincode) BatchHandler(traceCtx telemetry.TraceContext, stub shim.Cha
 	fn, args := stub.GetFunctionAndParameters()
 
 	span.AddEvent("validating sender")
-	sender, invosationArgs, nonce, err := cc.validateAndExtractInvocationContext(stub, fn, args)
+	sender, invocationArgs, nonce, err := cc.validateAndExtractInvocationContext(stub, fn, args)
 	if err != nil {
 		span.SetStatus(codes.Error, "validating sender failed")
 		return shim.Error(err.Error())
@@ -381,14 +381,14 @@ func (cc *Chaincode) BatchHandler(traceCtx telemetry.TraceContext, stub shim.Cha
 	method := cc.Router().Method(fn)
 
 	span.AddEvent("validating arguments")
-	if err = cc.Router().Check(stub, method, cc.PrependSender(method, sender, invosationArgs)...); err != nil {
+	if err = cc.Router().Check(stub, method, cc.PrependSender(method, sender, invocationArgs)...); err != nil {
 		span.SetStatus(codes.Error, "validating arguments failed")
 		return shim.Error(err.Error())
 	}
 
 	span.SetAttributes(attribute.String("preimage_tx_id", stub.GetTxID()))
 	span.AddEvent("save to batch")
-	if err = cc.saveToBatch(traceCtx, stub, fn, sender, invosationArgs, nonce); err != nil {
+	if err = cc.saveToBatch(traceCtx, stub, fn, sender, invocationArgs, nonce); err != nil {
 		span.SetStatus(codes.Error, "save to batch failed")
 		return shim.Error(err.Error())
 	}
@@ -414,7 +414,7 @@ func (cc *Chaincode) noBatchHandler(
 	fn, args := stub.GetFunctionAndParameters()
 
 	span.AddEvent("validating sender")
-	sender, invosationArgs, _, err := cc.validateAndExtractInvocationContext(stub, fn, args)
+	sender, invocationArgs, _, err := cc.validateAndExtractInvocationContext(stub, fn, args)
 	if err != nil {
 		span.SetStatus(codes.Error, "validating sender failed")
 		return shim.Error(err.Error())
@@ -426,13 +426,13 @@ func (cc *Chaincode) noBatchHandler(
 	}
 
 	span.AddEvent("validating arguments")
-	if err = cc.Router().Check(stub, method, cc.PrependSender(method, sender, invosationArgs)...); err != nil {
+	if err = cc.Router().Check(stub, method, cc.PrependSender(method, sender, invocationArgs)...); err != nil {
 		span.SetStatus(codes.Error, "validating arguments failed")
 		return shim.Error(err.Error())
 	}
 
 	span.AddEvent("calling method")
-	resp, err := cc.InvokeContractMethod(traceCtx, stub, sender, method, invosationArgs)
+	resp, err := cc.InvokeContractMethod(traceCtx, stub, sender, method, invocationArgs)
 	if err != nil {
 		span.SetStatus(codes.Error, err.Error())
 		return shim.Error(err.Error())
