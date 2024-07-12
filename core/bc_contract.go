@@ -15,7 +15,6 @@ import (
 
 	"github.com/anoideaopen/foundation/core/logger"
 	"github.com/anoideaopen/foundation/core/routing"
-	"github.com/anoideaopen/foundation/core/stringsx"
 	"github.com/anoideaopen/foundation/core/telemetry"
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/core/types/big"
@@ -115,11 +114,11 @@ func (bc *BaseContract) isMethodDisabled(method string) bool {
 			return true
 		}
 		if bc.ContractConfig().GetOptions().GetDisableSwaps() &&
-			stringsx.OneOf(method, "QuerySwapGet", "TxSwapBegin", "TxSwapCancel") {
+			OneOf(method, "QuerySwapGet", "TxSwapBegin", "TxSwapCancel") {
 			return true
 		}
 		if bc.ContractConfig().GetOptions().GetDisableMultiSwaps() &&
-			stringsx.OneOf(method, "QueryMultiSwapGet", "TxMultiSwapBegin", "TxMultiSwapCancel") {
+			OneOf(method, "QueryMultiSwapGet", "TxMultiSwapBegin", "TxMultiSwapCancel") {
 			return true
 		}
 	}

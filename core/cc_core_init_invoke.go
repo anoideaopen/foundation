@@ -8,7 +8,6 @@ import (
 
 	"github.com/anoideaopen/foundation/core/config"
 	"github.com/anoideaopen/foundation/core/logger"
-	"github.com/anoideaopen/foundation/core/stringsx"
 	"github.com/anoideaopen/foundation/core/telemetry"
 	"github.com/anoideaopen/foundation/hlfcreator"
 	"github.com/hyperledger/fabric-chaincode-go/shim"
@@ -229,9 +228,9 @@ func (cc *Chaincode) Invoke(stub shim.ChaincodeStubInterface) (r peer.Response) 
 			opts             = cc.contract.ContractConfig().GetOptions()
 		)
 
-		if stringsx.OneOf(method, opts.GetDisabledFunctions()...) ||
-			(opts.GetDisableSwaps() && stringsx.OneOf(method, swapMethods...)) ||
-			(opts.GetDisableMultiSwaps() && stringsx.OneOf(method, multiSwapMethods...)) {
+		if OneOf(method, opts.GetDisabledFunctions()...) ||
+			(opts.GetDisableSwaps() && OneOf(method, swapMethods...)) ||
+			(opts.GetDisableMultiSwaps() && OneOf(method, multiSwapMethods...)) {
 			return shim.Error(fmt.Sprintf("invoke: finding method: method '%s' not found", function))
 		}
 	}

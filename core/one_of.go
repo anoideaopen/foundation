@@ -1,4 +1,4 @@
-package stringsx
+package core
 
 // OneOf checks if a given string s is present within a slice of strings ss.
 func OneOf(s string, ss ...string) bool {

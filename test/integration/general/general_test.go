@@ -321,24 +321,12 @@ var _ = Describe("Basic foundation Tests", func() {
 			}
 			rawReq, _ := protojson.Marshal(req)
 
-			client.NBTxInvokeWithSign(network, peer, network.Orderers[0],
-				func(err error, exitCode int, sessError, sessOut []byte) string {
-					return ""
-				},
-				cmn.ChannelFiat, cmn.ChannelFiat, admin,
-				"CustomAddBalance", "", client.NewNonceByTime().Get(), string(rawReq))
-
-			newBlance := "2"
-			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
-				fabricnetwork.CheckResult(fabricnetwork.CheckBalance(newBlance), nil),
-				"balanceOf", user1.AddressBase58Check)
-
-			By("add balance by admin to user1 with nbtx and custom name (gRPC router)")
+			By("add balance by admin to user1 gRPC router")
 			client.TxInvokeWithSign(network, peer, network.Orderers[0],
 				cmn.ChannelFiat, cmn.ChannelFiat, admin,
-				"addBalanceByAdmin", "", client.NewNonceByTime().Get(), nil, string(rawReq))
+				"/foundationtoken.FiatService/AddBalanceByAdmin", "", client.NewNonceByTime().Get(), nil, string(rawReq))
 
-			newBlance = "3"
+			newBlance := "2"
 			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
 				fabricnetwork.CheckResult(fabricnetwork.CheckBalance(newBlance), nil),
 				"balanceOf", user1.AddressBase58Check)

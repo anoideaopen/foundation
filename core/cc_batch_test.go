@@ -14,13 +14,13 @@ import (
 	"github.com/anoideaopen/foundation/mock/stub"
 	"github.com/anoideaopen/foundation/proto"
 	"github.com/anoideaopen/foundation/test/unit/fixtures_test"
+	pb "github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/google/uuid"
 	"github.com/hyperledger/fabric-chaincode-go/shim"
 	"github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/encoding/protojson"
-	pb "google.golang.org/protobuf/proto"
 )
 
 const (
@@ -86,7 +86,6 @@ func TestSaveToBatchWithWrongArgs(t *testing.T) {
 		timestamp: createUtcTimestamp(),
 	}
 
-	wrongArgs := []string{"arg0", "arg1"}
 	chainCode, errChainCode := NewCC(&testBatchContract{})
 	require.NoError(t, errChainCode)
 
@@ -110,14 +109,12 @@ func TestSaveToBatchWithWrongArgs(t *testing.T) {
 	mockStub.MockTransactionStart(testEncodedTxID)
 	mockStub.TxTimestamp = s.timestamp
 
-	ep, err := chainCode.Method(s.FnName)
-	require.NoError(t, err)
+	// wrong number of arguments
+	mockStub.Args = [][]byte{[]byte(s.FnName), []byte("arg0"), []byte("arg1")}
 
 	resp := chainCode.BatchHandler(
 		telemetry.TraceContext{},
 		mockStub,
-		ep,
-		wrongArgs,
 	)
 	require.Equal(t, resp.GetMessage(), "incorrect number of arguments: found 2 but expected 5: validate TxTestFnWithFiveArgsMethod")
 }
@@ -158,13 +155,10 @@ func TestSaveToBatchWithSignedArgs(t *testing.T) {
 	batchTimestamp, err := mockStub.GetTxTimestamp()
 	require.NoError(t, err)
 
-	ep, err := chainCode.Method(s.FnName)
-	require.NoError(t, err)
-
 	err = chainCode.saveToBatch(
 		telemetry.TraceContext{},
 		mockStub,
-		ep,
+		s.FnName,
 		sender,
 		argsForTestFnWithSignedTwoArgs,
 		uint64(batchTimestamp.Seconds),
@@ -207,10 +201,9 @@ func TestSaveToBatchWithWrongSignedArgs(t *testing.T) {
 	mockStub.MockTransactionStart(testEncodedTxID)
 	mockStub.TxTimestamp = s.timestamp
 
-	ep, err := chainCode.Method(s.FnName)
-	require.NoError(t, err)
+	method := chainCode.Router().Method(s.FnName)
 
-	err = chainCode.Router().Check(mockStub, ep.Method, chainCode.PrependSender(ep, sender, wrongArgs)...)
+	err = chainCode.Router().Check(mockStub, method, chainCode.PrependSender(method, sender, wrongArgs)...)
 	require.EqualError(t, err, "invalid argument value: 'arg0': for type 'int64': validate TxTestFnWithSignedTwoArgs, argument 1")
 }
 
@@ -249,8 +242,8 @@ func TestSaveToBatchWrongFnName(t *testing.T) {
 	err = config.Configure(chainCode.contract, cfgBytes)
 	require.NoError(t, err)
 
-	_, err = chainCode.Method(s.FnName)
-	require.ErrorContains(t, err, "method 'unknownFunctionName' not found")
+	method := chainCode.Router().Method(s.FnName)
+	require.Empty(t, method)
 }
 
 // TestSaveAndLoadToBatchWithWrongID - negative test with wrong ID for loadToBatch
@@ -302,13 +295,10 @@ func SaveAndLoadToBatchTest(t *testing.T, ser *serieBatches, args []string) {
 	batchTimestamp, err := ms.GetTxTimestamp()
 	require.NoError(t, err)
 
-	ep, err := chainCode.Method(ser.FnName)
-	require.NoError(t, err)
-
 	errSave := chainCode.saveToBatch(
 		telemetry.TraceContext{},
 		ms,
-		ep,
+		ser.FnName,
 		sender,
 		args,
 		uint64(batchTimestamp.Seconds),
@@ -420,13 +410,10 @@ func BatchExecuteTest(t *testing.T, ser *serieBatchExecute, args []string) peer.
 	batchTimestamp, err := ms.GetTxTimestamp()
 	require.NoError(t, err)
 
-	ep, err := chainCode.Method(testFnWithFiveArgsMethod)
-	require.NoError(t, err)
-
 	err = chainCode.saveToBatch(
 		telemetry.TraceContext{},
 		ms,
-		ep,
+		testFnWithFiveArgsMethod,
 		nil,
 		args,
 		uint64(batchTimestamp.Seconds),
@@ -489,13 +476,10 @@ func TestBatchedTxExecute(t *testing.T) {
 	batchTimestamp, err := ms.GetTxTimestamp()
 	require.NoError(t, err)
 
-	ep, err := chainCode.Method(testFnWithFiveArgsMethod)
-	require.NoError(t, err)
-
 	err = chainCode.saveToBatch(
 		telemetry.TraceContext{},
 		ms,
-		ep,
+		testFnWithFiveArgsMethod,
 		nil,
 		argsForTestFnWithFive,
 		uint64(batchTimestamp.Seconds))
