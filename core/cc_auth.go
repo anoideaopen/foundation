@@ -74,7 +74,9 @@ func (cc *Chaincode) validateAndExtractInvocationContext(
 	invocation.keyTypes = make([]pb.KeyType, len(signers))
 	for i := 0; i < invocation.signersCount; i++ {
 		if oldBehavior {
-			if len(signers[i]) == int(gost3410.Mode2012) {
+			publicKeyBytes := base58.Decode(signers[i])
+
+			if len(publicKeyBytes) == int(gost3410.Mode2012) {
 				invocation.keyTypes[i] = pb.KeyType_gost
 			} else {
 				invocation.keyTypes[i] = pb.KeyType_ed25519
