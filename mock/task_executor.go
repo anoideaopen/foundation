@@ -38,7 +38,7 @@ func (w *Wallet) ExecuteSignedInvoke(ch string, fn string, args ...string) ([]by
 	executorRequest := NewExecutorRequest(ch, fn, args, true)
 	resp, err := w.TaskExecutorRequest(ch, executorRequest)
 	if err != nil {
-		return nil, fmt.Errorf("execute signed invoke: %v", err)
+		return nil, fmt.Errorf("execute signed invoke: %w", err)
 	}
 
 	if len(resp) != 1 {
@@ -52,11 +52,11 @@ func (w *Wallet) ExecuteNoSignedInvoke(ch string, fn string, args ...string) ([]
 	executorRequest := NewExecutorRequest(ch, fn, args, false)
 	resp, err := w.TaskExecutorRequest(ch, executorRequest)
 	if err != nil {
-		return nil, fmt.Errorf("execute signed invoke: %v", err)
+		return nil, fmt.Errorf("execute no signed invoke: %w", err)
 	}
 
 	if len(resp) != 1 {
-		return nil, fmt.Errorf("execute signed invoke failed: expected 1 response, got %d", len(resp))
+		return nil, fmt.Errorf("execute no signed invoke failed: expected 1 response, got %d", len(resp))
 	}
 
 	return resp[0].BatchTxEvent.GetResult(), nil
@@ -66,7 +66,7 @@ func (w *Wallet) TaskExecutorRequest(channel string, requests ...ExecutorRequest
 	tasks := make([]*proto.Task, len(requests))
 	for i, r := range requests {
 		if r.Channel != channel {
-			return nil, fmt.Errorf("channel does not match to request channel")
+			return nil, fmt.Errorf("common tasks channel '%s' does not match to request channel '%s'", channel, r.Channel)
 		}
 		var args []string
 		if r.IsSignedInvoke {
