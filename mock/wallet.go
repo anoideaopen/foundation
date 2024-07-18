@@ -456,7 +456,6 @@ func (w *Wallet) sign(fn, ch string, args ...string) ([]string, string) {
 }
 
 func (w *Wallet) signWithNonce(fn, ch string, nonce string, args ...string) ([]string, string) {
-
 	// Forming a message for signature, including function name,
 	// empty string (placeholder), channel name, arguments and nonce.
 	publicKey := w.publicKeyBytes()
