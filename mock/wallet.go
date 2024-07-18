@@ -381,6 +381,11 @@ func (w *Wallet) SignArgs(ch, fn string, args ...string) []string {
 	return resp
 }
 
+func (w *Wallet) WithNonceSignArgs(ch, fn string, nonce string, args ...string) []string {
+	resp, _ := w.signWithNonce(fn, ch, nonce, args...)
+	return resp
+}
+
 // BatchedInvoke invokes a function on the ledger
 func (w *Wallet) BatchedInvoke(ch, fn string, args ...string) (string, TxResponse) {
 	if err := w.verifyIncoming(ch, fn); err != nil {
@@ -446,6 +451,11 @@ func (w *Wallet) sign(fn, ch string, args ...string) ([]string, string) {
 
 	// Generation of nonce based on current time in milliseconds.
 	nonce := strconv.FormatInt(time.Now().UnixNano()/1000000, 10)
+
+	return w.signWithNonce(fn, ch, nonce, args...)
+}
+
+func (w *Wallet) signWithNonce(fn, ch string, nonce string, args ...string) ([]string, string) {
 
 	// Forming a message for signature, including function name,
 	// empty string (placeholder), channel name, arguments and nonce.

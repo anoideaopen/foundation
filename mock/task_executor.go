@@ -35,45 +35,102 @@ func NewExecutorRequest(ch string, fn string, args []string, isSignedInvoke bool
 }
 
 func (w *Wallet) ExecuteSignedInvoke(ch string, fn string, args ...string) ([]byte, error) {
-	resp, err := w.TaskExecutor(NewExecutorRequest(ch, fn, args, true))
+	executorRequest := NewExecutorRequest(ch, fn, args, true)
+	resp, err := w.TaskExecutorRequest(ch, executorRequest)
+	if err != nil {
+		return nil, fmt.Errorf("execute signed invoke: %v", err)
+	}
+
+	if len(resp) != 1 {
+		return nil, fmt.Errorf("execute signed invoke failed: expected 1 response, got %d", len(resp))
+	}
+
+	return resp[0].BatchTxEvent.GetResult(), nil
+}
+
+func (w *Wallet) ExecuteNoSignedInvoke(ch string, fn string, args ...string) ([]byte, error) {
+	executorRequest := NewExecutorRequest(ch, fn, args, false)
+	resp, err := w.TaskExecutorRequest(ch, executorRequest)
+	if err != nil {
+		return nil, fmt.Errorf("execute signed invoke: %v", err)
+	}
+
+	if len(resp) != 1 {
+		return nil, fmt.Errorf("execute signed invoke failed: expected 1 response, got %d", len(resp))
+	}
+
+	return resp[0].BatchTxEvent.GetResult(), nil
+}
+
+func (w *Wallet) TaskExecutorRequest(channel string, requests ...ExecutorRequest) ([]ExecutorResponse, error) {
+	tasks := make([]*proto.Task, len(requests))
+	for i, r := range requests {
+		if r.Channel != channel {
+			return nil, fmt.Errorf("channel does not match to request channel")
+		}
+		var args []string
+		if r.IsSignedInvoke {
+			args = w.SignArgs(r.Channel, r.Method, r.Args...)
+		} else {
+			args = r.Args
+		}
+
+		task := &proto.Task{
+			Id:     strconv.FormatInt(rand.Int63(), 10),
+			Method: r.Method,
+			Args:   args,
+		}
+
+		tasks[i] = task
+	}
+
+	batchResponse, err := w.TasksExecutor(channel, tasks)
 	if err != nil {
 		return nil, err
 	}
 
-	return resp.BatchTxEvent.GetResult(), nil
-}
-
-func (w *Wallet) TaskExecutor(r ExecutorRequest) (*ExecutorResponse, error) {
-	err := w.verifyIncoming(r.Channel, r.Method)
+	batchEvent, err := w.fetchBatchEvent(channel)
 	if err != nil {
-		return nil, fmt.Errorf("failed to verify incoming args: %w", err)
+		return nil, err
+	}
+	responseMap := make(map[string]*proto.TxResponse)
+	for _, response := range batchResponse.GetTxResponses() {
+		responseMap[string(response.GetId())] = response
+	}
+	executorResponses := make([]ExecutorResponse, 0)
+	for _, batchTxEvent := range batchEvent.GetEvents() {
+		txResponse, ok := responseMap[string(batchTxEvent.GetId())]
+		if !ok {
+			return nil, fmt.Errorf("could not find response for event %v", batchTxEvent.GetId())
+		}
+
+		if responseErr := txResponse.GetError(); responseErr != nil {
+			return nil, errors.New(responseErr.GetError())
+		}
+		executorResponses = append(executorResponses, ExecutorResponse{
+			TxResponse:   txResponse,
+			BatchTxEvent: batchTxEvent,
+		})
 	}
 
+	return executorResponses, nil
+}
+
+func (w *Wallet) TasksExecutor(channel string, tasks []*proto.Task) (*proto.BatchResponse, error) {
 	// setup creator
 	cert, err := hex.DecodeString(batchRobotCert)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode hex string batchRobotCert: %w", err)
 	}
-	w.ledger.stubs[r.Channel].SetCreator(cert)
+	w.ledger.stubs[channel].SetCreator(cert)
 
-	var args []string
-	if r.IsSignedInvoke {
-		args, _ = w.sign(r.Method, r.Channel, r.Args...)
-	}
-
-	task := &proto.Task{
-		Id:     strconv.FormatInt(rand.Int63(), 10),
-		Method: r.Method,
-		Args:   args,
-	}
-
-	bytes, err := pb.Marshal(&proto.ExecuteTasksRequest{Tasks: []*proto.Task{task}})
+	bytes, err := pb.Marshal(&proto.ExecuteTasksRequest{Tasks: tasks})
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal tasks ExecuteTasksRequest: %w", err)
 	}
 
 	// do invoke chaincode
-	peerResponse, err := w.ledger.doInvokeWithPeerResponse(r.Channel, txIDGen(), core.ExecuteTasks, string(bytes))
+	peerResponse, err := w.ledger.doInvokeWithPeerResponse(channel, txIDGen(), core.ExecuteTasks, string(bytes))
 	if err != nil {
 		return nil, fmt.Errorf("failed to invoke method %s: %w", core.ExecuteTasks, err)
 	}
@@ -82,60 +139,24 @@ func (w *Wallet) TaskExecutor(r ExecutorRequest) (*ExecutorResponse, error) {
 		return nil, fmt.Errorf("failed to invoke method %s, status: '%v', message: '%s'", core.ExecuteTasks, peerResponse.GetStatus(), peerResponse.GetMessage())
 	}
 
-	var batchResponse proto.BatchResponse
-	err = pb.Unmarshal(peerResponse.GetPayload(), &batchResponse)
+	batchResponse := &proto.BatchResponse{}
+	err = pb.Unmarshal(peerResponse.GetPayload(), batchResponse)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal BatchResponse: %w", err)
 	}
 
-	batchTxEvent, err := w.getEventByID(r.Channel, task.GetId())
-	if err != nil {
-		return nil, err
-	}
-
-	txResponse, err := getTxResponseByID(&batchResponse, task.GetId())
-	if err != nil {
-		return nil, err
-	}
-
-	if responseErr := txResponse.GetError(); responseErr != nil {
-		return nil, errors.New(responseErr.GetError())
-	}
-
-	return &ExecutorResponse{
-		TxResponse:   txResponse,
-		BatchTxEvent: batchTxEvent,
-	}, nil
+	return batchResponse, nil
 }
 
-func (w *Wallet) getEventByID(channel string, id string) (*proto.BatchTxEvent, error) {
+func (w *Wallet) fetchBatchEvent(channel string) (*proto.BatchEvent, error) {
 	e := <-w.ledger.stubs[channel].ChaincodeEventsChannel
 	if e.GetEventName() == core.ExecuteTasksEvent {
-		batchEvent := proto.BatchEvent{}
-		err := pb.Unmarshal(e.GetPayload(), &batchEvent)
+		batchEvent := &proto.BatchEvent{}
+		err := pb.Unmarshal(e.GetPayload(), batchEvent)
 		if err != nil {
 			return nil, fmt.Errorf("failed to unmarshal BatchEvent: %w", err)
 		}
-		for _, ev := range batchEvent.GetEvents() {
-			if string(ev.GetId()) == id {
-				return ev, nil
-			}
-		}
+		return batchEvent, nil
 	}
-	return nil, fmt.Errorf("failed to find event %s by id %s", core.ExecuteTasksEvent, id)
-}
-
-func getTxResponseByID(
-	batchResponse *proto.BatchResponse,
-	id string,
-) (
-	*proto.TxResponse,
-	error,
-) {
-	for _, response := range batchResponse.GetTxResponses() {
-		if string(response.GetId()) == id {
-			return response, nil
-		}
-	}
-	return nil, fmt.Errorf("failed to find response by id %s", id)
+	return nil, fmt.Errorf("failed to find event %s", core.ExecuteTasksEvent)
 }
