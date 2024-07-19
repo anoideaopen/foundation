@@ -1,7 +1,6 @@
 package mock
 
 import (
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"math/rand"
@@ -117,13 +116,6 @@ func (w *Wallet) TaskExecutorRequest(channel string, requests ...ExecutorRequest
 }
 
 func (w *Wallet) TasksExecutor(channel string, tasks []*proto.Task) (*proto.BatchResponse, error) {
-	// setup creator
-	cert, err := hex.DecodeString(batchRobotCert)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode hex string batchRobotCert: %w", err)
-	}
-	w.ledger.stubs[channel].SetCreator(cert)
-
 	bytes, err := pb.Marshal(&proto.ExecuteTasksRequest{Tasks: tasks})
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal tasks ExecuteTasksRequest: %w", err)
