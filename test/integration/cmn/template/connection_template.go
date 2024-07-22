@@ -15,7 +15,7 @@ client:
       path: /tmp/msp
     path: /tmp/state-store
   logging:
-    level: info
+    level: {{ .LogLevelSDK }}
   organization: {{ Peer.Organization }}
   peer:
     timeout:

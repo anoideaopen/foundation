@@ -31,6 +31,7 @@ type NetworkFoundation struct {
 	ChannelTransfer *ChannelTransfer
 	Templates       *TemplatesFound
 	Channels        []string
+	LogLevelSDK     string
 
 	mutex      sync.Locker
 	colorIndex uint
@@ -50,7 +51,8 @@ func New(network *nwo.Network, channels []string) *NetworkFoundation {
 			Ports:       nwo.Ports{},
 			TTL:         "10800s",
 		},
-		mutex: &sync.Mutex{},
+		LogLevelSDK: "info",
+		mutex:       &sync.Mutex{},
 	}
 	for _, portName := range RobotPortNames() {
 		n.Robot.Ports[portName] = n.ReservePort()
