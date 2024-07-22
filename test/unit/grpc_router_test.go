@@ -9,6 +9,7 @@ import (
 	"github.com/anoideaopen/foundation/core/routing/grpc"
 	"github.com/anoideaopen/foundation/core/routing/reflect"
 	"github.com/anoideaopen/foundation/mock"
+	mockgrpc "github.com/anoideaopen/foundation/mock/grpc"
 	"github.com/anoideaopen/foundation/test/unit/token/proto"
 	"github.com/anoideaopen/foundation/test/unit/token/service"
 	"github.com/anoideaopen/foundation/token"
@@ -65,7 +66,7 @@ func TestGRPCRouter(t *testing.T) {
 	}
 
 	// Add balance by admin with a client by URL.
-	client := proto.NewBalanceServiceClient(mock.NewMockClientConn(ch).SetCaller(owner))
+	client := proto.NewBalanceServiceClient(mockgrpc.NewMockClientConn(ch).SetCaller(owner))
 
 	_, err := client.AddBalanceByAdmin(context.Background(), req)
 	require.NoError(t, err)

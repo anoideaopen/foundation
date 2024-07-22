@@ -1,4 +1,4 @@
-package mock
+package grpc
 
 import (
 	"context"
@@ -8,6 +8,7 @@ import (
 
 	coregrpc "github.com/anoideaopen/foundation/core/routing/grpc"
 	corepb "github.com/anoideaopen/foundation/core/routing/grpc/proto"
+	"github.com/anoideaopen/foundation/mock"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -15,7 +16,7 @@ import (
 )
 
 type MockClientConn struct {
-	caller *Wallet
+	caller *mock.Wallet
 	ch     string
 }
 
@@ -25,7 +26,7 @@ func NewMockClientConn(ch string) *MockClientConn {
 	}
 }
 
-func (m *MockClientConn) SetCaller(caller *Wallet) *MockClientConn {
+func (m *MockClientConn) SetCaller(caller *mock.Wallet) *MockClientConn {
 	m.caller = caller
 	return m
 }
@@ -56,7 +57,7 @@ func (m *MockClientConn) Invoke(ctx context.Context, method string, args interfa
 		panic("method not found")
 	}
 
-	var resp TxResponse
+	var resp mock.TxResponse
 	if ext, ok := proto.GetExtension(md.Options(), corepb.E_MethodType).(corepb.MethodType); ok {
 		switch ext {
 		case corepb.MethodType_METHOD_TYPE_TRANSACTION:
