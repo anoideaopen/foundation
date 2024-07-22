@@ -34,14 +34,15 @@ func (it *IndustrialToken) TxCreateRedeemRequest(sender *types.Sender, groupName
 		return err
 	}
 
-	if err = it.loadConfigUnlessLoaded(); err != nil {
+	cfg, err := it.loadConfig()
+	if err != nil {
 		return err
 	}
-	if !it.config.GetInitialized() {
+	if !cfg.GetInitialized() {
 		return errors.New("token is not initialized")
 	}
 	notFound := true
-	for _, group := range it.config.GetGroups() {
+	for _, group := range cfg.GetGroups() {
 		if group.GetId() == groupName {
 			notFound = false
 			break
@@ -205,14 +206,15 @@ func (it *IndustrialToken) TxDenyRedeemRequest(sender *types.Sender, requestID s
 }
 
 func (it *IndustrialToken) changeEmissionInGroup(groupName string, amount *big.Int) error {
-	if err := it.loadConfigUnlessLoaded(); err != nil {
+	cfg, err := it.loadConfig()
+	if err != nil {
 		return err
 	}
-	if !it.config.GetInitialized() {
+	if !cfg.GetInitialized() {
 		return errors.New("token is not initialized")
 	}
 
-	for _, group := range it.config.GetGroups() {
+	for _, group := range cfg.GetGroups() {
 		if group.GetId() == groupName {
 			if group.Emission == nil {
 				group.Emission = new(big.Int).Bytes()
@@ -224,7 +226,7 @@ func (it *IndustrialToken) changeEmissionInGroup(groupName string, amount *big.I
 
 			group.Emission = new(big.Int).Sub(new(big.Int).SetBytes(group.GetEmission()), amount).Bytes()
 
-			return it.saveConfig()
+			return it.saveConfig(cfg)
 		}
 	}
 

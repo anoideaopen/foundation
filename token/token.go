@@ -37,9 +37,6 @@ type BaseToken struct {
 
 	// stores token-specific attributes.
 	tokenConfig *proto.TokenConfig
-
-	// stores emission amount, fees and rates.
-	config *proto.Token
 }
 
 // Issuer returns the issuer of the token
@@ -83,23 +80,24 @@ func (bt *BaseToken) GetID() string {
 	return bt.TokenConfig().GetName()
 }
 
-func (bt *BaseToken) loadConfigUnlessLoaded() error {
+func (bt *BaseToken) loadConfig() (*proto.Token, error) {
 	data, err := bt.GetStub().GetState(metadataKey)
 	if err != nil {
-		return err
-	}
-	if bt.config == nil {
-		bt.config = &proto.Token{}
+		return nil, err
 	}
 
 	if len(data) == 0 {
-		return nil
+		return &proto.Token{}, nil
 	}
-	return pb.Unmarshal(data, bt.config)
+
+	cfg := &proto.Token{}
+	err = pb.Unmarshal(data, cfg)
+
+	return cfg, err
 }
 
-func (bt *BaseToken) saveConfig() error {
-	data, err := pb.Marshal(bt.config)
+func (bt *BaseToken) saveConfig(cfg *proto.Token) error {
+	data, err := pb.Marshal(cfg)
 	if err != nil {
 		return err
 	}
@@ -108,55 +106,59 @@ func (bt *BaseToken) saveConfig() error {
 
 // EmissionAdd adds emission
 func (bt *BaseToken) EmissionAdd(amount *big.Int) error {
-	if err := bt.loadConfigUnlessLoaded(); err != nil {
+	cfg, err := bt.loadConfig()
+	if err != nil {
 		return err
 	}
-	if bt.config.GetTotalEmission() == nil {
-		bt.config.TotalEmission = new(big.Int).Bytes()
+	if cfg.GetTotalEmission() == nil {
+		cfg.TotalEmission = new(big.Int).Bytes()
 	}
-	bt.config.TotalEmission = new(big.Int).Add(new(big.Int).SetBytes(bt.config.GetTotalEmission()), amount).Bytes()
-	return bt.saveConfig()
+
+	cfg.TotalEmission = new(big.Int).Add(new(big.Int).SetBytes(cfg.GetTotalEmission()), amount).Bytes()
+	return bt.saveConfig(cfg)
 }
 
 // EmissionSub subtracts emission
 func (bt *BaseToken) EmissionSub(amount *big.Int) error {
-	if err := bt.loadConfigUnlessLoaded(); err != nil {
+	cfg, err := bt.loadConfig()
+	if err != nil {
 		return err
 	}
-	if bt.config.GetTotalEmission() == nil {
-		bt.config.TotalEmission = new(big.Int).Bytes()
+	if cfg.GetTotalEmission() == nil {
+		cfg.TotalEmission = new(big.Int).Bytes()
 	}
-	if new(big.Int).SetBytes(bt.config.GetTotalEmission()).Cmp(amount) < 0 {
+	if new(big.Int).SetBytes(cfg.GetTotalEmission()).Cmp(amount) < 0 {
 		return errors.New("emission can't become negative")
 	}
-	bt.config.TotalEmission = new(big.Int).Sub(new(big.Int).SetBytes(bt.config.GetTotalEmission()), amount).Bytes()
-	return bt.saveConfig()
+	cfg.TotalEmission = new(big.Int).Sub(new(big.Int).SetBytes(cfg.GetTotalEmission()), amount).Bytes()
+	return bt.saveConfig(cfg)
 }
 
 func (bt *BaseToken) setFee(currency string, fee *big.Int, floor *big.Int, cap *big.Int) error {
-	if err := bt.loadConfigUnlessLoaded(); err != nil {
+	cfg, err := bt.loadConfig()
+	if err != nil {
 		return err
 	}
 
-	if bt.config.GetFee() == nil {
-		bt.config.Fee = &proto.TokenFee{}
+	if cfg.GetFee() == nil {
+		cfg.Fee = &proto.TokenFee{}
 	}
 
 	if currency == bt.ContractConfig().GetSymbol() {
-		bt.config.Fee.Currency = currency
-		bt.config.Fee.Fee = fee.Bytes()
-		bt.config.Fee.Floor = floor.Bytes()
-		bt.config.Fee.Cap = cap.Bytes()
-		return bt.saveConfig()
+		cfg.Fee.Currency = currency
+		cfg.Fee.Fee = fee.Bytes()
+		cfg.Fee.Floor = floor.Bytes()
+		cfg.Fee.Cap = cap.Bytes()
+		return bt.saveConfig(cfg)
 	}
 
-	for _, rate := range bt.config.GetRates() {
+	for _, rate := range cfg.GetRates() {
 		if rate.GetCurrency() == currency {
-			bt.config.Fee.Currency = currency
-			bt.config.Fee.Fee = fee.Bytes()
-			bt.config.Fee.Floor = floor.Bytes()
-			bt.config.Fee.Cap = cap.Bytes()
-			return bt.saveConfig()
+			cfg.Fee.Currency = currency
+			cfg.Fee.Fee = fee.Bytes()
+			cfg.Fee.Floor = floor.Bytes()
+			cfg.Fee.Cap = cap.Bytes()
+			return bt.saveConfig(cfg)
 		}
 	}
 
@@ -165,10 +167,11 @@ func (bt *BaseToken) setFee(currency string, fee *big.Int, floor *big.Int, cap *
 
 // GetRateAndLimits returns rate and limits for the deal type and currency
 func (bt *BaseToken) GetRateAndLimits(dealType string, currency string) (*proto.TokenRate, bool, error) {
-	if err := bt.loadConfigUnlessLoaded(); err != nil {
+	cfg, err := bt.loadConfig()
+	if err != nil {
 		return nil, false, err
 	}
-	for _, r := range bt.config.GetRates() {
+	for _, r := range cfg.GetRates() {
 		if r.GetDealType() == dealType && r.GetCurrency() == currency {
 			return r, true, nil
 		}

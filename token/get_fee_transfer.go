@@ -34,15 +34,16 @@ type FeeTransferResponseDTO struct {
 }
 
 func (bt *BaseToken) QueryGetFeeTransfer(req FeeTransferRequestDTO) (*FeeTransferResponseDTO, error) {
-	if err := bt.loadConfigUnlessLoaded(); err != nil {
+	cfg, err := bt.loadConfig()
+	if err != nil {
 		return nil, fmt.Errorf("failed to load config: %w", err)
 	}
 
-	if err := validateFeeConfig(bt.config); err != nil {
+	if err = validateFeeConfig(cfg); err != nil {
 		return nil, fmt.Errorf("failed to validate config for fee: %w", err)
 	}
 
-	if len(bt.config.GetFeeAddress()) == 0 {
+	if len(cfg.GetFeeAddress()) == 0 {
 		return nil, ErrFeeAddressNotConfigured
 	}
 
@@ -52,7 +53,7 @@ func (bt *BaseToken) QueryGetFeeTransfer(req FeeTransferRequestDTO) (*FeeTransfe
 	}
 
 	resp := &FeeTransferResponseDTO{
-		FeeAddress: types.AddrFromBytes(bt.config.GetFeeAddress()),
+		FeeAddress: types.AddrFromBytes(cfg.GetFeeAddress()),
 		Amount:     fee.Fee,
 		Currency:   fee.Currency,
 	}

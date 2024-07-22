@@ -50,15 +50,16 @@ func (bt *BaseToken) transferFee(
 	sender *types.Address,
 	recipient *types.Address,
 ) error {
-	if err := bt.loadConfigUnlessLoaded(); err != nil {
+	cfg, err := bt.loadConfig()
+	if err != nil {
 		return err
 	}
 
-	if bt.config.GetFee() != nil && len(bt.config.GetFeeAddress()) == 0 {
+	if cfg.GetFee() != nil && len(cfg.GetFeeAddress()) == 0 {
 		return ErrFeeAddressNotConfigured
 	}
 
-	if err := validateFeeConfig(bt.config); err != nil {
+	if err = validateFeeConfig(cfg); err != nil {
 		return fmt.Errorf("validating fee in config: %w", err)
 	}
 
@@ -71,8 +72,8 @@ func (bt *BaseToken) transferFee(
 		return nil
 	}
 
-	feeAddr := types.AddrFromBytes(bt.config.GetFeeAddress())
-	if bt.config.GetFee().GetCurrency() == bt.ContractConfig().GetSymbol() {
+	feeAddr := types.AddrFromBytes(cfg.GetFeeAddress())
+	if cfg.GetFee().GetCurrency() == bt.ContractConfig().GetSymbol() {
 		err = bt.TokenBalanceTransfer(sender, feeAddr, fee.Fee, "transfer fee")
 		if err != nil {
 			return fmt.Errorf(
@@ -142,10 +143,6 @@ func (bt *BaseToken) TxAllowedIndustrialBalanceTransfer(sender *types.Sender, re
 		return errors.New("impossible operation, the sender and recipient of the transfer cannot be equal")
 	}
 
-	if err := bt.loadConfigUnlessLoaded(); err != nil {
-		return err
-	}
-
 	var industrialAssets []*types.MultiSwapAsset
 	if err := json.Unmarshal([]byte(rawAssets), &industrialAssets); err != nil {
 		return err
@@ -179,10 +176,6 @@ func (bt *BaseToken) QueryPredictFee(amount *big.Int) (*Predict, error) {
 
 // TxSetFee sets the fee
 func (bt *BaseToken) TxSetFee(sender *types.Sender, currency string, fee *big.Int, floor *big.Int, cap *big.Int) error {
-	if err := bt.loadConfigUnlessLoaded(); err != nil {
-		return err
-	}
-
 	if !sender.Equal(bt.FeeSetter()) {
 		return errors.New("TxSetFee: unauthorized, sender is not a fee setter")
 	}
@@ -208,26 +201,28 @@ func (bt *BaseToken) TxSetFeeAddress(sender *types.Sender, address *types.Addres
 		return errors.New("unauthorized")
 	}
 
-	if err := bt.loadConfigUnlessLoaded(); err != nil {
+	cfg, err := bt.loadConfig()
+	if err != nil {
 		return err
 	}
-	bt.config.FeeAddress = address.Bytes()
-	return bt.saveConfig()
+	cfg.FeeAddress = address.Bytes()
+	return bt.saveConfig(cfg)
 }
 
 func (bt *BaseToken) calcFee(amount *big.Int) (*Predict, error) {
-	if err := bt.loadConfigUnlessLoaded(); err != nil {
+	cfg, err := bt.loadConfig()
+	if err != nil {
 		return &Predict{}, err
 	}
 
-	if bt.config.GetFee().GetFee() == nil || new(big.Int).SetBytes(bt.config.GetFee().GetFee()).Cmp(big.NewInt(0)) == 0 {
+	if cfg.GetFee().GetFee() == nil || new(big.Int).SetBytes(cfg.GetFee().GetFee()).Cmp(big.NewInt(0)) == 0 {
 		return &Predict{Fee: big.NewInt(0), Currency: bt.ContractConfig().GetSymbol()}, nil
 	}
 
 	fee := new(big.Int).Div(
 		new(big.Int).Mul(
 			amount,
-			new(big.Int).SetBytes(bt.config.GetFee().GetFee()),
+			new(big.Int).SetBytes(cfg.GetFee().GetFee()),
 		),
 		new(big.Int).Exp(
 			new(big.Int).SetUint64(10), //nolint:gomnd
@@ -236,8 +231,8 @@ func (bt *BaseToken) calcFee(amount *big.Int) (*Predict, error) {
 		),
 	)
 
-	if bt.config.GetFee().GetCurrency() != bt.ContractConfig().GetSymbol() {
-		rate, ok, err := bt.GetRateAndLimits("buyToken", bt.config.GetFee().GetCurrency())
+	if cfg.GetFee().GetCurrency() != bt.ContractConfig().GetSymbol() {
+		rate, ok, err := bt.GetRateAndLimits("buyToken", cfg.GetFee().GetCurrency())
 		if err != nil {
 			return &Predict{}, err
 		}
@@ -258,16 +253,16 @@ func (bt *BaseToken) calcFee(amount *big.Int) (*Predict, error) {
 		)
 	}
 
-	if fee.Cmp(new(big.Int).SetBytes(bt.config.GetFee().GetFloor())) < 0 {
-		fee = new(big.Int).SetBytes(bt.config.GetFee().GetFloor())
+	if fee.Cmp(new(big.Int).SetBytes(cfg.GetFee().GetFloor())) < 0 {
+		fee = new(big.Int).SetBytes(cfg.GetFee().GetFloor())
 	}
 
-	cp := new(big.Int).SetBytes(bt.config.GetFee().GetCap())
+	cp := new(big.Int).SetBytes(cfg.GetFee().GetCap())
 	if cp.Cmp(big.NewInt(0)) > 0 && fee.Cmp(cp) > 0 {
-		fee = new(big.Int).SetBytes(bt.config.GetFee().GetCap())
+		fee = new(big.Int).SetBytes(cfg.GetFee().GetCap())
 	}
 
-	return &Predict{Fee: fee, Currency: bt.config.GetFee().GetCurrency()}, nil
+	return &Predict{Fee: fee, Currency: cfg.GetFee().GetCurrency()}, nil
 }
 
 func validateFeeConfig(config *proto.Token) error {

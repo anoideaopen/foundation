@@ -45,10 +45,14 @@ func (it *IndustrialToken) TxTransferIndustrial(sender *types.Sender, to *types.
 	}
 	to = (*types.Address)(fullAdr)
 
-	if !sender.Address().IsUserIDSame(to) && len(it.config.GetFeeAddress()) == 32 &&
-		it.config.GetFee().GetCurrency() != "" {
-		feeAddr := types.AddrFromBytes(it.config.GetFeeAddress())
-		if it.config.GetFee().GetCurrency() == it.ContractConfig().GetSymbol() {
+	cfg, err := it.loadConfig()
+	if err != nil {
+		return err
+	}
+	if !sender.Address().IsUserIDSame(to) && len(cfg.GetFeeAddress()) == 32 &&
+		cfg.GetFee().GetCurrency() != "" {
+		feeAddr := types.AddrFromBytes(cfg.GetFeeAddress())
+		if cfg.GetFee().GetCurrency() == it.ContractConfig().GetSymbol() {
 			return it.IndustrialBalanceTransfer(it.ContractConfig().GetSymbol()+"_"+group, sender.Address(), feeAddr, fee.Fee, "transfer fee")
 		}
 		return it.AllowedBalanceTransfer(fee.Currency, sender.Address(), feeAddr, fee.Fee, "transfer fee")
@@ -64,9 +68,6 @@ func (it *IndustrialToken) QueryPredictFee(amount *big.Int) (Predict, error) {
 
 // TxSetFee sets fee values to config
 func (it *IndustrialToken) TxSetFee(sender *types.Sender, currency string, fee *big.Int, floor *big.Int, cap *big.Int) error {
-	if err := it.loadConfigUnlessLoaded(); err != nil {
-		return err
-	}
 	if !sender.Address().Equal(it.FeeSetter()) {
 		return errors.New("unauthorized")
 	}
@@ -81,30 +82,32 @@ func (it *IndustrialToken) TxSetFeeAddress(sender *types.Sender, address *types.
 	if !sender.Address().Equal(it.FeeAddressSetter()) {
 		return errors.New("unauthorized")
 	}
-	if err := it.loadConfigUnlessLoaded(); err != nil {
+	cfg, err := it.loadConfig()
+	if err != nil {
 		return err
 	}
-	it.config.FeeAddress = address.Bytes()
-	return it.saveConfig()
+	cfg.FeeAddress = address.Bytes()
+	return it.saveConfig(cfg)
 }
 
 func (it *IndustrialToken) calcFee(amount *big.Int) (Predict, error) {
-	if err := it.loadConfigUnlessLoaded(); err != nil {
+	cfg, err := it.loadConfig()
+	if err != nil {
 		return Predict{}, err
 	}
 
-	if it.config.GetFee().GetFee() == nil || new(big.Int).SetBytes(it.config.GetFee().GetFee()).Cmp(big.NewInt(0)) == 0 {
+	if cfg.GetFee().GetFee() == nil || new(big.Int).SetBytes(cfg.GetFee().GetFee()).Cmp(big.NewInt(0)) == 0 {
 		return Predict{Fee: big.NewInt(0), Currency: it.ContractConfig().GetSymbol()}, nil
 	}
 
 	fee := new(big.Int).Div(
-		new(big.Int).Mul(amount, new(big.Int).SetBytes(it.config.GetFee().GetFee())),
+		new(big.Int).Mul(amount, new(big.Int).SetBytes(cfg.GetFee().GetFee())),
 		new(big.Int).Exp(
 			new(big.Int).SetUint64(10),
 			new(big.Int).SetUint64(feeDecimals), nil))
 
-	if it.config.GetFee().GetCurrency() != it.ContractConfig().GetSymbol() {
-		rate, ok, err := it.GetRateAndLimits("buyToken", it.config.GetFee().GetCurrency())
+	if cfg.GetFee().GetCurrency() != it.ContractConfig().GetSymbol() {
+		rate, ok, err := it.GetRateAndLimits("buyToken", cfg.GetFee().GetCurrency())
 		if err != nil {
 			return Predict{}, err
 		}
@@ -125,13 +128,13 @@ func (it *IndustrialToken) calcFee(amount *big.Int) (Predict, error) {
 		)
 	}
 
-	if fee.Cmp(new(big.Int).SetBytes(it.config.GetFee().GetFloor())) < 0 {
-		fee = new(big.Int).SetBytes(it.config.GetFee().GetFloor())
+	if fee.Cmp(new(big.Int).SetBytes(cfg.GetFee().GetFloor())) < 0 {
+		fee = new(big.Int).SetBytes(cfg.GetFee().GetFloor())
 	}
-	c := new(big.Int).SetBytes(it.config.GetFee().GetCap())
+	c := new(big.Int).SetBytes(cfg.GetFee().GetCap())
 	if c.Cmp(big.NewInt(0)) > 0 && fee.Cmp(c) > 0 {
-		fee = new(big.Int).SetBytes(it.config.GetFee().GetCap())
+		fee = new(big.Int).SetBytes(cfg.GetFee().GetCap())
 	}
 
-	return Predict{Fee: fee, Currency: it.config.GetFee().GetCurrency()}, nil
+	return Predict{Fee: fee, Currency: cfg.GetFee().GetCurrency()}, nil
 }

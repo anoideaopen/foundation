@@ -68,11 +68,12 @@ func (it *IndustrialToken) QueryMetadata() (Metadata, error) {
 		Methods:         it.GetMethods(it),
 	}
 
-	if err := it.loadConfigUnlessLoaded(); err != nil {
+	cfg, err := it.loadConfig()
+	if err != nil {
 		return Metadata{}, err
 	}
 
-	for _, group := range it.config.GetGroups() {
+	for _, group := range cfg.GetGroups() {
 		m.Groups = append(m.Groups, MetadataGroup{
 			Name:         group.GetId(),
 			Amount:       new(big.Int).SetBytes(group.GetEmission()),
@@ -80,18 +81,18 @@ func (it *IndustrialToken) QueryMetadata() (Metadata, error) {
 			Note:         group.GetNote(),
 		})
 	}
-	if len(it.config.GetFeeAddress()) == 32 {
-		m.Fee.Address = types.AddrFromBytes(it.config.GetFeeAddress()).String()
+	if len(cfg.GetFeeAddress()) == 32 {
+		m.Fee.Address = types.AddrFromBytes(cfg.GetFeeAddress()).String()
 	}
 
-	if it.config.GetFee() != nil {
-		m.Fee.Currency = it.config.GetFee().GetCurrency()
-		m.Fee.Fee = new(big.Int).SetBytes(it.config.GetFee().GetFee())
-		m.Fee.Floor = new(big.Int).SetBytes(it.config.GetFee().GetFloor())
-		m.Fee.Cap = new(big.Int).SetBytes(it.config.GetFee().GetCap())
+	if cfg.GetFee() != nil {
+		m.Fee.Currency = cfg.GetFee().GetCurrency()
+		m.Fee.Fee = new(big.Int).SetBytes(cfg.GetFee().GetFee())
+		m.Fee.Floor = new(big.Int).SetBytes(cfg.GetFee().GetFloor())
+		m.Fee.Cap = new(big.Int).SetBytes(cfg.GetFee().GetCap())
 	}
 
-	for _, r := range it.config.GetRates() {
+	for _, r := range cfg.GetRates() {
 		m.Rates = append(m.Rates, metadataRate{
 			DealType: r.GetDealType(),
 			Currency: r.GetCurrency(),
@@ -106,14 +107,15 @@ func (it *IndustrialToken) QueryMetadata() (Metadata, error) {
 
 // ChangeGroupMetadata changes metadata for a group of token
 func (it *IndustrialToken) ChangeGroupMetadata(groupName string, maturityDate time.Time, note string) error {
-	if err := it.loadConfigUnlessLoaded(); err != nil {
+	cfg, err := it.loadConfig()
+	if err != nil {
 		return err
 	}
-	if !it.config.GetInitialized() {
+	if !cfg.GetInitialized() {
 		return errors.New("token is not initialized")
 	}
 	notFound := true
-	for _, group := range it.config.GetGroups() {
+	for _, group := range cfg.GetGroups() {
 		if group.GetId() == groupName {
 			notFound = false
 			bChanged := false
@@ -131,7 +133,7 @@ func (it *IndustrialToken) ChangeGroupMetadata(groupName string, maturityDate ti
 			}
 
 			if bChanged {
-				return it.saveConfig()
+				return it.saveConfig(cfg)
 			}
 
 			break
@@ -193,23 +195,24 @@ func (it *IndustrialToken) TxSetRate(sender *types.Sender, dealType string, curr
 	if it.ContractConfig().GetSymbol() == currency {
 		return errors.New("currency is equals token: it is impossible")
 	}
-	if err := it.loadConfigUnlessLoaded(); err != nil {
+	cfg, err := it.loadConfig()
+	if err != nil {
 		return err
 	}
-	for i, r := range it.config.GetRates() {
+	for i, r := range cfg.GetRates() {
 		if r.GetDealType() == dealType && r.GetCurrency() == currency {
-			it.config.Rates[i].Rate = rate.Bytes()
-			return it.saveConfig()
+			cfg.Rates[i].Rate = rate.Bytes()
+			return it.saveConfig(cfg)
 		}
 	}
-	it.config.Rates = append(it.config.Rates, &proto.TokenRate{
+	cfg.Rates = append(cfg.Rates, &proto.TokenRate{
 		DealType: dealType,
 		Currency: currency,
 		Rate:     rate.Bytes(),
 		Max:      new(big.Int).SetUint64(0).Bytes(), // todo maybe needs different solution
 		Min:      new(big.Int).SetUint64(0).Bytes(),
 	})
-	return it.saveConfig()
+	return it.saveConfig(cfg)
 }
 
 // TxSetLimits sets limits for a deal type and an asset
@@ -220,17 +223,18 @@ func (it *IndustrialToken) TxSetLimits(sender *types.Sender, dealType string, cu
 	if min.Cmp(max) > 0 && max.Cmp(big.NewInt(0)) > 0 {
 		return errors.New("min limit is greater than max limit")
 	}
-	if err := it.loadConfigUnlessLoaded(); err != nil {
+	cfg, err := it.loadConfig()
+	if err != nil {
 		return err
 	}
 	unknownDealType := true
-	for i, r := range it.config.GetRates() {
+	for i, r := range cfg.GetRates() {
 		if r.GetDealType() == dealType {
 			unknownDealType = false
 			if r.GetCurrency() == currency {
-				it.config.GetRates()[i].Max = max.Bytes()
-				it.config.GetRates()[i].Min = min.Bytes()
-				return it.saveConfig()
+				cfg.GetRates()[i].Max = max.Bytes()
+				cfg.GetRates()[i].Min = min.Bytes()
+				return it.saveConfig(cfg)
 			}
 		}
 	}

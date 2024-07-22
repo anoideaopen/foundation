@@ -32,8 +32,6 @@ type IndustrialToken struct {
 	core.BaseContract
 
 	extConfig *ExtConfig
-
-	config *proto.Industrial
 }
 
 // GetID returns token id
@@ -80,23 +78,24 @@ func (it *IndustrialToken) FeeAddressSetter() *types.Address {
 	return addr
 }
 
-func (it *IndustrialToken) loadConfigUnlessLoaded() error {
+func (it *IndustrialToken) loadConfig() (*proto.Industrial, error) {
 	data, err := it.GetStub().GetState("tokenMetadata")
 	if err != nil {
-		return err
-	}
-	if it.config == nil {
-		it.config = &proto.Industrial{}
+		return nil, err
 	}
 
 	if len(data) == 0 {
-		return nil
+		return &proto.Industrial{}, nil
 	}
-	return pb.Unmarshal(data, it.config)
+
+	cfg := &proto.Industrial{}
+	err = pb.Unmarshal(data, cfg)
+
+	return cfg, err
 }
 
-func (it *IndustrialToken) saveConfig() error {
-	data, err := pb.Marshal(it.config)
+func (it *IndustrialToken) saveConfig(cfg *proto.Industrial) error {
+	data, err := pb.Marshal(cfg)
 	if err != nil {
 		return err
 	}
@@ -109,26 +108,27 @@ func (it *IndustrialToken) setFee(
 	floor *big.Int,
 	cap *big.Int,
 ) error {
-	if err := it.loadConfigUnlessLoaded(); err != nil {
+	cfg, err := it.loadConfig()
+	if err != nil {
 		return err
 	}
-	if it.config.GetFee() == nil {
-		it.config.Fee = &proto.TokenFee{}
+	if cfg.GetFee() == nil {
+		cfg.Fee = &proto.TokenFee{}
 	}
 	if currency == it.ContractConfig().GetSymbol() {
-		it.config.Fee.Currency = currency
-		it.config.Fee.Fee = fee.Bytes()
-		it.config.Fee.Floor = floor.Bytes()
-		it.config.Fee.Cap = cap.Bytes()
-		return it.saveConfig()
+		cfg.Fee.Currency = currency
+		cfg.Fee.Fee = fee.Bytes()
+		cfg.Fee.Floor = floor.Bytes()
+		cfg.Fee.Cap = cap.Bytes()
+		return it.saveConfig(cfg)
 	}
-	for _, rate := range it.config.GetRates() {
+	for _, rate := range cfg.GetRates() {
 		if rate.GetCurrency() == currency {
-			it.config.Fee.Currency = currency
-			it.config.Fee.Fee = fee.Bytes()
-			it.config.Fee.Floor = floor.Bytes()
-			it.config.Fee.Cap = cap.Bytes()
-			return it.saveConfig()
+			cfg.Fee.Currency = currency
+			cfg.Fee.Fee = fee.Bytes()
+			cfg.Fee.Floor = floor.Bytes()
+			cfg.Fee.Cap = cap.Bytes()
+			return it.saveConfig(cfg)
 		}
 	}
 	return errors.New("unknown currency")
@@ -136,10 +136,11 @@ func (it *IndustrialToken) setFee(
 
 // GetRateAndLimits returns token rate and limits from metadata
 func (it *IndustrialToken) GetRateAndLimits(dealType string, currency string) (*proto.TokenRate, bool, error) {
-	if err := it.loadConfigUnlessLoaded(); err != nil {
+	cfg, err := it.loadConfig()
+	if err != nil {
 		return nil, false, err
 	}
-	for _, r := range it.config.GetRates() {
+	for _, r := range cfg.GetRates() {
 		if r.GetDealType() == dealType && r.GetCurrency() == currency {
 			return r, true, nil
 		}
@@ -149,11 +150,12 @@ func (it *IndustrialToken) GetRateAndLimits(dealType string, currency string) (*
 
 // Initialize - token initialization
 func (it *IndustrialToken) Initialize(groups []Group) error {
-	if err := it.loadConfigUnlessLoaded(); err != nil {
+	cfg, err := it.loadConfig()
+	if err != nil {
 		return err
 	}
 
-	if it.config.GetInitialized() {
+	if cfg.GetInitialized() {
 		return nil
 	}
 
@@ -175,11 +177,11 @@ func (it *IndustrialToken) Initialize(groups []Group) error {
 		})
 	}
 
-	it.config.Groups = industrialGroups
-	it.config.Initialized = true
+	cfg.Groups = industrialGroups
+	cfg.Initialized = true
 
 	for _, x := range industrialGroups {
-		if err := it.IndustrialBalanceAdd(
+		if err = it.IndustrialBalanceAdd(
 			it.ContractConfig().GetSymbol()+"_"+x.GetId(),
 			it.Issuer(),
 			new(big.Int).SetBytes(x.GetEmission()),
@@ -189,5 +191,5 @@ func (it *IndustrialToken) Initialize(groups []Group) error {
 		}
 	}
 
-	return it.saveConfig()
+	return it.saveConfig(cfg)
 }

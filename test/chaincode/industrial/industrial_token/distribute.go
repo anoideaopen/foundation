@@ -40,7 +40,11 @@ func (it *IndustrialToken) TxCreateDistribRequest(sender *types.Sender, args, re
 	if err != nil {
 		return err
 	}
-	if !it.config.GetInitialized() {
+	cfg, err := it.loadConfig()
+	if err != nil {
+		return err
+	}
+	if !cfg.GetInitialized() {
 		return errors.New("token is not initialized")
 	}
 
@@ -62,7 +66,7 @@ func (it *IndustrialToken) TxCreateDistribRequest(sender *types.Sender, args, re
 		}
 
 		fGroupNameFound := false
-		for _, group := range it.config.GetGroups() {
+		for _, group := range cfg.GetGroups() {
 			if arg == group.GetId() {
 				groupName = group.GetId()
 				fGroupNameFound = true
