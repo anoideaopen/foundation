@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/anoideaopen/foundation/core"
+	"github.com/anoideaopen/foundation/core/document"
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/core/types/big"
 	"github.com/anoideaopen/foundation/proto"
@@ -161,8 +161,8 @@ func (it *IndustrialToken) QueryAllowedBalanceOf(address *types.Address, token s
 }
 
 // QueryDocumentsList - returns list of emission documents
-func (it *IndustrialToken) QueryDocumentsList() ([]core.Doc, error) {
-	return core.DocumentsList(it.GetStub())
+func (it *IndustrialToken) QueryDocumentsList() ([]document.Document, error) {
+	return document.DocumentsList(it.GetStub())
 }
 
 // TxAddDocs - adds docs to a token
@@ -171,7 +171,7 @@ func (it *IndustrialToken) TxAddDocs(sender *types.Sender, rawDocs string) error
 		return errors.New("unathorized")
 	}
 
-	return core.AddDocs(it.GetStub(), rawDocs)
+	return document.AddDocuments(it.GetStub(), rawDocs)
 }
 
 // TxDeleteDoc - deletes doc from state
@@ -180,7 +180,7 @@ func (it *IndustrialToken) TxDeleteDoc(sender *types.Sender, docID string) error
 		return errors.New("unathorized")
 	}
 
-	return core.DeleteDoc(it.GetStub(), docID)
+	return document.DeleteDocument(it.GetStub(), docID)
 }
 
 // TxSetRate sets token rate to an asset for a type of deal
