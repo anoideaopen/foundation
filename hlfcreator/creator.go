@@ -3,7 +3,6 @@ package hlfcreator
 import (
 	"bytes"
 	"crypto/ecdsa"
-	"crypto/elliptic"
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/hex"
@@ -83,15 +82,11 @@ func CreatorSKIAndHashedCert(creator []byte) (creatorSKI [32]byte, hashedCert [3
 		return creatorSKI, hashedCert, errors.New("public key type requireion failed")
 	}
 
-	// ToDo - need to remove deprecated elliptic.Marshal to when Go version will be updated to 1.20
-	// ToDo right way to create hash is as follows:
-	// ecdhPk, err := pk.ECDH()
-	// if err != nil {
-	// 	return creatorSKI, hashedCert, fmt.Errorf("public key transition failed: %w", err)
-	// }
-	// creatorSKI = sha256.Sum256(ecdhPk.Bytes())
-
-	creatorSKI = sha256.Sum256(elliptic.Marshal(pk.Curve, pk.X, pk.Y))
+	ecdhPk, err := pk.ECDH()
+	if err != nil {
+		return creatorSKI, hashedCert, fmt.Errorf("public key transition failed: %w", err)
+	}
+	creatorSKI = sha256.Sum256(ecdhPk.Bytes())
 	hashedCert = sha3.Sum256(creator)
 
 	return creatorSKI, hashedCert, nil
