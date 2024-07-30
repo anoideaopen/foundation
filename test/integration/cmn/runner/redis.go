@@ -13,8 +13,8 @@ import (
 	"time"
 
 	docker "github.com/fsouza/go-dockerclient"
-	"github.com/go-redis/redis/v8"
 	runnerFbk "github.com/hyperledger/fabric/integration/nwo/runner"
+	"github.com/redis/go-redis/v9"
 	"github.com/tedsuo/ifrit"
 )
 
