@@ -10,7 +10,7 @@ import (
 	"github.com/anoideaopen/foundation/mock"
 	"github.com/anoideaopen/foundation/proto"
 	"github.com/anoideaopen/foundation/token"
-	"github.com/btcsuite/btcutil/base58"
+	"github.com/btcsuite/btcd/btcutil/base58"
 	"github.com/stretchr/testify/require"
 )
 

@@ -14,7 +14,7 @@ import (
 	"github.com/anoideaopen/foundation/test/integration/cmn/client"
 	"github.com/anoideaopen/foundation/test/integration/cmn/fabricnetwork"
 	"github.com/anoideaopen/foundation/test/integration/cmn/runner"
-	"github.com/btcsuite/btcutil/base58"
+	"github.com/btcsuite/btcd/btcutil/base58"
 	docker "github.com/fsouza/go-dockerclient"
 	"github.com/google/uuid"
 	"github.com/hyperledger/fabric/integration/nwo"

@@ -7,7 +7,7 @@ import (
 	"github.com/anoideaopen/foundation/keys/eth"
 	"github.com/anoideaopen/foundation/mock"
 	"github.com/anoideaopen/foundation/token"
-	"github.com/btcsuite/btcutil/base58"
+	"github.com/btcsuite/btcd/btcutil/base58"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

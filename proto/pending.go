@@ -3,7 +3,7 @@ package proto
 import (
 	"encoding/json"
 
-	"github.com/btcsuite/btcutil/base58"
+	"github.com/btcsuite/btcd/btcutil/base58"
 )
 
 type addressDump struct {
