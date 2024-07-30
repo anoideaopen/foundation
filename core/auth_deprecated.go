@@ -11,7 +11,7 @@ import (
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/keys"
 	pb "github.com/anoideaopen/foundation/proto"
-	"github.com/btcsuite/btcutil/base58"
+	"github.com/btcsuite/btcd/btcutil/base58"
 	"github.com/hyperledger/fabric-chaincode-go/shim"
 	"golang.org/x/crypto/sha3"
 )

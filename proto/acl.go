@@ -1,6 +1,6 @@
 package proto
 
-import "github.com/btcsuite/btcutil/base58"
+import "github.com/btcsuite/btcd/btcutil/base58"
 
 // AddrString returns the address string
 func (x *Address) AddrString() string {
