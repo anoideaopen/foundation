@@ -55,6 +55,11 @@ func (a *Address) Bytes() []byte {
 	return a.Address
 }
 
+// Empty return true if len(a.Address) == 0
+func (a *Address) Empty() bool {
+	return len(a.Address) == 0
+}
+
 // String returns address string
 func (a *Address) String() string {
 	return base58.CheckEncode(a.Address[1:], a.Address[0])
@@ -68,6 +73,10 @@ func (a *Address) MarshalJSON() ([]byte, error) {
 // CheckWithStub checks if the address is blacklisted by querying the account
 // information from the provided ChaincodeStubInterface.
 func (a *Address) CheckWithStub(stub shim.ChaincodeStubInterface) error {
+	if a.Empty() {
+		return nil
+	}
+
 	accInfo, err := helpers.GetAccountInfo(stub, a.String())
 	if err != nil {
 		return err
@@ -88,6 +97,9 @@ func (a *Address) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	a1, err := AddrFromBase58Check(tmp)
+	if len(tmp) == 0 {
+		err = nil
+	}
 	a.UserID = a1.UserID
 	a.Address = a1.Address
 	a.IsIndustrial = a1.IsIndustrial
@@ -97,7 +109,7 @@ func (a *Address) UnmarshalJSON(data []byte) error {
 
 func (a *Address) UnmarshalText(text []byte) error {
 	addr, err := AddrFromBase58Check(string(text))
-	if err != nil {
+	if err != nil && len(string(text)) != 0 {
 		return err
 	}
 
