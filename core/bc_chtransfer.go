@@ -44,6 +44,7 @@ func (t typeOperation) String() string {
 	return ""
 }
 
+// Deprecated: Use TxChannelMultiTransferByCustomer instead.
 // TxChannelTransferByCustomer - transaction initiating transfer between channels.
 // The owner of tokens signs. Tokens are transferred to themselveselves.
 // After the checks, a transfer record is created and the user's balances are reduced.
@@ -74,6 +75,7 @@ func (bc *BaseContract) TxChannelMultiTransferByCustomer(
 	return bc.createCCTransferFrom(idTransfer, to, sender.Address(), items)
 }
 
+// Deprecated: Use TxChannelMultiTransferByAdmin instead.
 // TxChannelTransferByAdmin - transaction initiating transfer between channels.
 // Signed by the channel admin (site). The tokens are transferred from idUser to the same user.
 // After the checks, a transfer record is created and the user's balances are reduced.
