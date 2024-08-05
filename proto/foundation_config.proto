@@ -30,6 +30,9 @@ message ContractConfig {
 
   // tracingCollectorEndpoint - tracing collector endpoint host & port, e.g. "172.23.0.6:4318"
   CollectorEndpoint tracingCollectorEndpoint = 5;
+
+  // maxChannelTransferItems maximum count channel transfer items (token amount) for single transfer operation
+  uint32 maxChannelTransferItems = 6;
 }
 
 message CollectorEndpoint {

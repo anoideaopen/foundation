@@ -362,6 +362,8 @@ func (m *ContractConfig) validate(all bool) error {
 		}
 	}
 
+	// no validation rules for MaxChannelTransferItems
+
 	if len(errors) > 0 {
 		return ContractConfigMultiError(errors)
 	}
@@ -467,6 +469,12 @@ func (m *CollectorEndpoint) validate(all bool) error {
 	var errors []error
 
 	// no validation rules for Endpoint
+
+	// no validation rules for AuthorizationHeaderKey
+
+	// no validation rules for AuthorizationHeaderValue
+
+	// no validation rules for TlsCa
 
 	if len(errors) > 0 {
 		return CollectorEndpointMultiError(errors)

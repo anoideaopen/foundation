@@ -267,9 +267,15 @@ message CCTransfer{
     bool forward_direction = 7;
     bool isCommit = 8; // phase 2 sign
     int64 time_as_nanos = 9; // transfer creation time in nanoseconds
+    repeated CCTransferItem items = 10; // transfer multiple tokens for single transfer
 }
 
 message CCTransfers {
     string bookmark         = 1;
     repeated CCTransfer ccts = 2;
+}
+
+message CCTransferItem {
+    string token = 1;
+    bytes amount = 2;
 }

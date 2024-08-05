@@ -2,6 +2,7 @@ package unit
 
 import (
 	"encoding/json"
+	"fmt"
 	"testing"
 	"time"
 
@@ -393,7 +394,7 @@ func TestFailBeginTransfer(t *testing.T) {
 	// transferring the wrong tokens
 	err = user1.RawSignedInvokeWithErrorReturned("cc", "channelTransferByCustomer",
 		id, "VT", "FIAT", "450")
-	require.EqualError(t, err, cctransfer.ErrInvalidToken.Error())
+	require.EqualError(t, err, fmt.Sprintf("%s found %s but expected %s", cctransfer.ErrInvalidToken.Error(), "FIAT", "CC"))
 
 	// insufficient funds
 	err = user1.RawSignedInvokeWithErrorReturned("cc", "channelTransferByCustomer",
@@ -465,7 +466,7 @@ func TestFailCreateTransferTo(t *testing.T) {
 
 	// token is not equal to one of the channels
 	tempToken := cct.Token
-	cct.Token = "FIAT"
+	cct.GetItems()[0].Token = "FIAT"
 	b, err = json.Marshal(cct)
 	require.NoError(t, err)
 	cct.Token = tempToken
