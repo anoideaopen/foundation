@@ -133,32 +133,27 @@ func (bc *BaseContract) createCCTransferFrom(
 
 	if len(items) == 0 || len(items) > bc.getMaxChannelTransferItems() {
 		return "", fmt.Errorf("%w found %d but expected from 1 to %d",
-			cctransfer.ErrInvalidTransferItemsCount,
-			len(items),
-			bc.getMaxChannelTransferItems(),
+			cctransfer.ErrInvalidTransferItemsCount, len(items), bc.getMaxChannelTransferItems(),
 		)
 	}
 
 	t := tokenSymbol(items[0].Token)
 	if !strings.EqualFold(bc.ContractConfig().GetSymbol(), t) && !strings.EqualFold(to, t) {
-		return "", fmt.Errorf("%w found %s but expected %s",
-			cctransfer.ErrInvalidToken,
-			t,
-			bc.ContractConfig().GetSymbol(),
-		)
+		return "", cctransfer.ErrInvalidToken
 	}
 
 	var transferItems []*pb.CCTransferItem
-	for _, item := range items {
+	for i, item := range items {
 		itemSymbol := tokenSymbol(item.Token)
 		if t != itemSymbol {
-			return "", fmt.Errorf("%w found %s but expected %s",
-				cctransfer.ErrInvalidToken,
-				tokenSymbol(item.Token),
-				t,
+			return "", fmt.Errorf("%w found %s [index %d] but expected %s",
+				cctransfer.ErrInvalidToken, tokenSymbol(item.Token), i, t,
 			)
 		}
-		transferItems = append(transferItems, &pb.CCTransferItem{Token: item.Token, Amount: item.Amount.Bytes()})
+		transferItems = append(transferItems, &pb.CCTransferItem{
+			Token:  item.Token,
+			Amount: item.Amount.Bytes(),
+		})
 	}
 
 	// Fulfillment
