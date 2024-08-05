@@ -110,8 +110,8 @@ type MintableTestToken struct {
 	token.BaseToken
 }
 
-func NewMintableTestToken(bt token.BaseToken) *MintableTestToken {
-	return &MintableTestToken{bt}
+func NewMintableTestToken() *MintableTestToken {
+	return &MintableTestToken{token.BaseToken{}}
 }
 
 func (mt *MintableTestToken) TxBuyToken(sender *types.Sender, amount *big.Int, currency string) error {
@@ -219,7 +219,7 @@ func TestBuyLimit(t *testing.T) {
 	ledger := mock.NewLedger(t)
 	owner := ledger.NewWallet()
 
-	cc := NewMintableTestToken(token.BaseToken{})
+	cc := NewMintableTestToken()
 	ccConfig := makeBaseTokenConfig("currency coin token", "CC", 8,
 		owner.Address(), "", "", "", nil)
 	ledger.NewCC("cc", cc, ccConfig)

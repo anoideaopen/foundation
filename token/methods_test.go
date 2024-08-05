@@ -102,13 +102,15 @@ func TestMetadataMethods(t *testing.T) {
 	require.NoError(t, err)
 
 	var tokenMethods = []string{"addDocs", "allowedBalanceOf", "lockedAllowedBalanceOf",
-		"allowedIndustrialBalanceTransfer",
-		"balanceOf", "lockedBalanceOf", "buildInfo", "buyBack", "buyToken", "cancelCCTransferFrom",
+		"allowedIndustrialBalanceTransfer", "balanceOf", "lockedAllowedBalancesWithPagination",
+		"lockedBalanceOf", "lockedTokenBalancesWithPagination", "buildInfo", "buyBack", "buyToken",
+		"cancelCCTransferFrom", "allowedBalancesWithPagination",
 		"channelTransferByAdmin", "channelTransferByCustomer", "channelTransferFrom",
 		"channelTransferTo", "channelTransfersFrom", "commitCCTransferFrom", "coreChaincodeIDName",
 		"createCCTransferTo", "deleteCCTransferFrom", "deleteCCTransferTo", "deleteDoc",
 		"deleteRate", "documentsList", "getFeeTransfer", "getLockedAllowedBalance",
-		"getLockedTokenBalance", "getNonce", "groupBalanceOf", "healthCheck", "lockAllowedBalance",
+		"getLockedTokenBalance", "getNonce", "givenBalance", "givenBalancesWithPagination", "groupBalanceOf",
+		"healthCheck", "lockAllowedBalance", "tokenBalancesWithPagination",
 		"lockTokenBalance", "metadata", "multiSwapBegin", "multiSwapCancel", "multiSwapGet",
 		"nameOfFiles", "predictFee", "setFee", "setFeeAddress", "setLimits", "setRate",
 		"srcFile", "srcPartFile", "swapBegin", "swapCancel", "swapGet", "systemEnv", "transfer",

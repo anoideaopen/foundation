@@ -62,6 +62,22 @@ func TestByCustomerForwardSuccess(t *testing.T) {
 	user1.CheckGivenBalanceShouldBe("vt", "CC", 0)
 	user1.CheckGivenBalanceShouldBe("cc", "CC", 0)
 	user1.CheckGivenBalanceShouldBe("cc", "VT", 450)
+
+	user1.GivenBalanceShouldBe("cc", "VT", 450)
+	resp := user1.Invoke("cc", "givenBalancesWithPagination", "", "100")
+	require.Equal(t, "{\"bookmark\":\"\",\"sum\":[{\"key\":\"\",\"value\":\"450\"}],\"records\":[{\"key\":\"\\u00002d\\u0000VT\\u0000\",\"value\":\"450\"}]}", resp)
+
+	resp = user1.Invoke("cc", "tokenBalancesWithPagination", "", "100")
+	require.Contains(t, resp, "{\"bookmark\":\"\",\"sum\":[{\"key\":\"\",\"value\":\"550\"}],\"records\":[{\"key\":\"\\u00002b\\u0000")
+
+	resp = user1.Invoke("cc", "lockedTokenBalancesWithPagination", "", "100")
+	require.Equal(t, "{\"bookmark\":\"\",\"sum\":[],\"records\":[]}", resp)
+
+	resp = user1.Invoke("vt", "allowedBalancesWithPagination", "", "100")
+	require.Contains(t, resp, "{\"bookmark\":\"\",\"sum\":[{\"key\":\"CC\",\"value\":\"450\"}],\"records\":[{\"key\":\"\\u00002c\\u0000")
+
+	resp = user1.Invoke("vt", "lockedAllowedBalancesWithPagination", "", "100")
+	require.Equal(t, "{\"bookmark\":\"\",\"sum\":[],\"records\":[]}", resp)
 }
 
 func TestByAdminForwardSuccess(t *testing.T) {

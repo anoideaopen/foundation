@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/anoideaopen/foundation/core"
+	"github.com/anoideaopen/foundation/core/ledger"
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/core/types/big"
 	"github.com/anoideaopen/foundation/proto"
@@ -99,6 +100,45 @@ func (bt *BaseToken) QueryLockedBalanceOf(address *types.Address) (*big.Int, err
 
 func (bt *BaseToken) QueryLockedAllowedBalanceOf(address *types.Address, token string) (*big.Int, error) {
 	return bt.AllowedBalanceGetLocked(token, address)
+}
+
+func (bt *BaseToken) QueryGivenBalance(token string) (*big.Int, error) {
+	return ledger.GivenBalanceGet(bt.GetStub(), token)
+}
+
+func (bt *BaseToken) QueryGivenBalancesWithPagination(
+	bookmark string,
+	pageSize uint64,
+) (*ledger.ListBalancePaginatedResponse, error) {
+	return ledger.GivenBalancesGetWithPagination(bt.GetStub(), bookmark, pageSize)
+}
+
+func (bt *BaseToken) QueryTokenBalancesWithPagination(
+	bookmark string,
+	pageSize uint64,
+) (*ledger.ListBalancePaginatedResponse, error) {
+	return ledger.TokenBalancesGetWithPagination(bt.GetStub(), bookmark, pageSize)
+}
+
+func (bt *BaseToken) QueryLockedTokenBalancesWithPagination(
+	bookmark string,
+	pageSize uint64,
+) (*ledger.ListBalancePaginatedResponse, error) {
+	return ledger.LockedTokenBalancesGetWithPagination(bt.GetStub(), bookmark, pageSize)
+}
+
+func (bt *BaseToken) QueryAllowedBalancesWithPagination(
+	bookmark string,
+	pageSize uint64,
+) (*ledger.ListBalancePaginatedResponse, error) {
+	return ledger.AllowedBalancesGetWithPagination(bt.GetStub(), bookmark, pageSize)
+}
+
+func (bt *BaseToken) QueryLockedAllowedBalancesWithPagination(
+	bookmark string,
+	pageSize uint64,
+) (*ledger.ListBalancePaginatedResponse, error) {
+	return ledger.LockedAllowedBalancesGetWithPagination(bt.GetStub(), bookmark, pageSize)
 }
 
 // QueryDocumentsList - returns list of emission documents
