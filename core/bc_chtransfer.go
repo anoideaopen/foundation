@@ -144,7 +144,7 @@ func (bc *BaseContract) createCCTransferFrom(
 		return "", cctransfer.ErrInvalidToken
 	}
 
-	var transferItems []*pb.CCTransferItem
+	transferItems := make([]*pb.CCTransferItem, 0, len(items))
 	for i, item := range items {
 		itemSymbol := tokenSymbol(item.Token)
 		if t != itemSymbol {
