@@ -490,6 +490,81 @@ func TestByCustomerBackSuccess(t *testing.T) {
 	user1.CheckGivenBalanceShouldBe("vt", "CC", 550)
 }
 
+func TestMultiTransferByCustomerBackSuccess(t *testing.T) {
+	ledger := mock.NewLedger(t)
+	owner := ledger.NewWallet()
+
+	ccConfig := makeBaseTokenConfig("CC Token", "CC", 8,
+		owner.Address(), "", "", owner.Address(), nil)
+
+	initMsg := ledger.NewCC("cc", &TestToken{}, ccConfig)
+	require.Empty(t, initMsg)
+
+	vtConfig := makeBaseTokenConfig("VT Token", "VT", 8,
+		owner.Address(), "", "", owner.Address(), nil)
+	initMsg = ledger.NewCC("vt", &TestToken{}, vtConfig)
+	require.Empty(t, initMsg)
+
+	user1 := ledger.NewWallet()
+	user1.AddAllowedBalance("cc", "VT_1", 1000)
+	user1.AddAllowedBalance("cc", "VT_2", 2000)
+	user1.AddGivenBalance("vt", "CC", 3000)
+	user1.AllowedBalanceShouldBe("cc", "VT_1", 1000)
+	user1.AllowedBalanceShouldBe("cc", "VT_2", 2000)
+
+	id := uuid.NewString()
+
+	items := []core.TransferItem{
+		{Token: "VT_1", Amount: new(big.Int).SetInt64(450)},
+		{Token: "VT_2", Amount: new(big.Int).SetInt64(900)},
+	}
+
+	itemsJSON, err := json.Marshal(items)
+	require.NoError(t, err)
+
+	err = user1.RawSignedInvokeWithErrorReturned("cc", "channelMultiTransferByCustomer", id, "VT", string(itemsJSON))
+	require.NoError(t, err)
+	cct := user1.Invoke("cc", "channelTransferFrom", id)
+
+	_, _, err = user1.RawChTransferInvokeWithBatch("vt", "createCCTransferTo", cct)
+	require.NoError(t, err)
+	ledger.WaitChTransferTo("vt", id, time.Second*5)
+	_ = user1.Invoke("vt", "channelTransferTo", id)
+
+	_, _, err = user1.RawChTransferInvoke("cc", "commitCCTransferFrom", id)
+	require.NoError(t, err)
+
+	_, _, err = user1.RawChTransferInvoke("vt", "deleteCCTransferTo", id)
+	require.NoError(t, err)
+
+	_, _, err = user1.RawChTransferInvoke("cc", "deleteCCTransferFrom", id)
+	require.NoError(t, err)
+
+	err = user1.InvokeWithError("cc", "channelTransferFrom", id)
+	require.Error(t, err)
+	err = user1.InvokeWithError("vt", "channelTransferTo", id)
+	require.Error(t, err)
+
+	user1.AllowedBalanceShouldBe("vt", "VT", 0)
+	user1.AllowedBalanceShouldBe("cc", "VT_1", 550)
+	user1.AllowedBalanceShouldBe("cc", "VT_2", 1100)
+
+	balanceResponse := owner.Invoke("vt", "industrialBalanceGet", user1.Address())
+	balanceCC1, err := GetIndustrialBalanceFromResponseByGroup(balanceResponse, "1")
+	require.NoError(t, err)
+	require.Equal(t, "450", balanceCC1)
+	balanceCC2, err := GetIndustrialBalanceFromResponseByGroup(balanceResponse, "2")
+	require.NoError(t, err)
+	require.Equal(t, "900", balanceCC2)
+
+	user1.CheckGivenBalanceShouldBe("cc", "CC", 0)
+	user1.CheckGivenBalanceShouldBe("cc", "VT_1", 0)
+	user1.CheckGivenBalanceShouldBe("vt", "VT_1", 0)
+	user1.CheckGivenBalanceShouldBe("cc", "VT_2", 0)
+	user1.CheckGivenBalanceShouldBe("vt", "VT_2", 0)
+	user1.CheckGivenBalanceShouldBe("vt", "CC", 1650)
+}
+
 func TestByAdminBackSuccess(t *testing.T) {
 	t.Parallel()
 
@@ -545,6 +620,83 @@ func TestByAdminBackSuccess(t *testing.T) {
 	user1.CheckGivenBalanceShouldBe("cc", "VT", 0)
 	user1.CheckGivenBalanceShouldBe("vt", "VT", 0)
 	user1.CheckGivenBalanceShouldBe("vt", "CC", 550)
+}
+
+func TestMultiTransferByAdminBackSuccess(t *testing.T) {
+	t.Parallel()
+
+	ledger := mock.NewLedger(t)
+	owner := ledger.NewWallet()
+
+	ccConfig := makeBaseTokenConfig("CC Token", "CC", 8,
+		owner.Address(), "", "", owner.Address(), nil)
+
+	initMsg := ledger.NewCC("cc", &TestToken{}, ccConfig)
+	require.Empty(t, initMsg)
+
+	vtConfig := makeBaseTokenConfig("VT Token", "VT", 8,
+		owner.Address(), "", "", owner.Address(), nil)
+
+	initMsg = ledger.NewCC("vt", &TestToken{}, vtConfig)
+	require.Empty(t, initMsg)
+
+	user1 := ledger.NewWallet()
+	user1.AddAllowedBalance("cc", "VT_1", 1000)
+	user1.AddAllowedBalance("cc", "VT_2", 2000)
+	user1.AddGivenBalance("vt", "CC", 3000)
+	user1.AllowedBalanceShouldBe("cc", "VT_1", 1000)
+	user1.AllowedBalanceShouldBe("cc", "VT_2", 2000)
+
+	id := uuid.NewString()
+	items := []core.TransferItem{
+		{Token: "VT_1", Amount: new(big.Int).SetInt64(450)},
+		{Token: "VT_2", Amount: new(big.Int).SetInt64(900)},
+	}
+
+	itemsJSON, err := json.Marshal(items)
+	require.NoError(t, err)
+
+	err = owner.RawSignedInvokeWithErrorReturned("cc", "channelMultiTransferByAdmin", id, "VT", user1.Address(), string(itemsJSON))
+	require.NoError(t, err)
+	cct := user1.Invoke("cc", "channelTransferFrom", id)
+
+	_, _, err = user1.RawChTransferInvokeWithBatch("vt", "createCCTransferTo", cct)
+	require.NoError(t, err)
+	ledger.WaitChTransferTo("vt", id, time.Second*5)
+	_ = user1.Invoke("vt", "channelTransferTo", id)
+
+	_, _, err = user1.RawChTransferInvoke("cc", "commitCCTransferFrom", id)
+	require.NoError(t, err)
+
+	_, _, err = user1.RawChTransferInvoke("vt", "deleteCCTransferTo", id)
+	require.NoError(t, err)
+
+	_, _, err = user1.RawChTransferInvoke("cc", "deleteCCTransferFrom", id)
+	require.NoError(t, err)
+
+	err = user1.InvokeWithError("cc", "channelTransferFrom", id)
+	require.Error(t, err)
+	err = user1.InvokeWithError("vt", "channelTransferTo", id)
+	require.Error(t, err)
+
+	user1.AllowedBalanceShouldBe("vt", "VT", 0)
+	user1.AllowedBalanceShouldBe("cc", "VT_1", 550)
+	user1.AllowedBalanceShouldBe("cc", "VT_2", 1100)
+
+	balanceResponse := owner.Invoke("vt", "industrialBalanceGet", user1.Address())
+	balanceCC1, err := GetIndustrialBalanceFromResponseByGroup(balanceResponse, "1")
+	require.NoError(t, err)
+	require.Equal(t, "450", balanceCC1)
+	balanceCC2, err := GetIndustrialBalanceFromResponseByGroup(balanceResponse, "2")
+	require.NoError(t, err)
+	require.Equal(t, "900", balanceCC2)
+
+	user1.CheckGivenBalanceShouldBe("cc", "CC", 0)
+	user1.CheckGivenBalanceShouldBe("cc", "VT_1", 0)
+	user1.CheckGivenBalanceShouldBe("vt", "VT_1", 0)
+	user1.CheckGivenBalanceShouldBe("cc", "VT_2", 0)
+	user1.CheckGivenBalanceShouldBe("vt", "VT_2", 0)
+	user1.CheckGivenBalanceShouldBe("vt", "CC", 1650)
 }
 
 func TestCancelBackSuccess(t *testing.T) {
