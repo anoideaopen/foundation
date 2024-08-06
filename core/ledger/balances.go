@@ -709,6 +709,17 @@ func AllowedBalanceGetAll(
 	return tokensToMap(tokens), nil
 }
 
+func GivenBalanceGet(
+	stub shim.ChaincodeStubInterface,
+	token string,
+) (*big.Int, error) {
+	b, err := balance.Get(stub, balance.BalanceTypeGiven, strings.ToUpper(token), "")
+	if err != nil {
+		return nil, err
+	}
+	return new(big.Int).SetBytes(b.Bytes()), nil
+}
+
 func tokensToMap(tokens []balance.TokenBalance) map[string]string {
 	balances := make(map[string]string)
 	for _, item := range tokens {

@@ -1,7 +1,6 @@
 package core
 
 import (
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -95,8 +94,7 @@ func (bc *BaseContract) TxLockTokenBalance(
 		Payload:       req.GetPayload(),
 	}
 
-	prefix := hex.EncodeToString([]byte{byte(balance.BalanceTypeTokenExternalLocked)})
-	key, err := bc.GetStub().CreateCompositeKey(prefix, []string{balanceLock.GetId()})
+	key, err := bc.GetStub().CreateCompositeKey(balance.BalanceTypeTokenExternalLocked.String(), []string{balanceLock.GetId()})
 	if err != nil {
 		return fmt.Errorf("create key: %w", err)
 	}
@@ -175,8 +173,7 @@ func (bc *BaseContract) TxUnlockTokenBalance( //nolint:funlen
 	// state record with balance lock details
 	balanceLock.CurrentAmount = new(big.Int).Sub(cur, amount).String()
 
-	prefix := hex.EncodeToString([]byte{byte(balance.BalanceTypeTokenExternalLocked)})
-	key, err := bc.GetStub().CreateCompositeKey(prefix, []string{balanceLock.GetId()})
+	key, err := bc.GetStub().CreateCompositeKey(balance.BalanceTypeTokenExternalLocked.String(), []string{balanceLock.GetId()})
 	if err != nil {
 		return fmt.Errorf("create key: %w", err)
 	}
@@ -266,8 +263,7 @@ func (bc *BaseContract) TxLockAllowedBalance(
 		Payload:       req.GetPayload(),
 	}
 
-	prefix := hex.EncodeToString([]byte{byte(balance.BalanceTypeAllowedExternalLocked)})
-	key, err := bc.GetStub().CreateCompositeKey(prefix, []string{balanceLock.GetId()})
+	key, err := bc.GetStub().CreateCompositeKey(balance.BalanceTypeAllowedExternalLocked.String(), []string{balanceLock.GetId()})
 	if err != nil {
 		return fmt.Errorf("create key: %w", err)
 	}
@@ -346,8 +342,7 @@ func (bc *BaseContract) TxUnlockAllowedBalance( //nolint:funlen
 	// state record with balance lock details
 	balanceLock.CurrentAmount = new(big.Int).Sub(cur, amount).String()
 
-	prefix := hex.EncodeToString([]byte{byte(balance.BalanceTypeAllowedExternalLocked)})
-	key, err := bc.GetStub().CreateCompositeKey(prefix, []string{balanceLock.GetId()})
+	key, err := bc.GetStub().CreateCompositeKey(balance.BalanceTypeAllowedExternalLocked.String(), []string{balanceLock.GetId()})
 	if err != nil {
 		return fmt.Errorf("create key: %w", err)
 	}
@@ -393,8 +388,7 @@ func (bc *BaseContract) getLockedTokenBalance(lockID string) (*proto.TokenBalanc
 	if lockID == "" {
 		return nil, ErrEmptyLockID
 	}
-	prefix := hex.EncodeToString([]byte{byte(balance.BalanceTypeTokenExternalLocked)})
-	key, err := bc.GetStub().CreateCompositeKey(prefix, []string{lockID})
+	key, err := bc.GetStub().CreateCompositeKey(balance.BalanceTypeTokenExternalLocked.String(), []string{lockID})
 	if err != nil {
 		return nil, fmt.Errorf("create key: %w", err)
 	}
@@ -420,8 +414,7 @@ func (bc *BaseContract) getLockedAllowedBalance(lockID string) (*proto.AllowedBa
 	if lockID == "" {
 		return nil, ErrEmptyLockID
 	}
-	prefix := hex.EncodeToString([]byte{byte(balance.BalanceTypeAllowedExternalLocked)})
-	key, err := bc.GetStub().CreateCompositeKey(prefix, []string{lockID})
+	key, err := bc.GetStub().CreateCompositeKey(balance.BalanceTypeAllowedExternalLocked.String(), []string{lockID})
 	if err != nil {
 		return nil, fmt.Errorf("create key: %w", err)
 	}

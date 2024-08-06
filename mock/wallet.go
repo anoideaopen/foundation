@@ -257,8 +257,7 @@ func (w *Wallet) AddressType() *types.Address {
 }
 
 func (w *Wallet) addBalance(stub *stub.Stub, amount *big.Int, balanceType balance.BalanceType, path ...string) {
-	prefix := hex.EncodeToString([]byte{byte(balanceType)})
-	key, err := stub.CreateCompositeKey(prefix, append([]string{w.Address()}, path...))
+	key, err := stub.CreateCompositeKey(balanceType.String(), append([]string{w.Address()}, path...))
 	require.NoError(w.ledger.t, err)
 	data := stub.State[key]
 	bal := new(big.Int).SetBytes(data)
@@ -269,8 +268,7 @@ func (w *Wallet) addBalance(stub *stub.Stub, amount *big.Int, balanceType balanc
 // CheckGivenBalanceShouldBe checks the balance of the wallet
 func (w *Wallet) CheckGivenBalanceShouldBe(ch string, token string, expectedBalance uint64) {
 	st := w.ledger.stubs[ch]
-	prefix := hex.EncodeToString([]byte{byte(balance.BalanceTypeGiven)})
-	key, err := st.CreateCompositeKey(prefix, []string{token})
+	key, err := st.CreateCompositeKey(balance.BalanceTypeGiven.String(), []string{token})
 	require.NoError(w.ledger.t, err)
 	rawRecord := st.State[key]
 	if rawRecord == nil && expectedBalance == 0 {
@@ -294,8 +292,7 @@ func (w *Wallet) AddAllowedBalance(ch string, token string, amount uint64) {
 // AddGivenBalance adds given balance to the wallet
 func (w *Wallet) AddGivenBalance(ch string, givenBalanceChannel string, amount uint64) {
 	st := w.ledger.stubs[ch]
-	prefix := hex.EncodeToString([]byte{byte(balance.BalanceTypeGiven)})
-	key, err := st.CreateCompositeKey(prefix, []string{givenBalanceChannel})
+	key, err := st.CreateCompositeKey(balance.BalanceTypeGiven.String(), []string{givenBalanceChannel})
 	require.NoError(w.ledger.t, err)
 	newBalance := new(big.Int).SetUint64(amount)
 	_ = st.PutBalanceToState(key, newBalance)
@@ -315,6 +312,11 @@ func (w *Wallet) BalanceShouldBe(ch string, expected uint64) {
 // AllowedBalanceShouldBe checks the allowed balance of the wallet
 func (w *Wallet) AllowedBalanceShouldBe(ch string, token string, expected uint64) {
 	require.Equal(w.ledger.t, "\""+strconv.FormatUint(expected, 10)+"\"", w.Invoke(ch, "allowedBalanceOf", w.Address(), token))
+}
+
+// GivenBalanceShouldBe checks the given balance of the channel
+func (w *Wallet) GivenBalanceShouldBe(ch string, token string, expected uint64) {
+	require.Equal(w.ledger.t, "\""+strconv.FormatUint(expected, 10)+"\"", w.Invoke(ch, "givenBalance", token))
 }
 
 // OtfBalanceShouldBe checks the otf balance of the wallet
