@@ -44,7 +44,6 @@ func (t typeOperation) String() string {
 	return ""
 }
 
-// Deprecated: Use TxChannelMultiTransferByCustomer instead.
 // TxChannelTransferByCustomer - transaction initiating transfer between channels.
 // The owner of tokens signs. Tokens are transferred to themselveselves.
 // After the checks, a transfer record is created and the user's balances are reduced.
@@ -55,12 +54,7 @@ func (bc *BaseContract) TxChannelTransferByCustomer(
 	token string,
 	amount *big.Int,
 ) (string, error) {
-	return bc.createCCTransferFrom(idTransfer, to, sender.Address(), []TransferItem{
-		{
-			Token:  token,
-			Amount: amount,
-		},
-	})
+	return bc.createCCTransferFrom(idTransfer, to, sender.Address(), token, amount)
 }
 
 // TxChannelMultiTransferByCustomer - transaction initiating transfer between channels.
@@ -72,10 +66,9 @@ func (bc *BaseContract) TxChannelMultiTransferByCustomer(
 	to string,
 	items []TransferItem,
 ) (string, error) {
-	return bc.createCCTransferFrom(idTransfer, to, sender.Address(), items)
+	return bc.createMultiCCTransferFrom(idTransfer, to, sender.Address(), items)
 }
 
-// Deprecated: Use TxChannelMultiTransferByAdmin instead.
 // TxChannelTransferByAdmin - transaction initiating transfer between channels.
 // Signed by the channel admin (site). The tokens are transferred from idUser to the same user.
 // After the checks, a transfer record is created and the user's balances are reduced.
@@ -87,9 +80,25 @@ func (bc *BaseContract) TxChannelTransferByAdmin(
 	token string,
 	amount *big.Int,
 ) (string, error) {
-	return bc.TxChannelMultiTransferByAdmin(sender, idTransfer, to, idUser, []TransferItem{
-		{Token: token, Amount: amount},
-	})
+	// Checks
+	if !bc.ContractConfig().IsAdminSet() {
+		return "", cctransfer.ErrAdminNotSet
+	}
+
+	if admin, err := types.AddrFromBase58Check(bc.ContractConfig().GetAdmin().GetAddress()); err == nil {
+		if !sender.Equal(admin) {
+			return "", cctransfer.ErrUnauthorisedNotAdmin
+		}
+	} else {
+		return "", fmt.Errorf("creating admin address: %w", err)
+	}
+
+	if sender.Equal(idUser) {
+		return "", cctransfer.ErrInvalidIDUser
+	}
+
+	// transfer business logic
+	return bc.createCCTransferFrom(idTransfer, to, idUser, token, amount)
 }
 
 // TxChannelMultiTransferByAdmin - transaction initiating transfer between channels.
@@ -120,10 +129,72 @@ func (bc *BaseContract) TxChannelMultiTransferByAdmin(
 	}
 
 	// transfer business logic
-	return bc.createCCTransferFrom(idTransfer, to, idUser, items)
+	return bc.createMultiCCTransferFrom(idTransfer, to, idUser, items)
 }
 
 func (bc *BaseContract) createCCTransferFrom(
+	idTransfer string,
+	to string,
+	idUser *types.Address,
+	token string,
+	amount *big.Int,
+) (string, error) {
+	if strings.EqualFold(bc.ContractConfig().GetSymbol(), to) {
+		return "", cctransfer.ErrInvalidChannel
+	}
+
+	t := tokenSymbol(token)
+
+	if !strings.EqualFold(bc.ContractConfig().GetSymbol(), t) && !strings.EqualFold(to, t) {
+		return "", cctransfer.ErrInvalidToken
+	}
+
+	// Fulfillment
+	stub := bc.GetStub()
+
+	// see if it's already there.
+	if _, err := cctransfer.LoadCCFromTransfer(stub, idTransfer); err == nil {
+		return "", cctransfer.ErrIDTransferExist
+	}
+
+	ts, err := stub.GetTxTimestamp()
+	if err != nil {
+		return "", err
+	}
+
+	tr := &pb.CCTransfer{
+		Id:               idTransfer,
+		From:             bc.ContractConfig().GetSymbol(),
+		To:               to,
+		Token:            token,
+		User:             idUser.Bytes(),
+		Amount:           amount.Bytes(),
+		ForwardDirection: strings.EqualFold(bc.ContractConfig().GetSymbol(), t),
+		TimeAsNanos:      ts.AsTime().UnixNano(),
+	}
+
+	if err = cctransfer.SaveCCFromTransfer(stub, tr); err != nil {
+		return "", err
+	}
+
+	// rebalancing
+	err = bc.ccTransferChangeBalance(
+		CreateFrom,
+		tr.GetForwardDirection(),
+		idUser,
+		amount,
+		tr.GetFrom(),
+		tr.GetTo(),
+		tr.GetToken(),
+	)
+	if err != nil {
+		return "", err
+	}
+
+	return bc.GetStub().GetTxID(), nil
+}
+
+func (bc *BaseContract) createMultiCCTransferFrom(
 	idTransfer string,
 	to string,
 	idUser *types.Address,
@@ -204,7 +275,7 @@ func (bc *BaseContract) createCCTransferFrom(
 }
 
 func (bc *BaseContract) getMaxChannelTransferItems() int {
-	if bc.ContractConfig().GetMaxChannelTransferItems() == 0 {
+	if bc.ContractConfig().GetMaxChannelTransferItems() <= 0 {
 		return defaultMaxChannelTransferItems
 	}
 	return int(bc.ContractConfig().GetMaxChannelTransferItems())

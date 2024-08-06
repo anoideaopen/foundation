@@ -384,6 +384,58 @@ func TestCancelForwardSuccess(t *testing.T) {
 	user1.CheckGivenBalanceShouldBe("cc", "VT", 0)
 }
 
+func TestMultiTransferCancelForwardSuccess(t *testing.T) {
+	ledger := mock.NewLedger(t)
+	owner := ledger.NewWallet()
+
+	ccConfig := makeBaseTokenConfig("CC Token", "CC", 8,
+		owner.Address(), "", "", owner.Address(), nil)
+
+	initMsg := ledger.NewCC("cc", &TestToken{}, ccConfig)
+	require.Empty(t, initMsg)
+
+	vtConfig := makeBaseTokenConfig("VT Token", "VT", 8,
+		owner.Address(), "", "", owner.Address(), nil)
+
+	initMsg = ledger.NewCC("vt", &TestToken{}, vtConfig)
+	require.Empty(t, initMsg)
+
+	user1 := ledger.NewWallet()
+	user1.AddTokenBalance("cc", "CC_1", 1000)
+	user1.AddTokenBalance("cc", "CC_2", 2000)
+
+	id := uuid.NewString()
+
+	items := []core.TransferItem{
+		{Token: "CC_1", Amount: new(big.Int).SetInt64(450)},
+		{Token: "CC_2", Amount: new(big.Int).SetInt64(900)},
+	}
+
+	itemsJSON, err := json.Marshal(items)
+	require.NoError(t, err)
+
+	err = user1.RawSignedInvokeWithErrorReturned("cc", "channelMultiTransferByCustomer", id, "VT", string(itemsJSON))
+	require.NoError(t, err)
+	err = user1.InvokeWithError("cc", "channelTransferFrom", id)
+	require.NoError(t, err)
+
+	_, _, err = user1.RawChTransferInvokeWithBatch("cc", "cancelCCTransferFrom", id)
+	require.NoError(t, err)
+
+	err = user1.InvokeWithError("cc", "channelTransferFrom", id)
+	require.Error(t, err)
+
+	balanceResponse := owner.Invoke("cc", "industrialBalanceGet", user1.Address())
+	balanceCC1, err := GetIndustrialBalanceFromResponseByGroup(balanceResponse, "1")
+	require.NoError(t, err)
+	require.Equal(t, "1000", balanceCC1)
+	balanceCC2, err := GetIndustrialBalanceFromResponseByGroup(balanceResponse, "2")
+	require.NoError(t, err)
+	require.Equal(t, "2000", balanceCC2)
+	user1.CheckGivenBalanceShouldBe("cc", "CC", 0)
+	user1.CheckGivenBalanceShouldBe("cc", "VT", 0)
+}
+
 func TestByCustomerBackSuccess(t *testing.T) {
 	ledger := mock.NewLedger(t)
 	owner := ledger.NewWallet()
@@ -391,12 +443,12 @@ func TestByCustomerBackSuccess(t *testing.T) {
 	ccConfig := makeBaseTokenConfig("CC Token", "CC", 8,
 		owner.Address(), "", "", owner.Address(), nil)
 
-	initMsg := ledger.NewCC("cc", &token.BaseToken{}, ccConfig)
+	initMsg := ledger.NewCC("cc", &TestToken{}, ccConfig)
 	require.Empty(t, initMsg)
 
 	vtConfig := makeBaseTokenConfig("VT Token", "VT", 8,
 		owner.Address(), "", "", owner.Address(), nil)
-	initMsg = ledger.NewCC("vt", &token.BaseToken{}, vtConfig)
+	initMsg = ledger.NewCC("vt", &TestToken{}, vtConfig)
 	require.Empty(t, initMsg)
 
 	user1 := ledger.NewWallet()
@@ -529,6 +581,52 @@ func TestCancelBackSuccess(t *testing.T) {
 	require.Error(t, err)
 
 	user1.AllowedBalanceShouldBe("cc", "VT", 1000)
+}
+
+func TestMultiTransferCancelBackSuccess(t *testing.T) {
+	ledger := mock.NewLedger(t)
+	owner := ledger.NewWallet()
+	feeSetter := ledger.NewWallet()
+
+	ccConfig := makeBaseTokenConfig("CC Token", "CC", 8,
+		owner.Address(), "", "", owner.Address(), nil)
+
+	initMsg := ledger.NewCC("cc", &token.BaseToken{}, ccConfig)
+	require.Empty(t, initMsg)
+
+	vtConfig := makeBaseTokenConfig("VT Token", "VT", 8,
+		owner.Address(), feeSetter.Address(), "", owner.Address(), nil)
+
+	initMsg = ledger.NewCC("vt", &token.BaseToken{}, vtConfig)
+	require.Empty(t, initMsg)
+
+	user1 := ledger.NewWallet()
+	user1.AddAllowedBalance("cc", "VT_1", 1000)
+	user1.AddAllowedBalance("cc", "VT_2", 2000)
+	user1.AllowedBalanceShouldBe("cc", "VT_1", 1000)
+	user1.AllowedBalanceShouldBe("cc", "VT_2", 2000)
+
+	id := uuid.NewString()
+	items := []core.TransferItem{
+		{Token: "VT_1", Amount: new(big.Int).SetInt64(450)},
+		{Token: "VT_2", Amount: new(big.Int).SetInt64(900)},
+	}
+	itemsJSON, err := json.Marshal(items)
+	require.NoError(t, err)
+	err = user1.RawSignedInvokeWithErrorReturned("cc", "channelMultiTransferByCustomer", id, "VT", string(itemsJSON))
+	require.NoError(t, err)
+
+	err = user1.InvokeWithError("cc", "channelTransferFrom", id)
+	require.NoError(t, err)
+
+	_, _, err = user1.RawChTransferInvokeWithBatch("cc", "cancelCCTransferFrom", id)
+	require.NoError(t, err)
+
+	err = user1.InvokeWithError("cc", "channelTransferFrom", id)
+	require.Error(t, err)
+
+	user1.AllowedBalanceShouldBe("cc", "VT_1", 1000)
+	user1.AllowedBalanceShouldBe("cc", "VT_2", 2000)
 }
 
 func TestQueryAllTransfersFrom(t *testing.T) {
@@ -832,7 +930,7 @@ func TestFailCreateTransferTo(t *testing.T) {
 
 	// token is not equal to one of the channels
 	tempToken := cct.Token
-	cct.GetItems()[0].Token = "FIAT"
+	cct.Token = "FIAT"
 	b, err = json.Marshal(cct)
 	require.NoError(t, err)
 	cct.Token = tempToken
