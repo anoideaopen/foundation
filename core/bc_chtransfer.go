@@ -215,8 +215,13 @@ func (bc *BaseContract) createMultiCCTransferFrom(
 		return "", cctransfer.ErrInvalidToken
 	}
 
+	m := make(map[string]struct{}, len(items))
 	transferItems := make([]*pb.CCTransferItem, 0, len(items))
 	for i, item := range items {
+		_, ok := m[item.Token]
+		if ok {
+			return "", cctransfer.ErrInvalidTokenAlreadyExists
+		}
 		itemSymbol := tokenSymbol(item.Token)
 		if t != itemSymbol {
 			return "", fmt.Errorf("%w found %s [index %d] but expected %s",
@@ -227,6 +232,7 @@ func (bc *BaseContract) createMultiCCTransferFrom(
 			Token:  item.Token,
 			Amount: item.Amount.Bytes(),
 		})
+		m[item.Token] = struct{}{}
 	}
 
 	// Fulfillment
@@ -275,7 +281,7 @@ func (bc *BaseContract) createMultiCCTransferFrom(
 }
 
 func (bc *BaseContract) getMaxChannelTransferItems() int {
-	if bc.ContractConfig().GetMaxChannelTransferItems() <= 0 {
+	if bc.ContractConfig().GetMaxChannelTransferItems() == 0 {
 		return defaultMaxChannelTransferItems
 	}
 	return int(bc.ContractConfig().GetMaxChannelTransferItems())

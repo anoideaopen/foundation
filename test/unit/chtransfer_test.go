@@ -2,6 +2,7 @@ package unit
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/anoideaopen/foundation/core"
 	"github.com/anoideaopen/foundation/core/types/big"
 	"testing"
@@ -100,9 +101,21 @@ func TestMultiTransferByCustomerItemsLen(t *testing.T) {
 	err = user1.RawSignedInvokeWithErrorReturned("cc", "channelMultiTransferByCustomer", uuid.NewString(), "VT", string(itemsJSON))
 	require.NoError(t, err)
 
+	items = []core.TransferItem{
+		{Token: "CC_1", Amount: new(big.Int).SetInt64(450)},
+		{Token: "CC_1", Amount: new(big.Int).SetInt64(450)},
+	}
+	itemsJSON, err = json.Marshal(items)
+	require.NoError(t, err)
+
+	err = user1.RawSignedInvokeWithErrorReturned("cc", "channelMultiTransferByCustomer", uuid.NewString(), "VT", string(itemsJSON))
+	require.EqualError(t, err, cctransfer.ErrInvalidTokenAlreadyExists.Error())
+
 	items = make([]core.TransferItem, 0, 100)
 	for i := 0; i < 100; i++ {
-		items = append(items, core.TransferItem{Token: "CC_1", Amount: new(big.Int).SetInt64(1)})
+		itemToken := fmt.Sprintf("CC_%d", i)
+		items = append(items, core.TransferItem{Token: itemToken, Amount: new(big.Int).SetInt64(1)})
+		user1.AddTokenBalance("cc", itemToken, 1)
 	}
 	itemsJSON, err = json.Marshal(items)
 	require.NoError(t, err)
@@ -111,7 +124,9 @@ func TestMultiTransferByCustomerItemsLen(t *testing.T) {
 
 	items = make([]core.TransferItem, 0, 100)
 	for i := 0; i < 101; i++ {
-		items = append(items, core.TransferItem{Token: "CC_1", Amount: new(big.Int).SetInt64(1)})
+		itemToken := fmt.Sprintf("CC_%d", i)
+		items = append(items, core.TransferItem{Token: itemToken, Amount: new(big.Int).SetInt64(1)})
+		user1.AddTokenBalance("cc", itemToken, 1)
 	}
 	itemsJSON, err = json.Marshal(items)
 	require.NoError(t, err)
@@ -158,16 +173,30 @@ func TestMultiTransferByAdminItemsLen(t *testing.T) {
 
 	items = make([]core.TransferItem, 0, 100)
 	for i := 0; i < 100; i++ {
-		items = append(items, core.TransferItem{Token: "CC_1", Amount: new(big.Int).SetInt64(1)})
+		itemToken := fmt.Sprintf("CC_%d", i)
+		items = append(items, core.TransferItem{Token: itemToken, Amount: new(big.Int).SetInt64(1)})
+		user1.AddTokenBalance("cc", itemToken, 1)
 	}
 	itemsJSON, err = json.Marshal(items)
 	require.NoError(t, err)
 	err = owner.RawSignedInvokeWithErrorReturned("cc", "channelMultiTransferByAdmin", uuid.NewString(), "VT", user1.Address(), string(itemsJSON))
 	require.NoError(t, err)
 
+	items = []core.TransferItem{
+		{Token: "CC_1", Amount: new(big.Int).SetInt64(450)},
+		{Token: "CC_1", Amount: new(big.Int).SetInt64(450)},
+	}
+	itemsJSON, err = json.Marshal(items)
+	require.NoError(t, err)
+
+	err = owner.RawSignedInvokeWithErrorReturned("cc", "channelMultiTransferByAdmin", uuid.NewString(), "VT", user1.Address(), string(itemsJSON))
+	require.EqualError(t, err, cctransfer.ErrInvalidTokenAlreadyExists.Error())
+
 	items = make([]core.TransferItem, 0, 100)
 	for i := 0; i < 101; i++ {
-		items = append(items, core.TransferItem{Token: "CC_1", Amount: new(big.Int).SetInt64(1)})
+		itemToken := fmt.Sprintf("CC_%d", i)
+		items = append(items, core.TransferItem{Token: itemToken, Amount: new(big.Int).SetInt64(1)})
+		user1.AddTokenBalance("cc", itemToken, 1)
 	}
 	itemsJSON, err = json.Marshal(items)
 	require.NoError(t, err)

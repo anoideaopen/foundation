@@ -21,4 +21,5 @@ var (
 	ErrAdminNotSet               = errors.New("admin is not set in base config")
 	ErrUnauthorisedNotAdmin      = errors.New("unauthorised, sender is not an admin")
 	ErrInvalidTransferItemsCount = errors.New("invalid argument transfer items count")
+	ErrInvalidTokenAlreadyExists = errors.New("invalid argument token already exists")
 )
