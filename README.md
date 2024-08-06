@@ -40,6 +40,7 @@ The library implements functionality for interacting with access control list (A
 * [API](doc/api.md)
 * [Chaincode configuration](doc/cc_cfg.md)
 * [Versioning](doc/versioning.md)
+* [Routing](doc/routing.md)
 * [QA](doc/qa.md)
 * [Embed Source](doc/embed.md)
 * [Swap](doc/swap.md)
