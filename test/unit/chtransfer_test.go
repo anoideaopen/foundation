@@ -3,12 +3,12 @@ package unit
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/anoideaopen/foundation/core"
-	"github.com/anoideaopen/foundation/core/types/big"
 	"testing"
 	"time"
 
+	"github.com/anoideaopen/foundation/core"
 	"github.com/anoideaopen/foundation/core/cctransfer"
+	"github.com/anoideaopen/foundation/core/types/big"
 	"github.com/anoideaopen/foundation/mock"
 	pb "github.com/anoideaopen/foundation/proto"
 	"github.com/anoideaopen/foundation/test/unit/fixtures_test"

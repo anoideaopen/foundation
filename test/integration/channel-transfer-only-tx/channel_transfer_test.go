@@ -2,13 +2,13 @@ package channel_transfer_only_tx
 
 import (
 	"encoding/json"
-	"github.com/anoideaopen/foundation/core"
-	"github.com/anoideaopen/foundation/core/types/big"
 	"os"
 	"path/filepath"
 	"syscall"
 	"time"
 
+	"github.com/anoideaopen/foundation/core"
+	"github.com/anoideaopen/foundation/core/types/big"
 	pbfound "github.com/anoideaopen/foundation/proto"
 	"github.com/anoideaopen/foundation/test/integration/cmn"
 	"github.com/anoideaopen/foundation/test/integration/cmn/client"
