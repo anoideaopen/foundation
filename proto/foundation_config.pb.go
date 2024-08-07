@@ -103,7 +103,7 @@ type ContractConfig struct {
 	// tracingCollectorEndpoint - tracing collector endpoint host & port, e.g. "172.23.0.6:4318"
 	TracingCollectorEndpoint *CollectorEndpoint `protobuf:"bytes,5,opt,name=tracingCollectorEndpoint,proto3" json:"tracingCollectorEndpoint,omitempty"`
 	// maxChannelTransferItems maximum count channel transfer items (token amount) for single transfer operation,
-	// if maxChannelTransferItems <= 0 will use default value 100
+	// if maxChannelTransferItems is 0 will use default value 100
 	MaxChannelTransferItems uint32 `protobuf:"varint,6,opt,name=maxChannelTransferItems,proto3" json:"maxChannelTransferItems,omitempty"`
 }
 

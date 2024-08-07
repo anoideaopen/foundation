@@ -32,7 +32,7 @@ message ContractConfig {
   CollectorEndpoint tracingCollectorEndpoint = 5;
 
   // maxChannelTransferItems maximum count channel transfer items (token amount) for single transfer operation,
-  // if maxChannelTransferItems <= 0 will use default value 100
+  // if maxChannelTransferItems is 0 will use default value 100
   uint32 maxChannelTransferItems = 6;
 }
 
