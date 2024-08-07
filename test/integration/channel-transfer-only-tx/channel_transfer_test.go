@@ -215,7 +215,7 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 			By("add admin to acl")
 			client.AddUser(network, peer, network.Orderers[0], admin)
 
-			By("add user1 to acl")
+			By("add user to acl")
 			var err error
 			user1, err = client.NewUserFoundation(pbfound.KeyType_ed25519)
 			Expect(err).NotTo(HaveOccurred())
