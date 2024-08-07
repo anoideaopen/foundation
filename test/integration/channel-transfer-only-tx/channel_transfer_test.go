@@ -204,7 +204,6 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 	Describe("channel transfer test", func() {
 		var (
 			user1                *client.UserFoundation
-			user2                *client.UserFoundation
 			transferAmount       = "450"
 			balanceAfterTransfer = "550"
 			emitAmount           = "1000"
@@ -225,14 +224,6 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 			id = uuid.NewString()
 			id2 = uuid.NewString()
 
-			By("add user2 to acl")
-			user2, err = client.NewUserFoundation(pbfound.KeyType_ed25519)
-			Expect(err).NotTo(HaveOccurred())
-			client.AddUser(network, peer, network.Orderers[0], user2)
-
-			id = uuid.NewString()
-			id2 = uuid.NewString()
-
 			By("emit tokens 1000")
 			client.TxInvokeWithSign(network, peer, network.Orderers[0],
 				cmn.ChannelFiat, cmn.ChannelFiat, admin,
@@ -242,16 +233,6 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
 				fabricnetwork.CheckResult(fabricnetwork.CheckBalance(emitAmount), nil),
 				"balanceOf", user1.AddressBase58Check)
-
-			By("emit tokens 1000")
-			client.TxInvokeWithSign(network, peer, network.Orderers[0],
-				cmn.ChannelFiat, cmn.ChannelFiat, admin,
-				"emit", "", client.NewNonceByTime().Get(), nil, user2.AddressBase58Check, emitAmount)
-
-			By("emit check")
-			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
-				fabricnetwork.CheckResult(fabricnetwork.CheckBalance(emitAmount), nil),
-				"balanceOf", user2.AddressBase58Check)
 		})
 
 		It("multi transfer by customer success", func() {
@@ -263,13 +244,13 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 			forwardItemsJSON, err := json.Marshal(forwardItems)
 			Expect(err).NotTo(HaveOccurred())
 			client.TxInvokeWithSign(network, peer, network.Orderers[0],
-				cmn.ChannelFiat, cmn.ChannelFiat, user2, "channelMultiTransferByCustomer", "",
+				cmn.ChannelFiat, cmn.ChannelFiat, user1, "channelMultiTransferByCustomer", "",
 				client.NewNonceByTime().Get(), nil, id, "CC", string(forwardItemsJSON))
 
 			By("check balance after transfer")
 			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
 				fabricnetwork.CheckResult(fabricnetwork.CheckBalance(balanceAfterTransfer), nil),
-				"balanceOf", user2.AddressBase58Check)
+				"balanceOf", user1.AddressBase58Check)
 
 			By("get channel transfer from")
 			from := ""
@@ -291,7 +272,7 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 			By("check allowed balance 1")
 			client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC,
 				fabricnetwork.CheckResult(fabricnetwork.CheckBalance(transferAmount), nil),
-				"allowedBalanceOf", user2.AddressBase58Check, "FIAT")
+				"allowedBalanceOf", user1.AddressBase58Check, "FIAT")
 
 			By("channel transfer to")
 			fChTrTo := func(out []byte) string {
@@ -319,12 +300,12 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 			By("check allowed balance 2")
 			client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC,
 				fabricnetwork.CheckResult(fabricnetwork.CheckBalance(transferAmount), nil),
-				"allowedBalanceOf", user2.AddressBase58Check, "FIAT")
+				"allowedBalanceOf", user1.AddressBase58Check, "FIAT")
 
 			By("check fiat balance")
 			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
 				fabricnetwork.CheckResult(fabricnetwork.CheckBalance(balanceAfterTransfer), nil),
-				"balanceOf", user2.AddressBase58Check)
+				"balanceOf", user1.AddressBase58Check)
 
 			By("BACKWARD")
 
@@ -334,13 +315,13 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 			backwardItemsJSON, err := json.Marshal(backwardItems)
 			Expect(err).NotTo(HaveOccurred())
 			client.TxInvokeWithSign(network, peer, network.Orderers[0],
-				cmn.ChannelCC, cmn.ChannelCC, user2, "channelMultiTransferByCustomer", "",
+				cmn.ChannelCC, cmn.ChannelCC, user1, "channelMultiTransferByCustomer", "",
 				client.NewNonceByTime().Get(), nil, id2, "FIAT", string(backwardItemsJSON))
 
 			By("check allowed balance after transfer")
 			client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC,
 				fabricnetwork.CheckResult(fabricnetwork.CheckBalance("0"), nil),
-				"allowedBalanceOf", user2.AddressBase58Check, "FIAT")
+				"allowedBalanceOf", user1.AddressBase58Check, "FIAT")
 
 			By("get channel transfer from")
 			client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC, fabricnetwork.CheckResult(fChTrFrom, nil),
@@ -380,7 +361,7 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 			By("check fiat balance 2")
 			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
 				fabricnetwork.CheckResult(fabricnetwork.CheckBalance(emitAmount), nil),
-				"balanceOf", user2.AddressBase58Check)
+				"balanceOf", user1.AddressBase58Check)
 		})
 
 		It("by customer success", func() {
@@ -514,12 +495,12 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 			client.TxInvokeWithSign(network, peer, network.Orderers[0],
 				cmn.ChannelFiat, cmn.ChannelFiat, admin, "channelMultiTransferByAdmin", "",
-				client.NewNonceByTime().Get(), nil, id, "CC", user2.AddressBase58Check, string(forwardItemsJSON))
+				client.NewNonceByTime().Get(), nil, id, "CC", user1.AddressBase58Check, string(forwardItemsJSON))
 
 			By("check balance after transfer")
 			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
 				fabricnetwork.CheckResult(fabricnetwork.CheckBalance(balanceAfterTransfer), nil),
-				"balanceOf", user2.AddressBase58Check)
+				"balanceOf", user1.AddressBase58Check)
 
 			By("get channel transfer from")
 			from := ""
@@ -542,7 +523,7 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 			By("check allowed balance 1")
 			client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC,
 				fabricnetwork.CheckResult(fabricnetwork.CheckBalance(transferAmount), nil),
-				"allowedBalanceOf", user2.AddressBase58Check, "FIAT")
+				"allowedBalanceOf", user1.AddressBase58Check, "FIAT")
 
 			By("channel transfer to")
 			fChTrTo := func(out []byte) string {
@@ -570,12 +551,12 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 			By("check allowed balance 2")
 			client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC,
 				fabricnetwork.CheckResult(fabricnetwork.CheckBalance(transferAmount), nil),
-				"allowedBalanceOf", user2.AddressBase58Check, "FIAT")
+				"allowedBalanceOf", user1.AddressBase58Check, "FIAT")
 
 			By("check fiat balance")
 			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
 				fabricnetwork.CheckResult(fabricnetwork.CheckBalance(balanceAfterTransfer), nil),
-				"balanceOf", user2.AddressBase58Check)
+				"balanceOf", user1.AddressBase58Check)
 
 			By("BACKWARD")
 
@@ -586,12 +567,12 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 			client.TxInvokeWithSign(network, peer, network.Orderers[0],
 				cmn.ChannelCC, cmn.ChannelCC, admin, "channelMultiTransferByAdmin", "",
-				client.NewNonceByTime().Get(), nil, id2, "FIAT", user2.AddressBase58Check, string(backwardItemsJSON))
+				client.NewNonceByTime().Get(), nil, id2, "FIAT", user1.AddressBase58Check, string(backwardItemsJSON))
 
 			By("check allowed balance after transfer")
 			client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC,
 				fabricnetwork.CheckResult(fabricnetwork.CheckBalance("0"), nil),
-				"allowedBalanceOf", user2.AddressBase58Check, "FIAT")
+				"allowedBalanceOf", user1.AddressBase58Check, "FIAT")
 
 			By("get channel transfer from")
 			client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC, fabricnetwork.CheckResult(fChTrFrom, nil),
@@ -605,7 +586,7 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 			By("check fiat balance 1")
 			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
 				fabricnetwork.CheckResult(fabricnetwork.CheckBalance(emitAmount), nil),
-				"balanceOf", user2.AddressBase58Check)
+				"balanceOf", user1.AddressBase58Check)
 
 			By("channel transfer to")
 			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat, fabricnetwork.CheckResult(fChTrTo, nil),
@@ -626,12 +607,12 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 			By("check allowed balance")
 			client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC,
 				fabricnetwork.CheckResult(fabricnetwork.CheckBalance("0"), nil),
-				"allowedBalanceOf", user2.AddressBase58Check, "FIAT")
+				"allowedBalanceOf", user1.AddressBase58Check, "FIAT")
 
 			By("check fiat balance 2")
 			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
 				fabricnetwork.CheckResult(fabricnetwork.CheckBalance(emitAmount), nil),
-				"balanceOf", user2.AddressBase58Check)
+				"balanceOf", user1.AddressBase58Check)
 		})
 
 		It("channel transfer by admin success", func() {
