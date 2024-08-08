@@ -181,12 +181,12 @@ func TestByCustomerBackSuccess(t *testing.T) {
 	ccConfig := makeBaseTokenConfig("CC Token", "CC", 8,
 		owner.Address(), "", "", owner.Address(), nil)
 
-	initMsg := ledger.NewCC("cc", &TestToken{}, ccConfig)
+	initMsg := ledger.NewCC("cc", &token.BaseToken{}, ccConfig)
 	require.Empty(t, initMsg)
 
 	vtConfig := makeBaseTokenConfig("VT Token", "VT", 8,
 		owner.Address(), "", "", owner.Address(), nil)
-	initMsg = ledger.NewCC("vt", &TestToken{}, vtConfig)
+	initMsg = ledger.NewCC("vt", &token.BaseToken{}, vtConfig)
 	require.Empty(t, initMsg)
 
 	user1 := ledger.NewWallet()
