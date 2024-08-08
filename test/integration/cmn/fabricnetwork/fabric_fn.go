@@ -1,6 +1,7 @@
 package fabricnetwork
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -57,6 +58,24 @@ func CheckBalance(etalon string) func([]byte) string {
 		etl := "\"" + etalon + "\""
 		if string(out) != etl {
 			return "not equal " + string(out) + " and " + etl
+		}
+		return ""
+	}
+}
+
+func CheckIndustrialBalance(expectedGroup string, expectedAmount string) func([]byte) string {
+	return func(out []byte) string {
+		m := make(map[string]string)
+		err := json.Unmarshal(out, &m)
+		if err != nil {
+			return fmt.Sprintf("error unmarshalling json: %v, source '%s", err, string(out))
+		}
+		v, ok := m[expectedGroup]
+		if !ok {
+			return fmt.Sprintf("group balance of '%s' not found in '%v'", expectedGroup, m)
+		}
+		if v != expectedAmount {
+			return fmt.Sprintf("group balance of '%s' with balance '%s' not eq '%s' expected amount", expectedGroup, v, expectedAmount)
 		}
 		return ""
 	}

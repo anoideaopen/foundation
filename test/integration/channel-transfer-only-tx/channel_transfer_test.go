@@ -233,6 +233,40 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
 				fabricnetwork.CheckResult(fabricnetwork.CheckBalance(emitAmount), nil),
 				"balanceOf", user1.AddressBase58Check)
+
+			client.NBTxInvokeWithSign(network, peer, network.Orderers[0], nil, cmn.ChannelIndustrial, cmn.ChannelIndustrial,
+				admin, "initialize", "", client.NewNonceByTime().Get())
+
+			client.Query(network, peer, cmn.ChannelIndustrial, cmn.ChannelIndustrial,
+				fabricnetwork.CheckResult(fabricnetwork.CheckIndustrialBalance("202009", "10000000000000"), nil),
+				"industrialBalanceOf", admin.AddressBase58Check)
+			client.Query(network, peer, cmn.ChannelIndustrial, cmn.ChannelIndustrial,
+				fabricnetwork.CheckResult(fabricnetwork.CheckIndustrialBalance("202010", "100000000000000"), nil),
+				"industrialBalanceOf", admin.AddressBase58Check)
+			client.Query(network, peer, cmn.ChannelIndustrial, cmn.ChannelIndustrial,
+				fabricnetwork.CheckResult(fabricnetwork.CheckIndustrialBalance("202011", "200000000000000"), nil),
+				"industrialBalanceOf", admin.AddressBase58Check)
+			client.Query(network, peer, cmn.ChannelIndustrial, cmn.ChannelIndustrial,
+				fabricnetwork.CheckResult(fabricnetwork.CheckIndustrialBalance("202012", "50000000000000"), nil),
+				"industrialBalanceOf", admin.AddressBase58Check)
+
+			client.TxInvokeWithSign(network, peer, network.Orderers[0], cmn.ChannelIndustrial, cmn.ChannelIndustrial, admin, "transferIndustrial", "", client.NewNonceByTime().Get(), nil, user1.AddressBase58Check, "202009", "10000000000000", "comment")
+			client.TxInvokeWithSign(network, peer, network.Orderers[0], cmn.ChannelIndustrial, cmn.ChannelIndustrial, admin, "transferIndustrial", "", client.NewNonceByTime().Get(), nil, user1.AddressBase58Check, "202010", "100000000000000", "comment")
+			client.TxInvokeWithSign(network, peer, network.Orderers[0], cmn.ChannelIndustrial, cmn.ChannelIndustrial, admin, "transferIndustrial", "", client.NewNonceByTime().Get(), nil, user1.AddressBase58Check, "202011", "200000000000000", "comment")
+			client.TxInvokeWithSign(network, peer, network.Orderers[0], cmn.ChannelIndustrial, cmn.ChannelIndustrial, admin, "transferIndustrial", "", client.NewNonceByTime().Get(), nil, user1.AddressBase58Check, "202012", "50000000000000", "comment")
+
+			client.Query(network, peer, cmn.ChannelIndustrial, cmn.ChannelIndustrial,
+				fabricnetwork.CheckResult(fabricnetwork.CheckIndustrialBalance("202009", "10000000000000"), nil),
+				"industrialBalanceOf", user1.AddressBase58Check)
+			client.Query(network, peer, cmn.ChannelIndustrial, cmn.ChannelIndustrial,
+				fabricnetwork.CheckResult(fabricnetwork.CheckIndustrialBalance("202010", "100000000000000"), nil),
+				"industrialBalanceOf", user1.AddressBase58Check)
+			client.Query(network, peer, cmn.ChannelIndustrial, cmn.ChannelIndustrial,
+				fabricnetwork.CheckResult(fabricnetwork.CheckIndustrialBalance("202011", "200000000000000"), nil),
+				"industrialBalanceOf", user1.AddressBase58Check)
+			client.Query(network, peer, cmn.ChannelIndustrial, cmn.ChannelIndustrial,
+				fabricnetwork.CheckResult(fabricnetwork.CheckIndustrialBalance("202012", "50000000000000"), nil),
+				"industrialBalanceOf", user1.AddressBase58Check)
 		})
 
 		It("multi transfer by customer success", func() {
