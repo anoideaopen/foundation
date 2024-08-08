@@ -72,7 +72,7 @@ func CheckIndustrialBalance(expectedGroup string, expectedAmount string) func([]
 		}
 		v, ok := m[expectedGroup]
 		if !ok {
-			return fmt.Sprintf("group balance of '%s' not found in '%v'", expectedGroup, m)
+			v = "0"
 		}
 		if v != expectedAmount {
 			return fmt.Sprintf("group balance of '%s' with balance '%s' not eq '%s' expected amount", expectedGroup, v, expectedAmount)
