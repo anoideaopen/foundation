@@ -1,30 +1,23 @@
 package client
 
 import (
-	"encoding/hex"
-	"fmt"
-	"github.com/anoideaopen/acl/tests/common"
-	pb "github.com/anoideaopen/foundation/proto"
 	pbfound "github.com/anoideaopen/foundation/proto"
 	"github.com/anoideaopen/foundation/test/integration/cmn"
 	"github.com/anoideaopen/foundation/test/integration/cmn/fabricnetwork"
-	"github.com/btcsuite/btcutil/base58"
+	"github.com/anoideaopen/foundation/test/integration/cmn/runner"
 	docker "github.com/fsouza/go-dockerclient"
-	"github.com/golang/protobuf/proto"
 	"github.com/hyperledger/fabric/integration"
 	"github.com/hyperledger/fabric/integration/nwo"
-	"github.com/hyperledger/fabric/integration/nwo/commands"
 	"github.com/hyperledger/fabric/integration/nwo/fabricconfig"
+	runnerFbk "github.com/hyperledger/fabric/integration/nwo/runner"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gbytes"
-	"github.com/onsi/gomega/gexec"
 	"github.com/tedsuo/ifrit"
 	ginkgomon "github.com/tedsuo/ifrit/ginkgomon_v2"
-	"google.golang.org/protobuf/encoding/protojson"
 	"os"
 	"path/filepath"
-	"strconv"
+	"syscall"
 	"time"
 )
 
@@ -36,66 +29,31 @@ const (
 	defaultPeerName      = "peer0"
 )
 
-type TestSuite interface {
-	// Admin returns testsuite admin
-	Admin() *UserFoundation
-	// FeeSetter returns testsuite fee setter user
-	FeeSetter() *UserFoundation
-	// FeeAddressSetter returns testsuite fee address setter
-	FeeAddressSetter() *UserFoundation
-	// Network returns testsuite network
-	Network() *nwo.Network
-	// NetworkFound returns testsuite network foundation
-	NetworkFound() *cmn.NetworkFoundation
-	// Peer returns testsuite peer
-	Peer() *nwo.Peer
-	// DeployChannels deploys channels to testsuite network
-	DeployChannels()
-	// TxInvoke func for invoke to foundation fabric
-	TxInvoke(channelName, chaincodeName string, checkErr CheckResultFunc, args ...string) string
-	// TxInvokeByRobot func for invoke to foundation fabric from robot
-	TxInvokeByRobot(channelName, chaincodeName string, checkErr CheckResultFunc, args ...string) string
-	// TxInvokeWithSign func for invoke with sign to foundation fabric
-	TxInvokeWithSign(channelName, chaincodeName string, user *UserFoundation, fn, requestID, nonce string, checkErr CheckResultFunc, args ...string) (txId string)
-	// TxInvokeWithMultisign invokes transaction to foundation fabric with multisigned user
-	TxInvokeWithMultisign(channelName, chaincodeName string, user *UserFoundationMultisigned, fn, requestID, nonce string, checkErr CheckResultFunc, args ...string) (txId string)
-	// NBTxInvoke func for invoke to foundation fabric
-	NBTxInvoke(channelName, chaincodeName string, checkErr CheckResultFunc, args ...string)
-	// NBTxInvokeByRobot func for invoke to foundation fabric from robot
-	NBTxInvokeByRobot(channelName, chaincodeName string, checkErr CheckResultFunc, args ...string)
-	// NBTxInvokeWithSign func for invoke with sign to foundation fabric
-	NBTxInvokeWithSign(channelName, chaincodeName string, checkErr CheckResultFunc, user *UserFoundation, fn, requestID, nonce string, args ...string)
-	// Query func for query from foundation fabric
-	Query(channelName, chaincodeName string, checkResultFunc CheckResultFunc, args ...string)
-	// QueryWithSign func for query with sign from foundation fabric
-	QueryWithSign(channelName, chaincodeName string, checkResultFunc CheckResultFunc, user *UserFoundation, fn, requestID, nonce string, args ...string)
-	// AddUser adds new user to ACL channel
-	AddUser(user *UserFoundation)
-	// AddUserMultisigned adds multisigned user to ACL channel
-	AddUserMultisigned(user *UserFoundationMultisigned)
-	// AddRights adds right for defined user with specified role and operation to ACL channel
-	AddRights(channelName, chaincodeName, role, operation string, user *UserFoundation)
-	// RemoveRights removes right for defined user with specified role and operation to ACL channel
-	RemoveRights(channelName, chaincodeName, role, operation string, user *UserFoundation)
-}
-
 type testSuite struct {
-	network          *nwo.Network
-	networkFound     *cmn.NetworkFoundation
-	peer             *nwo.Peer
-	orderer          *nwo.Orderer
-	components       *nwo.Components
-	testDir          string
-	org1Name         string
-	org2Name         string
-	mainUserName     string
-	robotUserName    string
-	channels         []string
-	admin            *UserFoundation
-	feeSetter        *UserFoundation
-	feeAddressSetter *UserFoundation
-	skiBackend       string
-	skiRobot         string
+	components          *nwo.Components
+	channels            []string
+	network             *nwo.Network
+	networkFound        *cmn.NetworkFoundation
+	peer                *nwo.Peer
+	orderer             *nwo.Orderer
+	redisProcess        ifrit.Process
+	redisDB             *runner.RedisDB
+	robotProc           ifrit.Process
+	networkProcess      ifrit.Process
+	ordererProcesses    []ifrit.Process
+	peerProcess         ifrit.Process
+	channelTransferProc ifrit.Process
+	testDir             string
+	dockerClient        *docker.Client
+	org1Name            string
+	org2Name            string
+	mainUserName        string
+	robotUserName       string
+	admin               *UserFoundation
+	feeSetter           *UserFoundation
+	feeAddressSetter    *UserFoundation
+	skiBackend          string
+	skiRobot            string
 }
 
 func initPeer(network *nwo.Network, orgName string) *nwo.Peer {
@@ -106,14 +64,7 @@ func startPort(portRange integration.TestPortRange) int {
 	return portRange.StartPortForNode()
 }
 
-func (ts *testSuite) initNetwork(
-	redisDBAddress string,
-	testDir string,
-	dockerClient *docker.Client,
-	testPort integration.TestPortRange,
-	ordererProcesses []ifrit.Process,
-	peerProcess ifrit.Process,
-) {
+func (ts *testSuite) InitNetwork(testPort integration.TestPortRange) {
 	var ordererRunners []*ginkgomon.Runner
 
 	networkConfig := nwo.MultiNodeSmartBFT()
@@ -130,7 +81,7 @@ func (ts *testSuite) initNetwork(
 		peer.Channels = peerChannels
 	}
 
-	ts.network = nwo.New(networkConfig, testDir, dockerClient, startPort(testPort), ts.components)
+	ts.network = nwo.New(networkConfig, ts.testDir, ts.dockerClient, startPort(testPort), ts.components)
 
 	cwd, err := os.Getwd()
 	Expect(err).NotTo(HaveOccurred())
@@ -143,23 +94,23 @@ func (ts *testSuite) initNetwork(
 	)
 
 	ts.networkFound = cmn.New(ts.network, ts.channels)
-	ts.networkFound.Robot.RedisAddresses = []string{redisDBAddress}
+	ts.networkFound.Robot.RedisAddresses = []string{ts.redisDB.Address()}
 
 	ts.networkFound.GenerateConfigTree()
 	ts.networkFound.Bootstrap()
 
 	for _, orderer := range ts.network.Orderers {
-		runner := ts.network.OrdererRunner(orderer)
-		runner.Command.Env = append(runner.Command.Env, "FABRIC_LOGGING_SPEC=orderer.consensus.smartbft=debug:grpc=debug")
-		ordererRunners = append(ordererRunners, runner)
-		proc := ifrit.Invoke(runner)
-		ordererProcesses = append(ordererProcesses, proc)
+		ordererRunner := ts.network.OrdererRunner(orderer)
+		ordererRunner.Command.Env = append(ordererRunner.Command.Env, "FABRIC_LOGGING_SPEC=orderer.consensus.smartbft=debug:grpc=debug")
+		ordererRunners = append(ordererRunners, ordererRunner)
+		proc := ifrit.Invoke(ordererRunner)
+		ts.ordererProcesses = append(ts.ordererProcesses, proc)
 		Eventually(proc.Ready(), ts.network.EventuallyTimeout).Should(BeClosed())
 	}
 
 	peerGroupRunner, _ := fabricnetwork.PeerGroupRunners(ts.network)
-	peerProcess = ifrit.Invoke(peerGroupRunner)
-	Eventually(peerProcess.Ready(), ts.network.EventuallyTimeout).Should(BeClosed())
+	ts.peerProcess = ifrit.Invoke(peerGroupRunner)
+	Eventually(ts.peerProcess.Ready(), ts.network.EventuallyTimeout).Should(BeClosed())
 
 	ts.peer = initPeer(ts.network, ts.org1Name)
 	ts.orderer = ts.network.Orderers[0]
@@ -190,59 +141,42 @@ func (ts *testSuite) initNetwork(
 	ts.skiBackend = skiBackend
 	ts.skiRobot = skiRobot
 
-	admin, err := NewUserFoundation(pbfound.KeyType_ed25519)
+	ts.admin, err = NewUserFoundation(pbfound.KeyType_ed25519)
 	Expect(err).NotTo(HaveOccurred())
-	Expect(admin.PrivateKeyBytes).NotTo(Equal(nil))
+	Expect(ts.admin.PrivateKeyBytes).NotTo(Equal(nil))
 
-	feeSetter, err := NewUserFoundation(pbfound.KeyType_ed25519)
+	ts.feeSetter, err = NewUserFoundation(pbfound.KeyType_ed25519)
 	Expect(err).NotTo(HaveOccurred())
-	Expect(feeSetter.PrivateKeyBytes).NotTo(Equal(nil))
+	Expect(ts.feeSetter.PrivateKeyBytes).NotTo(Equal(nil))
 
-	feeAddressSetter, err := NewUserFoundation(pbfound.KeyType_ed25519)
+	ts.feeAddressSetter, err = NewUserFoundation(pbfound.KeyType_ed25519)
 	Expect(err).NotTo(HaveOccurred())
-	Expect(feeAddressSetter.PrivateKeyBytes).NotTo(Equal(nil))
+	Expect(ts.feeAddressSetter.PrivateKeyBytes).NotTo(Equal(nil))
 }
 
 func NewTestSuite(
-	org1Name string,
-	org2Name string,
-	mainUserName string,
-	robotUserName string,
-	redisDBAddress string,
-	channels []string,
-	testDir string,
-	dockerClient *docker.Client,
-	testPort integration.TestPortRange,
 	components *nwo.Components,
-	ordererProcesses []ifrit.Process,
-	peerProcesses ifrit.Process,
+	channels []string,
 ) TestSuite {
-	if org1Name == "" {
-		org1Name = defaultOrg1Name
-	}
+	testDir, err := os.MkdirTemp("", "foundation")
+	Expect(err).NotTo(HaveOccurred())
 
-	if org2Name == "" {
-		org2Name = defaultOrg2Name
-	}
-
-	if mainUserName == "" {
-		mainUserName = defaultMainUserName
-	}
-
-	if robotUserName == "" {
-		robotUserName = defaultRobotUserName
-	}
+	dockerClient, err := docker.NewClientFromEnv()
+	Expect(err).NotTo(HaveOccurred())
 
 	ts := &testSuite{
-		org1Name:      org1Name,
-		org2Name:      org2Name,
-		mainUserName:  mainUserName,
-		robotUserName: robotUserName,
-		channels:      channels,
-		components:    components,
+		org1Name:         defaultOrg1Name,
+		org2Name:         defaultOrg2Name,
+		mainUserName:     defaultMainUserName,
+		robotUserName:    defaultRobotUserName,
+		channels:         channels,
+		components:       components,
+		testDir:          testDir,
+		dockerClient:     dockerClient,
+		networkProcess:   nil,
+		ordererProcesses: nil,
+		peerProcess:      nil,
 	}
-
-	ts.initNetwork(redisDBAddress, testDir, dockerClient, testPort, ordererProcesses, peerProcesses)
 
 	return ts
 }
@@ -271,6 +205,54 @@ func (ts *testSuite) Peer() *nwo.Peer {
 	return ts.peer
 }
 
+func (ts *testSuite) OrdererProcesses() []ifrit.Process {
+	return ts.ordererProcesses
+}
+
+func (ts *testSuite) PeerProcess() ifrit.Process {
+	return ts.peerProcess
+}
+
+func (ts *testSuite) StartRedis() {
+	ts.redisDB = &runner.RedisDB{}
+	ts.redisProcess = ifrit.Invoke(ts.redisDB)
+	Eventually(ts.redisProcess.Ready(), runnerFbk.DefaultStartTimeout).Should(BeClosed())
+	Consistently(ts.redisProcess.Wait()).ShouldNot(Receive())
+}
+
+func (ts *testSuite) StopRedis() {
+	if ts.redisProcess != nil {
+		ts.redisProcess.Signal(syscall.SIGTERM)
+		Eventually(ts.redisProcess.Wait(), time.Minute).Should(Receive())
+	}
+}
+
+func (ts *testSuite) StartRobot() {
+	robotRunner := ts.networkFound.RobotRunner()
+	ts.robotProc = ifrit.Invoke(robotRunner)
+	Eventually(ts.robotProc.Ready(), ts.network.EventuallyTimeout).Should(BeClosed())
+}
+
+func (ts *testSuite) StopRobot() {
+	if ts.robotProc != nil {
+		ts.robotProc.Signal(syscall.SIGTERM)
+		Eventually(ts.robotProc.Wait(), ts.network.EventuallyTimeout).Should(Receive())
+	}
+}
+
+func (ts *testSuite) StartChannelTransfer() {
+	channelTransferRunner := ts.networkFound.ChannelTransferRunner()
+	ts.channelTransferProc = ifrit.Invoke(channelTransferRunner)
+	Eventually(ts.channelTransferProc.Ready(), ts.network.EventuallyTimeout).Should(BeClosed())
+}
+
+func (ts *testSuite) StopChannelTransfer() {
+	if ts.channelTransferProc != nil {
+		ts.channelTransferProc.Signal(syscall.SIGTERM)
+		Eventually(ts.channelTransferProc.Wait(), ts.network.EventuallyTimeout).Should(Receive())
+	}
+}
+
 func (ts *testSuite) DeployChannels() {
 	for _, channel := range ts.channels {
 		switch channel {
@@ -288,281 +270,22 @@ func (ts *testSuite) DeployChannels() {
 	}
 }
 
-func (ts *testSuite) TxInvoke(channelName, chaincodeName string, checkErr CheckResultFunc, args ...string) string {
-	return invokeTx(ts.network, ts.peer, ts.orderer, ts.mainUserName, channelName, chaincodeName, checkErr, args...)
-}
-
-func (ts *testSuite) TxInvokeByRobot(channelName, chaincodeName string, checkErr CheckResultFunc, args ...string) string {
-	return invokeTx(ts.network, ts.peer, ts.orderer, ts.robotUserName, channelName, chaincodeName, checkErr, args...)
-}
-
-func (ts *testSuite) TxInvokeWithSign(
-	channelName string,
-	chaincodeName string,
-	user *UserFoundation,
-	fn string,
-	requestID string,
-	nonce string,
-	checkErr CheckResultFunc,
-	args ...string,
-) (txId string) {
-	ctorArgs := append(append([]string{fn, requestID, channelName, chaincodeName}, args...), nonce)
-	pubKey, sMsg, err := user.Sign(ctorArgs...)
-	Expect(err).NotTo(HaveOccurred())
-
-	ctorArgs = append(ctorArgs, pubKey, base58.Encode(sMsg))
-	return ts.TxInvoke(channelName, chaincodeName, checkErr, ctorArgs...)
-}
-
-func (ts *testSuite) TxInvokeWithMultisign(
-	channelName string,
-	chaincodeName string,
-	user *UserFoundationMultisigned,
-	fn string,
-	requestID string,
-	nonce string,
-	checkErr CheckResultFunc,
-	args ...string,
-) (txId string) {
-	ctorArgs := append(append([]string{fn, requestID, channelName, chaincodeName}, args...), nonce)
-	pubKey, sMsgsByte, err := user.Sign(ctorArgs...)
-	Expect(err).NotTo(HaveOccurred())
-
-	var sMsgsStr []string
-	for _, sMsgByte := range sMsgsByte {
-		sMsgsStr = append(sMsgsStr, base58.Encode(sMsgByte))
+func (ts *testSuite) ShutdownNetwork() {
+	if ts.networkProcess != nil {
+		ts.networkProcess.Signal(syscall.SIGTERM)
+		Eventually(ts.networkProcess.Wait(), ts.network.EventuallyTimeout).Should(Receive())
 	}
-
-	ctorArgs = append(append(ctorArgs, pubKey...), sMsgsStr...)
-	return ts.TxInvoke(channelName, chaincodeName, checkErr, ctorArgs...)
-}
-
-func (ts *testSuite) NBTxInvoke(channelName, chaincodeName string, checkErr CheckResultFunc, args ...string) {
-	invokeNBTx(ts.network, ts.peer, ts.orderer, ts.mainUserName, checkErr, channelName, chaincodeName, args...)
-}
-
-func (ts *testSuite) NBTxInvokeByRobot(channelName, chaincodeName string, checkErr CheckResultFunc, args ...string) {
-	invokeNBTx(ts.network, ts.peer, ts.orderer, ts.robotUserName, checkErr, channelName, chaincodeName, args...)
-}
-
-func (ts *testSuite) NBTxInvokeWithSign(channelName, chaincodeName string, checkErr CheckResultFunc, user *UserFoundation, fn, requestID, nonce string, args ...string) {
-	ctorArgs := append(append([]string{fn, requestID, channelName, chaincodeName}, args...), nonce)
-	pubKey, sMsg, err := user.Sign(ctorArgs...)
-	Expect(err).NotTo(HaveOccurred())
-
-	ctorArgs = append(ctorArgs, pubKey, base58.Encode(sMsg))
-	ts.NBTxInvoke(channelName, chaincodeName, checkErr, ctorArgs...)
-}
-
-// Query func for query from foundation fabric
-func (ts *testSuite) Query(channelName, chaincodeName string, checkResultFunc CheckResultFunc, args ...string) {
-	Eventually(func() string {
-		sess, err := ts.network.PeerUserSession(ts.peer, ts.mainUserName, commands.ChaincodeQuery{
-			ChannelID: channelName,
-			Name:      chaincodeName,
-			Ctor:      cmn.CtorFromSlice(args),
-		})
-		Eventually(sess, ts.network.EventuallyTimeout).Should(gexec.Exit())
-
-		return checkResultFunc(err, sess.ExitCode(), sess.Err.Contents(), sess.Out.Contents())
-	}, ts.network.EventuallyTimeout, time.Second).Should(BeEmpty())
-}
-
-// QueryWithSign func for query with sign from foundation fabric
-func (ts *testSuite) QueryWithSign(
-	channelName string,
-	chaincodeName string,
-	checkResultFunc CheckResultFunc,
-	user *UserFoundation,
-	fn string,
-	requestID string,
-	nonce string,
-	args ...string,
-) {
-	ctorArgs := append(append([]string{fn, requestID, channelName, chaincodeName}, args...), nonce)
-	pubKey, sMsg, err := user.Sign(ctorArgs...)
-	Expect(err).NotTo(HaveOccurred())
-
-	ctorArgs = append(ctorArgs, pubKey, base58.Encode(sMsg))
-	ts.Query(channelName, chaincodeName, checkResultFunc, ctorArgs...)
-}
-
-// AddUser adds new user to ACL channel
-func (ts *testSuite) AddUser(user *UserFoundation) {
-	sess, err := ts.network.PeerUserSession(ts.peer, ts.mainUserName, commands.ChaincodeInvoke{
-		ChannelID: cmn.ChannelAcl,
-		Orderer:   ts.network.OrdererAddress(ts.orderer, nwo.ListenPort),
-		Name:      cmn.ChannelAcl,
-		Ctor: cmn.CtorFromSlice(
-			[]string{
-				"addUserWithPublicKeyType",
-				user.PublicKeyBase58,
-				"test",
-				user.UserID,
-				"true",
-				user.KeyType.String(),
-			},
-		),
-		PeerAddresses: []string{
-			ts.network.PeerAddress(ts.network.Peer(ts.org1Name, ts.peer.Name), nwo.ListenPort),
-			ts.network.PeerAddress(ts.network.Peer(ts.org2Name, ts.peer.Name), nwo.ListenPort),
-		},
-		WaitForEvent: true,
-	})
-	Expect(err).NotTo(HaveOccurred())
-	Eventually(sess, ts.network.EventuallyTimeout).Should(gexec.Exit(0))
-	Expect(sess.Err).To(gbytes.Say("Chaincode invoke successful. result: status:200"))
-
-	ts.CheckUser(user)
-}
-
-// AddUserMultisigned adds multisigned user
-func (ts *testSuite) AddUserMultisigned(user *UserFoundationMultisigned) {
-	ctorArgs := []string{common.FnAddMultisig, strconv.Itoa(len(user.Users)), NewNonceByTime().Get()}
-	publicKeys, sMsgsByte, err := user.Sign(ctorArgs...)
-	var sMsgsStr []string
-	for _, sMsgByte := range sMsgsByte {
-		sMsgsStr = append(sMsgsStr, hex.EncodeToString(sMsgByte))
+	if ts.peerProcess != nil {
+		ts.peerProcess.Signal(syscall.SIGTERM)
+		Eventually(ts.peerProcess.Wait(), ts.network.EventuallyTimeout).Should(Receive())
 	}
-	ctorArgs = append(append(ctorArgs, publicKeys...), sMsgsStr...)
-	sess, err := ts.network.PeerUserSession(ts.peer, ts.mainUserName, commands.ChaincodeInvoke{
-		ChannelID: cmn.ChannelAcl,
-		Orderer:   ts.network.OrdererAddress(ts.orderer, nwo.ListenPort),
-		Name:      cmn.ChannelAcl,
-		Ctor:      cmn.CtorFromSlice(ctorArgs),
-		PeerAddresses: []string{
-			ts.network.PeerAddress(ts.network.Peer(ts.org1Name, ts.peer.Name), nwo.ListenPort),
-			ts.network.PeerAddress(ts.network.Peer(ts.org2Name, ts.peer.Name), nwo.ListenPort),
-		},
-		WaitForEvent: true,
-	})
+	if ts.network != nil {
+		ts.network.Cleanup()
+	}
+	for _, ordererInstance := range ts.OrdererProcesses() {
+		ordererInstance.Signal(syscall.SIGTERM)
+		Eventually(ordererInstance.Wait(), ts.network.EventuallyTimeout).Should(Receive())
+	}
+	err := os.RemoveAll(ts.testDir)
 	Expect(err).NotTo(HaveOccurred())
-	Eventually(sess, ts.network.EventuallyTimeout).Should(gexec.Exit(0))
-	Expect(sess.Err).To(gbytes.Say("Chaincode invoke successful. result: status:200"))
-
-	ts.CheckUserMultisigned(user)
-}
-
-func (ts *testSuite) CheckUser(user *UserFoundation) {
-	Eventually(func() string {
-		sess, err := ts.network.PeerUserSession(ts.peer, ts.mainUserName, commands.ChaincodeQuery{
-			ChannelID: cmn.ChannelAcl,
-			Name:      cmn.ChannelAcl,
-			Ctor:      cmn.CtorFromSlice([]string{"checkKeys", user.PublicKeyBase58}),
-		})
-		Eventually(sess, ts.network.EventuallyTimeout).Should(gexec.Exit())
-		if sess.ExitCode() != 0 {
-			return fmt.Sprintf("exit code is %d: %s, %v", sess.ExitCode(), string(sess.Err.Contents()), err)
-		}
-
-		out := sess.Out.Contents()[:len(sess.Out.Contents())-1] // skip line feed
-		resp := &pb.AclResponse{}
-		err = proto.Unmarshal(out, resp)
-		if err != nil {
-			return fmt.Sprintf("failed to unmarshal response: %v", err)
-		}
-
-		addr := base58.CheckEncode(resp.GetAddress().GetAddress().GetAddress()[1:], resp.GetAddress().GetAddress().GetAddress()[0])
-		if addr != user.AddressBase58Check {
-			return fmt.Sprintf("Error: expected %s, received %s", user.AddressBase58Check, addr)
-		}
-
-		return ""
-	}, ts.network.EventuallyTimeout, time.Second).Should(BeEmpty())
-}
-
-func (ts *testSuite) CheckUserMultisigned(user *UserFoundationMultisigned) {
-	Eventually(func() string {
-		sess, err := ts.network.PeerUserSession(ts.peer, ts.mainUserName, commands.ChaincodeQuery{
-			ChannelID: cmn.ChannelAcl,
-			Name:      cmn.ChannelAcl,
-			Ctor:      cmn.CtorFromSlice([]string{common.FnCheckKeys, user.PublicKey()}),
-		})
-		Eventually(sess, ts.network.EventuallyTimeout).Should(gexec.Exit())
-		Expect(sess.ExitCode()).To(Equal(0))
-		if sess.ExitCode() != 0 {
-			return fmt.Sprintf("exit code is %d: %s, %v", sess.ExitCode(), string(sess.Err.Contents()), err)
-		}
-
-		out := sess.Out.Contents()[:len(sess.Out.Contents())-1] // skip line feed
-		resp := &pb.AclResponse{}
-		err = proto.Unmarshal(out, resp)
-		Expect(err).NotTo(HaveOccurred())
-		if err != nil {
-			return fmt.Sprintf("failed to unmarshal response: %v", err)
-		}
-
-		addressBytes := resp.GetAddress().GetAddress().GetAddress()
-		addr := base58.CheckEncode(addressBytes[1:], addressBytes[0])
-		if addr != user.AddressBase58Check {
-			return fmt.Sprintf("Error: expected %s, received %s", user.AddressBase58Check, addr)
-		}
-
-		return ""
-	}, ts.network.EventuallyTimeout, time.Second).Should(BeEmpty())
-}
-
-func (ts *testSuite) AddRights(channelName, chaincodeName, role, operation string, user *UserFoundation) {
-	sess, err := ts.network.PeerUserSession(ts.peer, ts.mainUserName, commands.ChaincodeInvoke{
-		ChannelID: cmn.ChannelAcl,
-		Orderer:   ts.network.OrdererAddress(ts.orderer, nwo.ListenPort),
-		Name:      cmn.ChannelAcl,
-		Ctor:      cmn.CtorFromSlice([]string{"addRights", channelName, chaincodeName, role, operation, user.AddressBase58Check}),
-		PeerAddresses: []string{
-			ts.network.PeerAddress(ts.network.Peer(ts.org1Name, ts.peer.Name), nwo.ListenPort),
-			ts.network.PeerAddress(ts.network.Peer(ts.org2Name, ts.peer.Name), nwo.ListenPort),
-		},
-		WaitForEvent: true,
-	})
-	Expect(err).NotTo(HaveOccurred())
-	Eventually(sess, ts.network.EventuallyTimeout).Should(gexec.Exit(0))
-	Expect(sess.Err).To(gbytes.Say("Chaincode invoke successful. result: status:200"))
-
-	ts.CheckRights(channelName, chaincodeName, role, operation, user, true)
-}
-
-func (ts *testSuite) RemoveRights(channelName, chaincodeName, role, operation string, user *UserFoundation) {
-	sess, err := ts.network.PeerUserSession(ts.peer, ts.mainUserName, commands.ChaincodeInvoke{
-		ChannelID: cmn.ChannelAcl,
-		Orderer:   ts.network.OrdererAddress(ts.orderer, nwo.ListenPort),
-		Name:      cmn.ChannelAcl,
-		Ctor:      cmn.CtorFromSlice([]string{"removeRights", channelName, chaincodeName, role, operation, user.AddressBase58Check}),
-		PeerAddresses: []string{
-			ts.network.PeerAddress(ts.network.Peer(ts.org1Name, ts.peer.Name), nwo.ListenPort),
-			ts.network.PeerAddress(ts.network.Peer(ts.org2Name, ts.peer.Name), nwo.ListenPort),
-		},
-		WaitForEvent: true,
-	})
-	Expect(err).NotTo(HaveOccurred())
-	Eventually(sess, ts.network.EventuallyTimeout).Should(gexec.Exit(0))
-	Expect(sess.Err).To(gbytes.Say("Chaincode invoke successful. result: status:200"))
-
-	ts.CheckRights(channelName, chaincodeName, role, operation, user, false)
-}
-
-func (ts *testSuite) CheckRights(channelName, chaincodeName, role, operation string, user *UserFoundation, result bool) {
-	Eventually(func() string {
-		sess, err := ts.network.PeerUserSession(ts.peer, ts.mainUserName, commands.ChaincodeQuery{
-			ChannelID: cmn.ChannelAcl,
-			Name:      cmn.ChannelAcl,
-			Ctor:      cmn.CtorFromSlice([]string{"getAccountOperationRightJSON", channelName, chaincodeName, role, operation, user.AddressBase58Check}),
-		})
-		Eventually(sess, ts.network.EventuallyTimeout).Should(gexec.Exit())
-		if sess.ExitCode() != 0 {
-			return fmt.Sprintf("exit code is %d: %s, %v", sess.ExitCode(), string(sess.Err.Contents()), err)
-		}
-
-		out := sess.Out.Contents()[:len(sess.Out.Contents())-1] // skip line feed
-		haveRight := &pb.HaveRight{}
-		err = protojson.Unmarshal(out, haveRight)
-		if err != nil {
-			return fmt.Sprintf("failed to unmarshal response: %v", err)
-		}
-
-		if haveRight.HaveRight != result {
-			return fmt.Sprintf("Error: expected %t, received %t", result, haveRight.HaveRight)
-		}
-
-		return ""
-	}, ts.network.EventuallyTimeout, time.Second).Should(BeEmpty())
 }

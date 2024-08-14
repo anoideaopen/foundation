@@ -26,7 +26,7 @@ func (qr *QueryResult) CheckIndustrialBalance(expectedGroup, expectedBalance *Re
 	return false
 }
 
-func (qr *QueryResult) CheckErrorEquals(reference *Reference) {
+func (qr *QueryResult) CheckErrorEquals(reference *Reference) bool {
 	/*
 		var result Reference
 		result =
