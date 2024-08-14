@@ -306,7 +306,7 @@ var _ = Describe("Basic foundation Tests", func() {
 
 			By("emit check")
 			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
-				fabricnetwork.CheckResult(fabricnetwork.CheckBalance(emitAmount), nil),
+				client.CheckResult(client.CheckBalance(emitAmount), nil),
 				"balanceOf", user1.AddressBase58Check)
 
 			By("add balance by admin to user1 (gRPC router)")
@@ -328,7 +328,7 @@ var _ = Describe("Basic foundation Tests", func() {
 
 			newBlance := "2"
 			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
-				fabricnetwork.CheckResult(fabricnetwork.CheckBalance(newBlance), nil),
+				client.CheckResult(client.CheckBalance(newBlance), nil),
 				"balanceOf", user1.AddressBase58Check)
 		})
 	})
