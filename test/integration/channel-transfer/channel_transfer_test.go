@@ -243,7 +243,7 @@ var _ = Describe("Channel transfer foundation Tests", func() {
 
 		By("emit check")
 		client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
-			fabricnetwork.CheckResult(fabricnetwork.CheckBalance(emitAmount), nil),
+			client.CheckResult(client.CheckBalance(emitAmount), nil),
 			"balanceOf", user.AddressBase58Check)
 
 	})
@@ -323,11 +323,11 @@ var _ = Describe("Channel transfer foundation Tests", func() {
 
 		By("checking result balances")
 		client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
-			fabricnetwork.CheckResult(fabricnetwork.CheckBalance("750"), nil),
+			client.CheckResult(client.CheckBalance("750"), nil),
 			"balanceOf", user.AddressBase58Check)
 
 		client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC,
-			fabricnetwork.CheckResult(fabricnetwork.CheckBalance("250"), nil),
+			client.CheckResult(client.CheckBalance("250"), nil),
 			"allowedBalanceOf", user.AddressBase58Check, "FIAT")
 	})
 
@@ -405,11 +405,11 @@ var _ = Describe("Channel transfer foundation Tests", func() {
 
 		By("checking result balances")
 		client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
-			fabricnetwork.CheckResult(fabricnetwork.CheckBalance("750"), nil),
+			client.CheckResult(client.CheckBalance("750"), nil),
 			"balanceOf", user.AddressBase58Check)
 
 		client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC,
-			fabricnetwork.CheckResult(fabricnetwork.CheckBalance("250"), nil),
+			client.CheckResult(client.CheckBalance("250"), nil),
 			"allowedBalanceOf", user.AddressBase58Check, "FIAT")
 	})
 

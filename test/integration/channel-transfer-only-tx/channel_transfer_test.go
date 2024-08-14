@@ -233,7 +233,7 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 
 			By("emit check")
 			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
-				fabricnetwork.CheckResult(fabricnetwork.CheckBalance(emitAmount), nil),
+				client.CheckResult(client.CheckBalance(emitAmount), nil),
 				"balanceOf", user1.AddressBase58Check)
 
 			By("initialize industrial")
@@ -262,13 +262,13 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 			for _, item := range transferItems {
 				group := strings.Split(item.Token, "_")[1]
 				client.Query(network, peer, cmn.ChannelIndustrial, cmn.ChannelIndustrial,
-					fabricnetwork.CheckResult(fabricnetwork.CheckIndustrialBalance(group, item.Amount.String()), nil),
+					client.CheckResult(client.CheckIndustrialBalance(group, item.Amount.String()), nil),
 					"industrialBalanceOf", admin.AddressBase58Check)
 				client.TxInvokeWithSign(network, peer, network.Orderers[0], cmn.ChannelIndustrial, cmn.ChannelIndustrial,
 					admin, "transferIndustrial", "", client.NewNonceByTime().Get(), nil,
 					user1.AddressBase58Check, group, item.Amount.String(), "comment")
 				client.Query(network, peer, cmn.ChannelIndustrial, cmn.ChannelIndustrial,
-					fabricnetwork.CheckResult(fabricnetwork.CheckIndustrialBalance(group, item.Amount.String()), nil),
+					client.CheckResult(client.CheckIndustrialBalance(group, item.Amount.String()), nil),
 					"industrialBalanceOf", user1.AddressBase58Check)
 			}
 		})
@@ -283,7 +283,7 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 
 			By("check balance after transfer")
 			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
-				fabricnetwork.CheckResult(fabricnetwork.CheckBalance(balanceAfterTransfer), nil),
+				client.CheckResult(client.CheckBalance(balanceAfterTransfer), nil),
 				"balanceOf", user1.AddressBase58Check)
 
 			By("get channel transfer from")
@@ -295,7 +295,7 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 				from = string(out)
 				return ""
 			}
-			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat, fabricnetwork.CheckResult(fChTrFrom, nil),
+			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat, client.CheckResult(fChTrFrom, nil),
 				"channelTransferFrom", id)
 			Expect(from).NotTo(BeEmpty())
 
@@ -305,7 +305,7 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 
 			By("check allowed balance 1")
 			client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC,
-				fabricnetwork.CheckResult(fabricnetwork.CheckBalance(transferAmount), nil),
+				client.CheckResult(client.CheckBalance(transferAmount), nil),
 				"allowedBalanceOf", user1.AddressBase58Check, "FIAT")
 
 			By("channel transfer to")
@@ -316,7 +316,7 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 
 				return ""
 			}
-			client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC, fabricnetwork.CheckResult(fChTrTo, nil),
+			client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC, client.CheckResult(fChTrTo, nil),
 				"channelTransferTo", id)
 
 			By("commit cc transfer from")
@@ -333,12 +333,12 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 
 			By("check allowed balance 2")
 			client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC,
-				fabricnetwork.CheckResult(fabricnetwork.CheckBalance(transferAmount), nil),
+				client.CheckResult(client.CheckBalance(transferAmount), nil),
 				"allowedBalanceOf", user1.AddressBase58Check, "FIAT")
 
 			By("check fiat balance")
 			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
-				fabricnetwork.CheckResult(fabricnetwork.CheckBalance(balanceAfterTransfer), nil),
+				client.CheckResult(client.CheckBalance(balanceAfterTransfer), nil),
 				"balanceOf", user1.AddressBase58Check)
 
 			By("BACKWARD")
@@ -350,11 +350,11 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 
 			By("check allowed balance after transfer")
 			client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC,
-				fabricnetwork.CheckResult(fabricnetwork.CheckBalance("0"), nil),
+				client.CheckResult(client.CheckBalance("0"), nil),
 				"allowedBalanceOf", user1.AddressBase58Check, "FIAT")
 
 			By("get channel transfer from")
-			client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC, fabricnetwork.CheckResult(fChTrFrom, nil),
+			client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC, client.CheckResult(fChTrFrom, nil),
 				"channelTransferFrom", id2)
 			Expect(from).NotTo(BeEmpty())
 
@@ -364,11 +364,11 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 
 			By("check fiat balance 1")
 			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
-				fabricnetwork.CheckResult(fabricnetwork.CheckBalance(emitAmount), nil),
+				client.CheckResult(client.CheckBalance(emitAmount), nil),
 				"balanceOf", user1.AddressBase58Check)
 
 			By("channel transfer to")
-			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat, fabricnetwork.CheckResult(fChTrTo, nil),
+			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat, client.CheckResult(fChTrTo, nil),
 				"channelTransferTo", id2)
 
 			By("commit cc transfer from")
@@ -385,12 +385,12 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 
 			By("check allowed balance")
 			client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC,
-				fabricnetwork.CheckResult(fabricnetwork.CheckBalance("0"), nil),
+				client.CheckResult(client.CheckBalance("0"), nil),
 				"allowedBalanceOf", user1.AddressBase58Check, "FIAT")
 
 			By("check fiat balance 2")
 			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
-				fabricnetwork.CheckResult(fabricnetwork.CheckBalance(emitAmount), nil),
+				client.CheckResult(client.CheckBalance(emitAmount), nil),
 				"balanceOf", user1.AddressBase58Check)
 		})
 
@@ -404,7 +404,7 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 
 			By("check balance after transfer")
 			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
-				fabricnetwork.CheckResult(fabricnetwork.CheckBalance(balanceAfterTransfer), nil),
+				client.CheckResult(client.CheckBalance(balanceAfterTransfer), nil),
 				"balanceOf", user1.AddressBase58Check)
 
 			By("get channel transfer from")
@@ -417,7 +417,7 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 
 				return ""
 			}
-			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat, fabricnetwork.CheckResult(fChTrFrom, nil),
+			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat, client.CheckResult(fChTrFrom, nil),
 				"channelTransferFrom", id)
 			Expect(from).NotTo(BeEmpty())
 
@@ -427,7 +427,7 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 
 			By("check allowed balance 1")
 			client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC,
-				fabricnetwork.CheckResult(fabricnetwork.CheckBalance(transferAmount), nil),
+				client.CheckResult(client.CheckBalance(transferAmount), nil),
 				"allowedBalanceOf", user1.AddressBase58Check, "FIAT")
 
 			By("channel transfer to")
@@ -438,7 +438,7 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 
 				return ""
 			}
-			client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC, fabricnetwork.CheckResult(fChTrTo, nil),
+			client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC, client.CheckResult(fChTrTo, nil),
 				"channelTransferTo", id)
 
 			By("commit cc transfer from")
@@ -455,12 +455,12 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 
 			By("check allowed balance 2")
 			client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC,
-				fabricnetwork.CheckResult(fabricnetwork.CheckBalance(transferAmount), nil),
+				client.CheckResult(client.CheckBalance(transferAmount), nil),
 				"allowedBalanceOf", user1.AddressBase58Check, "FIAT")
 
 			By("check fiat balance")
 			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
-				fabricnetwork.CheckResult(fabricnetwork.CheckBalance(balanceAfterTransfer), nil),
+				client.CheckResult(client.CheckBalance(balanceAfterTransfer), nil),
 				"balanceOf", user1.AddressBase58Check)
 
 			By("BACKWARD")
@@ -472,11 +472,11 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 
 			By("check allowed balance after transfer")
 			client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC,
-				fabricnetwork.CheckResult(fabricnetwork.CheckBalance("0"), nil),
+				client.CheckResult(client.CheckBalance("0"), nil),
 				"allowedBalanceOf", user1.AddressBase58Check, "FIAT")
 
 			By("get channel transfer from")
-			client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC, fabricnetwork.CheckResult(fChTrFrom, nil),
+			client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC, client.CheckResult(fChTrFrom, nil),
 				"channelTransferFrom", id2)
 			Expect(from).NotTo(BeEmpty())
 
@@ -486,11 +486,11 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 
 			By("check fiat balance 1")
 			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
-				fabricnetwork.CheckResult(fabricnetwork.CheckBalance(emitAmount), nil),
+				client.CheckResult(client.CheckBalance(emitAmount), nil),
 				"balanceOf", user1.AddressBase58Check)
 
 			By("channel transfer to")
-			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat, fabricnetwork.CheckResult(fChTrTo, nil),
+			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat, client.CheckResult(fChTrTo, nil),
 				"channelTransferTo", id2)
 
 			By("commit cc transfer from")
@@ -507,12 +507,12 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 
 			By("check allowed balance")
 			client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC,
-				fabricnetwork.CheckResult(fabricnetwork.CheckBalance("0"), nil),
+				client.CheckResult(client.CheckBalance("0"), nil),
 				"allowedBalanceOf", user1.AddressBase58Check, "FIAT")
 
 			By("check fiat balance 2")
 			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
-				fabricnetwork.CheckResult(fabricnetwork.CheckBalance(emitAmount), nil),
+				client.CheckResult(client.CheckBalance(emitAmount), nil),
 				"balanceOf", user1.AddressBase58Check)
 		})
 
@@ -524,7 +524,7 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 
 			By("check balance after transfer")
 			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
-				fabricnetwork.CheckResult(fabricnetwork.CheckBalance(balanceAfterTransfer), nil),
+				client.CheckResult(client.CheckBalance(balanceAfterTransfer), nil),
 				"balanceOf", user1.AddressBase58Check)
 
 			By("get channel transfer from")
@@ -535,7 +535,7 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 
 				return ""
 			}
-			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat, fabricnetwork.CheckResult(fChTrFrom, nil),
+			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat, client.CheckResult(fChTrFrom, nil),
 				"channelTransferFrom", id)
 
 			By("cancel cc transfer from")
@@ -544,12 +544,12 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 
 			By("check allowed balance 2")
 			client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC,
-				fabricnetwork.CheckResult(fabricnetwork.CheckBalance("0"), nil),
+				client.CheckResult(client.CheckBalance("0"), nil),
 				"allowedBalanceOf", user1.AddressBase58Check, "FIAT")
 
 			By("check fiat balance")
 			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
-				fabricnetwork.CheckResult(fabricnetwork.CheckBalance(emitAmount), nil),
+				client.CheckResult(client.CheckBalance(emitAmount), nil),
 				"balanceOf", user1.AddressBase58Check)
 		})
 
@@ -563,7 +563,7 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 
 			By("check balance after transfer")
 			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
-				fabricnetwork.CheckResult(fabricnetwork.CheckBalance(balanceAfterTransfer), nil),
+				client.CheckResult(client.CheckBalance(balanceAfterTransfer), nil),
 				"balanceOf", user1.AddressBase58Check)
 
 			By("get channel transfer from")
@@ -575,7 +575,7 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 				from = string(out)
 				return ""
 			}
-			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat, fabricnetwork.CheckResult(fChTrFrom, nil),
+			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat, client.CheckResult(fChTrFrom, nil),
 				"channelTransferFrom", id)
 			Expect(from).NotTo(BeEmpty())
 
@@ -585,7 +585,7 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 
 			By("check allowed balance 1")
 			client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC,
-				fabricnetwork.CheckResult(fabricnetwork.CheckBalance(transferAmount), nil),
+				client.CheckResult(client.CheckBalance(transferAmount), nil),
 				"allowedBalanceOf", user1.AddressBase58Check, "FIAT")
 
 			By("channel transfer to")
@@ -596,7 +596,7 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 
 				return ""
 			}
-			client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC, fabricnetwork.CheckResult(fChTrTo, nil),
+			client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC, client.CheckResult(fChTrTo, nil),
 				"channelTransferTo", id)
 
 			By("commit cc transfer from")
@@ -613,12 +613,12 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 
 			By("check allowed balance 2")
 			client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC,
-				fabricnetwork.CheckResult(fabricnetwork.CheckBalance(transferAmount), nil),
+				client.CheckResult(client.CheckBalance(transferAmount), nil),
 				"allowedBalanceOf", user1.AddressBase58Check, "FIAT")
 
 			By("check fiat balance")
 			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
-				fabricnetwork.CheckResult(fabricnetwork.CheckBalance(balanceAfterTransfer), nil),
+				client.CheckResult(client.CheckBalance(balanceAfterTransfer), nil),
 				"balanceOf", user1.AddressBase58Check)
 
 			By("BACKWARD")
@@ -630,12 +630,12 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 
 			By("check allowed balance after transfer")
 			client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC,
-				fabricnetwork.CheckResult(fabricnetwork.CheckBalance("0"), nil),
+				client.CheckResult(client.CheckBalance("0"), nil),
 				"allowedBalanceOf", user1.AddressBase58Check, "FIAT")
 
 			By("get channel transfer from")
 			client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC,
-				fabricnetwork.CheckResult(fChTrTo, nil), "channelTransferFrom", id2)
+				client.CheckResult(fChTrTo, nil), "channelTransferFrom", id2)
 
 			By("cancel cc transfer from")
 			client.NBTxInvokeByRobot(network, peer, network.Orderers[0], nil,
@@ -643,12 +643,12 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 
 			By("check allowed balance 2")
 			client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC,
-				fabricnetwork.CheckResult(fabricnetwork.CheckBalance(transferAmount), nil),
+				client.CheckResult(client.CheckBalance(transferAmount), nil),
 				"allowedBalanceOf", user1.AddressBase58Check, "FIAT")
 
 			By("check fiat balance")
 			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
-				fabricnetwork.CheckResult(fabricnetwork.CheckBalance(balanceAfterTransfer), nil),
+				client.CheckResult(client.CheckBalance(balanceAfterTransfer), nil),
 				"balanceOf", user1.AddressBase58Check)
 		})
 
@@ -693,7 +693,7 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 
 			By("check balance after transfer")
 			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
-				fabricnetwork.CheckResult(fabricnetwork.CheckBalance("500"), nil),
+				client.CheckResult(client.CheckBalance("500"), nil),
 				"balanceOf", user1.AddressBase58Check)
 
 			bookmark := ""
@@ -708,7 +708,7 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 				return ""
 			}
 			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
-				fabricnetwork.CheckResult(fSize, nil),
+				client.CheckResult(fSize, nil),
 				"channelTransfersFrom", "2", bookmark)
 
 			By("checking size")
@@ -726,7 +726,7 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 				return ""
 			}
 			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
-				fabricnetwork.CheckResult(fCheckIds, nil),
+				client.CheckResult(fCheckIds, nil),
 				"channelTransfersFrom", "1000", bookmark)
 
 			count := 0
@@ -741,7 +741,7 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 				}
 
 				client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
-					fabricnetwork.CheckResult(fCheckBookmark, nil),
+					client.CheckResult(fCheckBookmark, nil),
 					"channelTransfersFrom", "2", bookmark)
 
 				if bookmark == "" {
@@ -767,14 +767,14 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 			for _, item := range transferItems {
 				group := strings.Split(item.Token, "_")[1]
 				client.Query(network, peer, cmn.ChannelIndustrial, cmn.ChannelIndustrial,
-					fabricnetwork.CheckResult(fabricnetwork.CheckIndustrialBalance(group, "0"), nil),
+					client.CheckResult(client.CheckIndustrialBalance(group, "0"), nil),
 					"industrialBalanceOf", user1.AddressBase58Check)
 			}
 
 			By("FORWARD. check cc allowed balance after channelMultiTransferByCustomer")
 			for _, item := range transferItems {
 				client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC,
-					fabricnetwork.CheckResult(fabricnetwork.CheckBalance("0"), nil),
+					client.CheckResult(client.CheckBalance("0"), nil),
 					"allowedBalanceOf", user1.AddressBase58Check, item.Token)
 			}
 
@@ -787,7 +787,7 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 				from = string(out)
 				return ""
 			}
-			client.Query(network, peer, cmn.ChannelIndustrial, cmn.ChannelIndustrial, fabricnetwork.CheckResult(fChTrFrom, nil),
+			client.Query(network, peer, cmn.ChannelIndustrial, cmn.ChannelIndustrial, client.CheckResult(fChTrFrom, nil),
 				"channelTransferFrom", id)
 			Expect(from).NotTo(BeEmpty())
 
@@ -799,14 +799,14 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 			for _, item := range transferItems {
 				group := strings.Split(item.Token, "_")[1]
 				client.Query(network, peer, cmn.ChannelIndustrial, cmn.ChannelIndustrial,
-					fabricnetwork.CheckResult(fabricnetwork.CheckIndustrialBalance(group, "0"), nil),
+					client.CheckResult(client.CheckIndustrialBalance(group, "0"), nil),
 					"industrialBalanceOf", user1.AddressBase58Check)
 			}
 
 			By("FORWARD. check cc allowed balance after createCCTransferTo")
 			for _, item := range transferItems {
 				client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC,
-					fabricnetwork.CheckResult(fabricnetwork.CheckBalance(item.Amount.String()), nil),
+					client.CheckResult(client.CheckBalance(item.Amount.String()), nil),
 					"allowedBalanceOf", user1.AddressBase58Check, item.Token)
 			}
 
@@ -818,7 +818,7 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 
 				return ""
 			}
-			client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC, fabricnetwork.CheckResult(fChTrTo, nil),
+			client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC, client.CheckResult(fChTrTo, nil),
 				"channelTransferTo", id)
 
 			By("FORWARD. commit cc transfer from")
@@ -836,7 +836,7 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 			By("FORWARD. check cc allowed balance after deleteCCTransferFrom")
 			for _, item := range transferItems {
 				client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC,
-					fabricnetwork.CheckResult(fabricnetwork.CheckBalance(item.Amount.String()), nil),
+					client.CheckResult(client.CheckBalance(item.Amount.String()), nil),
 					"allowedBalanceOf", user1.AddressBase58Check, item.Token)
 			}
 
@@ -844,7 +844,7 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 			for _, item := range transferItems {
 				group := strings.Split(item.Token, "_")[1]
 				client.Query(network, peer, cmn.ChannelIndustrial, cmn.ChannelIndustrial,
-					fabricnetwork.CheckResult(fabricnetwork.CheckIndustrialBalance(group, "0"), nil),
+					client.CheckResult(client.CheckIndustrialBalance(group, "0"), nil),
 					"industrialBalanceOf", user1.AddressBase58Check)
 			}
 
@@ -860,7 +860,7 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 			By("BACKWARD. check cc allowed balance after channelMultiTransferByCustomer")
 			for _, item := range transferItems {
 				client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC,
-					fabricnetwork.CheckResult(fabricnetwork.CheckBalance("0"), nil),
+					client.CheckResult(client.CheckBalance("0"), nil),
 					"allowedBalanceOf", user1.AddressBase58Check, item.Token)
 			}
 
@@ -868,12 +868,12 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 			for _, item := range transferItems {
 				group := strings.Split(item.Token, "_")[1]
 				client.Query(network, peer, cmn.ChannelIndustrial, cmn.ChannelIndustrial,
-					fabricnetwork.CheckResult(fabricnetwork.CheckIndustrialBalance(group, "0"), nil),
+					client.CheckResult(client.CheckIndustrialBalance(group, "0"), nil),
 					"industrialBalanceOf", user1.AddressBase58Check)
 			}
 
 			By("BACKWARD. get channel transfer from")
-			client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC, fabricnetwork.CheckResult(fChTrFrom, nil),
+			client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC, client.CheckResult(fChTrFrom, nil),
 				"channelTransferFrom", id2)
 			Expect(from).NotTo(BeEmpty())
 
@@ -885,18 +885,18 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 			for _, item := range transferItems {
 				group := strings.Split(item.Token, "_")[1]
 				client.Query(network, peer, cmn.ChannelIndustrial, cmn.ChannelIndustrial,
-					fabricnetwork.CheckResult(fabricnetwork.CheckIndustrialBalance(group, item.Amount.String()), nil),
+					client.CheckResult(client.CheckIndustrialBalance(group, item.Amount.String()), nil),
 					"industrialBalanceOf", user1.AddressBase58Check)
 			}
 			By("BACKWARD. check cc allowed balance after createCCTransferTo")
 			for _, item := range transferItems {
 				client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC,
-					fabricnetwork.CheckResult(fabricnetwork.CheckBalance("0"), nil),
+					client.CheckResult(client.CheckBalance("0"), nil),
 					"allowedBalanceOf", user1.AddressBase58Check, item.Token)
 			}
 
 			By("BACKWARD. channel transfer to")
-			client.Query(network, peer, cmn.ChannelIndustrial, cmn.ChannelIndustrial, fabricnetwork.CheckResult(fChTrTo, nil),
+			client.Query(network, peer, cmn.ChannelIndustrial, cmn.ChannelIndustrial, client.CheckResult(fChTrTo, nil),
 				"channelTransferTo", id2)
 
 			By("BACKWARD. commit cc transfer from")
@@ -914,7 +914,7 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 			By("BACKWARD. check cc allowed balance after deleteCCTransferFrom")
 			for _, item := range transferItems {
 				client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC,
-					fabricnetwork.CheckResult(fabricnetwork.CheckBalance("0"), nil),
+					client.CheckResult(client.CheckBalance("0"), nil),
 					"allowedBalanceOf", user1.AddressBase58Check, item.Token)
 			}
 
@@ -922,7 +922,7 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 			for _, item := range transferItems {
 				group := strings.Split(item.Token, "_")[1]
 				client.Query(network, peer, cmn.ChannelIndustrial, cmn.ChannelIndustrial,
-					fabricnetwork.CheckResult(fabricnetwork.CheckIndustrialBalance(group, item.Amount.String()), nil),
+					client.CheckResult(client.CheckIndustrialBalance(group, item.Amount.String()), nil),
 					"industrialBalanceOf", user1.AddressBase58Check)
 			}
 		})
@@ -941,14 +941,14 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 			for _, item := range transferItems {
 				group := strings.Split(item.Token, "_")[1]
 				client.Query(network, peer, cmn.ChannelIndustrial, cmn.ChannelIndustrial,
-					fabricnetwork.CheckResult(fabricnetwork.CheckIndustrialBalance(group, "0"), nil),
+					client.CheckResult(client.CheckIndustrialBalance(group, "0"), nil),
 					"industrialBalanceOf", user1.AddressBase58Check)
 			}
 
 			By("FORWARD. check cc allowed balance after channelMultiTransferByAdmin")
 			for _, item := range transferItems {
 				client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC,
-					fabricnetwork.CheckResult(fabricnetwork.CheckBalance("0"), nil),
+					client.CheckResult(client.CheckBalance("0"), nil),
 					"allowedBalanceOf", user1.AddressBase58Check, item.Token)
 			}
 
@@ -962,7 +962,7 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 
 				return ""
 			}
-			client.Query(network, peer, cmn.ChannelIndustrial, cmn.ChannelIndustrial, fabricnetwork.CheckResult(fChTrFrom, nil),
+			client.Query(network, peer, cmn.ChannelIndustrial, cmn.ChannelIndustrial, client.CheckResult(fChTrFrom, nil),
 				"channelTransferFrom", id)
 			Expect(from).NotTo(BeEmpty())
 
@@ -974,14 +974,14 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 			for _, item := range transferItems {
 				group := strings.Split(item.Token, "_")[1]
 				client.Query(network, peer, cmn.ChannelIndustrial, cmn.ChannelIndustrial,
-					fabricnetwork.CheckResult(fabricnetwork.CheckIndustrialBalance(group, "0"), nil),
+					client.CheckResult(client.CheckIndustrialBalance(group, "0"), nil),
 					"industrialBalanceOf", user1.AddressBase58Check)
 			}
 
 			By("FORWARD. check cc allowed after createCCTransferTo")
 			for _, item := range transferItems {
 				client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC,
-					fabricnetwork.CheckResult(fabricnetwork.CheckBalance(item.Amount.String()), nil),
+					client.CheckResult(client.CheckBalance(item.Amount.String()), nil),
 					"allowedBalanceOf", user1.AddressBase58Check, item.Token)
 			}
 
@@ -993,7 +993,7 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 
 				return ""
 			}
-			client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC, fabricnetwork.CheckResult(fChTrTo, nil),
+			client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC, client.CheckResult(fChTrTo, nil),
 				"channelTransferTo", id)
 
 			By("FORWARD. commit cc transfer from")
@@ -1011,7 +1011,7 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 			By("FORWARD. check cc allowed balance. after deleteCCTransferFrom")
 			for _, item := range transferItems {
 				client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC,
-					fabricnetwork.CheckResult(fabricnetwork.CheckBalance(item.Amount.String()), nil),
+					client.CheckResult(client.CheckBalance(item.Amount.String()), nil),
 					"allowedBalanceOf", user1.AddressBase58Check, item.Token)
 			}
 
@@ -1019,7 +1019,7 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 			for _, item := range transferItems {
 				group := strings.Split(item.Token, "_")[1]
 				client.Query(network, peer, cmn.ChannelIndustrial, cmn.ChannelIndustrial,
-					fabricnetwork.CheckResult(fabricnetwork.CheckIndustrialBalance(group, "0"), nil),
+					client.CheckResult(client.CheckIndustrialBalance(group, "0"), nil),
 					"industrialBalanceOf", user1.AddressBase58Check)
 			}
 
@@ -1035,7 +1035,7 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 			By("BACKWARD. check cc allowed balance after channelMultiTransferByAdmin")
 			for _, item := range transferItems {
 				client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC,
-					fabricnetwork.CheckResult(fabricnetwork.CheckBalance("0"), nil),
+					client.CheckResult(client.CheckBalance("0"), nil),
 					"allowedBalanceOf", user1.AddressBase58Check, item.Token)
 			}
 
@@ -1043,12 +1043,12 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 			for _, item := range transferItems {
 				group := strings.Split(item.Token, "_")[1]
 				client.Query(network, peer, cmn.ChannelIndustrial, cmn.ChannelIndustrial,
-					fabricnetwork.CheckResult(fabricnetwork.CheckIndustrialBalance(group, "0"), nil),
+					client.CheckResult(client.CheckIndustrialBalance(group, "0"), nil),
 					"industrialBalanceOf", user1.AddressBase58Check)
 			}
 
 			By("BACKWARD. get channel transfer from")
-			client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC, fabricnetwork.CheckResult(fChTrFrom, nil),
+			client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC, client.CheckResult(fChTrFrom, nil),
 				"channelTransferFrom", id2)
 			Expect(from).NotTo(BeEmpty())
 
@@ -1059,7 +1059,7 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 			By("BACKWARD. check cc balance after createCCTransferTo")
 			for _, item := range transferItems {
 				client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC,
-					fabricnetwork.CheckResult(fabricnetwork.CheckBalance("0"), nil),
+					client.CheckResult(client.CheckBalance("0"), nil),
 					"allowedBalanceOf", user1.AddressBase58Check, item.Token)
 			}
 
@@ -1067,12 +1067,12 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 			for _, item := range transferItems {
 				group := strings.Split(item.Token, "_")[1]
 				client.Query(network, peer, cmn.ChannelIndustrial, cmn.ChannelIndustrial,
-					fabricnetwork.CheckResult(fabricnetwork.CheckIndustrialBalance(group, item.Amount.String()), nil),
+					client.CheckResult(client.CheckIndustrialBalance(group, item.Amount.String()), nil),
 					"industrialBalanceOf", user1.AddressBase58Check)
 			}
 
 			By("BACKWARD. channel transfer to")
-			client.Query(network, peer, cmn.ChannelIndustrial, cmn.ChannelIndustrial, fabricnetwork.CheckResult(fChTrTo, nil),
+			client.Query(network, peer, cmn.ChannelIndustrial, cmn.ChannelIndustrial, client.CheckResult(fChTrTo, nil),
 				"channelTransferTo", id2)
 
 			By("BACKWARD. commit cc transfer from")
@@ -1090,7 +1090,7 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 			By("BACKWARD. check cc allowed balance after deleteCCTransferFrom")
 			for _, item := range transferItems {
 				client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC,
-					fabricnetwork.CheckResult(fabricnetwork.CheckBalance("0"), nil),
+					client.CheckResult(client.CheckBalance("0"), nil),
 					"allowedBalanceOf", user1.AddressBase58Check, item.Token)
 			}
 
@@ -1098,7 +1098,7 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 			for _, item := range transferItems {
 				group := strings.Split(item.Token, "_")[1]
 				client.Query(network, peer, cmn.ChannelIndustrial, cmn.ChannelIndustrial,
-					fabricnetwork.CheckResult(fabricnetwork.CheckIndustrialBalance(group, item.Amount.String()), nil),
+					client.CheckResult(client.CheckIndustrialBalance(group, item.Amount.String()), nil),
 					"industrialBalanceOf", user1.AddressBase58Check)
 			}
 		})

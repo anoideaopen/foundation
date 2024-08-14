@@ -226,7 +226,7 @@ var _ = Describe("Swap Tests", func() {
 
 			By("emit check")
 			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
-				fabricnetwork.CheckResult(fabricnetwork.CheckBalance(swapAmount), nil),
+				client.CheckResult(client.CheckBalance(swapAmount), nil),
 				"balanceOf", user1.AddressBase58Check)
 		})
 
@@ -248,17 +248,17 @@ var _ = Describe("Swap Tests", func() {
 				return ""
 			}
 			client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC,
-				fabricnetwork.CheckResult(fGet, nil),
+				client.CheckResult(fGet, nil),
 				"swapGet", swapBeginTxID)
 
 			By("check balance 1")
 			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
-				fabricnetwork.CheckResult(fabricnetwork.CheckBalance(zeroAmount), nil),
+				client.CheckResult(client.CheckBalance(zeroAmount), nil),
 				"balanceOf", user1.AddressBase58Check)
 
 			By("check allowed balance 1")
 			client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC,
-				fabricnetwork.CheckResult(fabricnetwork.CheckBalance(zeroAmount), nil),
+				client.CheckResult(client.CheckBalance(zeroAmount), nil),
 				"allowedBalanceOf", user1.AddressBase58Check, "FIAT")
 
 			By("swap done")
@@ -268,12 +268,12 @@ var _ = Describe("Swap Tests", func() {
 
 			By("check balance 2")
 			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
-				fabricnetwork.CheckResult(fabricnetwork.CheckBalance(zeroAmount), nil),
+				client.CheckResult(client.CheckBalance(zeroAmount), nil),
 				"balanceOf", user1.AddressBase58Check)
 
 			By("check allowed balance 2")
 			client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC,
-				fabricnetwork.CheckResult(fabricnetwork.CheckBalance(swapAmount), nil),
+				client.CheckResult(client.CheckBalance(swapAmount), nil),
 				"allowedBalanceOf", user1.AddressBase58Check, "FIAT")
 
 			By("swap from cc to fiat")
@@ -286,17 +286,17 @@ var _ = Describe("Swap Tests", func() {
 
 			By("swap get")
 			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
-				fabricnetwork.CheckResult(fGet, nil),
+				client.CheckResult(fGet, nil),
 				"swapGet", swapBeginTxID)
 
 			By("check balance 1")
 			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
-				fabricnetwork.CheckResult(fabricnetwork.CheckBalance(zeroAmount), nil),
+				client.CheckResult(client.CheckBalance(zeroAmount), nil),
 				"balanceOf", user1.AddressBase58Check)
 
 			By("check allowed balance 1")
 			client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC,
-				fabricnetwork.CheckResult(fabricnetwork.CheckBalance(zeroAmount), nil),
+				client.CheckResult(client.CheckBalance(zeroAmount), nil),
 				"allowedBalanceOf", user1.AddressBase58Check, "FIAT")
 
 			By("swap done")
@@ -306,12 +306,12 @@ var _ = Describe("Swap Tests", func() {
 
 			By("check balance 2")
 			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
-				fabricnetwork.CheckResult(fabricnetwork.CheckBalance(swapAmount), nil),
+				client.CheckResult(client.CheckBalance(swapAmount), nil),
 				"balanceOf", user1.AddressBase58Check)
 
 			By("check allowed balance 2")
 			client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC,
-				fabricnetwork.CheckResult(fabricnetwork.CheckBalance(zeroAmount), nil),
+				client.CheckResult(client.CheckBalance(zeroAmount), nil),
 				"allowedBalanceOf", user1.AddressBase58Check, "FIAT")
 		})
 
@@ -333,17 +333,17 @@ var _ = Describe("Swap Tests", func() {
 				return ""
 			}
 			client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC,
-				fabricnetwork.CheckResult(fGet, nil),
+				client.CheckResult(fGet, nil),
 				"swapGet", swapBeginTxID)
 
 			By("check balance 1")
 			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
-				fabricnetwork.CheckResult(fabricnetwork.CheckBalance(zeroAmount), nil),
+				client.CheckResult(client.CheckBalance(zeroAmount), nil),
 				"balanceOf", user1.AddressBase58Check)
 
 			By("check allowed balance 1")
 			client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC,
-				fabricnetwork.CheckResult(fabricnetwork.CheckBalance(zeroAmount), nil),
+				client.CheckResult(client.CheckBalance(zeroAmount), nil),
 				"allowedBalanceOf", user1.AddressBase58Check, "FIAT")
 
 			By("swap cancel on channel cc")
@@ -360,12 +360,12 @@ var _ = Describe("Swap Tests", func() {
 
 			By("check balance 2")
 			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
-				fabricnetwork.CheckResult(fabricnetwork.CheckBalance(swapAmount), nil),
+				client.CheckResult(client.CheckBalance(swapAmount), nil),
 				"balanceOf", user1.AddressBase58Check)
 
 			By("check allowed balance 2")
 			client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC,
-				fabricnetwork.CheckResult(fabricnetwork.CheckBalance(zeroAmount), nil),
+				client.CheckResult(client.CheckBalance(zeroAmount), nil),
 				"allowedBalanceOf", user1.AddressBase58Check, "FIAT")
 		})
 	})
@@ -397,7 +397,7 @@ var _ = Describe("Swap Tests", func() {
 
 			By("emit check")
 			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
-				fabricnetwork.CheckResult(fabricnetwork.CheckBalance(swapAmount), nil),
+				client.CheckResult(client.CheckBalance(swapAmount), nil),
 				"balanceOf", user1.AddressBase58Check)
 		})
 
@@ -428,17 +428,17 @@ var _ = Describe("Swap Tests", func() {
 				return ""
 			}
 			client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC,
-				fabricnetwork.CheckResult(fGet, nil),
+				client.CheckResult(fGet, nil),
 				"multiSwapGet", swapBeginTxID)
 
 			By("check balance 1")
 			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
-				fabricnetwork.CheckResult(fabricnetwork.CheckBalance(zeroAmount), nil),
+				client.CheckResult(client.CheckBalance(zeroAmount), nil),
 				"balanceOf", user1.AddressBase58Check)
 
 			By("check allowed balance 1")
 			client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC,
-				fabricnetwork.CheckResult(fabricnetwork.CheckBalance(zeroAmount), nil),
+				client.CheckResult(client.CheckBalance(zeroAmount), nil),
 				"allowedBalanceOf", user1.AddressBase58Check, "FIAT")
 
 			By("multiswap done")
@@ -448,12 +448,12 @@ var _ = Describe("Swap Tests", func() {
 
 			By("check balance 2")
 			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
-				fabricnetwork.CheckResult(fabricnetwork.CheckBalance(zeroAmount), nil),
+				client.CheckResult(client.CheckBalance(zeroAmount), nil),
 				"balanceOf", user1.AddressBase58Check)
 
 			By("check allowed balance 2")
 			client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC,
-				fabricnetwork.CheckResult(fabricnetwork.CheckBalance(swapAmount), nil),
+				client.CheckResult(client.CheckBalance(swapAmount), nil),
 				"allowedBalanceOf", user1.AddressBase58Check, "FIAT")
 
 			By("multiswap from cc to fiat")
@@ -466,17 +466,17 @@ var _ = Describe("Swap Tests", func() {
 
 			By("multiswap get 2")
 			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
-				fabricnetwork.CheckResult(fGet, nil),
+				client.CheckResult(fGet, nil),
 				"multiSwapGet", swapBeginTxID)
 
 			By("check balance 3")
 			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
-				fabricnetwork.CheckResult(fabricnetwork.CheckBalance(zeroAmount), nil),
+				client.CheckResult(client.CheckBalance(zeroAmount), nil),
 				"balanceOf", user1.AddressBase58Check)
 
 			By("check allowed balance 3")
 			client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC,
-				fabricnetwork.CheckResult(fabricnetwork.CheckBalance(zeroAmount), nil),
+				client.CheckResult(client.CheckBalance(zeroAmount), nil),
 				"allowedBalanceOf", user1.AddressBase58Check, "FIAT")
 
 			By("multiswap done")
@@ -486,12 +486,12 @@ var _ = Describe("Swap Tests", func() {
 
 			By("check balance 4")
 			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
-				fabricnetwork.CheckResult(fabricnetwork.CheckBalance(swapAmount), nil),
+				client.CheckResult(client.CheckBalance(swapAmount), nil),
 				"balanceOf", user1.AddressBase58Check)
 
 			By("check allowed balance 4")
 			client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC,
-				fabricnetwork.CheckResult(fabricnetwork.CheckBalance(zeroAmount), nil),
+				client.CheckResult(client.CheckBalance(zeroAmount), nil),
 				"allowedBalanceOf", user1.AddressBase58Check, "FIAT")
 		})
 	})
