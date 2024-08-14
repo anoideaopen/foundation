@@ -39,6 +39,7 @@ type CheckResultFunc func(err error, exitCode int, sessError []byte, sessOut []b
 //		}
 //	}
 
+// Deprecated: need to remove after migrating to testsuite
 // Query func for query from foundation fabric
 func Query(network *nwo.Network, peer *nwo.Peer, channel string, ccName string,
 	checkResultFunc CheckResultFunc, args ...string) {
@@ -54,6 +55,7 @@ func Query(network *nwo.Network, peer *nwo.Peer, channel string, ccName string,
 	}, network.EventuallyTimeout, time.Second).Should(BeEmpty())
 }
 
+// Deprecated: need to remove after migrating to testsuite
 // QueryWithSign func for query with sign from foundation fabric
 func QueryWithSign(network *nwo.Network, peer *nwo.Peer, channel string, ccName string,
 	checkResultFunc CheckResultFunc, user *UserFoundation,
@@ -64,4 +66,35 @@ func QueryWithSign(network *nwo.Network, peer *nwo.Peer, channel string, ccName 
 
 	ctorArgs = append(ctorArgs, pubKey, base58.Encode(sMsg))
 	Query(network, peer, channel, ccName, checkResultFunc, ctorArgs...)
+}
+
+func (ts *testSuite) Query(channelName, chaincodeName string, checkResultFunc CheckResultFunc, args ...string) {
+	Eventually(func() string {
+		sess, err := ts.network.PeerUserSession(ts.peer, ts.mainUserName, commands.ChaincodeQuery{
+			ChannelID: channelName,
+			Name:      chaincodeName,
+			Ctor:      cmn.CtorFromSlice(args),
+		})
+		Eventually(sess, ts.network.EventuallyTimeout).Should(gexec.Exit())
+
+		return checkResultFunc(err, sess.ExitCode(), sess.Err.Contents(), sess.Out.Contents())
+	}, ts.network.EventuallyTimeout, time.Second).Should(BeEmpty())
+}
+
+func (ts *testSuite) QueryWithSign(
+	channelName string,
+	chaincodeName string,
+	checkResultFunc CheckResultFunc,
+	user *UserFoundation,
+	fn string,
+	requestID string,
+	nonce string,
+	args ...string,
+) {
+	ctorArgs := append(append([]string{fn, requestID, channelName, chaincodeName}, args...), nonce)
+	pubKey, sMsg, err := user.Sign(ctorArgs...)
+	Expect(err).NotTo(HaveOccurred())
+
+	ctorArgs = append(ctorArgs, pubKey, base58.Encode(sMsg))
+	ts.Query(channelName, chaincodeName, checkResultFunc, ctorArgs...)
 }

@@ -2,106 +2,52 @@ package basic
 
 import (
 	"encoding/json"
-	"github.com/hyperledger/fabric/integration"
-	"os"
-	"syscall"
-	"time"
-
 	pbfound "github.com/anoideaopen/foundation/proto"
 	"github.com/anoideaopen/foundation/test/integration/cmn"
 	"github.com/anoideaopen/foundation/test/integration/cmn/client"
-	"github.com/anoideaopen/foundation/test/integration/cmn/runner"
-	docker "github.com/fsouza/go-dockerclient"
+	"github.com/hyperledger/fabric/integration"
 	"github.com/hyperledger/fabric/integration/nwo/commands"
-	runnerFbk "github.com/hyperledger/fabric/integration/nwo/runner"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gbytes"
 	"github.com/onsi/gomega/gexec"
-	"github.com/tedsuo/ifrit"
 )
 
 const fnMethodWithRights = "withRights"
 
 var _ = Describe("Basic foundation Tests", func() {
 	var (
-		testDir          string
-		cli              *docker.Client
-		networkProcess   ifrit.Process
-		ordererProcesses []ifrit.Process
-		peerProcesses    ifrit.Process
-		ts               client.TestSuite
+		ts       client.TestSuite
+		channels = []string{cmn.ChannelAcl, cmn.ChannelCC, cmn.ChannelFiat, cmn.ChannelIndustrial}
 	)
 
 	BeforeEach(func() {
-		networkProcess = nil
-		ordererProcesses = nil
-		peerProcesses = nil
-		var err error
-		testDir, err = os.MkdirTemp("", "foundation")
-		Expect(err).NotTo(HaveOccurred())
-
-		cli, err = docker.NewClientFromEnv()
-		Expect(err).NotTo(HaveOccurred())
+		ts = client.NewTestSuite(components, channels)
 	})
-
 	AfterEach(func() {
-		if networkProcess != nil {
-			networkProcess.Signal(syscall.SIGTERM)
-			Eventually(networkProcess.Wait(), ts.Network().EventuallyTimeout).Should(Receive())
-		}
-		if peerProcesses != nil {
-			peerProcesses.Signal(syscall.SIGTERM)
-			Eventually(peerProcesses.Wait(), ts.Network().EventuallyTimeout).Should(Receive())
-		}
-		if ts.Network() != nil {
-			ts.Network().Cleanup()
-		}
-		for _, ordererInstance := range ordererProcesses {
-			ordererInstance.Signal(syscall.SIGTERM)
-			Eventually(ordererInstance.Wait(), ts.Network().EventuallyTimeout).Should(Receive())
-		}
-		err := os.RemoveAll(testDir)
-		Expect(err).NotTo(HaveOccurred())
+		ts.ShutdownNetwork()
 	})
 
 	Describe("foundation test", func() {
-		var (
-			channels     = []string{cmn.ChannelAcl, cmn.ChannelCC, cmn.ChannelFiat, cmn.ChannelIndustrial}
-			redisProcess ifrit.Process
-			redisDB      *runner.RedisDB
-			robotProc    ifrit.Process
-		)
 		BeforeEach(func() {
 			By("start redis")
-			redisDB = &runner.RedisDB{}
-			redisProcess = ifrit.Invoke(redisDB)
-			Eventually(redisProcess.Ready(), runnerFbk.DefaultStartTimeout).Should(BeClosed())
-			Consistently(redisProcess.Wait()).ShouldNot(Receive())
+			ts.StartRedis()
 		})
 		BeforeEach(func() {
-			ts = client.NewTestSuite("", "", "", "", redisDB.Address(), channels, testDir, cli, integration.DevModePort, components, ordererProcesses, peerProcesses)
+			ts.InitNetwork(integration.DevModePort)
 			ts.DeployChannels()
 		})
 		BeforeEach(func() {
 			By("start robot")
-			robotRunner := ts.NetworkFound().RobotRunner()
-			robotProc = ifrit.Invoke(robotRunner)
-			Eventually(robotProc.Ready(), ts.Network().EventuallyTimeout).Should(BeClosed())
+			ts.StartRobot()
 		})
 		AfterEach(func() {
 			By("stop robot")
-			if robotProc != nil {
-				robotProc.Signal(syscall.SIGTERM)
-				Eventually(robotProc.Wait(), ts.Network().EventuallyTimeout).Should(Receive())
-			}
+			ts.StopRobot()
 		})
 		AfterEach(func() {
-			By("stop redis " + redisDB.Address())
-			if redisProcess != nil {
-				redisProcess.Signal(syscall.SIGTERM)
-				Eventually(redisProcess.Wait(), time.Minute).Should(Receive())
-			}
+			By("stop redis")
+			ts.StopRedis()
 		})
 
 		It("add user", func() {
@@ -176,7 +122,7 @@ var _ = Describe("Basic foundation Tests", func() {
 
 			BeforeEach(func() {
 				By("add admin to acl")
-				ts.AddUser(ts.Admin())
+				ts.AddAdminToACL()
 
 				By("create users")
 				var err error
@@ -239,8 +185,8 @@ var _ = Describe("Basic foundation Tests", func() {
 
 				ts.AddUser(user1)
 				ts.AddUser(user2)
-				ts.AddUser(ts.FeeSetter())
-				ts.AddUser(ts.FeeAddressSetter())
+				ts.AddFeeSetterToACL()
+				ts.AddFeeAddressSetterToACL()
 
 				feeWallet, err := client.NewUserFoundation(pbfound.KeyType_ed25519)
 				Expect(err).NotTo(HaveOccurred())
@@ -315,8 +261,8 @@ var _ = Describe("Basic foundation Tests", func() {
 
 				ts.AddUser(user1)
 				ts.AddUser(user2)
-				ts.AddUser(ts.FeeSetter())
-				ts.AddUser(ts.FeeAddressSetter())
+				ts.AddFeeSetterToACL()
+				ts.AddFeeAddressSetterToACL()
 
 				feeWallet, err := client.NewUserFoundation(pbfound.KeyType_ed25519)
 				Expect(err).NotTo(HaveOccurred())
@@ -387,8 +333,8 @@ var _ = Describe("Basic foundation Tests", func() {
 			It("transfer to the same wallet with fee is on", func() {
 				By("add users to acl")
 				ts.AddUser(user1)
-				ts.AddUser(ts.FeeSetter())
-				ts.AddUser(ts.FeeAddressSetter())
+				ts.AddFeeSetterToACL()
+				ts.AddFeeAddressSetterToACL()
 
 				feeWallet, err := client.NewUserFoundation(pbfound.KeyType_ed25519)
 				Expect(err).NotTo(HaveOccurred())

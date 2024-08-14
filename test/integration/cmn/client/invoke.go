@@ -51,18 +51,21 @@ func invokeNBTx(network *nwo.Network, peer *nwo.Peer, orderer *nwo.Orderer, user
 	Expect(sess.Err).To(gbytes.Say("Chaincode invoke successful. result: status:200"))
 }
 
+// Deprecated: need to remove after migrating to testsuite
 // NBTxInvoke func for invoke to foundation fabric
 func NBTxInvoke(network *nwo.Network, peer *nwo.Peer, orderer *nwo.Orderer,
 	checkErr CheckResultFunc, channel string, ccName string, args ...string) {
 	invokeNBTx(network, peer, orderer, "User1", checkErr, channel, ccName, args...)
 }
 
+// Deprecated: need to remove after migrating to testsuite
 // NBTxInvokeByRobot func for invoke to foundation fabric from robot
 func NBTxInvokeByRobot(network *nwo.Network, peer *nwo.Peer, orderer *nwo.Orderer,
 	checkErr CheckResultFunc, channel string, ccName string, args ...string) {
 	invokeNBTx(network, peer, orderer, "User2", checkErr, channel, ccName, args...)
 }
 
+// Deprecated: need to remove after migrating to testsuite
 // NBTxInvokeWithSign func for invoke with sign to foundation fabric
 func NBTxInvokeWithSign(network *nwo.Network, peer *nwo.Peer, orderer *nwo.Orderer,
 	checkErr CheckResultFunc, channel string, ccName string, user *UserFoundation,
@@ -227,18 +230,21 @@ func invokeTx(network *nwo.Network, peer *nwo.Peer, orderer *nwo.Orderer, userOr
 	}
 }
 
+// Deprecated: need to remove after migrating to testsuite
 // TxInvoke func for invoke to foundation fabric
 func TxInvoke(network *nwo.Network, peer *nwo.Peer, orderer *nwo.Orderer,
 	channel string, ccName string, checkErr CheckResultFunc, args ...string) (txId string) {
 	return invokeTx(network, peer, orderer, "User1", channel, ccName, checkErr, args...)
 }
 
+// Deprecated: need to remove after migrating to testsuite
 // TxInvokeByRobot func for invoke to foundation fabric from robot
 func TxInvokeByRobot(network *nwo.Network, peer *nwo.Peer, orderer *nwo.Orderer,
 	channel string, ccName string, checkErr CheckResultFunc, args ...string) (txId string) {
 	return invokeTx(network, peer, orderer, "User2", channel, ccName, checkErr, args...)
 }
 
+// Deprecated: need to remove after migrating to testsuite
 // TxInvokeWithSign func for invoke with sign to foundation fabric
 func TxInvokeWithSign(network *nwo.Network, peer *nwo.Peer, orderer *nwo.Orderer,
 	channel string, ccName string, user *UserFoundation,
@@ -251,6 +257,7 @@ func TxInvokeWithSign(network *nwo.Network, peer *nwo.Peer, orderer *nwo.Orderer
 	return TxInvoke(network, peer, orderer, channel, ccName, checkErr, ctorArgs...)
 }
 
+// Deprecated: need to remove after migrating to testsuite
 // TxInvokeWithMultisign invokes transaction to foundation fabric with multisigned user
 func TxInvokeWithMultisign(
 	network *nwo.Network,
@@ -292,4 +299,70 @@ func scanTxIDInLog(data []byte) string {
 	Expect(ok).To(BeTrue())
 
 	return string(data)
+}
+
+func (ts *testSuite) TxInvoke(channelName, chaincodeName string, checkErr CheckResultFunc, args ...string) string {
+	return invokeTx(ts.network, ts.peer, ts.orderer, ts.mainUserName, channelName, chaincodeName, checkErr, args...)
+}
+
+func (ts *testSuite) TxInvokeByRobot(channelName, chaincodeName string, checkErr CheckResultFunc, args ...string) string {
+	return invokeTx(ts.network, ts.peer, ts.orderer, ts.robotUserName, channelName, chaincodeName, checkErr, args...)
+}
+
+func (ts *testSuite) TxInvokeWithSign(
+	channelName string,
+	chaincodeName string,
+	user *UserFoundation,
+	fn string,
+	requestID string,
+	nonce string,
+	checkErr CheckResultFunc,
+	args ...string,
+) (txId string) {
+	ctorArgs := append(append([]string{fn, requestID, channelName, chaincodeName}, args...), nonce)
+	pubKey, sMsg, err := user.Sign(ctorArgs...)
+	Expect(err).NotTo(HaveOccurred())
+
+	ctorArgs = append(ctorArgs, pubKey, base58.Encode(sMsg))
+	return ts.TxInvoke(channelName, chaincodeName, checkErr, ctorArgs...)
+}
+
+func (ts *testSuite) TxInvokeWithMultisign(
+	channelName string,
+	chaincodeName string,
+	user *UserFoundationMultisigned,
+	fn string,
+	requestID string,
+	nonce string,
+	checkErr CheckResultFunc,
+	args ...string,
+) (txId string) {
+	ctorArgs := append(append([]string{fn, requestID, channelName, chaincodeName}, args...), nonce)
+	pubKey, sMsgsByte, err := user.Sign(ctorArgs...)
+	Expect(err).NotTo(HaveOccurred())
+
+	var sMsgsStr []string
+	for _, sMsgByte := range sMsgsByte {
+		sMsgsStr = append(sMsgsStr, base58.Encode(sMsgByte))
+	}
+
+	ctorArgs = append(append(ctorArgs, pubKey...), sMsgsStr...)
+	return ts.TxInvoke(channelName, chaincodeName, checkErr, ctorArgs...)
+}
+
+func (ts *testSuite) NBTxInvoke(channelName, chaincodeName string, checkErr CheckResultFunc, args ...string) {
+	invokeNBTx(ts.network, ts.peer, ts.orderer, ts.mainUserName, checkErr, channelName, chaincodeName, args...)
+}
+
+func (ts *testSuite) NBTxInvokeByRobot(channelName, chaincodeName string, checkErr CheckResultFunc, args ...string) {
+	invokeNBTx(ts.network, ts.peer, ts.orderer, ts.robotUserName, checkErr, channelName, chaincodeName, args...)
+}
+
+func (ts *testSuite) NBTxInvokeWithSign(channelName, chaincodeName string, checkErr CheckResultFunc, user *UserFoundation, fn, requestID, nonce string, args ...string) {
+	ctorArgs := append(append([]string{fn, requestID, channelName, chaincodeName}, args...), nonce)
+	pubKey, sMsg, err := user.Sign(ctorArgs...)
+	Expect(err).NotTo(HaveOccurred())
+
+	ctorArgs = append(ctorArgs, pubKey, base58.Encode(sMsg))
+	ts.NBTxInvoke(channelName, chaincodeName, checkErr, ctorArgs...)
 }
