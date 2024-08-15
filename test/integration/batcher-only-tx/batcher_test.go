@@ -205,7 +205,7 @@ var _ = Describe("Batcher only tx foundation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 			tasks = append(tasks, task)
 
-			client.ExecuteTasks(network, network.Peers[0], network.Orderers[0], "User1", nil, cmn.ChannelFiat, cmn.ChannelFiat, tasks...)
+			client.ExecuteTasks(network, network.Peers[0], network.Orderers[0], "User2", nil, cmn.ChannelFiat, cmn.ChannelFiat, tasks...)
 		})
 	})
 })

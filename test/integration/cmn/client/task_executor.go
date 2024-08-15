@@ -51,7 +51,7 @@ func ExecuteTaskWithSign(
 	if err != nil {
 		panic(err)
 	}
-	txID := ExecuteTasks(network, network.Peers[0], network.Orderers[0], "User1", checkErr, channel, chaincode, task)
+	txID := ExecuteTasks(network, network.Peers[0], network.Orderers[0], "User2", checkErr, channel, chaincode, task)
 	return txID
 }
 
