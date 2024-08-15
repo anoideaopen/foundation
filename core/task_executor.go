@@ -1,6 +1,7 @@
 package core
 
 import (
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"sort"
@@ -11,6 +12,7 @@ import (
 	"github.com/anoideaopen/foundation/core/logger"
 	"github.com/anoideaopen/foundation/core/telemetry"
 	"github.com/anoideaopen/foundation/core/types"
+	"github.com/anoideaopen/foundation/hlfcreator"
 	"github.com/anoideaopen/foundation/proto"
 	pb "github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/hyperledger/fabric-chaincode-go/shim"
@@ -48,6 +50,8 @@ func TasksExecutorHandler(
 	traceCtx telemetry.TraceContext,
 	stub shim.ChaincodeStubInterface,
 	cc *Chaincode,
+	creatorSKI [32]byte,
+	hashedCert [32]byte,
 ) ([]byte, error) {
 	tracingHandler := cc.contract.TracingHandler()
 	traceCtx, span := tracingHandler.StartNewSpan(traceCtx, ExecuteTasks)
@@ -60,6 +64,13 @@ func TasksExecutorHandler(
 	defer func() {
 		log.Infof("tasks executor: tx id: %s, elapsed: %s", txID, time.Since(start))
 	}()
+
+	robotSKIBytes, _ := hex.DecodeString(cc.contract.ContractConfig().GetRobotSKI())
+
+	err := hlfcreator.ValidateSKI(robotSKIBytes, creatorSKI, hashedCert)
+	if err != nil {
+		return nil, fmt.Errorf("unauthorized: robotSKI is not equal creatorSKI and hashedCert: %w", err)
+	}
 
 	_, args := stub.GetFunctionAndParameters()
 

@@ -203,6 +203,8 @@ func (cc *Chaincode) Invoke(stub shim.ChaincodeStubInterface) (r peer.Response) 
 			traceCtx,
 			stub,
 			cc,
+			creatorSKI,
+			hashedCert,
 		)
 		if err != nil {
 			errMsg := fmt.Sprintf("failed to execute method %s: txID %s: %s", ExecuteTasks, stub.GetTxID(), err)
