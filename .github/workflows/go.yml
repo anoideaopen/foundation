@@ -111,7 +111,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        INTEGRATION_TEST_SUITE: [ "general basic","swap","version-and-nonce","channel-transfer-only-tx","channel-transfer" ]
+        INTEGRATION_TEST_SUITE: [ "general basic","swap","version-and-nonce","channel-transfer-only-tx","channel-transfer", "batcher-only-tx"]
     runs-on: 'ubuntu-20.04'
     steps:
       - uses: actions/checkout@v4

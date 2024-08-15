@@ -3,6 +3,7 @@ package core
 import (
 	"errors"
 	"fmt"
+	"google.golang.org/protobuf/encoding/protojson"
 	"sort"
 	"strings"
 	"time"
@@ -68,7 +69,7 @@ func TasksExecutorHandler(
 	}
 
 	var executeTaskRequest proto.ExecuteTasksRequest
-	if err := pb.Unmarshal([]byte(args[0]), &executeTaskRequest); err != nil {
+	if err := unmarshalExecuteTaskRequest([]byte(args[0]), &executeTaskRequest); err != nil {
 		err = fmt.Errorf("failed to unmarshal argument to ExecuteTasksRequest for transaction %s, argument: %s", txID, args[0])
 		return nil, handleTasksError(span, err)
 	}
@@ -103,6 +104,17 @@ func TasksExecutorHandler(
 	}
 
 	return data, nil
+}
+
+// unmarshalExecuteTaskRequest try to unmarshal proto and if failed unmarshal protojson
+func unmarshalExecuteTaskRequest(data []byte, executeTaskRequest *proto.ExecuteTasksRequest) error {
+	if err := pb.Unmarshal(data, executeTaskRequest); err != nil {
+		// If standard protobuf unmarshalling fails, try JSON format
+		if err := protojson.Unmarshal(data, executeTaskRequest); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // ExecuteTasks processes a group of tasks, returning a group response and event.
