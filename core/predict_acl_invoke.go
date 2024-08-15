@@ -65,6 +65,7 @@ func (p *predictACL) predictTaskACLCalls(chaincode *Chaincode, task *proto.Task)
 	var (
 		method       = chaincode.Router().Method(task.GetMethod())
 		authRequired = chaincode.Router().AuthRequired(method)
+		args         = task.GetArgs()
 		argCount     = chaincode.Router().ArgCount(method)
 	)
 
@@ -79,16 +80,10 @@ func (p *predictACL) predictTaskACLCalls(chaincode *Chaincode, task *proto.Task)
 		return
 	}
 
-	_, methodArgs, _, err := chaincode.validateAndExtractInvocationContext(
-		p.stub,
-		task.GetMethod(),
-		task.GetArgs(),
-	)
-	if err != nil {
-		logger.Logger().Warningf("failed to validate and extract invocation context for task %s: %s", task.GetId(), err)
+	if argCount <= 0 || len(args) <= 3 || len(args) < 3+argCount {
 		return
 	}
-
+	methodArgs := args[3 : 3+argCount]
 	methodType := methodVal.Type()
 
 	// check method input args without signer, to skip signers in future for
