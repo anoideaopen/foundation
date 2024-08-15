@@ -3,7 +3,6 @@ package core
 import (
 	"errors"
 	"fmt"
-	"google.golang.org/protobuf/encoding/protojson"
 	"sort"
 	"strings"
 	"time"
@@ -18,6 +17,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 const ExecuteTasksEvent = "executeTasks"

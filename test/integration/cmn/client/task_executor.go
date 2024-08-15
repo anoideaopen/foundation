@@ -2,18 +2,18 @@ package client
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/anoideaopen/foundation/core"
 	"github.com/anoideaopen/foundation/proto"
 	"github.com/anoideaopen/foundation/test/integration/cmn"
-	"google.golang.org/protobuf/encoding/protojson"
-	"time"
-
 	"github.com/btcsuite/btcutil/base58"
 	"github.com/hyperledger/fabric/integration/nwo"
 	"github.com/hyperledger/fabric/integration/nwo/commands"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gbytes"
 	"github.com/onsi/gomega/gexec"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 func CreateTaskWithSignArgs(method string, channel string, chaincode string, user *UserFoundation, args ...string) (*proto.Task, error) {
