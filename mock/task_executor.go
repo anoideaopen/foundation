@@ -1,6 +1,7 @@
 package mock
 
 import (
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"math/rand"
@@ -120,6 +121,9 @@ func (w *Wallet) TasksExecutor(channel string, tasks []*proto.Task) (*proto.Batc
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal tasks ExecuteTasksRequest: %w", err)
 	}
+
+	cert, _ := hex.DecodeString(batchRobotCert)
+	w.ledger.stubs[channel].SetCreator(cert)
 
 	// do invoke chaincode
 	peerResponse, err := w.ledger.doInvokeWithPeerResponse(channel, txIDGen(), core.ExecuteTasks, string(bytes))
