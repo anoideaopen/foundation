@@ -80,7 +80,7 @@ func (p *predictACL) predictTaskACLCalls(chaincode *Chaincode, task *proto.Task)
 		return
 	}
 
-	if argCount <= 0 || len(args) <= 3 || len(args) < 3+argCount {
+	if argCount == 0 || len(args) < 3+argCount {
 		return
 	}
 	methodArgs := args[3 : 3+argCount]
