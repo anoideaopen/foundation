@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/anoideaopen/foundation/test/integration/cmn"
-	"github.com/btcsuite/btcd/btcutil/base58"
 	"github.com/anoideaopen/foundation/test/integration/cmn/client/types"
+	"github.com/btcsuite/btcd/btcutil/base58"
 	"github.com/hyperledger/fabric/integration/nwo"
 	"github.com/hyperledger/fabric/integration/nwo/commands"
 	. "github.com/onsi/gomega"
