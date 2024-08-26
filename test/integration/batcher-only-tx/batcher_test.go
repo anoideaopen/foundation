@@ -184,7 +184,7 @@ var _ = Describe("Batcher only tx foundation Tests", func() {
 
 			By("emit check")
 			client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
-				fabricnetwork.CheckResult(fabricnetwork.CheckBalance(emitAmount), nil),
+				client.CheckResult(client.CheckBalance(emitAmount), nil),
 				"balanceOf", user1.AddressBase58Check)
 		})
 
