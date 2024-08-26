@@ -508,7 +508,7 @@ func (bc *BaseContract) QueryChannelTransfersFrom(pageSize int64, bookmark strin
 		return nil, cctransfer.ErrInvalidBookmark
 	}
 
-	trs, err := cctransfer.LoadCCFromTransfers(bc.GetStub(), startKey, endKey, bookmark, int32(pageSize)) //nolint:gosec
+	trs, err := cctransfer.LoadCCFromTransfers(bc.GetStub(), startKey, endKey, bookmark, int32(pageSize))
 	if err != nil {
 		return nil, err
 	}

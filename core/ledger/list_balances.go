@@ -184,7 +184,7 @@ func getBalancesWithPagination(
 	iter, meta, err := stub.GetStateByPartialCompositeKeyWithPagination(
 		prefix,
 		[]string{},
-		int32(pageSize), //nolint:gosec
+		int32(pageSize),
 		bookmark,
 	)
 	if err != nil {
