@@ -8,19 +8,6 @@ import (
 	"github.com/hyperledger/fabric/integration/nwo"
 )
 
-/*
-type TxInterface interface {
-	Invoke(channelName, chaincodeName string, checkErr CheckResultFunc, args ...string) types.InvokeResult
-	WithSigh(request *RequestInterface)
-	ByRobot(request *RequestInterface)
-}
-
-type RequestInterface interface {
-	Query(channelName, chaincodeName string, user *UserFoundation, checkResultFunc CheckResultFunc, args ...string) types.QueryResult
-	Invoke(channelName, chaincodeName string, user *UserFoundation, fn, requestID string, checkErr CheckResultFunc, args ...string) types.InvokeResult
-}
-*/
-
 type InvokeInterface interface {
 	// TxInvoke func for invoke to foundation fabric
 	TxInvoke(channelName, chaincodeName string, args ...string) *types.InvokeResult
@@ -45,6 +32,8 @@ type QueryInterface interface {
 	QueryWithSign(channelName, chaincodeName string, user *UserFoundation, fn, requestID, nonce string, args ...string) *types.QueryResult
 	// SwapGet requests specified channel for swap information until it appears
 	SwapGet(channelName, chaincodeName string, functionName SwapFunctionName, swapBeginTxID string) *types.QueryResult
+	// Metadata returns chaincode metadata
+	Metadata(channelName, chaincodeName string) *types.QueryResult
 }
 
 type ACLInterface interface {

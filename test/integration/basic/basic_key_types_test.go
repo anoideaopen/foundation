@@ -74,12 +74,6 @@ var _ = Describe("Basic foundation tests with different key types", func() {
 			}
 			bytes, err := json.Marshal(req)
 			Expect(err).NotTo(HaveOccurred())
-			/*
-				fErr := func(out []byte) string {
-					Expect(gbytes.BufferWithBytes(out)).To(gbytes.Say("fee address is not set in token config"))
-					return ""
-				}
-			*/
 			ts.Query(cmn.ChannelFiat, cmn.ChannelFiat, "getFeeTransfer", string(bytes)).CheckErrorEquals("fee address is not set in token config")
 
 			By("transfer tokens from user1 to user2")

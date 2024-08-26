@@ -3,7 +3,6 @@ package types
 import (
 	"github.com/onsi/gomega"
 	"github.com/onsi/gomega/gbytes"
-	"strings"
 )
 
 type InvokeResult struct {
@@ -13,21 +12,25 @@ type InvokeResult struct {
 	message   []byte
 }
 
+// Getters
+
 func (ir *InvokeResult) TxID() string {
 	gomega.Expect(ir.checkErrIsNil()).Should(gomega.BeEmpty())
 	return ir.txID
 }
 
-func (ir *InvokeResult) SetTxID(txID string) {
-	ir.txID = txID
-}
-
-func (ir *InvokeResult) SetErrorCode(errorCode int32) {
-	ir.errorCode = errorCode
+func (ir *InvokeResult) RawResult() ([]byte, []byte) {
+	return ir.response, ir.message
 }
 
 func (ir *InvokeResult) ErrorCode() int32 {
 	return ir.errorCode
+}
+
+// Setters
+
+func (ir *InvokeResult) SetTxID(txID string) {
+	ir.txID = txID
 }
 
 func (ir *InvokeResult) SetMessage(message []byte) {
@@ -38,9 +41,11 @@ func (ir *InvokeResult) SetResponse(response []byte) {
 	ir.response = response
 }
 
-func (ir *InvokeResult) RawResult() ([]byte, []byte) {
-	return ir.response, ir.message
+func (ir *InvokeResult) SetErrorCode(errorCode int32) {
+	ir.errorCode = errorCode
 }
+
+// Checkers
 
 func (ir *InvokeResult) CheckResultEquals(reference string) {
 	checkResult := func() string {
@@ -56,8 +61,9 @@ func (ir *InvokeResult) CheckResultEquals(reference string) {
 	gomega.Expect(checkResult()).Should(gomega.BeEmpty())
 }
 
-func (ir *InvokeResult) CheckErrorIsNil() {
+func (ir *InvokeResult) CheckResultContains(reference string) {
 	gomega.Expect(ir.checkErrIsNil()).Should(gomega.BeEmpty())
+	gomega.Expect(gbytes.BufferWithBytes(ir.response)).Should(gbytes.Say(reference))
 }
 
 func (ir *InvokeResult) CheckErrorEquals(errMessage string) {
@@ -73,15 +79,17 @@ func (ir *InvokeResult) CheckErrorEquals(errMessage string) {
 	gomega.Expect(checkResult()).Should(gomega.BeEmpty())
 }
 
+func (ir *InvokeResult) CheckErrorIsNil() {
+	gomega.Expect(ir.checkErrIsNil()).Should(gomega.BeEmpty())
+}
+
 func (ir *InvokeResult) checkErrIsNil() string {
 	if ir.errorCode == 0 && ir.message == nil {
 		return ""
 	}
 
-	errMsg := strings.Split(string(ir.message), "Error")[1]
-
 	if ir.errorCode != 0 && ir.message != nil {
-		return "error occurred: " + errMsg
+		return "error message: " + string(ir.message)
 	}
 
 	return ""
