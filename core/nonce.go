@@ -78,7 +78,7 @@ func setNonce(nonce uint64, lastNonce []uint64, nonceTTL uint) ([]uint64, error)
 
 	last := lastNonce[l-1]
 
-	ttl := time.Second * time.Duration(nonceTTL)
+	ttl := time.Second * time.Duration(nonceTTL) //nolint:gosec
 
 	if nonce > last {
 		lastNonce = append(lastNonce, nonce)

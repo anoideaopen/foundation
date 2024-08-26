@@ -902,7 +902,7 @@ func validateCompositeKeyAttribute(str string) error {
 func createUtcTimestamp() *timestamp.Timestamp {
 	now := time.Now().UTC()
 	secs := now.Unix()
-	nanos := int32(now.UnixNano() - (secs * 1000000000)) //nolint:gomnd
+	nanos := int32(now.UnixNano() - (secs * 1000000000)) //nolint:gosec,gomnd
 	return &(timestamp.Timestamp{Seconds: secs, Nanos: nanos})
 }
 
