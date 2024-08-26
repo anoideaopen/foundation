@@ -5,15 +5,16 @@ import (
 	"fmt"
 	"github.com/onsi/gomega"
 	"github.com/onsi/gomega/gbytes"
-	"strconv"
 )
 
 type QueryResult struct {
 	txID      string
-	errorCode int
+	errorCode int32
 	response  []byte
 	message   []byte
 }
+
+// Getters
 
 func (qr *QueryResult) TxID() string {
 	return qr.txID
@@ -23,12 +24,14 @@ func (qr *QueryResult) RawResult() ([]byte, []byte) {
 	return qr.response, qr.message
 }
 
-func (qr *QueryResult) ErrorCode() int {
+func (qr *QueryResult) ErrorCode() int32 {
 	return qr.errorCode
 }
 
-func (qr *QueryResult) SetErrorCode(errorCode int) {
-	qr.errorCode = errorCode
+// Setters
+
+func (qr *QueryResult) SetTxID(txID string) {
+	qr.txID = txID
 }
 
 func (qr *QueryResult) SetMessage(message []byte) {
@@ -38,6 +41,12 @@ func (qr *QueryResult) SetMessage(message []byte) {
 func (qr *QueryResult) SetResponse(response []byte) {
 	qr.response = response
 }
+
+func (qr *QueryResult) SetErrorCode(errorCode int32) {
+	qr.errorCode = errorCode
+}
+
+// Checkers
 
 func (qr *QueryResult) CheckResultEquals(reference string) {
 	checkResult := func() string {
@@ -52,6 +61,30 @@ func (qr *QueryResult) CheckResultEquals(reference string) {
 
 	gomega.Expect(checkResult()).Should(gomega.BeEmpty())
 }
+
+func (qr *QueryResult) CheckResultContains(reference string) {
+	gomega.Expect(qr.checkErrIsNil()).Should(gomega.BeEmpty())
+	gomega.Expect(gbytes.BufferWithBytes(qr.response)).Should(gbytes.Say(reference))
+}
+
+func (qr *QueryResult) CheckErrorEquals(errMessage string) {
+	checkResult := func() string {
+		if errMessage == "" {
+			return qr.checkErrIsNil()
+		}
+
+		gomega.Expect(gbytes.BufferWithBytes(qr.message)).To(gbytes.Say(errMessage))
+		return ""
+	}
+
+	gomega.Expect(checkResult()).Should(gomega.BeEmpty())
+}
+
+func (qr *QueryResult) CheckErrorIsNil() {
+	gomega.Expect(qr.checkErrIsNil()).Should(gomega.BeEmpty())
+}
+
+// non-interface based functions
 
 func (qr *QueryResult) CheckBalance(expectedBalance string) {
 	checkResult := func() string {
@@ -94,32 +127,13 @@ func (qr *QueryResult) CheckResponseWithFunc(responseCheckFunc func([]byte) stri
 	gomega.Expect(responseCheckFunc(qr.response)).Should(gomega.BeEmpty())
 }
 
-func (qr *QueryResult) CheckErrorIsNil() {
-	gomega.Expect(qr.checkErrIsNil()).Should(gomega.BeEmpty())
-}
-
-func (qr *QueryResult) CheckErrorEquals(errMessage string) {
-	checkResult := func() string {
-		if errMessage == "" {
-			return qr.checkErrIsNil()
-		}
-
-		gomega.Expect(gbytes.BufferWithBytes(qr.message)).To(gbytes.Say(errMessage))
-		return ""
-	}
-
-	gomega.Expect(checkResult()).Should(gomega.BeEmpty())
-}
-
 func (qr *QueryResult) checkErrIsNil() string {
 	if qr.errorCode == 0 && qr.message == nil {
 		return ""
 	}
 
-	// errMsg := strings.Split(string(qr.message), "Error")
-
 	if qr.errorCode != 0 && qr.message != nil {
-		return "error code: " + strconv.Itoa(qr.errorCode)
+		return "error message: " + string(qr.message)
 	}
 
 	return ""

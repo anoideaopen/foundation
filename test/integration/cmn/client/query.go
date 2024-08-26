@@ -94,7 +94,7 @@ func (ts *testSuite) Query(channelName, chaincodeName string, args ...string) *t
 		Eventually(sess, ts.network.EventuallyTimeout).Should(gexec.Exit())
 		Expect(err).NotTo(HaveOccurred())
 
-		result.SetErrorCode(sess.ExitCode())
+		result.SetErrorCode(int32(sess.ExitCode()))
 		result.SetResponse(sess.Out.Contents())
 		result.SetMessage(sess.Err.Contents())
 
@@ -151,12 +151,32 @@ func (ts *testSuite) SwapGet(channelName, chaincodeName string, functionName Swa
 			return "out is empty"
 		}
 
-		result.SetErrorCode(sess.ExitCode())
+		result.SetErrorCode(int32(sess.ExitCode()))
 		result.SetResponse(sess.Out.Contents())
 		result.SetMessage(sess.Err.Contents())
 
 		return ""
 	}, ts.network.EventuallyTimeout, time.Second).Should(BeEmpty())
+
+	return result
+}
+
+func (ts *testSuite) Metadata(channelName, chaincodeName string) *types.QueryResult {
+	result := &types.QueryResult{}
+	sess, err := ts.network.PeerUserSession(
+		ts.peer,
+		ts.mainUserName,
+		commands.ChaincodeQuery{
+			ChannelID: channelName,
+			Name:      chaincodeName,
+			Ctor:      cmn.CtorFromSlice([]string{"metadata"}),
+		})
+	Expect(err).NotTo(HaveOccurred())
+	Eventually(sess, ts.network.EventuallyTimeout).Should(gexec.Exit(0))
+
+	result.SetErrorCode(int32(sess.ExitCode()))
+	result.SetResponse(sess.Out.Contents())
+	result.SetMessage(sess.Err.Contents())
 
 	return result
 }
