@@ -8,17 +8,13 @@ import (
 	"github.com/hyperledger/fabric/integration"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/onsi/gomega/gbytes"
 )
 
 var _ = Describe("Basic foundation tests with different key types", func() {
-	var (
-		ts       client.TestSuite
-		channels = []string{cmn.ChannelAcl, cmn.ChannelCC, cmn.ChannelFiat, cmn.ChannelIndustrial}
-	)
+	var ts client.TestSuite
 
 	BeforeEach(func() {
-		ts = client.NewTestSuite(components, channels)
+		ts = client.NewTestSuite(components)
 	})
 
 	AfterEach(func() {
@@ -26,13 +22,15 @@ var _ = Describe("Basic foundation tests with different key types", func() {
 	})
 
 	Describe("foundation test", func() {
+		var channels = []string{cmn.ChannelAcl, cmn.ChannelCC, cmn.ChannelFiat, cmn.ChannelIndustrial}
+
 		BeforeEach(func() {
 			By("start redis")
 			ts.StartRedis()
 		})
 		BeforeEach(func() {
-			ts.InitNetwork(integration.DevModePort)
-			ts.DeployChannels()
+			ts.InitNetwork(channels, integration.DevModePort)
+			ts.DeployChaincodes()
 		})
 		BeforeEach(func() {
 			By("start robot")
@@ -63,12 +61,10 @@ var _ = Describe("Basic foundation tests with different key types", func() {
 			By("emit tokens")
 			amount := "1"
 			ts.TxInvokeWithSign(cmn.ChannelFiat, cmn.ChannelFiat, ts.Admin(),
-				"emit", "", client.NewNonceByTime().Get(), nil, user1.AddressBase58Check, amount)
+				"emit", "", client.NewNonceByTime().Get(), user1.AddressBase58Check, amount).CheckErrorIsNil()
 
 			By("emit check")
-			ts.Query(cmn.ChannelFiat, cmn.ChannelFiat,
-				client.CheckResult(client.CheckBalance(amount), nil),
-				"balanceOf", user1.AddressBase58Check)
+			ts.Query(cmn.ChannelFiat, cmn.ChannelFiat, "balanceOf", user1.AddressBase58Check).CheckBalance(amount)
 
 			By("get transfer fee from user1 to user2")
 			req := FeeTransferRequestDTO{
@@ -78,26 +74,23 @@ var _ = Describe("Basic foundation tests with different key types", func() {
 			}
 			bytes, err := json.Marshal(req)
 			Expect(err).NotTo(HaveOccurred())
-			fErr := func(out []byte) string {
-				Expect(gbytes.BufferWithBytes(out)).To(gbytes.Say("fee address is not set in token config"))
-				return ""
-			}
-			ts.Query(cmn.ChannelFiat, cmn.ChannelFiat, client.CheckResult(nil, fErr),
-				"getFeeTransfer", string(bytes))
+			/*
+				fErr := func(out []byte) string {
+					Expect(gbytes.BufferWithBytes(out)).To(gbytes.Say("fee address is not set in token config"))
+					return ""
+				}
+			*/
+			ts.Query(cmn.ChannelFiat, cmn.ChannelFiat, "getFeeTransfer", string(bytes)).CheckErrorEquals("fee address is not set in token config")
 
 			By("transfer tokens from user1 to user2")
 			ts.TxInvokeWithSign(cmn.ChannelFiat, cmn.ChannelFiat, user1, "transfer", "",
-				client.NewNonceByTime().Get(), nil, user2.AddressBase58Check, amount, "ref transfer")
+				client.NewNonceByTime().Get(), user2.AddressBase58Check, amount, "ref transfer").CheckErrorIsNil()
 
 			By("check balance user1")
-			ts.Query(cmn.ChannelFiat, cmn.ChannelFiat,
-				client.CheckResult(client.CheckBalance("0"), nil),
-				"balanceOf", user1.AddressBase58Check)
+			ts.Query(cmn.ChannelFiat, cmn.ChannelFiat, "balanceOf", user1.AddressBase58Check).CheckBalance("0")
 
 			By("check balance user2")
-			ts.Query(cmn.ChannelFiat, cmn.ChannelFiat,
-				client.CheckResult(client.CheckBalance(amount), nil),
-				"balanceOf", user2.AddressBase58Check)
+			ts.Query(cmn.ChannelFiat, cmn.ChannelFiat, "balanceOf", user2.AddressBase58Check).CheckBalance(amount)
 		})
 	})
 })

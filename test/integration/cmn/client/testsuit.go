@@ -1,6 +1,11 @@
 package client
 
 import (
+	"os"
+	"path/filepath"
+	"syscall"
+	"time"
+
 	pbfound "github.com/anoideaopen/foundation/proto"
 	"github.com/anoideaopen/foundation/test/integration/cmn"
 	"github.com/anoideaopen/foundation/test/integration/cmn/fabricnetwork"
@@ -15,10 +20,6 @@ import (
 	"github.com/onsi/gomega/gbytes"
 	"github.com/tedsuo/ifrit"
 	ginkgomon "github.com/tedsuo/ifrit/ginkgomon_v2"
-	"os"
-	"path/filepath"
-	"syscall"
-	"time"
 )
 
 const (
@@ -32,19 +33,20 @@ const (
 type testSuite struct {
 	components          *nwo.Components
 	channels            []string
+	testDir             string
+	dockerClient        *docker.Client
 	network             *nwo.Network
 	networkFound        *cmn.NetworkFoundation
 	peer                *nwo.Peer
 	orderer             *nwo.Orderer
-	redisProcess        ifrit.Process
 	redisDB             *runner.RedisDB
+	redisProcess        ifrit.Process
 	robotProc           ifrit.Process
-	networkProcess      ifrit.Process
 	ordererProcesses    []ifrit.Process
 	peerProcess         ifrit.Process
 	channelTransferProc ifrit.Process
-	testDir             string
-	dockerClient        *docker.Client
+	peerRunner          ifrit.Runner
+	ordererRunners      []*ginkgomon.Runner
 	org1Name            string
 	org2Name            string
 	mainUserName        string
@@ -56,16 +58,41 @@ type testSuite struct {
 	skiRobot            string
 }
 
-func initPeer(network *nwo.Network, orgName string) *nwo.Peer {
-	return network.Peer(orgName, defaultPeerName)
+func NewTestSuite(components *nwo.Components) TestSuite {
+	testDir, err := os.MkdirTemp("", "foundation")
+	Expect(err).NotTo(HaveOccurred())
+
+	dockerClient, err := docker.NewClientFromEnv()
+	Expect(err).NotTo(HaveOccurred())
+
+	ts := &testSuite{
+		org1Name:      defaultOrg1Name,
+		org2Name:      defaultOrg2Name,
+		mainUserName:  defaultMainUserName,
+		robotUserName: defaultRobotUserName,
+		components:    components,
+		testDir:       testDir,
+		dockerClient:  dockerClient,
+		// networkProcess:   nil,
+		ordererProcesses: nil,
+		peerProcess:      nil,
+	}
+
+	return ts
+}
+
+func (ts *testSuite) SetChannels(channels []string) {
+	ts.channels = channels
 }
 
 func startPort(portRange integration.TestPortRange) int {
 	return portRange.StartPortForNode()
 }
 
-func (ts *testSuite) InitNetwork(testPort integration.TestPortRange) {
-	var ordererRunners []*ginkgomon.Runner
+func (ts *testSuite) InitNetwork(channels []string, testPort integration.TestPortRange) {
+	Expect(channels).NotTo(BeEmpty())
+
+	ts.channels = channels
 
 	networkConfig := nwo.MultiNodeSmartBFT()
 	networkConfig.Channels = nil
@@ -94,7 +121,11 @@ func (ts *testSuite) InitNetwork(testPort integration.TestPortRange) {
 	)
 
 	ts.networkFound = cmn.New(ts.network, ts.channels)
-	ts.networkFound.Robot.RedisAddresses = []string{ts.redisDB.Address()}
+
+	if ts.redisDB != nil {
+		ts.networkFound.Robot.RedisAddresses = []string{ts.redisDB.Address()}
+		ts.networkFound.ChannelTransfer.RedisAddresses = []string{ts.redisDB.Address()}
+	}
 
 	ts.networkFound.GenerateConfigTree()
 	ts.networkFound.Bootstrap()
@@ -102,7 +133,7 @@ func (ts *testSuite) InitNetwork(testPort integration.TestPortRange) {
 	for _, orderer := range ts.network.Orderers {
 		ordererRunner := ts.network.OrdererRunner(orderer)
 		ordererRunner.Command.Env = append(ordererRunner.Command.Env, "FABRIC_LOGGING_SPEC=orderer.consensus.smartbft=debug:grpc=debug")
-		ordererRunners = append(ordererRunners, ordererRunner)
+		ts.ordererRunners = append(ts.ordererRunners, ordererRunner)
 		proc := ifrit.Invoke(ordererRunner)
 		ts.ordererProcesses = append(ts.ordererProcesses, proc)
 		Eventually(proc.Ready(), ts.network.EventuallyTimeout).Should(BeClosed())
@@ -112,7 +143,7 @@ func (ts *testSuite) InitNetwork(testPort integration.TestPortRange) {
 	ts.peerProcess = ifrit.Invoke(peerGroupRunner)
 	Eventually(ts.peerProcess.Ready(), ts.network.EventuallyTimeout).Should(BeClosed())
 
-	ts.peer = initPeer(ts.network, ts.org1Name)
+	ts.peer = ts.network.Peer(ts.org1Name, defaultPeerName)
 	ts.orderer = ts.network.Orderers[0]
 
 	By("Joining orderers to channels")
@@ -121,9 +152,9 @@ func (ts *testSuite) InitNetwork(testPort integration.TestPortRange) {
 	}
 
 	By("Waiting for followers to see the leader")
-	Eventually(ordererRunners[1].Err(), ts.network.EventuallyTimeout, time.Second).Should(gbytes.Say("Message from 1"))
-	Eventually(ordererRunners[2].Err(), ts.network.EventuallyTimeout, time.Second).Should(gbytes.Say("Message from 1"))
-	Eventually(ordererRunners[3].Err(), ts.network.EventuallyTimeout, time.Second).Should(gbytes.Say("Message from 1"))
+	Eventually(ts.ordererRunners[1].Err(), ts.network.EventuallyTimeout, time.Second).Should(gbytes.Say("Message from 1"))
+	Eventually(ts.ordererRunners[2].Err(), ts.network.EventuallyTimeout, time.Second).Should(gbytes.Say("Message from 1"))
+	Eventually(ts.ordererRunners[3].Err(), ts.network.EventuallyTimeout, time.Second).Should(gbytes.Say("Message from 1"))
 
 	By("Joining peers to channels")
 	for _, channel := range ts.channels {
@@ -154,33 +185,6 @@ func (ts *testSuite) InitNetwork(testPort integration.TestPortRange) {
 	Expect(ts.feeAddressSetter.PrivateKeyBytes).NotTo(Equal(nil))
 }
 
-func NewTestSuite(
-	components *nwo.Components,
-	channels []string,
-) TestSuite {
-	testDir, err := os.MkdirTemp("", "foundation")
-	Expect(err).NotTo(HaveOccurred())
-
-	dockerClient, err := docker.NewClientFromEnv()
-	Expect(err).NotTo(HaveOccurred())
-
-	ts := &testSuite{
-		org1Name:         defaultOrg1Name,
-		org2Name:         defaultOrg2Name,
-		mainUserName:     defaultMainUserName,
-		robotUserName:    defaultRobotUserName,
-		channels:         channels,
-		components:       components,
-		testDir:          testDir,
-		dockerClient:     dockerClient,
-		networkProcess:   nil,
-		ordererProcesses: nil,
-		peerProcess:      nil,
-	}
-
-	return ts
-}
-
 func (ts *testSuite) Admin() *UserFoundation {
 	return ts.admin
 }
@@ -205,12 +209,12 @@ func (ts *testSuite) Peer() *nwo.Peer {
 	return ts.peer
 }
 
-func (ts *testSuite) OrdererProcesses() []ifrit.Process {
-	return ts.ordererProcesses
+func (ts *testSuite) TestDir() string {
+	return ts.testDir
 }
 
-func (ts *testSuite) PeerProcess() ifrit.Process {
-	return ts.peerProcess
+func (ts *testSuite) DockerClient() *docker.Client {
+	return ts.dockerClient
 }
 
 func (ts *testSuite) StartRedis() {
@@ -253,8 +257,12 @@ func (ts *testSuite) StopChannelTransfer() {
 	}
 }
 
-func (ts *testSuite) DeployChannels() {
-	for _, channel := range ts.channels {
+func (ts *testSuite) DeployChaincodes() {
+	ts.DeployChaincodesByName(ts.channels)
+}
+
+func (ts *testSuite) DeployChaincodesByName(channels []string) {
+	for _, channel := range channels {
 		switch channel {
 		case cmn.ChannelAcl:
 			cmn.DeployACL(ts.network, ts.components, ts.peer, ts.testDir, ts.skiBackend, ts.admin.PublicKeyBase58, ts.admin.KeyType)
@@ -265,27 +273,52 @@ func (ts *testSuite) DeployChannels() {
 		case cmn.ChannelIndustrial:
 			cmn.DeployIndustrial(ts.network, ts.components, ts.peer, ts.testDir, ts.skiRobot, ts.admin.AddressBase58Check, ts.feeSetter.AddressBase58Check, ts.feeAddressSetter.AddressBase58Check)
 		default:
-			continue
+			fabricnetwork.DeployChaincodeFn(ts.components, ts.network, channel, ts.testDir)
 		}
 	}
 }
 
+func (ts *testSuite) DeployFiat(adminAddress, feeSetterAddress, feeAddressSetterAddress string) {
+	cmn.DeployFiat(ts.network, ts.components, ts.peer, ts.testDir, ts.skiRobot, adminAddress, feeSetterAddress, feeAddressSetterAddress)
+}
+
 func (ts *testSuite) ShutdownNetwork() {
-	if ts.networkProcess != nil {
-		ts.networkProcess.Signal(syscall.SIGTERM)
-		Eventually(ts.networkProcess.Wait(), ts.network.EventuallyTimeout).Should(Receive())
-	}
+	/*
+		if ts.networkProcess != nil {
+			ts.networkProcess.Signal(syscall.SIGTERM)
+			Eventually(ts.networkProcess.Wait(), ts.network.EventuallyTimeout).Should(Receive())
+		}
+	*/
+	ts.StopPeers()
+	ts.StopNetwork()
+	ts.StopOrderers()
+
+	err := os.RemoveAll(ts.testDir)
+	Expect(err).NotTo(HaveOccurred())
+}
+
+func (ts *testSuite) StopPeers() {
 	if ts.peerProcess != nil {
 		ts.peerProcess.Signal(syscall.SIGTERM)
 		Eventually(ts.peerProcess.Wait(), ts.network.EventuallyTimeout).Should(Receive())
 	}
+
+	ts.peerProcess = nil
+	ts.peerRunner = nil
+}
+
+func (ts *testSuite) StopNetwork() {
 	if ts.network != nil {
 		ts.network.Cleanup()
 	}
-	for _, ordererInstance := range ts.OrdererProcesses() {
+}
+
+func (ts *testSuite) StopOrderers() {
+	for _, ordererInstance := range ts.ordererProcesses {
 		ordererInstance.Signal(syscall.SIGTERM)
 		Eventually(ordererInstance.Wait(), ts.network.EventuallyTimeout).Should(Receive())
 	}
-	err := os.RemoveAll(ts.testDir)
-	Expect(err).NotTo(HaveOccurred())
+
+	ts.ordererProcesses = nil
+	ts.ordererRunners = nil
 }

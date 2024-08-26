@@ -59,14 +59,27 @@ func DeployACL(
 	Eventually(sess, network.EventuallyTimeout).Should(gbytes.Say(`{"Addrs":null,"Bookmark":""}`))
 }
 
-func DeployCC(network *nwo.Network, components *nwo.Components, peer *nwo.Peer,
-	testDir string, skiRobot string, addressBase58Check string) {
+func DeployCC(
+	network *nwo.Network,
+	components *nwo.Components,
+	peer *nwo.Peer,
+	testDir string,
+	skiRobot string,
+	addressBase58Check string,
+) {
 	By("Deploying chaincode cc")
 	cfgCC := &pb.Config{
-		Contract: &pb.ContractConfig{Symbol: "CC", RobotSKI: skiRobot,
-			Admin: &pb.Wallet{Address: addressBase58Check}},
-		Token: &pb.TokenConfig{Name: "Currency Coin", Decimals: 8,
-			UnderlyingAsset: "US Dollars", Issuer: &pb.Wallet{Address: addressBase58Check}},
+		Contract: &pb.ContractConfig{
+			Symbol:   "CC",
+			RobotSKI: skiRobot,
+			Admin:    &pb.Wallet{Address: addressBase58Check},
+		},
+		Token: &pb.TokenConfig{
+			Name:            "Currency Coin",
+			Decimals:        8,
+			UnderlyingAsset: "US Dollars",
+			Issuer:          &pb.Wallet{Address: addressBase58Check},
+		},
 	}
 	cfgBytesCC, err := protojson.Marshal(cfgCC)
 	Expect(err).NotTo(HaveOccurred())
@@ -85,9 +98,16 @@ func DeployCC(network *nwo.Network, components *nwo.Components, peer *nwo.Peer,
 	Eventually(sess, network.EventuallyTimeout).Should(gbytes.Say(`{"name":"Currency Coin","symbol":"CC","decimals":8,"underlying_asset":"US Dollars"`))
 }
 
-func DeployFiat(network *nwo.Network, components *nwo.Components, peer *nwo.Peer,
-	testDir string, skiRobot string, adminAddressBase58Check string,
-	feeSetterAddressBase58Check string, feeAddressSetterAddressBase58Check string) {
+func DeployFiat(
+	network *nwo.Network,
+	components *nwo.Components,
+	peer *nwo.Peer,
+	testDir string,
+	skiRobot string,
+	adminAddressBase58Check string,
+	feeSetterAddressBase58Check string,
+	feeAddressSetterAddressBase58Check string,
+) {
 	By("Deploying chaincode fiat")
 
 	cfgFiat := &pb.Config{
@@ -125,9 +145,16 @@ func DeployFiat(network *nwo.Network, components *nwo.Components, peer *nwo.Peer
 	Eventually(sess, network.EventuallyTimeout).Should(gbytes.Say(`{"name":"FIAT","symbol":"FIAT","decimals":8,"underlying_asset":"US Dollars"`))
 }
 
-func DeployIndustrial(network *nwo.Network, components *nwo.Components, peer *nwo.Peer,
-	testDir string, skiRobot string, adminAddressBase58Check string,
-	feeSetterAddressBase58Check string, feeAddressSetterAddressBase58Check string) {
+func DeployIndustrial(
+	network *nwo.Network,
+	components *nwo.Components,
+	peer *nwo.Peer,
+	testDir string,
+	skiRobot string,
+	adminAddressBase58Check string,
+	feeSetterAddressBase58Check string,
+	feeAddressSetterAddressBase58Check string,
+) {
 	extCfg := industrialtoken.ExtConfig{
 		Name:             "Industrial token",
 		Decimals:         8,
@@ -194,7 +221,7 @@ func DeployChaincodeFoundation(
 // are connected to the specified channel, approve the chaincode on one of the
 // peers of each organization in the network, commit the chaincode definition
 // on the channel using one of the peers, and wait for the chaincode commit to
-// complete on all of the peers. It uses the _lifecycle implementation.
+// complete on all the peers. It uses the _lifecycle implementation.
 // NOTE V2_0 capabilities must be enabled for this functionality to work.
 func DeployChaincode(n *nwo.Network, channel string, orderer *nwo.Orderer, chaincode nwo.Chaincode, peers ...*nwo.Peer) {
 	if len(peers) == 0 {
