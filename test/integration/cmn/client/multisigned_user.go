@@ -43,9 +43,7 @@ func NewUserFoundationMultisigned(keyType pbfound.KeyType, n int) (*UserFoundati
 	}
 
 	binPubKeys := make([][]byte, len(pKeys))
-	for i, k := range pKeys {
-		binPubKeys[i] = k
-	}
+	copy(binPubKeys, pKeys)
 	sort.Slice(binPubKeys, func(i, j int) bool {
 		return bytes.Compare(binPubKeys[i], binPubKeys[j]) < 0
 	})
@@ -70,9 +68,7 @@ func UserFoundationMultisignedFromEd25519PrivateKeys(keys []PrivateKeyWithType) 
 		pKeys = append(pKeys, user.PublicKeyBytes)
 	}
 	binPubKeys := make([][]byte, len(pKeys))
-	for i, k := range pKeys {
-		binPubKeys[i] = k
-	}
+	copy(binPubKeys, pKeys)
 	sort.Slice(binPubKeys, func(i, j int) bool {
 		return bytes.Compare(binPubKeys[i], binPubKeys[j]) < 0
 	})

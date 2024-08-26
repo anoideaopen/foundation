@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -130,7 +131,7 @@ func queryExpect(network *nwo.Network, peer *nwo.Peer, channel string, key strin
 		}
 
 		outStr := strings.TrimSpace(string(sess.Out.Contents()))
-		if outStr != fmt.Sprintf("%d", expectedBalance) {
+		if outStr != strconv.Itoa(expectedBalance) {
 			return fmt.Sprintf("Error: expected: %d, received %s", expectedBalance, outStr)
 		}
 		return ""

@@ -197,13 +197,22 @@ func ChangeMultisigPublicKey(
 
 // Deprecated: need to remove after migrating to testsuite
 // AddRights adds right for defined user with specified role and operation to ACL channel
-func AddRights(network *nwo.Network, peer *nwo.Peer, orderer *nwo.Orderer,
-	channel string, cc string, role string, operation string, user *UserFoundation) {
+func AddRights(
+	network *nwo.Network,
+	peer *nwo.Peer,
+	orderer *nwo.Orderer,
+	channel string,
+	cc string,
+	role string,
+	operation string,
+	user *UserFoundation,
+) {
+	args := []string{"addRights", channel, cc, role, operation, user.AddressBase58Check}
 	sess, err := network.PeerUserSession(peer, "User1", commands.ChaincodeInvoke{
 		ChannelID: cmn.ChannelAcl,
 		Orderer:   network.OrdererAddress(orderer, nwo.ListenPort),
 		Name:      cmn.ChannelAcl,
-		Ctor:      cmn.CtorFromSlice([]string{"addRights", channel, cc, role, operation, user.AddressBase58Check}),
+		Ctor:      cmn.CtorFromSlice(args),
 		PeerAddresses: []string{
 			network.PeerAddress(network.Peer("Org1", "peer0"), nwo.ListenPort),
 			network.PeerAddress(network.Peer("Org2", "peer0"), nwo.ListenPort),
@@ -219,8 +228,16 @@ func AddRights(network *nwo.Network, peer *nwo.Peer, orderer *nwo.Orderer,
 
 // Deprecated: need to remove after migrating to testsuite
 // RemoveRights removes right for defined user with specified role and operation to ACL channel
-func RemoveRights(network *nwo.Network, peer *nwo.Peer, orderer *nwo.Orderer,
-	channel string, cc string, role string, operation string, user *UserFoundation) {
+func RemoveRights(
+	network *nwo.Network,
+	peer *nwo.Peer,
+	orderer *nwo.Orderer,
+	channel string,
+	cc string,
+	role string,
+	operation string,
+	user *UserFoundation,
+) {
 	sess, err := network.PeerUserSession(peer, "User1", commands.ChaincodeInvoke{
 		ChannelID: cmn.ChannelAcl,
 		Orderer:   network.OrdererAddress(orderer, nwo.ListenPort),
@@ -240,8 +257,16 @@ func RemoveRights(network *nwo.Network, peer *nwo.Peer, orderer *nwo.Orderer,
 }
 
 // Deprecated: need to remove after migrating to testsuite
-func CheckRights(network *nwo.Network, peer *nwo.Peer,
-	channel string, cc string, role string, operation string, user *UserFoundation, result bool) {
+func CheckRights(
+	network *nwo.Network,
+	peer *nwo.Peer,
+	channel string,
+	cc string,
+	role string,
+	operation string,
+	user *UserFoundation,
+	result bool,
+) {
 	Eventually(func() string {
 		sess, err := network.PeerUserSession(peer, "User1", commands.ChaincodeQuery{
 			ChannelID: cmn.ChannelAcl,
@@ -260,8 +285,8 @@ func CheckRights(network *nwo.Network, peer *nwo.Peer,
 			return fmt.Sprintf("failed to unmarshal response: %v", err)
 		}
 
-		if haveRight.HaveRight != result {
-			return fmt.Sprintf("Error: expected %t, received %t", result, haveRight.HaveRight)
+		if haveRight.GetHaveRight() != result {
+			return fmt.Sprintf("Error: expected %t, received %t", result, haveRight.GetHaveRight())
 		}
 
 		return ""
@@ -450,8 +475,8 @@ func (ts *testSuite) CheckRights(channelName, chaincodeName, role, operation str
 			return fmt.Sprintf("failed to unmarshal response: %v", err)
 		}
 
-		if haveRight.HaveRight != result {
-			return fmt.Sprintf("Error: expected %t, received %t", result, haveRight.HaveRight)
+		if haveRight.GetHaveRight() != result {
+			return fmt.Sprintf("Error: expected %t, received %t", result, haveRight.GetHaveRight())
 		}
 
 		return ""

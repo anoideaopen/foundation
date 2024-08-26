@@ -16,26 +16,25 @@ import (
 const fnMethodWithRights = "withRights"
 
 var _ = Describe("Basic foundation Tests", func() {
-	var (
-		ts       client.TestSuite
-		channels = []string{cmn.ChannelAcl, cmn.ChannelCC, cmn.ChannelFiat, cmn.ChannelIndustrial}
-	)
+	var ts client.TestSuite
 
 	BeforeEach(func() {
-		ts = client.NewTestSuite(components, channels)
+		ts = client.NewTestSuite(components)
 	})
 	AfterEach(func() {
 		ts.ShutdownNetwork()
 	})
 
 	Describe("foundation test", func() {
+		var channels = []string{cmn.ChannelAcl, cmn.ChannelCC, cmn.ChannelFiat, cmn.ChannelIndustrial}
+
 		BeforeEach(func() {
 			By("start redis")
 			ts.StartRedis()
 		})
 		BeforeEach(func() {
-			ts.InitNetwork(integration.DevModePort)
-			ts.DeployChannels()
+			ts.InitNetwork(channels, integration.DevModePort)
+			ts.DeployChaincodes()
 		})
 		BeforeEach(func() {
 			By("start robot")
@@ -97,21 +96,18 @@ var _ = Describe("Basic foundation Tests", func() {
 
 			By("send a request that is similar to invoke")
 			ts.Query(cmn.ChannelFiat, cmn.ChannelFiat,
-				client.CheckResult(client.CheckBalance("Ok"), nil),
-				"allowedBalanceAdd", "CC", user.AddressBase58Check, "50", "add some assets")
+				"allowedBalanceAdd", "CC", user.AddressBase58Check, "50", "add some assets").CheckBalance("Ok")
 
 			By("let's check the allowed balance - 1")
 			ts.Query(cmn.ChannelFiat, cmn.ChannelFiat,
-				client.CheckResult(client.CheckBalance("0"), nil),
-				"allowedBalanceOf", user.AddressBase58Check, "CC")
+				"allowedBalanceOf", user.AddressBase58Check, "CC").CheckBalance("0")
 
 			By("send an invoke that is similar to request")
-			ts.NBTxInvoke(cmn.ChannelFiat, cmn.ChannelFiat, nil, "allowedBalanceAdd", "CC", user.AddressBase58Check, "50", "add some assets")
+			ts.NBTxInvoke(cmn.ChannelFiat, cmn.ChannelFiat, "allowedBalanceAdd", "CC", user.AddressBase58Check, "50", "add some assets").CheckErrorIsNil()
 
 			By("let's check the allowed balance - 2")
 			ts.Query(cmn.ChannelFiat, cmn.ChannelFiat,
-				client.CheckResult(client.CheckBalance("0"), nil),
-				"allowedBalanceOf", user.AddressBase58Check, "CC")
+				"allowedBalanceOf", user.AddressBase58Check, "CC").CheckBalance("0")
 		})
 
 		Describe("transfer tests", func() {
@@ -141,12 +137,11 @@ var _ = Describe("Basic foundation Tests", func() {
 				By("emit tokens")
 				amount := "1"
 				ts.TxInvokeWithSign(cmn.ChannelFiat, cmn.ChannelFiat, ts.Admin(),
-					"emit", "", client.NewNonceByTime().Get(), nil, user1.AddressBase58Check, amount)
+					"emit", "", client.NewNonceByTime().Get(), user1.AddressBase58Check, amount).CheckErrorIsNil()
 
 				By("emit check")
 				ts.Query(cmn.ChannelFiat, cmn.ChannelFiat,
-					client.CheckResult(client.CheckBalance(amount), nil),
-					"balanceOf", user1.AddressBase58Check)
+					"balanceOf", user1.AddressBase58Check).CheckBalance(amount)
 
 				By("get transfer fee from user1 to user2")
 				req := FeeTransferRequestDTO{
@@ -156,26 +151,18 @@ var _ = Describe("Basic foundation Tests", func() {
 				}
 				bytes, err := json.Marshal(req)
 				Expect(err).NotTo(HaveOccurred())
-				fErr := func(out []byte) string {
-					Expect(gbytes.BufferWithBytes(out)).To(gbytes.Say("fee address is not set in token config"))
-					return ""
-				}
-				ts.Query(cmn.ChannelFiat, cmn.ChannelFiat, client.CheckResult(nil, fErr),
-					"getFeeTransfer", string(bytes))
+
+				ts.Query(cmn.ChannelFiat, cmn.ChannelFiat, "getFeeTransfer", string(bytes)).CheckErrorEquals("fee address is not set in token config")
 
 				By("transfer tokens from user1 to user2")
 				ts.TxInvokeWithSign(cmn.ChannelFiat, cmn.ChannelFiat, user1, "transfer", "",
-					client.NewNonceByTime().Get(), nil, user2.AddressBase58Check, amount, "ref transfer")
+					client.NewNonceByTime().Get(), user2.AddressBase58Check, amount, "ref transfer").CheckErrorIsNil()
 
 				By("check balance user1")
-				ts.Query(cmn.ChannelFiat, cmn.ChannelFiat,
-					client.CheckResult(client.CheckBalance("0"), nil),
-					"balanceOf", user1.AddressBase58Check)
+				ts.Query(cmn.ChannelFiat, cmn.ChannelFiat, "balanceOf", user1.AddressBase58Check).CheckBalance("0")
 
 				By("check balance user2")
-				ts.Query(cmn.ChannelFiat, cmn.ChannelFiat,
-					client.CheckResult(client.CheckBalance(amount), nil),
-					"balanceOf", user2.AddressBase58Check)
+				ts.Query(cmn.ChannelFiat, cmn.ChannelFiat, "balanceOf", user2.AddressBase58Check).CheckBalance(amount)
 			})
 
 			It("transfer with fee", func() {
@@ -196,21 +183,20 @@ var _ = Describe("Basic foundation Tests", func() {
 				By("emit tokens")
 				amount := "3"
 				amountOne := "1"
-				ts.TxInvokeWithSign(cmn.ChannelFiat, cmn.ChannelFiat, ts.Admin(), "emit", "", client.NewNonceByTime().Get(), nil, user1.AddressBase58Check, amount)
+				ts.TxInvokeWithSign(cmn.ChannelFiat, cmn.ChannelFiat, ts.Admin(), "emit", "", client.NewNonceByTime().Get(), user1.AddressBase58Check, amount).CheckErrorIsNil()
 
 				By("emit check")
 				ts.Query(cmn.ChannelFiat, cmn.ChannelFiat,
-					client.CheckResult(client.CheckBalance(amount), nil),
-					"balanceOf", user1.AddressBase58Check)
+					"balanceOf", user1.AddressBase58Check).CheckBalance(amount)
 
 				By("set fee")
 				ts.TxInvokeWithSign(
 					cmn.ChannelFiat, cmn.ChannelFiat, ts.FeeSetter(),
-					"setFee", "", client.NewNonceByTime().Get(), nil, "FIAT", "1", "1", "100")
+					"setFee", "", client.NewNonceByTime().Get(), "FIAT", "1", "1", "100").CheckErrorIsNil()
 
 				By("set fee address")
 				ts.TxInvokeWithSign(cmn.ChannelFiat, cmn.ChannelFiat, ts.FeeAddressSetter(),
-					"setFeeAddress", "", client.NewNonceByTime().Get(), nil, feeWallet.AddressBase58Check)
+					"setFeeAddress", "", client.NewNonceByTime().Get(), feeWallet.AddressBase58Check).CheckErrorIsNil()
 
 				By("get transfer fee from user1 to user2")
 				req := FeeTransferRequestDTO{
@@ -231,27 +217,23 @@ var _ = Describe("Basic foundation Tests", func() {
 
 					return ""
 				}
-				ts.Query(cmn.ChannelFiat, cmn.ChannelFiat, client.CheckResult(fFeeTransfer, nil),
-					"getFeeTransfer", string(bytes))
+				ts.Query(cmn.ChannelFiat, cmn.ChannelFiat, "getFeeTransfer", string(bytes)).CheckResponseWithFunc(fFeeTransfer)
 
 				By("transfer tokens from user1 to user2")
 				ts.TxInvokeWithSign(cmn.ChannelFiat, cmn.ChannelFiat, user1, "transfer", "",
-					client.NewNonceByTime().Get(), nil, user2.AddressBase58Check, amountOne, "ref transfer")
+					client.NewNonceByTime().Get(), user2.AddressBase58Check, amountOne, "ref transfer").CheckErrorIsNil()
 
 				By("check balance user1")
 				ts.Query(cmn.ChannelFiat, cmn.ChannelFiat,
-					client.CheckResult(client.CheckBalance(amountOne), nil),
-					"balanceOf", user1.AddressBase58Check)
+					"balanceOf", user1.AddressBase58Check).CheckBalance(amountOne)
 
 				By("check balance user2")
 				ts.Query(cmn.ChannelFiat, cmn.ChannelFiat,
-					client.CheckResult(client.CheckBalance(amountOne), nil),
-					"balanceOf", user2.AddressBase58Check)
+					"balanceOf", user2.AddressBase58Check).CheckBalance(amountOne)
 
 				By("check balance feeWallet")
 				ts.Query(cmn.ChannelFiat, cmn.ChannelFiat,
-					client.CheckResult(client.CheckBalance(amountOne), nil),
-					"balanceOf", feeWallet.AddressBase58Check)
+					"balanceOf", feeWallet.AddressBase58Check).CheckBalance(amountOne)
 			})
 
 			It("transfer to itself to second wallet with fee is on", func() {
@@ -273,20 +255,19 @@ var _ = Describe("Basic foundation Tests", func() {
 				amount := "3"
 				amountOne := "1"
 				ts.TxInvokeWithSign(cmn.ChannelFiat, cmn.ChannelFiat, ts.Admin(),
-					"emit", "", client.NewNonceByTime().Get(), nil, user1.AddressBase58Check, amount)
+					"emit", "", client.NewNonceByTime().Get(), user1.AddressBase58Check, amount).CheckErrorIsNil()
 
 				By("emit check")
 				ts.Query(cmn.ChannelFiat, cmn.ChannelFiat,
-					client.CheckResult(client.CheckBalance(amount), nil),
-					"balanceOf", user1.AddressBase58Check)
+					"balanceOf", user1.AddressBase58Check).CheckBalance(amount)
 
 				By("set fee")
 				ts.TxInvokeWithSign(cmn.ChannelFiat, cmn.ChannelFiat, ts.FeeSetter(),
-					"setFee", "", client.NewNonceByTime().Get(), nil, "FIAT", "1", "1", "100")
+					"setFee", "", client.NewNonceByTime().Get(), "FIAT", "1", "1", "100").CheckErrorIsNil()
 
 				By("set fee address")
 				ts.TxInvokeWithSign(cmn.ChannelFiat, cmn.ChannelFiat, ts.FeeAddressSetter(),
-					"setFeeAddress", "", client.NewNonceByTime().Get(), nil, feeWallet.AddressBase58Check)
+					"setFeeAddress", "", client.NewNonceByTime().Get(), feeWallet.AddressBase58Check).CheckErrorIsNil()
 
 				By("get transfer fee from user1 to user2")
 				req := FeeTransferRequestDTO{
@@ -307,27 +288,23 @@ var _ = Describe("Basic foundation Tests", func() {
 
 					return ""
 				}
-				ts.Query(cmn.ChannelFiat, cmn.ChannelFiat, client.CheckResult(fFeeTransfer, nil),
-					"getFeeTransfer", string(bytes))
+				ts.Query(cmn.ChannelFiat, cmn.ChannelFiat, "getFeeTransfer", string(bytes)).CheckResponseWithFunc(fFeeTransfer)
 
 				By("transfer tokens from user1 to user2")
 				ts.TxInvokeWithSign(cmn.ChannelFiat, cmn.ChannelFiat, user1, "transfer", "",
-					client.NewNonceByTime().Get(), nil, user2.AddressBase58Check, amountOne, "ref transfer")
+					client.NewNonceByTime().Get(), user2.AddressBase58Check, amountOne, "ref transfer").CheckErrorIsNil()
 
 				By("check balance user1")
 				ts.Query(cmn.ChannelFiat, cmn.ChannelFiat,
-					client.CheckResult(client.CheckBalance("2"), nil),
-					"balanceOf", user1.AddressBase58Check)
+					"balanceOf", user1.AddressBase58Check).CheckBalance("2")
 
 				By("check balance user2")
 				ts.Query(cmn.ChannelFiat, cmn.ChannelFiat,
-					client.CheckResult(client.CheckBalance(amountOne), nil),
-					"balanceOf", user2.AddressBase58Check)
+					"balanceOf", user2.AddressBase58Check).CheckBalance(amountOne)
 
 				By("check balance feeWallet")
 				ts.Query(cmn.ChannelFiat, cmn.ChannelFiat,
-					client.CheckResult(client.CheckBalance("0"), nil),
-					"balanceOf", feeWallet.AddressBase58Check)
+					"balanceOf", feeWallet.AddressBase58Check).CheckBalance("0")
 			})
 
 			It("transfer to the same wallet with fee is on", func() {
@@ -344,20 +321,19 @@ var _ = Describe("Basic foundation Tests", func() {
 				By("emit tokens")
 				amount := "3"
 				ts.TxInvokeWithSign(cmn.ChannelFiat, cmn.ChannelFiat, ts.Admin(),
-					"emit", "", client.NewNonceByTime().Get(), nil, user1.AddressBase58Check, amount)
+					"emit", "", client.NewNonceByTime().Get(), user1.AddressBase58Check, amount).CheckErrorIsNil()
 
 				By("emit check")
 				ts.Query(cmn.ChannelFiat, cmn.ChannelFiat,
-					client.CheckResult(client.CheckBalance(amount), nil),
-					"balanceOf", user1.AddressBase58Check)
+					"balanceOf", user1.AddressBase58Check).CheckBalance(amount)
 
 				By("set fee")
 				ts.TxInvokeWithSign(cmn.ChannelFiat, cmn.ChannelFiat, ts.FeeSetter(),
-					"setFee", "", client.NewNonceByTime().Get(), nil, "FIAT", "1", "1", "100")
+					"setFee", "", client.NewNonceByTime().Get(), "FIAT", "1", "1", "100").CheckErrorIsNil()
 
 				By("set fee address")
 				ts.TxInvokeWithSign(cmn.ChannelFiat, cmn.ChannelFiat, ts.FeeAddressSetter(),
-					"setFeeAddress", "", client.NewNonceByTime().Get(), nil, feeWallet.AddressBase58Check)
+					"setFeeAddress", "", client.NewNonceByTime().Get(), feeWallet.AddressBase58Check).CheckErrorIsNil()
 
 				By("get transfer fee from user1 to user2")
 				req := FeeTransferRequestDTO{
@@ -378,23 +354,19 @@ var _ = Describe("Basic foundation Tests", func() {
 
 					return ""
 				}
-				ts.Query(cmn.ChannelFiat, cmn.ChannelFiat, client.CheckResult(fFeeTransfer, nil),
-					"getFeeTransfer", string(bytes))
+				ts.Query(cmn.ChannelFiat, cmn.ChannelFiat, "getFeeTransfer", string(bytes)).CheckResponseWithFunc(fFeeTransfer)
 
 				By("NEGATIVE: transfer tokens from user1 to user2")
-				ts.TxInvokeWithSign(
-					cmn.ChannelFiat, cmn.ChannelFiat, user1, "transfer", "",
-					client.NewNonceByTime().Get(), client.CheckResult(nil, client.CheckTxResponseResult("TxTransfer: sender and recipient are same users")), user1.AddressBase58Check, "1", "ref transfer")
+				ts.TxInvokeWithSign(cmn.ChannelFiat, cmn.ChannelFiat, user1, "transfer", "",
+					client.NewNonceByTime().Get(), user1.AddressBase58Check, "1", "ref transfer").CheckErrorEquals("TxTransfer: sender and recipient are same users")
 
 				By("check balance user1")
 				ts.Query(cmn.ChannelFiat, cmn.ChannelFiat,
-					client.CheckResult(client.CheckBalance(amount), nil),
-					"balanceOf", user1.AddressBase58Check)
+					"balanceOf", user1.AddressBase58Check).CheckBalance(amount)
 
 				By("check balance feeWallet")
 				ts.Query(cmn.ChannelFiat, cmn.ChannelFiat,
-					client.CheckResult(client.CheckBalance("0"), nil),
-					"balanceOf", feeWallet.AddressBase58Check)
+					"balanceOf", feeWallet.AddressBase58Check).CheckBalance("0")
 			})
 		})
 
@@ -412,21 +384,21 @@ var _ = Describe("Basic foundation Tests", func() {
 
 			By("invoking industrial chaincode with user have no rights")
 			ts.TxInvokeWithSign(cmn.ChannelIndustrial, cmn.ChannelIndustrial, user1, fnMethodWithRights, "",
-				client.NewNonceByTime().Get(), client.CheckResult(nil, client.CheckTxResponseResult("unauthorized")))
+				client.NewNonceByTime().Get()).CheckErrorEquals("unauthorized")
 
 			By("add rights and check rights")
 			ts.AddRights(cmn.ChannelIndustrial, cmn.ChannelIndustrial, "issuer", "", user1)
 
 			By("invoking industrial chaincode with acl right user")
 			ts.TxInvokeWithSign(cmn.ChannelIndustrial, cmn.ChannelIndustrial, user1, fnMethodWithRights, "",
-				client.NewNonceByTime().Get(), nil)
+				client.NewNonceByTime().Get()).CheckErrorIsNil()
 
 			By("remove rights and check rights")
 			ts.RemoveRights(cmn.ChannelIndustrial, cmn.ChannelIndustrial, "issuer", "", user1)
 
 			By("invoking industrial chaincode with user acl rights removed")
 			ts.TxInvokeWithSign(cmn.ChannelIndustrial, cmn.ChannelIndustrial, user1, fnMethodWithRights, "",
-				client.NewNonceByTime().Get(), client.CheckResult(nil, client.CheckTxResponseResult("unauthorized")))
+				client.NewNonceByTime().Get()).CheckErrorEquals("unauthorized")
 
 		})
 	})
