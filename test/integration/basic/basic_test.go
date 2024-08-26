@@ -55,42 +55,12 @@ var _ = Describe("Basic foundation Tests", func() {
 		It("check metadata in chaincode", func() {
 			By("querying the chaincode from cc")
 			ts.Metadata(cmn.ChannelCC, cmn.ChannelCC).CheckResultContains(`{"name":"Currency Coin","symbol":"CC","decimals":8,"underlying_asset":"US Dollars"`)
-			/*
-				sess, err := network.PeerUserSession(peer, "User1", commands.ChaincodeQuery{
-					ChannelID: cmn.ChannelCC,
-					Name:      cmn.ChannelCC,
-					Ctor:      cmn.CtorFromSlice([]string{"metadata"}),
-				})
-				Expect(err).NotTo(HaveOccurred())
-				Eventually(sess, network.EventuallyTimeout).Should(gexec.Exit(0))
-				Eventually(sess, network.EventuallyTimeout).Should(gbytes.Say(`{"name":"Currency Coin","symbol":"CC","decimals":8,"underlying_asset":"US Dollars"`))
-			*/
 
 			By("querying the chaincode from fiat")
 			ts.Metadata(cmn.ChannelFiat, cmn.ChannelFiat).CheckResultContains(`{"name":"FIAT","symbol":"FIAT","decimals":8,"underlying_asset":"US Dollars"`)
-			/*
-				sess, err = network.PeerUserSession(peer, "User1", commands.ChaincodeQuery{
-					ChannelID: cmn.ChannelFiat,
-					Name:      cmn.ChannelFiat,
-					Ctor:      cmn.CtorFromSlice([]string{"metadata"}),
-				})
-				Expect(err).NotTo(HaveOccurred())
-				Eventually(sess, network.EventuallyTimeout).Should(gexec.Exit(0))
-				Eventually(sess, network.EventuallyTimeout).Should(gbytes.Say(`{"name":"FIAT","symbol":"FIAT","decimals":8,"underlying_asset":"US Dollars"`))
-			*/
 
 			By("querying the chaincode from industrial")
 			ts.Metadata(cmn.ChannelIndustrial, cmn.ChannelIndustrial).CheckResultContains(`{"name":"Industrial token","symbol":"INDUSTRIAL","decimals":8,"underlying_asset":"TEST_UnderlyingAsset"`)
-			/*
-				sess, err = network.PeerUserSession(peer, "User1", commands.ChaincodeQuery{
-					ChannelID: cmn.ChannelIndustrial,
-					Name:      cmn.ChannelIndustrial,
-					Ctor:      cmn.CtorFromSlice([]string{"metadata"}),
-				})
-				Expect(err).NotTo(HaveOccurred())
-				Eventually(sess, network.EventuallyTimeout).Should(gexec.Exit(0))
-				Eventually(sess, network.EventuallyTimeout).Should(gbytes.Say(`{"name":"Industrial token","symbol":"INDUSTRIAL","decimals":8,"underlying_asset":"TEST_UnderlyingAsset"`))
-			*/
 		})
 
 		It("query test", func() {
