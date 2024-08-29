@@ -2,29 +2,18 @@ package channel_transfer
 
 import (
 	"context"
-	"os"
-	"path/filepath"
 	"strconv"
-	"syscall"
-	"time"
 
 	cligrpc "github.com/anoideaopen/channel-transfer/proto"
 	pbfound "github.com/anoideaopen/foundation/proto"
 	"github.com/anoideaopen/foundation/test/integration/cmn"
 	"github.com/anoideaopen/foundation/test/integration/cmn/client"
-	"github.com/anoideaopen/foundation/test/integration/cmn/fabricnetwork"
-	"github.com/anoideaopen/foundation/test/integration/cmn/runner"
 	"github.com/btcsuite/btcd/btcutil/base58"
-	docker "github.com/fsouza/go-dockerclient"
 	"github.com/google/uuid"
+	"github.com/hyperledger/fabric/integration"
 	"github.com/hyperledger/fabric/integration/nwo"
-	"github.com/hyperledger/fabric/integration/nwo/fabricconfig"
-	runnerFbk "github.com/hyperledger/fabric/integration/nwo/runner"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/onsi/gomega/gbytes"
-	"github.com/tedsuo/ifrit"
-	ginkgomon "github.com/tedsuo/ifrit/ginkgomon_v2"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
@@ -34,217 +23,68 @@ import (
 )
 
 var _ = Describe("Channel transfer foundation Tests", func() {
-	var (
-		testDir          string
-		cli              *docker.Client
-		network          *nwo.Network
-		networkProcess   ifrit.Process
-		ordererProcesses []ifrit.Process
-		peerProcesses    ifrit.Process
-	)
+	var ts client.TestSuite
 
 	BeforeEach(func() {
-		networkProcess = nil
-		ordererProcesses = nil
-		peerProcesses = nil
-		var err error
-		testDir, err = os.MkdirTemp("", "foundation")
-		Expect(err).NotTo(HaveOccurred())
-
-		cli, err = docker.NewClientFromEnv()
-		Expect(err).NotTo(HaveOccurred())
+		ts = client.NewTestSuite(components)
 	})
-
 	AfterEach(func() {
-		if networkProcess != nil {
-			networkProcess.Signal(syscall.SIGTERM)
-			Eventually(networkProcess.Wait(), network.EventuallyTimeout).Should(Receive())
-		}
-		if peerProcesses != nil {
-			peerProcesses.Signal(syscall.SIGTERM)
-			Eventually(peerProcesses.Wait(), network.EventuallyTimeout).Should(Receive())
-		}
-		if network != nil {
-			network.Cleanup()
-		}
-		for _, ordererInstance := range ordererProcesses {
-			ordererInstance.Signal(syscall.SIGTERM)
-			Eventually(ordererInstance.Wait(), network.EventuallyTimeout).Should(Receive())
-		}
-		err := os.RemoveAll(testDir)
-		Expect(err).NotTo(HaveOccurred())
+		ts.ShutdownNetwork()
 	})
 
 	var (
-		channels            = []string{cmn.ChannelAcl, cmn.ChannelCC, cmn.ChannelFiat, cmn.ChannelIndustrial}
-		ordererRunners      []*ginkgomon.Runner
-		redisProcess        ifrit.Process
-		redisDB             *runner.RedisDB
-		networkFound        *cmn.NetworkFoundation
-		robotProc           ifrit.Process
-		channelTransferProc ifrit.Process
-		skiBackend          string
-		skiRobot            string
-		peer                *nwo.Peer
-		admin               *client.UserFoundation
-		user                *client.UserFoundation
-		feeSetter           *client.UserFoundation
-		feeAddressSetter    *client.UserFoundation
-
-		clientCtx context.Context
-		apiClient cligrpc.APIClient
-		conn      *grpc.ClientConn
+		channels     = []string{cmn.ChannelAcl, cmn.ChannelCC, cmn.ChannelFiat, cmn.ChannelIndustrial}
+		user         *client.UserFoundation
+		clientCtx    context.Context
+		apiClient    cligrpc.APIClient
+		conn         *grpc.ClientConn
+		network      *nwo.Network
+		networkFound *cmn.NetworkFoundation
 	)
 	BeforeEach(func() {
 		By("start redis")
-		redisDB = &runner.RedisDB{}
-		redisProcess = ifrit.Invoke(redisDB)
-		Eventually(redisProcess.Ready(), runnerFbk.DefaultStartTimeout).Should(BeClosed())
-		Consistently(redisProcess.Wait()).ShouldNot(Receive())
+		ts.StartRedis()
 	})
 	BeforeEach(func() {
-		networkConfig := nwo.MultiNodeSmartBFT()
-		networkConfig.Channels = nil
-
-		pchs := make([]*nwo.PeerChannel, 0, cap(channels))
-		for _, ch := range channels {
-			pchs = append(pchs, &nwo.PeerChannel{
-				Name:   ch,
-				Anchor: true,
-			})
-		}
-		for _, peer := range networkConfig.Peers {
-			peer.Channels = pchs
-		}
-
-		network = nwo.New(networkConfig, testDir, cli, StartPort(), components)
-		cwd, err := os.Getwd()
-		Expect(err).NotTo(HaveOccurred())
-		network.ExternalBuilders = append(network.ExternalBuilders,
-			fabricconfig.ExternalBuilder{
-				Path:                 filepath.Join(cwd, ".", "externalbuilders", "binary"),
-				Name:                 "binary",
-				PropagateEnvironment: []string{"GOPROXY"},
-			},
-		)
-
-		networkFound = cmn.New(network, channels)
-		networkFound.Robot.RedisAddresses = []string{redisDB.Address()}
-		networkFound.ChannelTransfer.RedisAddresses = []string{redisDB.Address()}
-
-		networkFound.GenerateConfigTree()
-		networkFound.Bootstrap()
-
-		for _, orderer := range network.Orderers {
-			runner := network.OrdererRunner(orderer)
-			runner.Command.Env = append(runner.Command.Env, "FABRIC_LOGGING_SPEC=orderer.consensus.smartbft=debug:grpc=debug")
-			ordererRunners = append(ordererRunners, runner)
-			proc := ifrit.Invoke(runner)
-			ordererProcesses = append(ordererProcesses, proc)
-			Eventually(proc.Ready(), network.EventuallyTimeout).Should(BeClosed())
-		}
-
-		peerGroupRunner, _ := fabricnetwork.PeerGroupRunners(network)
-		peerProcesses = ifrit.Invoke(peerGroupRunner)
-		Eventually(peerProcesses.Ready(), network.EventuallyTimeout).Should(BeClosed())
-
-		By("Joining orderers to channels")
-		for _, channel := range channels {
-			fabricnetwork.JoinChannel(network, channel)
-		}
-
-		By("Waiting for followers to see the leader")
-		Eventually(ordererRunners[1].Err(), network.EventuallyTimeout, time.Second).Should(gbytes.Say("Message from 1"))
-		Eventually(ordererRunners[2].Err(), network.EventuallyTimeout, time.Second).Should(gbytes.Say("Message from 1"))
-		Eventually(ordererRunners[3].Err(), network.EventuallyTimeout, time.Second).Should(gbytes.Say("Message from 1"))
-
-		By("Joining peers to channels")
-		for _, channel := range channels {
-			network.JoinChannel(channel, network.Orderers[0], network.PeersWithChannel(channel)...)
-		}
-
-		peer = network.Peer("Org1", "peer0")
-
-		pathToPrivateKeyBackend := network.PeerUserKey(peer, "User1")
-		skiBackend, err = cmn.ReadSKI(pathToPrivateKeyBackend)
-		Expect(err).NotTo(HaveOccurred())
-
-		pathToPrivateKeyRobot := network.PeerUserKey(peer, "User2")
-		skiRobot, err = cmn.ReadSKI(pathToPrivateKeyRobot)
-		Expect(err).NotTo(HaveOccurred())
-
-		admin, err = client.NewUserFoundation(pbfound.KeyType_ed25519)
-		Expect(err).NotTo(HaveOccurred())
-		Expect(admin.PrivateKeyBytes).NotTo(Equal(nil))
-
-		feeSetter, err = client.NewUserFoundation(pbfound.KeyType_ed25519)
-		Expect(err).NotTo(HaveOccurred())
-		Expect(feeSetter.PrivateKeyBytes).NotTo(Equal(nil))
-
-		feeAddressSetter, err = client.NewUserFoundation(pbfound.KeyType_ed25519)
-		Expect(err).NotTo(HaveOccurred())
-		Expect(feeAddressSetter.PrivateKeyBytes).NotTo(Equal(nil))
-
-		cmn.DeployACL(network, components, peer, testDir, skiBackend, admin.PublicKeyBase58, admin.KeyType)
-		cmn.DeployCC(network, components, peer, testDir, skiRobot, admin.AddressBase58Check)
-		cmn.DeployFiat(network, components, peer, testDir, skiRobot,
-			admin.AddressBase58Check, feeSetter.AddressBase58Check, feeAddressSetter.AddressBase58Check)
-		cmn.DeployIndustrial(network, components, peer, testDir, skiRobot,
-			admin.AddressBase58Check, feeSetter.AddressBase58Check, feeAddressSetter.AddressBase58Check)
+		ts.InitNetwork(channels, integration.GossipBasePort)
+		ts.DeployChaincodes()
 	})
 	BeforeEach(func() {
 		By("start robot")
-		robotRunner := networkFound.RobotRunner()
-		robotProc = ifrit.Invoke(robotRunner)
-		Eventually(robotProc.Ready(), network.EventuallyTimeout).Should(BeClosed())
-
+		ts.StartRobot()
 		By("start channel transfer")
-		channelTransferRunner := networkFound.ChannelTransferRunner()
-		channelTransferProc = ifrit.Invoke(channelTransferRunner)
-		Eventually(channelTransferProc.Ready(), network.EventuallyTimeout).Should(BeClosed())
+		ts.StartChannelTransfer()
 	})
 	AfterEach(func() {
 		By("stop robot")
-		if robotProc != nil {
-			robotProc.Signal(syscall.SIGTERM)
-			Eventually(robotProc.Wait(), network.EventuallyTimeout).Should(Receive())
-		}
-
+		ts.StopRobot()
 		By("stop channel transfer")
-		if channelTransferProc != nil {
-			channelTransferProc.Signal(syscall.SIGTERM)
-			Eventually(channelTransferProc.Wait(), network.EventuallyTimeout).Should(Receive())
-		}
-	})
-	AfterEach(func() {
-		By("stop redis " + redisDB.Address())
-		if redisProcess != nil {
-			redisProcess.Signal(syscall.SIGTERM)
-			Eventually(redisProcess.Wait(), time.Minute).Should(Receive())
-		}
+		ts.StopChannelTransfer()
+		By("stop redis")
+		ts.StopRedis()
 	})
 
 	BeforeEach(func() {
+		network = ts.Network()
+		networkFound = ts.NetworkFound()
+
 		By("add admin to acl")
-		client.AddUser(network, peer, network.Orderers[0], admin)
+		ts.AddAdminToACL()
 
 		By("add user to acl")
 		var err error
 		user, err = client.NewUserFoundation(pbfound.KeyType_ed25519)
 		Expect(err).NotTo(HaveOccurred())
 
-		client.AddUser(network, peer, network.Orderers[0], user)
+		ts.AddUser(user)
 
 		By("emit tokens")
 		emitAmount := "1000"
-		client.TxInvokeWithSign(network, peer, network.Orderers[0],
-			cmn.ChannelFiat, cmn.ChannelFiat, admin,
-			"emit", "", client.NewNonceByTime().Get(), nil, user.AddressBase58Check, emitAmount)
+		ts.TxInvokeWithSign(cmn.ChannelFiat, cmn.ChannelFiat, ts.Admin(),
+			"emit", "", client.NewNonceByTime().Get(), user.AddressBase58Check, emitAmount).CheckErrorIsNil()
 
 		By("emit check")
-		client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
-			client.CheckResult(client.CheckBalance(emitAmount), nil),
-			"balanceOf", user.AddressBase58Check)
+		ts.Query(cmn.ChannelFiat, cmn.ChannelFiat, "balanceOf", user.AddressBase58Check).CheckBalance(emitAmount)
 
 	})
 
@@ -274,7 +114,7 @@ var _ = Describe("Channel transfer foundation Tests", func() {
 		requestID := uuid.NewString()
 		nonce := client.NewNonceByTime().Get()
 		signArgs := append(append([]string{"channelTransferByAdmin", requestID, cmn.ChannelFiat, cmn.ChannelFiat}, channelTransferArgs...), nonce)
-		publicKey, sign, err := admin.Sign(signArgs...)
+		publicKey, sign, err := ts.Admin().Sign(signArgs...)
 		Expect(err).NotTo(HaveOccurred())
 
 		transfer := &cligrpc.TransferBeginAdminRequest{
@@ -322,13 +162,9 @@ var _ = Describe("Channel transfer foundation Tests", func() {
 		Expect(statusResponse.Status).To(Equal(cligrpc.TransferStatusResponse_STATUS_COMPLETED))
 
 		By("checking result balances")
-		client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
-			client.CheckResult(client.CheckBalance("750"), nil),
-			"balanceOf", user.AddressBase58Check)
+		ts.Query(cmn.ChannelFiat, cmn.ChannelFiat, "balanceOf", user.AddressBase58Check).CheckBalance("750")
 
-		client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC,
-			client.CheckResult(client.CheckBalance("250"), nil),
-			"allowedBalanceOf", user.AddressBase58Check, "FIAT")
+		ts.Query(cmn.ChannelCC, cmn.ChannelCC, "allowedBalanceOf", user.AddressBase58Check, "FIAT").CheckBalance("250")
 	})
 
 	It("transfer by customer test", func() {
@@ -404,13 +240,9 @@ var _ = Describe("Channel transfer foundation Tests", func() {
 		Expect(statusResponse.Status).To(Equal(cligrpc.TransferStatusResponse_STATUS_COMPLETED))
 
 		By("checking result balances")
-		client.Query(network, peer, cmn.ChannelFiat, cmn.ChannelFiat,
-			client.CheckResult(client.CheckBalance("750"), nil),
-			"balanceOf", user.AddressBase58Check)
+		ts.Query(cmn.ChannelFiat, cmn.ChannelFiat, "balanceOf", user.AddressBase58Check).CheckBalance("750")
 
-		client.Query(network, peer, cmn.ChannelCC, cmn.ChannelCC,
-			client.CheckResult(client.CheckBalance("250"), nil),
-			"allowedBalanceOf", user.AddressBase58Check, "FIAT")
+		ts.Query(cmn.ChannelCC, cmn.ChannelCC, "allowedBalanceOf", user.AddressBase58Check, "FIAT").CheckBalance("250")
 	})
 
 	It("transfer status with wrong transfer id test", func() {
