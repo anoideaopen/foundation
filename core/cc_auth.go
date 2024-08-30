@@ -73,9 +73,9 @@ func (cc *Chaincode) validateAndExtractInvocationContext(
 
 	invocation.requiredNSigns = invocation.signersCount
 	if invocation.signersCount > 1 &&
-		acl.Address != nil &&
-		acl.Address.SignaturePolicy != nil {
-		invocation.requiredNSigns = int(acl.Address.SignaturePolicy.N)
+		acl.GetAddress() != nil &&
+		acl.GetAddress().GetSignaturePolicy() != nil {
+		invocation.requiredNSigns = int(acl.GetAddress().GetSignaturePolicy().GetN())
 	}
 
 	oldBehavior := invocation.signersCount != len(acl.GetKeyTypes())
