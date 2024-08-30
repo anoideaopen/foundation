@@ -124,7 +124,7 @@ func validateSignaturesInInvocation(
 	var signs int
 	for i := 0; i < invocation.signersCount; i++ {
 		if invocation.signatureArgs[i+invocation.signersCount] == "" {
-			continue
+			continue // Skip the blank signatures.
 		}
 
 		var (
