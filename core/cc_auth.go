@@ -24,6 +24,7 @@ type invocationDetails struct {
 	signatureArgs    []string
 	signersCount     int
 	keyTypes         []pb.KeyType
+	requiredNSigns   int
 }
 
 // validateAndExtractInvocationContext verifies authorization and extracts the context of the chincode method call.
@@ -70,6 +71,13 @@ func (cc *Chaincode) validateAndExtractInvocationContext(
 		return nil, nil, 0, err
 	}
 
+	invocation.requiredNSigns = invocation.signersCount
+	if invocation.signersCount > 1 &&
+		acl.Address != nil &&
+		acl.Address.SignaturePolicy != nil {
+		invocation.requiredNSigns = int(acl.Address.SignaturePolicy.N)
+	}
+
 	oldBehavior := invocation.signersCount != len(acl.GetKeyTypes())
 	invocation.keyTypes = make([]pb.KeyType, len(signers))
 	for i := 0; i < invocation.signersCount; i++ {
@@ -113,9 +121,10 @@ func validateSignaturesInInvocation(
 	invocation *invocationDetails,
 	message []byte,
 ) error {
+	var signs int
 	for i := 0; i < invocation.signersCount; i++ {
 		if invocation.signatureArgs[i+invocation.signersCount] == "" {
-			continue // Skip the blank signatures.
+			continue
 		}
 
 		var (
@@ -128,10 +137,18 @@ func validateSignaturesInInvocation(
 		if err != nil {
 			return err
 		}
+
 		if !valid {
 			return errors.New("incorrect signature")
 		}
+
+		signs++
 	}
+
+	if signs < invocation.requiredNSigns {
+		return errors.New("not enough signatures")
+	}
+
 	return nil
 }
 
