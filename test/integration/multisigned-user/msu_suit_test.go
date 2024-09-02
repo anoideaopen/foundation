@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/anoideaopen/foundation/test/integration/cmn/runner"
-	"github.com/hyperledger/fabric/integration"
 	"github.com/hyperledger/fabric/integration/nwo"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -13,7 +12,7 @@ import (
 
 func TestMultisignedUser(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Basic Suite")
+	RunSpecs(t, "Multisigned user ACL test Suite")
 }
 
 var (
@@ -41,7 +40,3 @@ var _ = SynchronizedAfterSuite(func() {
 }, func() {
 	buildServer.Shutdown()
 })
-
-func StartPort() int {
-	return integration.NWOBasePort.StartPortForNode()
-}
