@@ -10,6 +10,7 @@ import (
 	"github.com/anoideaopen/foundation/test/integration/cmn"
 	"github.com/anoideaopen/foundation/test/integration/cmn/fabricnetwork"
 	"github.com/anoideaopen/foundation/test/integration/cmn/runner"
+	"github.com/anoideaopen/robot/helpers/ntesting"
 	docker "github.com/fsouza/go-dockerclient"
 	"github.com/hyperledger/fabric/integration"
 	"github.com/hyperledger/fabric/integration/nwo"
@@ -32,7 +33,7 @@ const (
 
 type testSuite struct {
 	components          *nwo.Components
-	channels            []string
+	options             *networkOptions
 	testDir             string
 	dockerClient        *docker.Client
 	network             *nwo.Network
@@ -56,6 +57,8 @@ type testSuite struct {
 	feeAddressSetter    *UserFoundation
 	skiBackend          string
 	skiRobot            string
+
+	isInit bool
 }
 
 func NewTestSuite(components *nwo.Components) TestSuite {
@@ -76,29 +79,32 @@ func NewTestSuite(components *nwo.Components) TestSuite {
 		// networkProcess:   nil,
 		ordererProcesses: nil,
 		peerProcess:      nil,
+		options: &networkOptions{
+			RobotCfg:           cmn.RobotCfgDefault,
+			ChannelTransferCfg: cmn.ChannelTransferCfgDefault,
+		},
+		isInit: false,
 	}
 
 	return ts
 }
 
-func (ts *testSuite) SetChannels(channels []string) {
-	ts.channels = channels
-}
+func (ts *testSuite) InitNetwork(channels []string, testPort integration.TestPortRange, opts ...NetworkOption) {
+	ts.options.Channels = channels
+	ts.options.TestPort = testPort
 
-func startPort(portRange integration.TestPortRange) int {
-	return portRange.StartPortForNode()
-}
-
-func (ts *testSuite) InitNetwork(channels []string, testPort integration.TestPortRange) {
-	Expect(channels).NotTo(BeEmpty())
-
-	ts.channels = channels
+	for _, opt := range opts {
+		err := opt(ts.options)
+		Expect(err).NotTo(HaveOccurred())
+	}
+	Expect(ts.options.Channels).NotTo(BeEmpty())
+	Expect(ts.options.TestPort).NotTo(BeNil())
 
 	networkConfig := nwo.MultiNodeSmartBFT()
 	networkConfig.Channels = nil
 
-	peerChannels := make([]*nwo.PeerChannel, 0, cap(ts.channels))
-	for _, ch := range ts.channels {
+	peerChannels := make([]*nwo.PeerChannel, 0, cap(ts.options.Channels))
+	for _, ch := range ts.options.Channels {
 		peerChannels = append(peerChannels, &nwo.PeerChannel{
 			Name:   ch,
 			Anchor: true,
@@ -108,7 +114,7 @@ func (ts *testSuite) InitNetwork(channels []string, testPort integration.TestPor
 		peer.Channels = peerChannels
 	}
 
-	ts.network = nwo.New(networkConfig, ts.testDir, ts.dockerClient, startPort(testPort), ts.components)
+	ts.network = nwo.New(networkConfig, ts.testDir, ts.dockerClient, ts.options.TestPort.StartPortForNode(), ts.components)
 
 	cwd, err := os.Getwd()
 	Expect(err).NotTo(HaveOccurred())
@@ -120,7 +126,7 @@ func (ts *testSuite) InitNetwork(channels []string, testPort integration.TestPor
 		},
 	)
 
-	ts.networkFound = cmn.New(ts.network, ts.channels)
+	ts.networkFound = cmn.New(ts.network, ts.options.Channels, ts.options.RobotCfg, ts.options.ChannelTransferCfg)
 
 	if ts.redisDB != nil {
 		ts.networkFound.Robot.RedisAddresses = []string{ts.redisDB.Address()}
@@ -147,7 +153,7 @@ func (ts *testSuite) InitNetwork(channels []string, testPort integration.TestPor
 	ts.orderer = ts.network.Orderers[0]
 
 	By("Joining orderers to channels")
-	for _, channel := range ts.channels {
+	for _, channel := range ts.options.Channels {
 		fabricnetwork.JoinChannel(ts.network, channel)
 	}
 
@@ -157,7 +163,7 @@ func (ts *testSuite) InitNetwork(channels []string, testPort integration.TestPor
 	Eventually(ts.ordererRunners[3].Err(), ts.network.EventuallyTimeout, time.Second).Should(gbytes.Say("Message from 1"))
 
 	By("Joining peers to channels")
-	for _, channel := range ts.channels {
+	for _, channel := range ts.options.Channels {
 		ts.network.JoinChannel(channel, ts.orderer, ts.network.PeersWithChannel(channel)...)
 	}
 
@@ -183,6 +189,8 @@ func (ts *testSuite) InitNetwork(channels []string, testPort integration.TestPor
 	ts.feeAddressSetter, err = NewUserFoundation(pbfound.KeyType_ed25519)
 	Expect(err).NotTo(HaveOccurred())
 	Expect(ts.feeAddressSetter.PrivateKeyBytes).NotTo(Equal(nil))
+
+	ts.isInit = true
 }
 
 func (ts *testSuite) Admin() *UserFoundation {
@@ -215,6 +223,40 @@ func (ts *testSuite) TestDir() string {
 
 func (ts *testSuite) DockerClient() *docker.Client {
 	return ts.dockerClient
+}
+
+func (ts *testSuite) CiData(opts ...CiDataOption) ntesting.CiTestData {
+	Expect(ts.isInit).To(BeTrue())
+	Expect(ts.redisDB).NotTo(BeNil())
+
+	// setting default values
+	ciData := ntesting.CiTestData{
+		RedisAddr:             ts.redisDB.Address(),
+		RedisPass:             "",
+		HlfProfilePath:        ts.networkFound.ConnectionPath(ts.mainUserName),
+		HlfFiatChannel:        cmn.ChannelFiat,
+		HlfCcChannel:          cmn.ChannelCC,
+		HlfIndustrialChannel:  cmn.ChannelIndustrial,
+		HlfNoCcChannel:        "",
+		HlfUserName:           "backend",
+		HlfCert:               ts.network.PeerUserKey(ts.peer, ts.mainUserName),
+		HlfFiatOwnerKey:       ts.admin.PublicKeyBase58,
+		HlfCcOwnerKey:         ts.admin.PublicKeyBase58,
+		HlfIndustrialOwnerKey: ts.admin.PublicKeyBase58,
+		HlfIndustrialGroup1:   "",
+		HlfIndustrialGroup2:   "",
+		HlfSk:                 ts.network.PeerUserKey(ts.peer, ts.mainUserName),
+		HlfDoSwapTests:        false,
+		HlfDoMultiSwapTests:   false,
+	}
+
+	// setting options
+	for _, opt := range opts {
+		err := opt(ciData)
+		Expect(err).NotTo(HaveOccurred())
+	}
+
+	return ciData
 }
 
 func (ts *testSuite) StartRedis() {
@@ -258,7 +300,8 @@ func (ts *testSuite) StopChannelTransfer() {
 }
 
 func (ts *testSuite) DeployChaincodes() {
-	ts.DeployChaincodesByName(ts.channels)
+	Expect(ts.options.Channels).NotTo(BeEmpty())
+	ts.DeployChaincodesByName(ts.options.Channels)
 }
 
 func (ts *testSuite) DeployChaincodesByName(channels []string) {
@@ -333,11 +376,10 @@ func (ts *testSuite) ExecuteTasks(channel string, chaincode string, tasks ...*pb
 		ts.network,
 		ts.peer,
 		ts.orderer,
-		nil,
 		channel,
 		chaincode,
 		tasks...,
-	)
+	).TxID()
 }
 
 func (ts *testSuite) ExecuteTaskWithSign(channel string, chaincode string, user *UserFoundation, method string, args ...string) string {

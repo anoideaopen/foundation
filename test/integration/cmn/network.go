@@ -24,6 +24,16 @@ const (
 	GrpcPort nwo.PortName = "GrpcPort"
 )
 
+var (
+	RobotCfgDefault           = &Robot{Ports: nwo.Ports{}}
+	ChannelTransferCfgDefault = &ChannelTransfer{
+		HostAddress: "localhost",
+		AccessToken: "test",
+		Ports:       nwo.Ports{},
+		TTL:         "10800s",
+	}
+)
+
 // NetworkFoundation holds information about a fabric network.
 type NetworkFoundation struct {
 	*nwo.Network
@@ -37,22 +47,24 @@ type NetworkFoundation struct {
 	colorIndex uint
 }
 
-func New(network *nwo.Network, channels []string) *NetworkFoundation {
+func New(network *nwo.Network, channels []string, robotCfg *Robot, channelTransferCfg *ChannelTransfer) *NetworkFoundation {
+	if robotCfg == nil {
+		robotCfg = RobotCfgDefault
+	}
+	if channelTransferCfg == nil {
+		channelTransferCfg = ChannelTransferCfgDefault
+	}
+
 	n := &NetworkFoundation{
 		Network: network,
 		Templates: &TemplatesFound{
 			Templates: network.Templates,
 		},
-		Channels: channels,
-		Robot:    &Robot{Ports: nwo.Ports{}},
-		ChannelTransfer: &ChannelTransfer{
-			HostAddress: "localhost",
-			AccessToken: "test",
-			Ports:       nwo.Ports{},
-			TTL:         "10800s",
-		},
-		LogLevelSDK: "info",
-		mutex:       &sync.Mutex{},
+		Channels:        channels,
+		Robot:           robotCfg,
+		ChannelTransfer: channelTransferCfg,
+		LogLevelSDK:     "info",
+		mutex:           &sync.Mutex{},
 	}
 	for _, portName := range RobotPortNames() {
 		n.Robot.Ports[portName] = n.ReservePort()

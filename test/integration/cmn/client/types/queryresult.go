@@ -3,6 +3,8 @@ package types
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
+
 	"github.com/onsi/gomega"
 	"github.com/onsi/gomega/gbytes"
 )
@@ -128,12 +130,10 @@ func (qr *QueryResult) CheckResponseWithFunc(responseCheckFunc func([]byte) stri
 }
 
 func (qr *QueryResult) checkErrIsNil() string {
-	if qr.errorCode == 0 && qr.message == nil {
-		return ""
-	}
+	if qr.errorCode != 0 {
+		messageStrings := strings.Split(string(qr.message), "\n")
 
-	if qr.errorCode != 0 && qr.message != nil {
-		return "error message: " + string(qr.message)
+		return "error message: " + messageStrings[len(messageStrings)-2]
 	}
 
 	return ""

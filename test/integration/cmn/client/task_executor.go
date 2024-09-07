@@ -7,6 +7,7 @@ import (
 	"github.com/anoideaopen/foundation/core"
 	pbfound "github.com/anoideaopen/foundation/proto"
 	"github.com/anoideaopen/foundation/test/integration/cmn"
+	"github.com/anoideaopen/foundation/test/integration/cmn/client/types"
 	"github.com/btcsuite/btcutil/base58"
 	"github.com/hyperledger/fabric/integration/nwo"
 	"github.com/hyperledger/fabric/integration/nwo/commands"
@@ -49,11 +50,11 @@ func executeTasks(
 	network *nwo.Network,
 	peer *nwo.Peer,
 	orderer *nwo.Orderer,
-	checkErr CheckResultFunc,
 	channel string,
 	ccName string,
 	tasks ...*pbfound.Task,
-) string {
+) *types.InvokeResult {
+	result := &types.InvokeResult{}
 	bytes, err := protojson.Marshal(&pbfound.ExecuteTasksRequest{Tasks: tasks})
 	Expect(err).NotTo(HaveOccurred())
 
@@ -68,20 +69,20 @@ func executeTasks(
 		},
 		WaitForEvent: true,
 	})
-	if checkErr != nil {
-		Eventually(sess, network.EventuallyTimeout).Should(gexec.Exit())
-		res := checkErr(err, sess.ExitCode(), sess.Err.Contents(), sess.Out.Contents())
-		Expect(res).Should(BeEmpty())
 
-		return ""
+	Eventually(sess, network.EventuallyTimeout).Should(gexec.Exit())
+	result.SetResponse(sess.Out.Contents())
+	result.SetMessage(sess.Err.Contents())
+	result.SetErrorCode(int32(sess.ExitCode()))
+
+	if err == nil {
+		Eventually(sess, network.EventuallyTimeout).Should(gexec.Exit(0))
+		Expect(sess.Err).To(gbytes.Say("Chaincode invoke successful. result: status:200"))
 	}
 
-	Expect(err).NotTo(HaveOccurred())
-	Eventually(sess, network.EventuallyTimeout).Should(gexec.Exit(0))
-	Expect(sess.Err).To(gbytes.Say("Chaincode invoke successful. result: status:200"))
-
 	l := sess.Err.Contents()
-	txId := scanTxIDInLog(l)
-	Expect(txId).NotTo(BeEmpty())
-	return txId
+	txID := scanTxIDInLog(l)
+	Expect(txID).NotTo(BeEmpty())
+
+	return result
 }

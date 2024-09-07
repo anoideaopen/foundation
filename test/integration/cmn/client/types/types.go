@@ -1,7 +1,5 @@
 package types
 
-type Reference string
-
 type Setters interface {
 	SetTxID(string)
 	SetResponse(response []byte)
