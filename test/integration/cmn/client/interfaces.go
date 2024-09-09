@@ -4,7 +4,7 @@ import (
 	"github.com/anoideaopen/acl/cc"
 	pbfound "github.com/anoideaopen/foundation/proto"
 	"github.com/anoideaopen/foundation/test/integration/cmn"
-	types2 "github.com/anoideaopen/foundation/test/integration/cmn/client/types"
+	"github.com/anoideaopen/foundation/test/integration/cmn/client/types"
 	"github.com/anoideaopen/robot/helpers/ntesting"
 	docker "github.com/fsouza/go-dockerclient"
 	"github.com/hyperledger/fabric/integration"
@@ -13,30 +13,30 @@ import (
 
 type InvokeInterface interface {
 	// TxInvoke func for invoke to foundation fabric
-	TxInvoke(channelName, chaincodeName string, args ...string) *types2.InvokeResult
+	TxInvoke(channelName, chaincodeName string, args ...string) *types.InvokeResult
 	// TxInvokeByRobot func for invoke to foundation fabric from robot
-	TxInvokeByRobot(channelName, chaincodeName string, args ...string) *types2.InvokeResult
+	TxInvokeByRobot(channelName, chaincodeName string, args ...string) *types.InvokeResult
 	// TxInvokeWithSign func for invoke with sign to foundation fabric
-	TxInvokeWithSign(channelName, chaincodeName string, user *UserFoundation, fn, requestID, nonce string, args ...string) *types2.InvokeResult
+	TxInvokeWithSign(channelName, chaincodeName string, user *UserFoundation, fn, requestID, nonce string, args ...string) *types.InvokeResult
 	// TxInvokeWithMultisign invokes transaction to foundation fabric with multisigned user
-	TxInvokeWithMultisign(channelName, chaincodeName string, user *UserFoundationMultisigned, fn, requestID, nonce string, args ...string) *types2.InvokeResult
+	TxInvokeWithMultisign(channelName, chaincodeName string, user *UserFoundationMultisigned, fn, requestID, nonce string, args ...string) *types.InvokeResult
 	// NBTxInvoke func for invoke to foundation fabric
-	NBTxInvoke(channelName, chaincodeName string, args ...string) *types2.InvokeResult
+	NBTxInvoke(channelName, chaincodeName string, args ...string) *types.InvokeResult
 	// NBTxInvokeByRobot func for invoke to foundation fabric from robot
-	NBTxInvokeByRobot(channelName, chaincodeName string, args ...string) *types2.InvokeResult
+	NBTxInvokeByRobot(channelName, chaincodeName string, args ...string) *types.InvokeResult
 	// NBTxInvokeWithSign func for invoke with sign to foundation fabric
-	NBTxInvokeWithSign(channelName, chaincodeName string, user *UserFoundation, fn, requestID, nonce string, args ...string) *types2.InvokeResult
+	NBTxInvokeWithSign(channelName, chaincodeName string, user *UserFoundation, fn, requestID, nonce string, args ...string) *types.InvokeResult
 }
 
 type QueryInterface interface {
 	// Query func for query from foundation fabric
-	Query(channelName, chaincodeName string, args ...string) *types2.QueryResult
+	Query(channelName, chaincodeName string, args ...string) *types.QueryResult
 	// QueryWithSign func for query with sign from foundation fabric
-	QueryWithSign(channelName, chaincodeName string, user *UserFoundation, fn, requestID, nonce string, args ...string) *types2.QueryResult
+	QueryWithSign(channelName, chaincodeName string, user *UserFoundation, fn, requestID, nonce string, args ...string) *types.QueryResult
 	// SwapGet requests specified channel for swap information until it appears
-	SwapGet(channelName, chaincodeName string, functionName SwapFunctionName, swapBeginTxID string) *types2.QueryResult
+	SwapGet(channelName, chaincodeName string, functionName SwapFunctionName, swapBeginTxID string) *types.QueryResult
 	// Metadata returns chaincode metadata
-	Metadata(channelName, chaincodeName string) *types2.QueryResult
+	Metadata(channelName, chaincodeName string) *types.QueryResult
 }
 
 type ACLAddUserInterface interface {
