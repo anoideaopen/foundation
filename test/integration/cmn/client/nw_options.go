@@ -117,7 +117,9 @@ func WithChannelTransferTTL(ttl string) NetworkOption {
 // WithRobotTemplate specifies robot template
 func WithRobotTemplate(robotTemplate string) NetworkOption {
 	return func(opt *networkOptions) error {
-		opt.Templates.Robot = robotTemplate
+		if robotTemplate != "" {
+			opt.Templates.Robot = robotTemplate
+		}
 		return nil
 	}
 }
@@ -125,7 +127,9 @@ func WithRobotTemplate(robotTemplate string) NetworkOption {
 // WithChannelTransferTemplate specifies channel transfer template
 func WithChannelTransferTemplate(ctTemplate string) NetworkOption {
 	return func(opt *networkOptions) error {
-		opt.Templates.ChannelTransfer = ctTemplate
+		if ctTemplate != "" {
+			opt.Templates.ChannelTransfer = ctTemplate
+		}
 		return nil
 	}
 }

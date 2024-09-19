@@ -18,14 +18,18 @@ func WithChannelTransferCfg(ctCfg *ChannelTransfer) NetworkFoundationOption {
 
 func WithRobotTemplate(robotTemplate string) NetworkFoundationOption {
 	return func(nf *NetworkFoundation) error {
-		nf.Templates.Robot = robotTemplate
+		if robotTemplate != "" {
+			nf.Templates.Robot = robotTemplate
+		}
 		return nil
 	}
 }
 
 func WithChannelTransferTemplate(ctTemplate string) NetworkFoundationOption {
 	return func(nf *NetworkFoundation) error {
-		nf.Templates.ChannelTransfer = ctTemplate
+		if ctTemplate != "" {
+			nf.Templates.ChannelTransfer = ctTemplate
+		}
 		return nil
 	}
 }
