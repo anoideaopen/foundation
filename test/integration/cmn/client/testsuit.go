@@ -82,6 +82,10 @@ func NewTestSuite(components *nwo.Components) TestSuite {
 		options: &networkOptions{
 			RobotCfg:           cmn.RobotCfgDefault,
 			ChannelTransferCfg: cmn.ChannelTransferCfgDefault,
+			Templates: &cmn.TemplatesFound{
+				Robot:           "",
+				ChannelTransfer: "",
+			},
 		},
 		isInit: false,
 	}
