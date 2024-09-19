@@ -12,6 +12,7 @@ type networkOptions struct {
 	TestPort           integration.TestPortRange
 	RobotCfg           *cmn.Robot
 	ChannelTransferCfg *cmn.ChannelTransfer
+	Templates          *cmn.TemplatesFound
 }
 
 // NetworkOption specifies some networkOption parameter
@@ -107,6 +108,24 @@ func WithChannelTransferAccessToken(token string) NetworkOption {
 func WithChannelTransferTTL(ttl string) NetworkOption {
 	return func(opt *networkOptions) error {
 		opt.ChannelTransferCfg.TTL = ttl
+		return nil
+	}
+}
+
+// Templates
+
+// WithRobotTemplate specifies robot template
+func WithRobotTemplate(robotTemplate string) NetworkOption {
+	return func(opt *networkOptions) error {
+		opt.Templates.Robot = robotTemplate
+		return nil
+	}
+}
+
+// WithChannelTransferTemplate specifies channel transfer template
+func WithChannelTransferTemplate(ctTemplate string) NetworkOption {
+	return func(opt *networkOptions) error {
+		opt.Templates.ChannelTransfer = ctTemplate
 		return nil
 	}
 }

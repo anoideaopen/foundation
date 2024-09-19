@@ -47,25 +47,29 @@ type NetworkFoundation struct {
 	colorIndex uint
 }
 
-func New(network *nwo.Network, channels []string, robotCfg *Robot, channelTransferCfg *ChannelTransfer) *NetworkFoundation {
-	if robotCfg == nil {
-		robotCfg = RobotCfgDefault
-	}
-	if channelTransferCfg == nil {
-		channelTransferCfg = ChannelTransferCfgDefault
-	}
-
+func New(network *nwo.Network, channels []string, opts ...NetworkFoundationOption) *NetworkFoundation {
 	n := &NetworkFoundation{
 		Network: network,
 		Templates: &TemplatesFound{
 			Templates: network.Templates,
 		},
-		Channels:        channels,
-		Robot:           robotCfg,
-		ChannelTransfer: channelTransferCfg,
-		LogLevelSDK:     "info",
-		mutex:           &sync.Mutex{},
+		Channels:    channels,
+		LogLevelSDK: "info",
+		mutex:       &sync.Mutex{},
 	}
+
+	for _, opt := range opts {
+		err := opt(n)
+		Expect(err).NotTo(HaveOccurred())
+	}
+
+	if n.Robot == nil {
+		n.Robot = RobotCfgDefault
+	}
+	if n.ChannelTransfer == nil {
+		n.ChannelTransfer = ChannelTransferCfgDefault
+	}
+
 	for _, portName := range RobotPortNames() {
 		n.Robot.Ports[portName] = n.ReservePort()
 	}
