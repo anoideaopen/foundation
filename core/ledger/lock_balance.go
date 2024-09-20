@@ -1,11 +1,12 @@
 package ledger
 
 import (
+	"strings"
+
 	"github.com/anoideaopen/foundation/core/balance"
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/core/types/big"
 	"github.com/hyperledger/fabric-chaincode-go/shim"
-	"strings"
 )
 
 const (
