@@ -473,60 +473,6 @@ func AllowedBalanceGetLocked(
 	return new(big.Int).SetBytes(balanceValue.Bytes()), err
 }
 
-func AllowedBalanceLock(
-	stub shim.ChaincodeStubInterface,
-	symbol string,
-	token string,
-	address *types.Address,
-	amount *big.Int,
-) error {
-	if stub, ok := stub.(Accounting); ok {
-		stub.AddAccountingRecord(
-			symbol,
-			address,
-			address,
-			amount,
-			"allowed balance lock",
-		)
-	}
-	return balance.Move(
-		stub,
-		balance.BalanceTypeAllowed,
-		address.String(),
-		balance.BalanceTypeAllowedLocked,
-		address.String(),
-		token,
-		&amount.Int,
-	)
-}
-
-func AllowedBalanceUnlock(
-	stub shim.ChaincodeStubInterface,
-	symbol string,
-	token string,
-	address *types.Address,
-	amount *big.Int,
-) error {
-	if stub, ok := stub.(Accounting); ok {
-		stub.AddAccountingRecord(
-			symbol,
-			address,
-			address,
-			amount,
-			"allowed balance unlock",
-		)
-	}
-	return balance.Move(
-		stub,
-		balance.BalanceTypeAllowedLocked,
-		address.String(),
-		balance.BalanceTypeAllowed,
-		address.String(),
-		token,
-		&amount.Int,
-	)
-}
-
 func AllowedBalanceTransferLocked(
 	stub shim.ChaincodeStubInterface,
 	token string,
@@ -581,64 +527,6 @@ func IndustrialBalanceGetLocked(
 		return nil, err
 	}
 	return tokensToMap(tokens), nil
-}
-
-func IndustrialBalanceLock(
-	stub shim.ChaincodeStubInterface,
-	symbol string,
-	token string,
-	address *types.Address,
-	amount *big.Int,
-) error {
-	parts := strings.Split(token, "_")
-	token = parts[len(parts)-1]
-	if stub, ok := stub.(Accounting); ok {
-		stub.AddAccountingRecord(
-			symbol+"_"+token,
-			address,
-			address,
-			amount,
-			"industrial balance lock",
-		)
-	}
-	return balance.Move(
-		stub,
-		balance.BalanceTypeToken,
-		address.String(),
-		balance.BalanceTypeTokenLocked,
-		address.String(),
-		token,
-		&amount.Int,
-	)
-}
-
-func IndustrialBalanceUnlock(
-	stub shim.ChaincodeStubInterface,
-	symbol string,
-	token string,
-	address *types.Address,
-	amount *big.Int,
-) error {
-	parts := strings.Split(token, "_")
-	token = parts[len(parts)-1]
-	if stub, ok := stub.(Accounting); ok {
-		stub.AddAccountingRecord(
-			symbol+"_"+token,
-			address,
-			address,
-			amount,
-			"industrial balance unlock",
-		)
-	}
-	return balance.Move(
-		stub,
-		balance.BalanceTypeTokenLocked,
-		address.String(),
-		balance.BalanceTypeToken,
-		address.String(),
-		token,
-		&amount.Int,
-	)
 }
 
 func IndustrialBalanceTransferLocked(
