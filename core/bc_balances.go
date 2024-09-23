@@ -103,12 +103,12 @@ func (bc *BaseContract) AllowedBalanceGetLocked(token string, address *types.Add
 	return ledger.AllowedBalanceGetLocked(bc.GetStub(), token, address)
 }
 
-func (bc *BaseContract) AllowedBalanceLock(token string, address *types.Address, amount *big.Int) error {
-	return ledger.AllowedBalanceLock(bc.GetStub(), token, token, address, amount)
+func (bc *BaseContract) AllowedBalanceLock(token string, address *types.Address, amount *big.Int, opts ...ledger.LockOpt) error {
+	return ledger.AllowedBalanceLock(bc.GetStub(), token, token, address, amount, opts...)
 }
 
-func (bc *BaseContract) AllowedBalanceUnLock(token string, address *types.Address, amount *big.Int) error {
-	return ledger.AllowedBalanceUnlock(bc.GetStub(), token, token, address, amount)
+func (bc *BaseContract) AllowedBalanceUnLock(token string, address *types.Address, amount *big.Int, opts ...ledger.LockOpt) error {
+	return ledger.AllowedBalanceUnlock(bc.GetStub(), token, token, address, amount, opts...)
 }
 
 func (bc *BaseContract) AllowedBalanceTransferLocked(token string, from *types.Address, to *types.Address, amount *big.Int, reason string) error {
@@ -123,12 +123,12 @@ func (bc *BaseContract) IndustrialBalanceGetLocked(address *types.Address) (map[
 	return ledger.IndustrialBalanceGetLocked(bc.GetStub(), address)
 }
 
-func (bc *BaseContract) IndustrialBalanceLock(token string, address *types.Address, amount *big.Int) error {
-	return ledger.IndustrialBalanceLock(bc.GetStub(), bc.ContractConfig().GetSymbol(), token, address, amount)
+func (bc *BaseContract) IndustrialBalanceLock(token string, address *types.Address, amount *big.Int, opts ...ledger.LockOpt) error {
+	return ledger.IndustrialBalanceLock(bc.GetStub(), bc.ContractConfig().GetSymbol(), token, address, amount, opts...)
 }
 
-func (bc *BaseContract) IndustrialBalanceUnLock(token string, address *types.Address, amount *big.Int) error {
-	return ledger.IndustrialBalanceUnlock(bc.GetStub(), bc.ContractConfig().GetSymbol(), token, address, amount)
+func (bc *BaseContract) IndustrialBalanceUnLock(token string, address *types.Address, amount *big.Int, opts ...ledger.LockOpt) error {
+	return ledger.IndustrialBalanceUnlock(bc.GetStub(), bc.ContractConfig().GetSymbol(), token, address, amount, opts...)
 }
 
 func (bc *BaseContract) IndustrialBalanceTransferLocked(token string, from *types.Address, to *types.Address, amount *big.Int, reason string) error {
