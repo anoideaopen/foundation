@@ -23,17 +23,19 @@ import (
 	"github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/hyperledger/fabric-chaincode-go/shim"
+	"github.com/hyperledger/fabric-lib-go/common/flogging"
 	"github.com/hyperledger/fabric-protos-go/ledger/queryresult"
 	"github.com/hyperledger/fabric-protos-go/msp"
 	pb "github.com/hyperledger/fabric-protos-go/peer"
-	"github.com/op/go-logging"
 )
 
 const module = "mock"
 
 func init() {
 	time.Local = time.UTC
-	logging.SetLevel(logging.ERROR, module)
+	flogging.Init(flogging.Config{
+		LogSpec: "ERROR",
+	})
 }
 
 // ErrFuncNotImplemented is returned when a function is not implemented
@@ -59,7 +61,7 @@ type Stub struct {
 	ChaincodeEventsChannel chan *pb.ChaincodeEvent      // channel to store ChaincodeEvents
 	Decorations            map[string][]byte
 	creator                []byte
-	logger                 *logging.Logger
+	logger                 *flogging.FabricLogger
 	transientMap           map[string][]byte
 }
 
@@ -75,7 +77,7 @@ func NewMockStub(name string, cc shim.Chaincode) *Stub {
 	s.Keys = list.New()
 	s.ChaincodeEventsChannel = make(chan *pb.ChaincodeEvent, 100) //nolint:gomnd    // define large capacity for non-blocking setEvent calls.
 	s.Decorations = make(map[string][]byte)
-	s.logger = logging.MustGetLogger("mock")
+	s.logger = flogging.MustGetLogger(module)
 	s.transientMap = make(map[string][]byte)
 
 	return s

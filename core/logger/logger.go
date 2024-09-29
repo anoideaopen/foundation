@@ -3,43 +3,35 @@ package logger
 import (
 	"os"
 
-	"github.com/op/go-logging"
+	"github.com/hyperledger/fabric-lib-go/common/flogging"
+	"github.com/hyperledger/fabric-lib-go/common/flogging/fabenc"
 )
 
 const defaultFormatStr = "%{color}%{time:2006-01-02 15:04:05.000 MST} [%{module}] %{shortfunc} -> %{level:.4s} %{id:03x}%{color:reset} %{message}"
 
-var lg *logging.Logger
+var lg *flogging.FabricLogger
 
 // Logger returns the logger for chaincode
-func Logger() *logging.Logger {
+func Logger() *flogging.FabricLogger {
 	if lg == nil {
-		lg = logging.MustGetLogger("chaincode")
 		formatStr := os.Getenv("CORE_CHAINCODE_LOGGING_FORMAT")
-		format, err := logging.NewStringFormatter(formatStr)
+		_, err := fabenc.ParseFormat(formatStr)
 		if err != nil {
-			format = defaultChaincodeLoggingFormat()
+			formatStr = defaultFormatStr
 		}
-		stderr := logging.NewLogBackend(os.Stderr, "", 0)
-		formatted := logging.NewBackendFormatter(stderr, format)
+
 		levelStr := os.Getenv("CORE_CHAINCODE_LOGGING_LEVEL")
 		if levelStr == "" {
 			levelStr = "warning"
 		}
-		level, err := logging.LogLevel(levelStr)
-		if err != nil {
-			panic(err)
-		}
-		leveled := logging.AddModuleLevel(formatted)
-		leveled.SetLevel(level, "")
-		lg.SetBackend(leveled)
+
+		flogging.Init(flogging.Config{
+			Format:  formatStr,
+			LogSpec: levelStr,
+			Writer:  os.Stderr,
+		})
+
+		lg = flogging.MustGetLogger("chaincode")
 	}
 	return lg
-}
-
-func defaultChaincodeLoggingFormat() logging.Formatter {
-	format, err := logging.NewStringFormatter(defaultFormatStr)
-	if err != nil {
-		format = logging.DefaultFormatter
-	}
-	return format
 }
