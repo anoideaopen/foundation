@@ -31,7 +31,7 @@ func (ma *mockACL) Init(_ shim.ChaincodeStubInterface) peer.Response { // stub
 	return shim.Success(nil)
 }
 
-func (ma *mockACL) Invoke(stub shim.ChaincodeStubInterface) peer.Response { //nolint:gocyclo
+func (ma *mockACL) Invoke(stub shim.ChaincodeStubInterface) peer.Response {
 	fn, args := stub.GetFunctionAndParameters()
 	switch fn {
 	case acl.FnCheckAddress:
@@ -125,8 +125,8 @@ func (ma *mockACL) invokeGetAccountOperationRight(stub shim.ChaincodeStubInterfa
 		return shim.Error(fmt.Sprintf(acl.ErrWrongArgsCount, len(args), acl.ArgsQtyGetAccOpRight))
 	}
 
-	channel, cc, role, operation, addr := args[0], args[1], args[2], args[3], args[4]
-	key, err := stub.CreateCompositeKey(keyRight, []string{channel, cc, role, operation})
+	channel, cc, role, operationFn, address := args[0], args[1], args[2], args[3], args[4]
+	key, err := stub.CreateCompositeKey(keyRight, []string{channel, cc, role, operationFn})
 	if err != nil {
 		return shim.Error(err.Error())
 	}
@@ -139,14 +139,12 @@ func (ma *mockACL) invokeGetAccountOperationRight(stub shim.ChaincodeStubInterfa
 	haveRight := false
 	if len(rawAddresses) != 0 {
 		addrs := &pb.Accounts{Addresses: []*pb.Address{}}
-		if len(rawAddresses) != 0 {
-			err = proto.Unmarshal(rawAddresses, addrs)
-			if err != nil {
-				return shim.Error(err.Error())
-			}
+		err = proto.Unmarshal(rawAddresses, addrs)
+		if err != nil {
+			return shim.Error(err.Error())
 		}
 
-		value, ver, err := base58.CheckDecode(addr)
+		value, ver, err := base58.CheckDecode(address)
 		if err != nil {
 			return shim.Error(err.Error())
 		}
@@ -329,7 +327,6 @@ func (ma *mockACL) invokeAddAddressRightForNominee(stub shim.ChaincodeStubInterf
 	rawAddresses, err = protojson.MarshalOptions{EmitUnpopulated: true}.Marshal(addresses)
 	if err != nil {
 		return shim.Error(err.Error())
-
 	}
 
 	err = stub.PutState(key, rawAddresses)
@@ -406,11 +403,9 @@ func (ma *mockACL) invokeGetAddressRightForNominee(stub shim.ChaincodeStubInterf
 	haveRight := false
 	if len(rawAddresses) != 0 {
 		addrs := &pb.Accounts{Addresses: []*pb.Address{}}
-		if len(rawAddresses) != 0 {
-			err = protojson.Unmarshal(rawAddresses, addrs)
-			if err != nil {
-				return shim.Error(err.Error())
-			}
+		err = protojson.Unmarshal(rawAddresses, addrs)
+		if err != nil {
+			return shim.Error(err.Error())
 		}
 
 		value, ver, err := base58.CheckDecode(principalAddress)
