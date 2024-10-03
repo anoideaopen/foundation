@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	chNameAcl = "acl"
+	chNameACL = "acl"
 )
 
 // Errors
@@ -123,11 +123,11 @@ func (w *Wallet) modifyRight(opFn operation, right *Right) error {
 		[]byte(right.Operation),
 		[]byte(right.Address),
 	}
-	aclstub := w.ledger.GetStub(chNameAcl)
+	aclstub := w.ledger.GetStub(chNameACL)
 	aclstub.TxID = txIDGen()
-	aclstub.MockPeerChaincodeWithChannel(chNameAcl, aclstub, chNameAcl)
+	aclstub.MockPeerChaincodeWithChannel(chNameACL, aclstub, chNameACL)
 
-	rsp := aclstub.InvokeChaincode(chNameAcl, params, chNameAcl)
+	rsp := aclstub.InvokeChaincode(chNameACL, params, chNameACL)
 	if rsp.GetStatus() != shim.OK {
 		return errors.New(rsp.GetMessage())
 	}
@@ -162,11 +162,11 @@ func (w *Wallet) modifyAddressRightForNominee(opFn operation, right *AddressRigh
 		[]byte(right.NomineeAddress),
 		[]byte(right.PrincipalAddress),
 	}
-	aclstub := w.ledger.GetStub(chNameAcl)
+	aclstub := w.ledger.GetStub(chNameACL)
 	aclstub.TxID = txIDGen()
-	aclstub.MockPeerChaincodeWithChannel(chNameAcl, aclstub, chNameAcl)
+	aclstub.MockPeerChaincodeWithChannel(chNameACL, aclstub, chNameACL)
 
-	rsp := aclstub.InvokeChaincode(chNameAcl, params, chNameAcl)
+	rsp := aclstub.InvokeChaincode(chNameACL, params, chNameACL)
 	if rsp.GetStatus() != shim.OK {
 		return errors.New(rsp.GetMessage())
 	}
