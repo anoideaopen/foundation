@@ -250,52 +250,6 @@ func TokenBalanceGetLocked(
 	return new(big.Int).SetBytes(balance.Bytes()), err
 }
 
-func TokenBalanceLock(
-	stub shim.ChaincodeStubInterface,
-	symbol string,
-	address *types.Address,
-	amount *big.Int,
-) error {
-	if stub, ok := stub.(Accounting); ok {
-		stub.AddAccountingRecord(symbol, address, address, amount, "token balance lock")
-	}
-	return balance.Move(
-		stub,
-		balance.BalanceTypeToken,
-		address.String(),
-		balance.BalanceTypeTokenLocked,
-		address.String(),
-		"",
-		&amount.Int,
-	)
-}
-
-func TokenBalanceUnlock(
-	stub shim.ChaincodeStubInterface,
-	symbol string,
-	address *types.Address,
-	amount *big.Int,
-) error {
-	if stub, ok := stub.(Accounting); ok {
-		stub.AddAccountingRecord(
-			symbol,
-			address,
-			address,
-			amount,
-			"token balance unlock",
-		)
-	}
-	return balance.Move(
-		stub,
-		balance.BalanceTypeTokenLocked,
-		address.String(),
-		balance.BalanceTypeToken,
-		address.String(),
-		"",
-		&amount.Int,
-	)
-}
-
 func TokenBalanceTransferLocked(
 	stub shim.ChaincodeStubInterface,
 	symbol string,

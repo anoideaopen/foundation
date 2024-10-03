@@ -10,6 +10,9 @@ import (
 )
 
 const (
+	DefaultBalanceLockReason   = "token balance lock"
+	DefaultBalanceUnlockReason = "token balance unlock"
+
 	DefaultAllowedBalanceLockReason   = "allowed balance lock"
 	DefaultAllowedBalanceUnlockReason = "allowed balance unlock"
 
@@ -35,6 +38,64 @@ func applyLockOpts(opts []LockOpt) *lockOpt {
 		opt(o)
 	}
 	return o
+}
+
+func TokenBalanceLock(
+	stub shim.ChaincodeStubInterface,
+	symbol string,
+	address *types.Address,
+	amount *big.Int,
+	opts ...LockOpt,
+) error {
+	opt := applyLockOpts(opts)
+	if opt.reason == `` {
+		opt.reason = DefaultBalanceLockReason
+	}
+
+	if stub, ok := stub.(Accounting); ok {
+		stub.AddAccountingRecord(symbol, address, address, amount, opt.reason)
+	}
+	return balance.Move(
+		stub,
+		balance.BalanceTypeToken,
+		address.String(),
+		balance.BalanceTypeTokenLocked,
+		address.String(),
+		"",
+		&amount.Int,
+	)
+}
+
+func TokenBalanceUnlock(
+	stub shim.ChaincodeStubInterface,
+	symbol string,
+	address *types.Address,
+	amount *big.Int,
+	opts ...LockOpt,
+) error {
+	opt := applyLockOpts(opts)
+	if opt.reason == `` {
+		opt.reason = DefaultBalanceUnlockReason
+	}
+
+	if stub, ok := stub.(Accounting); ok {
+		stub.AddAccountingRecord(
+			symbol,
+			address,
+			address,
+			amount,
+			opt.reason,
+		)
+	}
+	return balance.Move(
+		stub,
+		balance.BalanceTypeTokenLocked,
+		address.String(),
+		balance.BalanceTypeToken,
+		address.String(),
+		"",
+		&amount.Int,
+	)
 }
 
 func AllowedBalanceLock(

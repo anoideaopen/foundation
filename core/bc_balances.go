@@ -59,12 +59,12 @@ func (bc *BaseContract) TokenBalanceGetLocked(address *types.Address) (*big.Int,
 	return ledger.TokenBalanceGetLocked(bc.GetStub(), address)
 }
 
-func (bc *BaseContract) TokenBalanceLock(address *types.Address, amount *big.Int) error {
-	return ledger.TokenBalanceLock(bc.GetStub(), bc.ContractConfig().GetSymbol(), address, amount)
+func (bc *BaseContract) TokenBalanceLock(address *types.Address, amount *big.Int, opts ...ledger.LockOpt) error {
+	return ledger.TokenBalanceLock(bc.GetStub(), bc.ContractConfig().GetSymbol(), address, amount, opts...)
 }
 
-func (bc *BaseContract) TokenBalanceUnlock(address *types.Address, amount *big.Int) error {
-	return ledger.TokenBalanceUnlock(bc.GetStub(), bc.ContractConfig().GetSymbol(), address, amount)
+func (bc *BaseContract) TokenBalanceUnlock(address *types.Address, amount *big.Int, opts ...ledger.LockOpt) error {
+	return ledger.TokenBalanceUnlock(bc.GetStub(), bc.ContractConfig().GetSymbol(), address, amount, opts...)
 }
 
 func (bc *BaseContract) TokenBalanceTransferLocked(from *types.Address, to *types.Address, amount *big.Int, reason string) error {
