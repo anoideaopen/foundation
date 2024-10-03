@@ -6,7 +6,36 @@ import (
 	"github.com/hyperledger/fabric-chaincode-go/shim"
 )
 
-// Right represents a right in the access matrix
+const (
+	chNameAcl = "acl"
+)
+
+// Errors
+const (
+	ErrRightNotSet = "right is not set"
+
+	ErrChannelNotSet   = "right is broken, channel is not set"
+	ErrChaincodeNotSet = "right is broken, chaincode is not set"
+	ErrRoleNotSet      = "right is broken, role is not set"
+	ErrAddressNotSet   = "right is broken, address is not set"
+
+	ErrNomineeAddressNotSet   = "right is broken, nominee address is not set"
+	ErrPrincipalAddressNotSet = "right is broken, principal address is not set"
+)
+
+// Function names
+const (
+	// FnAddRights adds a right to the access matrix
+	FnAddRights operation = "addRights"
+	// FnRemoveRights removes a right from the access matrix
+	FnRemoveRights operation = "removeRights"
+	// FnAddAddressRightForNominee adds right to access matrix
+	FnAddAddressRightForNominee operation = "addAddressRightForNominee"
+	// FnRemoveAddressRightFromNominee adds right to access matrix
+	FnRemoveAddressRightFromNominee operation = "removeAddressRightFromNominee"
+)
+
+// Right defines a right in the access matrix
 type Right struct {
 	Channel   string
 	Chaincode string
@@ -15,22 +44,50 @@ type Right struct {
 	Address   string
 }
 
+// AddressRight defines address right for nominee in access matrix
+type AddressRight struct {
+	Channel          string
+	Chaincode        string
+	NomineeAddress   string
+	PrincipalAddress string
+}
+
 // IsValid checks if the right is valid
 func (r Right) IsValid() error {
 	if len(r.Channel) == 0 {
-		return errors.New("right is broken, channel is not set")
+		return errors.New(ErrChannelNotSet)
 	}
 
 	if len(r.Chaincode) == 0 {
-		return errors.New("right is broken, chaincode is not set")
+		return errors.New(ErrChaincodeNotSet)
 	}
 
 	if len(r.Role) == 0 {
-		return errors.New("right is broken, role is not set")
+		return errors.New(ErrRoleNotSet)
 	}
 
 	if len(r.Address) == 0 {
-		return errors.New("right is broken, address is not set")
+		return errors.New(ErrAddressNotSet)
+	}
+
+	return nil
+}
+
+func (ar AddressRight) IsValid() error {
+	if len(ar.Channel) == 0 {
+		return errors.New(ErrChannelNotSet)
+	}
+
+	if len(ar.Chaincode) == 0 {
+		return errors.New(ErrChaincodeNotSet)
+	}
+
+	if len(ar.NomineeAddress) == 0 {
+		return errors.New(ErrNomineeAddressNotSet)
+	}
+
+	if len(ar.PrincipalAddress) == 0 {
+		return errors.New(ErrPrincipalAddressNotSet)
 	}
 
 	return nil
@@ -38,26 +95,19 @@ func (r Right) IsValid() error {
 
 type operation string
 
-const (
-	// AddRights adds a right to the access matrix
-	AddRights operation = "addRights"
-	// RemoveRights removes a right from the access matrix
-	RemoveRights operation = "removeRights"
-)
-
 // AddAccountRight adds a right to the access matrix
 func (w *Wallet) AddAccountRight(right *Right) error {
-	return w.modifyRight(AddRights, right)
+	return w.modifyRight(FnAddRights, right)
 }
 
 // RemoveAccountRight removes a right from the access matrix
 func (w *Wallet) RemoveAccountRight(right *Right) error {
-	return w.modifyRight(RemoveRights, right)
+	return w.modifyRight(FnRemoveRights, right)
 }
 
 func (w *Wallet) modifyRight(opFn operation, right *Right) error {
 	if right == nil {
-		return errors.New("right is not set")
+		return errors.New(ErrRightNotSet)
 	}
 
 	validationErr := right.IsValid()
@@ -73,12 +123,50 @@ func (w *Wallet) modifyRight(opFn operation, right *Right) error {
 		[]byte(right.Operation),
 		[]byte(right.Address),
 	}
-	const acl = "acl"
-	aclstub := w.ledger.GetStub(acl)
+	aclstub := w.ledger.GetStub(chNameAcl)
 	aclstub.TxID = txIDGen()
-	aclstub.MockPeerChaincodeWithChannel(acl, aclstub, acl)
+	aclstub.MockPeerChaincodeWithChannel(chNameAcl, aclstub, chNameAcl)
 
-	rsp := aclstub.InvokeChaincode(acl, params, acl)
+	rsp := aclstub.InvokeChaincode(chNameAcl, params, chNameAcl)
+	if rsp.GetStatus() != shim.OK {
+		return errors.New(rsp.GetMessage())
+	}
+
+	return nil
+}
+
+// AddAddressRightForNominee adds right to transfer from specified principal address for nominee
+func (w *Wallet) AddAddressRightForNominee(right *AddressRight) error {
+	return w.modifyAddressRightForNominee(FnAddAddressRightForNominee, right)
+}
+
+// RemoveAddressRightFromNominee removes right to transfer from specified principal address from nominee
+func (w *Wallet) RemoveAddressRightFromNominee(right *AddressRight) error {
+	return w.modifyAddressRightForNominee(FnRemoveAddressRightFromNominee, right)
+}
+
+func (w *Wallet) modifyAddressRightForNominee(opFn operation, right *AddressRight) error {
+	if right == nil {
+		return errors.New(ErrRightNotSet)
+	}
+
+	validationErr := right.IsValid()
+	if validationErr != nil {
+		return validationErr
+	}
+
+	params := [][]byte{
+		[]byte(opFn),
+		[]byte(right.Channel),
+		[]byte(right.Chaincode),
+		[]byte(right.NomineeAddress),
+		[]byte(right.PrincipalAddress),
+	}
+	aclstub := w.ledger.GetStub(chNameAcl)
+	aclstub.TxID = txIDGen()
+	aclstub.MockPeerChaincodeWithChannel(chNameAcl, aclstub, chNameAcl)
+
+	rsp := aclstub.InvokeChaincode(chNameAcl, params, chNameAcl)
 	if rsp.GetStatus() != shim.OK {
 		return errors.New(rsp.GetMessage())
 	}

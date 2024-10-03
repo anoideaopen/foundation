@@ -31,15 +31,20 @@ const (
 	defaultPeerName      = "peer0"
 )
 
-type testSuite struct {
+type FoundationTestSuite struct {
+	Network       *nwo.Network
+	NetworkFound  *cmn.NetworkFoundation
+	Peer          *nwo.Peer
+	Orderer       *nwo.Orderer
+	Org1Name      string
+	Org2Name      string
+	MainUserName  string
+	RobotUserName string
+
 	components          *nwo.Components
 	options             *networkOptions
 	testDir             string
 	dockerClient        *docker.Client
-	network             *nwo.Network
-	networkFound        *cmn.NetworkFoundation
-	peer                *nwo.Peer
-	orderer             *nwo.Orderer
 	redisDB             *runner.RedisDB
 	redisProcess        ifrit.Process
 	robotProc           ifrit.Process
@@ -48,10 +53,6 @@ type testSuite struct {
 	channelTransferProc ifrit.Process
 	peerRunner          ifrit.Runner
 	ordererRunners      []*ginkgomon.Runner
-	org1Name            string
-	org2Name            string
-	mainUserName        string
-	robotUserName       string
 	admin               *UserFoundation
 	feeSetter           *UserFoundation
 	feeAddressSetter    *UserFoundation
@@ -61,18 +62,18 @@ type testSuite struct {
 	isInit bool
 }
 
-func NewTestSuite(components *nwo.Components) TestSuite {
+func NewTestSuite(components *nwo.Components) *FoundationTestSuite {
 	testDir, err := os.MkdirTemp("", "foundation")
 	Expect(err).NotTo(HaveOccurred())
 
 	dockerClient, err := docker.NewClientFromEnv()
 	Expect(err).NotTo(HaveOccurred())
 
-	ts := &testSuite{
-		org1Name:      defaultOrg1Name,
-		org2Name:      defaultOrg2Name,
-		mainUserName:  defaultMainUserName,
-		robotUserName: defaultRobotUserName,
+	ts := &FoundationTestSuite{
+		Org1Name:      defaultOrg1Name,
+		Org2Name:      defaultOrg2Name,
+		MainUserName:  defaultMainUserName,
+		RobotUserName: defaultRobotUserName,
 		components:    components,
 		testDir:       testDir,
 		dockerClient:  dockerClient,
@@ -93,7 +94,7 @@ func NewTestSuite(components *nwo.Components) TestSuite {
 	return ts
 }
 
-func (ts *testSuite) InitNetwork(channels []string, testPort integration.TestPortRange, opts ...NetworkOption) {
+func (ts *FoundationTestSuite) InitNetwork(channels []string, testPort integration.TestPortRange, opts ...NetworkOption) {
 	ts.options.Channels = make([]*cmn.Channel, len(channels))
 	for i, channel := range channels {
 		ts.options.Channels[i] = &cmn.Channel{Name: channel}
@@ -121,11 +122,11 @@ func (ts *testSuite) InitNetwork(channels []string, testPort integration.TestPor
 		peer.Channels = peerChannels
 	}
 
-	ts.network = nwo.New(networkConfig, ts.testDir, ts.dockerClient, ts.options.TestPort.StartPortForNode(), ts.components)
+	ts.Network = nwo.New(networkConfig, ts.testDir, ts.dockerClient, ts.options.TestPort.StartPortForNode(), ts.components)
 
 	cwd, err := os.Getwd()
 	Expect(err).NotTo(HaveOccurred())
-	ts.network.ExternalBuilders = append(ts.network.ExternalBuilders,
+	ts.Network.ExternalBuilders = append(ts.Network.ExternalBuilders,
 		fabricconfig.ExternalBuilder{
 			Path:                 filepath.Join(cwd, ".", "externalbuilders", "binary"),
 			Name:                 "binary",
@@ -133,8 +134,8 @@ func (ts *testSuite) InitNetwork(channels []string, testPort integration.TestPor
 		},
 	)
 
-	ts.networkFound = cmn.New(
-		ts.network,
+	ts.NetworkFound = cmn.New(
+		ts.Network,
 		ts.options.Channels,
 		cmn.WithRobotCfg(ts.options.RobotCfg),
 		cmn.WithChannelTransferCfg(ts.options.ChannelTransferCfg),
@@ -143,49 +144,49 @@ func (ts *testSuite) InitNetwork(channels []string, testPort integration.TestPor
 	)
 
 	if ts.redisDB != nil {
-		ts.networkFound.Robot.RedisAddresses = []string{ts.redisDB.Address()}
-		ts.networkFound.ChannelTransfer.RedisAddresses = []string{ts.redisDB.Address()}
+		ts.NetworkFound.Robot.RedisAddresses = []string{ts.redisDB.Address()}
+		ts.NetworkFound.ChannelTransfer.RedisAddresses = []string{ts.redisDB.Address()}
 	}
 
-	ts.networkFound.GenerateConfigTree()
-	ts.networkFound.Bootstrap()
+	ts.NetworkFound.GenerateConfigTree()
+	ts.NetworkFound.Bootstrap()
 
-	for _, orderer := range ts.network.Orderers {
-		ordererRunner := ts.network.OrdererRunner(orderer)
+	for _, orderer := range ts.Network.Orderers {
+		ordererRunner := ts.Network.OrdererRunner(orderer)
 		ordererRunner.Command.Env = append(ordererRunner.Command.Env, "FABRIC_LOGGING_SPEC=orderer.consensus.smartbft=debug:grpc=debug")
 		ts.ordererRunners = append(ts.ordererRunners, ordererRunner)
 		proc := ifrit.Invoke(ordererRunner)
 		ts.ordererProcesses = append(ts.ordererProcesses, proc)
-		Eventually(proc.Ready(), ts.network.EventuallyTimeout).Should(BeClosed())
+		Eventually(proc.Ready(), ts.Network.EventuallyTimeout).Should(BeClosed())
 	}
 
-	peerGroupRunner, _ := fabricnetwork.PeerGroupRunners(ts.network)
+	peerGroupRunner, _ := fabricnetwork.PeerGroupRunners(ts.Network)
 	ts.peerProcess = ifrit.Invoke(peerGroupRunner)
-	Eventually(ts.peerProcess.Ready(), ts.network.EventuallyTimeout).Should(BeClosed())
+	Eventually(ts.peerProcess.Ready(), ts.Network.EventuallyTimeout).Should(BeClosed())
 
-	ts.peer = ts.network.Peer(ts.org1Name, defaultPeerName)
-	ts.orderer = ts.network.Orderers[0]
+	ts.Peer = ts.Network.Peer(ts.Org1Name, defaultPeerName)
+	ts.Orderer = ts.Network.Orderers[0]
 
 	By("Joining orderers to channels")
 	for _, channel := range ts.options.Channels {
-		fabricnetwork.JoinChannel(ts.network, channel.Name)
+		fabricnetwork.JoinChannel(ts.Network, channel.Name)
 	}
 
 	By("Waiting for followers to see the leader")
-	Eventually(ts.ordererRunners[1].Err(), ts.network.EventuallyTimeout, time.Second).Should(gbytes.Say("Message from 1"))
-	Eventually(ts.ordererRunners[2].Err(), ts.network.EventuallyTimeout, time.Second).Should(gbytes.Say("Message from 1"))
-	Eventually(ts.ordererRunners[3].Err(), ts.network.EventuallyTimeout, time.Second).Should(gbytes.Say("Message from 1"))
+	Eventually(ts.ordererRunners[1].Err(), ts.Network.EventuallyTimeout, time.Second).Should(gbytes.Say("Message from 1"))
+	Eventually(ts.ordererRunners[2].Err(), ts.Network.EventuallyTimeout, time.Second).Should(gbytes.Say("Message from 1"))
+	Eventually(ts.ordererRunners[3].Err(), ts.Network.EventuallyTimeout, time.Second).Should(gbytes.Say("Message from 1"))
 
 	By("Joining peers to channels")
 	for _, channel := range ts.options.Channels {
-		ts.network.JoinChannel(channel.Name, ts.orderer, ts.network.PeersWithChannel(channel.Name)...)
+		ts.Network.JoinChannel(channel.Name, ts.Orderer, ts.Network.PeersWithChannel(channel.Name)...)
 	}
 
-	pathToPrivateKeyBackend := ts.network.PeerUserKey(ts.peer, ts.mainUserName)
+	pathToPrivateKeyBackend := ts.Network.PeerUserKey(ts.Peer, ts.MainUserName)
 	skiBackend, err := cmn.ReadSKI(pathToPrivateKeyBackend)
 	Expect(err).NotTo(HaveOccurred())
 
-	pathToPrivateKeyRobot := ts.network.PeerUserKey(ts.peer, ts.robotUserName)
+	pathToPrivateKeyRobot := ts.Network.PeerUserKey(ts.Peer, ts.RobotUserName)
 	skiRobot, err := cmn.ReadSKI(pathToPrivateKeyRobot)
 	Expect(err).NotTo(HaveOccurred())
 
@@ -207,39 +208,41 @@ func (ts *testSuite) InitNetwork(channels []string, testPort integration.TestPor
 	ts.isInit = true
 }
 
-func (ts *testSuite) Admin() *UserFoundation {
+func (ts *FoundationTestSuite) Admin() *UserFoundation {
 	return ts.admin
 }
 
-func (ts *testSuite) FeeSetter() *UserFoundation {
+func (ts *FoundationTestSuite) FeeSetter() *UserFoundation {
 	return ts.feeSetter
 }
 
-func (ts *testSuite) FeeAddressSetter() *UserFoundation {
+func (ts *FoundationTestSuite) FeeAddressSetter() *UserFoundation {
 	return ts.feeAddressSetter
 }
 
-func (ts *testSuite) Network() *nwo.Network {
+/*
+func (ts *FoundationTestSuite) Network() *nwo.Network {
 	return ts.network
 }
 
-func (ts *testSuite) NetworkFound() *cmn.NetworkFoundation {
+func (ts *FoundationTestSuite) NetworkFound() *cmn.NetworkFoundation {
 	return ts.networkFound
 }
 
-func (ts *testSuite) Peer() *nwo.Peer {
+func (ts *FoundationTestSuite) Peer() *nwo.Peer {
 	return ts.peer
 }
+*/
 
-func (ts *testSuite) TestDir() string {
+func (ts *FoundationTestSuite) TestDir() string {
 	return ts.testDir
 }
 
-func (ts *testSuite) DockerClient() *docker.Client {
+func (ts *FoundationTestSuite) DockerClient() *docker.Client {
 	return ts.dockerClient
 }
 
-func (ts *testSuite) CiData(opts ...CiDataOption) ntesting.CiTestData {
+func (ts *FoundationTestSuite) CiData(opts ...CiDataOption) ntesting.CiTestData {
 	Expect(ts.isInit).To(BeTrue())
 	Expect(ts.redisDB).NotTo(BeNil())
 
@@ -247,19 +250,19 @@ func (ts *testSuite) CiData(opts ...CiDataOption) ntesting.CiTestData {
 	ciData := ntesting.CiTestData{
 		RedisAddr:             ts.redisDB.Address(),
 		RedisPass:             "",
-		HlfProfilePath:        ts.networkFound.ConnectionPath(ts.mainUserName),
+		HlfProfilePath:        ts.NetworkFound.ConnectionPath(ts.MainUserName),
 		HlfFiatChannel:        cmn.ChannelFiat,
 		HlfCcChannel:          cmn.ChannelCC,
 		HlfIndustrialChannel:  cmn.ChannelIndustrial,
 		HlfNoCcChannel:        "",
 		HlfUserName:           "backend",
-		HlfCert:               ts.network.PeerUserKey(ts.peer, ts.mainUserName),
+		HlfCert:               ts.Network.PeerUserKey(ts.Peer, ts.MainUserName),
 		HlfFiatOwnerKey:       ts.admin.PublicKeyBase58,
 		HlfCcOwnerKey:         ts.admin.PublicKeyBase58,
 		HlfIndustrialOwnerKey: ts.admin.PublicKeyBase58,
 		HlfIndustrialGroup1:   "",
 		HlfIndustrialGroup2:   "",
-		HlfSk:                 ts.network.PeerUserKey(ts.peer, ts.mainUserName),
+		HlfSk:                 ts.Network.PeerUserKey(ts.Peer, ts.MainUserName),
 		HlfDoSwapTests:        false,
 		HlfDoMultiSwapTests:   false,
 	}
@@ -273,47 +276,47 @@ func (ts *testSuite) CiData(opts ...CiDataOption) ntesting.CiTestData {
 	return ciData
 }
 
-func (ts *testSuite) StartRedis() {
+func (ts *FoundationTestSuite) StartRedis() {
 	ts.redisDB = &runner.RedisDB{}
 	ts.redisProcess = ifrit.Invoke(ts.redisDB)
 	Eventually(ts.redisProcess.Ready(), runnerFbk.DefaultStartTimeout).Should(BeClosed())
 	Consistently(ts.redisProcess.Wait()).ShouldNot(Receive())
 }
 
-func (ts *testSuite) StopRedis() {
+func (ts *FoundationTestSuite) StopRedis() {
 	if ts.redisProcess != nil {
 		ts.redisProcess.Signal(syscall.SIGTERM)
 		Eventually(ts.redisProcess.Wait(), time.Minute).Should(Receive())
 	}
 }
 
-func (ts *testSuite) StartRobot() {
-	robotRunner := ts.networkFound.RobotRunner()
+func (ts *FoundationTestSuite) StartRobot() {
+	robotRunner := ts.NetworkFound.RobotRunner()
 	ts.robotProc = ifrit.Invoke(robotRunner)
-	Eventually(ts.robotProc.Ready(), ts.network.EventuallyTimeout).Should(BeClosed())
+	Eventually(ts.robotProc.Ready(), ts.Network.EventuallyTimeout).Should(BeClosed())
 }
 
-func (ts *testSuite) StopRobot() {
+func (ts *FoundationTestSuite) StopRobot() {
 	if ts.robotProc != nil {
 		ts.robotProc.Signal(syscall.SIGTERM)
-		Eventually(ts.robotProc.Wait(), ts.network.EventuallyTimeout).Should(Receive())
+		Eventually(ts.robotProc.Wait(), ts.Network.EventuallyTimeout).Should(Receive())
 	}
 }
 
-func (ts *testSuite) StartChannelTransfer() {
-	channelTransferRunner := ts.networkFound.ChannelTransferRunner()
+func (ts *FoundationTestSuite) StartChannelTransfer() {
+	channelTransferRunner := ts.NetworkFound.ChannelTransferRunner()
 	ts.channelTransferProc = ifrit.Invoke(channelTransferRunner)
-	Eventually(ts.channelTransferProc.Ready(), ts.network.EventuallyTimeout).Should(BeClosed())
+	Eventually(ts.channelTransferProc.Ready(), ts.Network.EventuallyTimeout).Should(BeClosed())
 }
 
-func (ts *testSuite) StopChannelTransfer() {
+func (ts *FoundationTestSuite) StopChannelTransfer() {
 	if ts.channelTransferProc != nil {
 		ts.channelTransferProc.Signal(syscall.SIGTERM)
-		Eventually(ts.channelTransferProc.Wait(), ts.network.EventuallyTimeout).Should(Receive())
+		Eventually(ts.channelTransferProc.Wait(), ts.Network.EventuallyTimeout).Should(Receive())
 	}
 }
 
-func (ts *testSuite) DeployChaincodes() {
+func (ts *FoundationTestSuite) DeployChaincodes() {
 	Expect(ts.options.Channels).NotTo(BeEmpty())
 	channelNames := make([]string, len(ts.options.Channels))
 	for i, ch := range ts.options.Channels {
@@ -322,28 +325,28 @@ func (ts *testSuite) DeployChaincodes() {
 	ts.DeployChaincodesByName(channelNames)
 }
 
-func (ts *testSuite) DeployChaincodesByName(channels []string) {
+func (ts *FoundationTestSuite) DeployChaincodesByName(channels []string) {
 	for _, channel := range channels {
 		switch channel {
 		case cmn.ChannelAcl:
-			cmn.DeployACL(ts.network, ts.components, ts.peer, ts.testDir, ts.skiBackend, ts.admin.PublicKeyBase58, ts.admin.KeyType)
+			cmn.DeployACL(ts.Network, ts.components, ts.Peer, ts.testDir, ts.skiBackend, ts.admin.PublicKeyBase58, ts.admin.KeyType)
 		case cmn.ChannelFiat:
-			cmn.DeployFiat(ts.network, ts.components, ts.peer, ts.testDir, ts.skiRobot, ts.admin.AddressBase58Check, ts.feeSetter.AddressBase58Check, ts.feeAddressSetter.AddressBase58Check)
+			cmn.DeployFiat(ts.Network, ts.components, ts.Peer, ts.testDir, ts.skiRobot, ts.admin.AddressBase58Check, ts.feeSetter.AddressBase58Check, ts.feeAddressSetter.AddressBase58Check)
 		case cmn.ChannelCC:
-			cmn.DeployCC(ts.network, ts.components, ts.peer, ts.testDir, ts.skiRobot, ts.admin.AddressBase58Check)
+			cmn.DeployCC(ts.Network, ts.components, ts.Peer, ts.testDir, ts.skiRobot, ts.admin.AddressBase58Check)
 		case cmn.ChannelIndustrial:
-			cmn.DeployIndustrial(ts.network, ts.components, ts.peer, ts.testDir, ts.skiRobot, ts.admin.AddressBase58Check, ts.feeSetter.AddressBase58Check, ts.feeAddressSetter.AddressBase58Check)
+			cmn.DeployIndustrial(ts.Network, ts.components, ts.Peer, ts.testDir, ts.skiRobot, ts.admin.AddressBase58Check, ts.feeSetter.AddressBase58Check, ts.feeAddressSetter.AddressBase58Check)
 		default:
-			fabricnetwork.DeployChaincodeFn(ts.components, ts.network, channel, ts.testDir)
+			fabricnetwork.DeployChaincodeFn(ts.components, ts.Network, channel, ts.testDir)
 		}
 	}
 }
 
-func (ts *testSuite) DeployFiat(adminAddress, feeSetterAddress, feeAddressSetterAddress string) {
-	cmn.DeployFiat(ts.network, ts.components, ts.peer, ts.testDir, ts.skiRobot, adminAddress, feeSetterAddress, feeAddressSetterAddress)
+func (ts *FoundationTestSuite) DeployFiat(adminAddress, feeSetterAddress, feeAddressSetterAddress string) {
+	cmn.DeployFiat(ts.Network, ts.components, ts.Peer, ts.testDir, ts.skiRobot, adminAddress, feeSetterAddress, feeAddressSetterAddress)
 }
 
-func (ts *testSuite) ShutdownNetwork() {
+func (ts *FoundationTestSuite) ShutdownNetwork() {
 	/*
 		if ts.networkProcess != nil {
 			ts.networkProcess.Signal(syscall.SIGTERM)
@@ -358,53 +361,28 @@ func (ts *testSuite) ShutdownNetwork() {
 	Expect(err).NotTo(HaveOccurred())
 }
 
-func (ts *testSuite) StopPeers() {
+func (ts *FoundationTestSuite) StopPeers() {
 	if ts.peerProcess != nil {
 		ts.peerProcess.Signal(syscall.SIGTERM)
-		Eventually(ts.peerProcess.Wait(), ts.network.EventuallyTimeout).Should(Receive())
+		Eventually(ts.peerProcess.Wait(), ts.Network.EventuallyTimeout).Should(Receive())
 	}
 
 	ts.peerProcess = nil
 	ts.peerRunner = nil
 }
 
-func (ts *testSuite) StopNetwork() {
-	if ts.network != nil {
-		ts.network.Cleanup()
+func (ts *FoundationTestSuite) StopNetwork() {
+	if ts.Network != nil {
+		ts.Network.Cleanup()
 	}
 }
 
-func (ts *testSuite) StopOrderers() {
+func (ts *FoundationTestSuite) StopOrderers() {
 	for _, ordererInstance := range ts.ordererProcesses {
 		ordererInstance.Signal(syscall.SIGTERM)
-		Eventually(ordererInstance.Wait(), ts.network.EventuallyTimeout).Should(Receive())
+		Eventually(ordererInstance.Wait(), ts.Network.EventuallyTimeout).Should(Receive())
 	}
 
 	ts.ordererProcesses = nil
 	ts.ordererRunners = nil
-}
-
-func (ts *testSuite) ExecuteTask(channel string, chaincode string, method string, args ...string) string {
-	task := createTask(method, args...)
-	return ts.ExecuteTasks(channel, chaincode, task)
-}
-
-func (ts *testSuite) ExecuteTasks(channel string, chaincode string, tasks ...*pbfound.Task) string {
-	return executeTasks(
-		ts.network,
-		ts.peer,
-		ts.orderer,
-		channel,
-		chaincode,
-		tasks...,
-	).TxID()
-}
-
-func (ts *testSuite) ExecuteTaskWithSign(channel string, chaincode string, user *UserFoundation, method string, args ...string) string {
-	task, err := CreateTaskWithSignArgs(method, channel, chaincode, user, args...)
-	if err != nil {
-		panic(err)
-	}
-
-	return ts.ExecuteTasks(channel, chaincode, task)
 }

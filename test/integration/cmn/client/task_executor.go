@@ -46,10 +46,7 @@ func CreateTaskWithSignArgs(method string, channel string, chaincode string, use
 	return task, nil
 }
 
-func executeTasks(
-	network *nwo.Network,
-	peer *nwo.Peer,
-	orderer *nwo.Orderer,
+func (ts *FoundationTestSuite) executeTasks(
 	channel string,
 	ccName string,
 	tasks ...*pbfound.Task,
@@ -58,25 +55,26 @@ func executeTasks(
 	bytes, err := protojson.Marshal(&pbfound.ExecuteTasksRequest{Tasks: tasks})
 	Expect(err).NotTo(HaveOccurred())
 
-	sess, err := network.PeerUserSession(peer, "User2", commands.ChaincodeInvoke{
+	sess, err := ts.Network.PeerUserSession(ts.Peer, ts.RobotUserName, commands.ChaincodeInvoke{
 		ChannelID: channel,
-		Orderer:   network.OrdererAddress(orderer, nwo.ListenPort),
+		Orderer:   ts.Network.OrdererAddress(ts.Orderer, nwo.ListenPort),
 		Name:      ccName,
 		Ctor:      cmn.CtorFromSlice([]string{core.ExecuteTasks, string(bytes)}),
 		PeerAddresses: []string{
-			network.PeerAddress(network.Peer("Org1", "peer0"), nwo.ListenPort),
-			network.PeerAddress(network.Peer("Org2", "peer0"), nwo.ListenPort),
+			ts.Network.PeerAddress(ts.Network.Peer(ts.Org1Name, ts.Peer.Name), nwo.ListenPort),
+			ts.Network.PeerAddress(ts.Network.Peer(ts.Org2Name, ts.Peer.Name), nwo.ListenPort),
 		},
 		WaitForEvent: true,
 	})
 
-	Eventually(sess, network.EventuallyTimeout).Should(gexec.Exit())
+	Eventually(sess, ts.Network.EventuallyTimeout).Should(gexec.Exit())
+	Expect(sess).NotTo(BeNil())
 	result.SetResponse(sess.Out.Contents())
 	result.SetMessage(sess.Err.Contents())
 	result.SetErrorCode(int32(sess.ExitCode()))
 
 	if err == nil {
-		Eventually(sess, network.EventuallyTimeout).Should(gexec.Exit(0))
+		Eventually(sess, ts.Network.EventuallyTimeout).Should(gexec.Exit(0))
 		Expect(sess.Err).To(gbytes.Say("Chaincode invoke successful. result: status:200"))
 	}
 
@@ -85,4 +83,26 @@ func executeTasks(
 	Expect(txID).NotTo(BeEmpty())
 
 	return result
+}
+
+func (ts *FoundationTestSuite) ExecuteTask(channel string, chaincode string, method string, args ...string) string {
+	task := createTask(method, args...)
+	return ts.ExecuteTasks(channel, chaincode, task)
+}
+
+func (ts *FoundationTestSuite) ExecuteTasks(channel string, chaincode string, tasks ...*pbfound.Task) string {
+	return ts.executeTasks(
+		channel,
+		chaincode,
+		tasks...,
+	).TxID()
+}
+
+func (ts *FoundationTestSuite) ExecuteTaskWithSign(channel string, chaincode string, user *UserFoundation, method string, args ...string) string {
+	task, err := CreateTaskWithSignArgs(method, channel, chaincode, user, args...)
+	if err != nil {
+		panic(err)
+	}
+
+	return ts.ExecuteTasks(channel, chaincode, task)
 }

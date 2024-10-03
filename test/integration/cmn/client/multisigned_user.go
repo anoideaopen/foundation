@@ -114,6 +114,27 @@ func (u *UserFoundationMultisigned) Sign(args ...string) (publicKeysBase58 []str
 	return
 }
 
+func (u *UserFoundationMultisigned) SignWithUsers(users []*UserFoundation, args ...string) (publicKeysBase58 []string, signMsgs [][]byte, err error) {
+	msg := make([]string, 0, len(args)+len(users))
+	msg = append(msg, args...)
+	for _, user := range users {
+		msg = append(msg, user.PublicKeyBase58)
+		publicKeysBase58 = append(publicKeysBase58, user.PublicKeyBase58)
+	}
+
+	message := []byte(strings.Join(msg, ""))
+
+	for _, user := range users {
+		_, signature, err := keys.SignMessageByKeyType(user.KeyType, user.Keys, message)
+		if err != nil {
+			return nil, nil, err
+		}
+		signMsgs = append(signMsgs, signature)
+	}
+
+	return
+}
+
 // PublicKey - returns public key for multisigned user based on keys of its users
 func (u *UserFoundationMultisigned) PublicKey() string {
 	var multisignedKeys string

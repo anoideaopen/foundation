@@ -3,12 +3,10 @@ package client
 import (
 	"github.com/anoideaopen/acl/cc"
 	pbfound "github.com/anoideaopen/foundation/proto"
-	"github.com/anoideaopen/foundation/test/integration/cmn"
 	"github.com/anoideaopen/foundation/test/integration/cmn/client/types"
 	"github.com/anoideaopen/robot/helpers/ntesting"
 	docker "github.com/fsouza/go-dockerclient"
 	"github.com/hyperledger/fabric/integration"
-	"github.com/hyperledger/fabric/integration/nwo"
 )
 
 type InvokeInterface interface {
@@ -131,12 +129,6 @@ type FieldGetter interface {
 	FeeSetter() *UserFoundation
 	// FeeAddressSetter returns testsuite fee address setter
 	FeeAddressSetter() *UserFoundation
-	// Network returns testsuite network
-	Network() *nwo.Network
-	// NetworkFound returns testsuite network foundation
-	NetworkFound() *cmn.NetworkFoundation
-	// Peer returns testsuite peer
-	Peer() *nwo.Peer
 	// TestDir returns testsuite temporary test directory
 	TestDir() string
 	// DockerClient returns testsuite docker client

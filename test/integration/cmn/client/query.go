@@ -12,19 +12,19 @@ import (
 	"github.com/onsi/gomega/gexec"
 )
 
-func (ts *testSuite) Query(channelName, chaincodeName string, args ...string) *types.QueryResult {
+func (ts *FoundationTestSuite) Query(channelName, chaincodeName string, args ...string) *types.QueryResult {
 	result := &types.QueryResult{}
 	Eventually(func() *types.QueryResult {
-		sess, err := ts.network.PeerUserSession(
-			ts.peer,
-			ts.mainUserName,
+		sess, err := ts.Network.PeerUserSession(
+			ts.Peer,
+			ts.MainUserName,
 			commands.ChaincodeQuery{
 				ChannelID: channelName,
 				Name:      chaincodeName,
 				Ctor:      cmn.CtorFromSlice(args),
 			},
 		)
-		Eventually(sess, ts.network.EventuallyTimeout).Should(gexec.Exit())
+		Eventually(sess, ts.Network.EventuallyTimeout).Should(gexec.Exit())
 		Expect(err).NotTo(HaveOccurred())
 
 		result.SetErrorCode(int32(sess.ExitCode()))
@@ -32,12 +32,12 @@ func (ts *testSuite) Query(channelName, chaincodeName string, args ...string) *t
 		result.SetMessage(sess.Err.Contents())
 
 		return result
-	}, ts.network.EventuallyTimeout, time.Second).Should(Not(BeNil()))
+	}, ts.Network.EventuallyTimeout, time.Second).Should(Not(BeNil()))
 
 	return result
 }
 
-func (ts *testSuite) QueryWithSign(
+func (ts *FoundationTestSuite) QueryWithSign(
 	channelName string,
 	chaincodeName string,
 	user *UserFoundation,
@@ -61,19 +61,19 @@ const (
 	SfnMultiSwapGet SwapFunctionName = "multiSwapGet"
 )
 
-func (ts *testSuite) SwapGet(channelName, chaincodeName string, functionName SwapFunctionName, swapBeginTxID string) *types.QueryResult {
+func (ts *FoundationTestSuite) SwapGet(channelName, chaincodeName string, functionName SwapFunctionName, swapBeginTxID string) *types.QueryResult {
 	result := &types.QueryResult{}
 	Eventually(func() string {
-		sess, err := ts.network.PeerUserSession(
-			ts.peer,
-			ts.mainUserName,
+		sess, err := ts.Network.PeerUserSession(
+			ts.Peer,
+			ts.MainUserName,
 			commands.ChaincodeQuery{
 				ChannelID: channelName,
 				Name:      chaincodeName,
 				Ctor:      cmn.CtorFromSlice([]string{string(functionName), swapBeginTxID}),
 			},
 		)
-		Eventually(sess, ts.network.EventuallyTimeout).Should(gexec.Exit())
+		Eventually(sess, ts.Network.EventuallyTimeout).Should(gexec.Exit())
 		Expect(err).NotTo(HaveOccurred())
 
 		if sess.ExitCode() != 0 && sess.Err.Contents() != nil {
@@ -89,23 +89,23 @@ func (ts *testSuite) SwapGet(channelName, chaincodeName string, functionName Swa
 		result.SetMessage(sess.Err.Contents())
 
 		return ""
-	}, ts.network.EventuallyTimeout, time.Second).Should(BeEmpty())
+	}, ts.Network.EventuallyTimeout, time.Second).Should(BeEmpty())
 
 	return result
 }
 
-func (ts *testSuite) Metadata(channelName, chaincodeName string) *types.QueryResult {
+func (ts *FoundationTestSuite) Metadata(channelName, chaincodeName string) *types.QueryResult {
 	result := &types.QueryResult{}
-	sess, err := ts.network.PeerUserSession(
-		ts.peer,
-		ts.mainUserName,
+	sess, err := ts.Network.PeerUserSession(
+		ts.Peer,
+		ts.MainUserName,
 		commands.ChaincodeQuery{
 			ChannelID: channelName,
 			Name:      chaincodeName,
 			Ctor:      cmn.CtorFromSlice([]string{"metadata"}),
 		})
 	Expect(err).NotTo(HaveOccurred())
-	Eventually(sess, ts.network.EventuallyTimeout).Should(gexec.Exit(0))
+	Eventually(sess, ts.Network.EventuallyTimeout).Should(gexec.Exit(0))
 
 	result.SetErrorCode(int32(sess.ExitCode()))
 	result.SetResponse(sess.Out.Contents())

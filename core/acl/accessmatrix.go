@@ -9,19 +9,24 @@ import (
 	pb "github.com/anoideaopen/foundation/proto"
 	"github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/hyperledger/fabric-chaincode-go/shim"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 // acl errors
 const (
 	// NoRights       = "you have no right to make '%s' operation with chaincode '%s' with role '%s'"
-	WrongArgsCount = "wrong arguments count, get: %d, want: %d"
+	ErrWrongArgsCount = "wrong arguments count, get: %d, want: %d"
 )
 
 // access matrix functions args count
 const (
-	GetAccOpRightArgCount = 5
-	AddRightsArgsCount    = 5
-	RemoveRightsArgsCount = 5
+	ArgsQtyGetAccOpRight                 = 5
+	ArgsQtyAddRights                     = 5
+	ArgsQtyRemoveRights                  = 5
+	ArgsQtyAddAddressRightForNominee     = 4
+	ArgsQtyRemoveAddressRightFromNominee = 4
+	ArgsQtyGetAddressRightForNominee     = 4
+	ArgsQtyGetAddressesListForNominee    = 3
 )
 
 // GetAccountRight checks permission for user doing operation with chaincode in channel with role
@@ -31,11 +36,11 @@ const (
 // params[3] -> operation name
 // params[4] -> user address
 func GetAccountRight(stub shim.ChaincodeStubInterface, params []string) (*pb.HaveRight, error) {
-	if len(params) != GetAccOpRightArgCount {
-		return nil, fmt.Errorf(WrongArgsCount, len(params), GetAccOpRightArgCount)
+	if len(params) != ArgsQtyGetAccOpRight {
+		return nil, fmt.Errorf(ErrWrongArgsCount, len(params), ArgsQtyGetAccOpRight)
 	}
 
-	args := [][]byte{[]byte(GetAccOpRightFn)}
+	args := [][]byte{[]byte(FnGetAccOpRight)}
 	for _, param := range params {
 		args = append(args, []byte(param))
 	}
@@ -81,4 +86,57 @@ func IsIssuerAccountRight(bci core.BaseContractInterface, address *types.Address
 	}
 
 	return true, nil
+}
+
+// GetAddressRightForNominee returns if nominee have right to transfer from specified address
+// args[0] - channelName
+// args[1] - chaincodeName
+// args[2] - nomineeAddress
+// args[3] - principalAddress
+func GetAddressRightForNominee(stub shim.ChaincodeStubInterface, params []string) (*pb.HaveRight, error) {
+	if len(params) != ArgsQtyGetAddressRightForNominee {
+		return nil, fmt.Errorf(ErrWrongArgsCount, len(params), ArgsQtyGetAddressRightForNominee)
+	}
+
+	args := [][]byte{[]byte(FnGetAddressRightForNominee)}
+	for _, param := range params {
+		args = append(args, []byte(param))
+	}
+	resp := stub.InvokeChaincode(CcACL, args, ChACL)
+	if resp.GetStatus() != shim.OK {
+		return nil, errors.New(resp.GetMessage())
+	}
+
+	var r pb.HaveRight
+	if err := protojson.Unmarshal(resp.GetPayload(), &r); err != nil {
+		return nil, err
+	}
+
+	return &r, nil
+}
+
+// GetAddressesListForNominee returns principal addresses for nominee
+// args[0] - channelName
+// args[1] - chaincodeName
+// args[2] - nomineeAddress
+func GetAddressesListForNominee(stub shim.ChaincodeStubInterface, params []string) (*pb.Accounts, error) {
+	if len(params) != ArgsQtyGetAddressesListForNominee {
+		return nil, fmt.Errorf(ErrWrongArgsCount, len(params), ArgsQtyGetAddressesListForNominee)
+	}
+
+	args := [][]byte{[]byte(FnGetAddressesListForNominee)}
+	for _, param := range params {
+		args = append(args, []byte(param))
+	}
+	resp := stub.InvokeChaincode(CcACL, args, ChACL)
+	if resp.GetStatus() != shim.OK {
+		return nil, errors.New(resp.GetMessage())
+	}
+
+	var r pb.Accounts
+	if err := protojson.Unmarshal(resp.GetPayload(), &r); err != nil {
+		return nil, err
+	}
+
+	return &r, nil
 }

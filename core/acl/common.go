@@ -9,7 +9,15 @@ const (
 
 // acl chaincode functions
 const (
-	GetAccOpRightFn = "getAccountOperationRight"
-	AddRightsFn     = "addRights"
-	RemoveRightsFn  = "removeRights"
+	FnCheckAddress                  = "checkAddress"
+	FnCheckKeys                     = "checkKeys"
+	FnGetAccountInfo                = "getAccountInfo"
+	FnGetAccountsInfo               = "getAccountsInfo"
+	FnGetAccOpRight                 = "getAccountOperationRight"
+	FnAddRights                     = "addRights"
+	FnRemoveRights                  = "removeRights"
+	FnAddAddressRightForNominee     = "addAddressRightForNominee"
+	FnRemoveAddressRightFromNominee = "removeAddressRightFromNominee"
+	FnGetAddressRightForNominee     = "getAddressRightForNominee"
+	FnGetAddressesListForNominee    = "getAddressesListForNominee"
 )

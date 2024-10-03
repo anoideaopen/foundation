@@ -58,6 +58,7 @@ func invokeNBTx(
 ) *types.InvokeResult {
 	result := &types.InvokeResult{}
 	sess, err := sendTransactionToPeer(network, peer, orderer, userOrg, channel, ccName, args...)
+	Expect(sess).NotTo(BeNil())
 	Eventually(sess, network.EventuallyTimeout).Should(gexec.Exit())
 	result.SetResponse(sess.Out.Contents())
 	result.SetMessage(sess.Err.Contents())
@@ -253,15 +254,15 @@ func scanTxIDInLog(data []byte) string {
 	return string(data)
 }
 
-func (ts *testSuite) TxInvoke(channelName, chaincodeName string, args ...string) *types.InvokeResult {
-	return invokeTx(ts.network, ts.peer, ts.orderer, ts.mainUserName, channelName, chaincodeName, args...)
+func (ts *FoundationTestSuite) TxInvoke(channelName, chaincodeName string, args ...string) *types.InvokeResult {
+	return invokeTx(ts.Network, ts.Peer, ts.Orderer, ts.MainUserName, channelName, chaincodeName, args...)
 }
 
-func (ts *testSuite) TxInvokeByRobot(channelName, chaincodeName string, args ...string) *types.InvokeResult {
-	return invokeTx(ts.network, ts.peer, ts.orderer, ts.robotUserName, channelName, chaincodeName, args...)
+func (ts *FoundationTestSuite) TxInvokeByRobot(channelName, chaincodeName string, args ...string) *types.InvokeResult {
+	return invokeTx(ts.Network, ts.Peer, ts.Orderer, ts.RobotUserName, channelName, chaincodeName, args...)
 }
 
-func (ts *testSuite) TxInvokeWithSign(
+func (ts *FoundationTestSuite) TxInvokeWithSign(
 	channelName string,
 	chaincodeName string,
 	user *UserFoundation,
@@ -278,7 +279,7 @@ func (ts *testSuite) TxInvokeWithSign(
 	return ts.TxInvoke(channelName, chaincodeName, ctorArgs...)
 }
 
-func (ts *testSuite) TxInvokeWithMultisign(
+func (ts *FoundationTestSuite) TxInvokeWithMultisign(
 	channelName string,
 	chaincodeName string,
 	user *UserFoundationMultisigned,
@@ -300,15 +301,15 @@ func (ts *testSuite) TxInvokeWithMultisign(
 	return ts.TxInvoke(channelName, chaincodeName, ctorArgs...)
 }
 
-func (ts *testSuite) NBTxInvoke(channelName, chaincodeName string, args ...string) *types.InvokeResult {
-	return invokeNBTx(ts.network, ts.peer, ts.orderer, ts.mainUserName, channelName, chaincodeName, args...)
+func (ts *FoundationTestSuite) NBTxInvoke(channelName, chaincodeName string, args ...string) *types.InvokeResult {
+	return invokeNBTx(ts.Network, ts.Peer, ts.Orderer, ts.MainUserName, channelName, chaincodeName, args...)
 }
 
-func (ts *testSuite) NBTxInvokeByRobot(channelName, chaincodeName string, args ...string) *types.InvokeResult {
-	return invokeNBTx(ts.network, ts.peer, ts.orderer, ts.robotUserName, channelName, chaincodeName, args...)
+func (ts *FoundationTestSuite) NBTxInvokeByRobot(channelName, chaincodeName string, args ...string) *types.InvokeResult {
+	return invokeNBTx(ts.Network, ts.Peer, ts.Orderer, ts.RobotUserName, channelName, chaincodeName, args...)
 }
 
-func (ts *testSuite) NBTxInvokeWithSign(
+func (ts *FoundationTestSuite) NBTxInvokeWithSign(
 	channelName string,
 	chaincodeName string,
 	user *UserFoundation,

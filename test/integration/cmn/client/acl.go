@@ -22,10 +22,10 @@ import (
 )
 
 // AddUser adds user to ACL channel
-func (ts *testSuite) AddUser(user *UserFoundation) {
-	sess, err := ts.network.PeerUserSession(ts.peer, ts.mainUserName, commands.ChaincodeInvoke{
+func (ts *FoundationTestSuite) AddUser(user *UserFoundation) {
+	sess, err := ts.Network.PeerUserSession(ts.Peer, ts.MainUserName, commands.ChaincodeInvoke{
 		ChannelID: cmn.ChannelAcl,
-		Orderer:   ts.network.OrdererAddress(ts.orderer, nwo.ListenPort),
+		Orderer:   ts.Network.OrdererAddress(ts.Orderer, nwo.ListenPort),
 		Name:      cmn.ChannelAcl,
 		Ctor: cmn.CtorFromSlice(
 			[]string{
@@ -38,35 +38,35 @@ func (ts *testSuite) AddUser(user *UserFoundation) {
 			},
 		),
 		PeerAddresses: []string{
-			ts.network.PeerAddress(ts.network.Peer(ts.org1Name, ts.peer.Name), nwo.ListenPort),
-			ts.network.PeerAddress(ts.network.Peer(ts.org2Name, ts.peer.Name), nwo.ListenPort),
+			ts.Network.PeerAddress(ts.Network.Peer(ts.Org1Name, ts.Peer.Name), nwo.ListenPort),
+			ts.Network.PeerAddress(ts.Network.Peer(ts.Org2Name, ts.Peer.Name), nwo.ListenPort),
 		},
 		WaitForEvent: true,
 	})
 	Expect(err).NotTo(HaveOccurred())
-	Eventually(sess, ts.network.EventuallyTimeout).Should(gexec.Exit(0))
+	Eventually(sess, ts.Network.EventuallyTimeout).Should(gexec.Exit(0))
 	Expect(sess.Err).To(gbytes.Say("Chaincode invoke successful. result: status:200"))
 
 	ts.CheckUser(user)
 }
 
 // AddAdminToACL adds admin user to ACL
-func (ts *testSuite) AddAdminToACL() {
+func (ts *FoundationTestSuite) AddAdminToACL() {
 	ts.AddUser(ts.admin)
 }
 
 // AddFeeSetterToACL adds fee setter user to ACL
-func (ts *testSuite) AddFeeSetterToACL() {
+func (ts *FoundationTestSuite) AddFeeSetterToACL() {
 	ts.AddUser(ts.feeSetter)
 }
 
 // AddFeeAddressSetterToACL adds fee address setter to ACL
-func (ts *testSuite) AddFeeAddressSetterToACL() {
+func (ts *FoundationTestSuite) AddFeeAddressSetterToACL() {
 	ts.AddUser(ts.feeAddressSetter)
 }
 
 // AddUserMultisigned adds multisigned user to ACL channel
-func (ts *testSuite) AddUserMultisigned(user *UserFoundationMultisigned) {
+func (ts *FoundationTestSuite) AddUserMultisigned(user *UserFoundationMultisigned) {
 	ctorArgs := []string{common.FnAddMultisig, strconv.Itoa(len(user.Users)), NewNonceByTime().Get()}
 	publicKeys, sMsgsByte, err := user.Sign(ctorArgs...)
 	var sMsgsStr []string
@@ -74,33 +74,33 @@ func (ts *testSuite) AddUserMultisigned(user *UserFoundationMultisigned) {
 		sMsgsStr = append(sMsgsStr, hex.EncodeToString(sMsgByte))
 	}
 	ctorArgs = append(append(ctorArgs, publicKeys...), sMsgsStr...)
-	sess, err := ts.network.PeerUserSession(ts.peer, ts.mainUserName, commands.ChaincodeInvoke{
+	sess, err := ts.Network.PeerUserSession(ts.Peer, ts.MainUserName, commands.ChaincodeInvoke{
 		ChannelID: cmn.ChannelAcl,
-		Orderer:   ts.network.OrdererAddress(ts.orderer, nwo.ListenPort),
+		Orderer:   ts.Network.OrdererAddress(ts.Orderer, nwo.ListenPort),
 		Name:      cmn.ChannelAcl,
 		Ctor:      cmn.CtorFromSlice(ctorArgs),
 		PeerAddresses: []string{
-			ts.network.PeerAddress(ts.network.Peer(ts.org1Name, ts.peer.Name), nwo.ListenPort),
-			ts.network.PeerAddress(ts.network.Peer(ts.org2Name, ts.peer.Name), nwo.ListenPort),
+			ts.Network.PeerAddress(ts.Network.Peer(ts.Org1Name, ts.Peer.Name), nwo.ListenPort),
+			ts.Network.PeerAddress(ts.Network.Peer(ts.Org2Name, ts.Peer.Name), nwo.ListenPort),
 		},
 		WaitForEvent: true,
 	})
 	Expect(err).NotTo(HaveOccurred())
-	Eventually(sess, ts.network.EventuallyTimeout).Should(gexec.Exit(0))
+	Eventually(sess, ts.Network.EventuallyTimeout).Should(gexec.Exit(0))
 	Expect(sess.Err).To(gbytes.Say("Chaincode invoke successful. result: status:200"))
 
 	ts.CheckUserMultisigned(user)
 }
 
 // CheckUser checks if user was added to ACL channel
-func (ts *testSuite) CheckUser(user *UserFoundation) {
+func (ts *FoundationTestSuite) CheckUser(user *UserFoundation) {
 	Eventually(func() string {
-		sess, err := ts.network.PeerUserSession(ts.peer, ts.mainUserName, commands.ChaincodeQuery{
+		sess, err := ts.Network.PeerUserSession(ts.Peer, ts.MainUserName, commands.ChaincodeQuery{
 			ChannelID: cmn.ChannelAcl,
 			Name:      cmn.ChannelAcl,
 			Ctor:      cmn.CtorFromSlice([]string{"checkKeys", user.PublicKeyBase58}),
 		})
-		Eventually(sess, ts.network.EventuallyTimeout).Should(gexec.Exit())
+		Eventually(sess, ts.Network.EventuallyTimeout).Should(gexec.Exit())
 		if sess.ExitCode() != 0 {
 			return fmt.Sprintf("exit code is %d: %s, %v", sess.ExitCode(), string(sess.Err.Contents()), err)
 		}
@@ -118,18 +118,18 @@ func (ts *testSuite) CheckUser(user *UserFoundation) {
 		}
 
 		return ""
-	}, ts.network.EventuallyTimeout, time.Second).Should(BeEmpty())
+	}, ts.Network.EventuallyTimeout, time.Second).Should(BeEmpty())
 }
 
 // CheckUserMultisigned checks if multisigned user was added to ACL channel
-func (ts *testSuite) CheckUserMultisigned(user *UserFoundationMultisigned) {
+func (ts *FoundationTestSuite) CheckUserMultisigned(user *UserFoundationMultisigned) {
 	Eventually(func() string {
-		sess, err := ts.network.PeerUserSession(ts.peer, ts.mainUserName, commands.ChaincodeQuery{
+		sess, err := ts.Network.PeerUserSession(ts.Peer, ts.MainUserName, commands.ChaincodeQuery{
 			ChannelID: cmn.ChannelAcl,
 			Name:      cmn.ChannelAcl,
 			Ctor:      cmn.CtorFromSlice([]string{common.FnCheckKeys, user.PublicKey()}),
 		})
-		Eventually(sess, ts.network.EventuallyTimeout).Should(gexec.Exit())
+		Eventually(sess, ts.Network.EventuallyTimeout).Should(gexec.Exit())
 		Expect(sess.ExitCode()).To(Equal(0))
 		if sess.ExitCode() != 0 {
 			return fmt.Sprintf("exit code is %d: %s, %v", sess.ExitCode(), string(sess.Err.Contents()), err)
@@ -150,57 +150,57 @@ func (ts *testSuite) CheckUserMultisigned(user *UserFoundationMultisigned) {
 		}
 
 		return ""
-	}, ts.network.EventuallyTimeout, time.Second).Should(BeEmpty())
+	}, ts.Network.EventuallyTimeout, time.Second).Should(BeEmpty())
 }
 
 // AddRights adds right for defined user with specified role and operation to ACL channel
-func (ts *testSuite) AddRights(channelName, chaincodeName, role, operation string, user *UserFoundation) {
-	sess, err := ts.network.PeerUserSession(ts.peer, ts.mainUserName, commands.ChaincodeInvoke{
+func (ts *FoundationTestSuite) AddRights(channelName, chaincodeName, role, operation string, user *UserFoundation) {
+	sess, err := ts.Network.PeerUserSession(ts.Peer, ts.MainUserName, commands.ChaincodeInvoke{
 		ChannelID: cmn.ChannelAcl,
-		Orderer:   ts.network.OrdererAddress(ts.orderer, nwo.ListenPort),
+		Orderer:   ts.Network.OrdererAddress(ts.Orderer, nwo.ListenPort),
 		Name:      cmn.ChannelAcl,
 		Ctor:      cmn.CtorFromSlice([]string{"addRights", channelName, chaincodeName, role, operation, user.AddressBase58Check}),
 		PeerAddresses: []string{
-			ts.network.PeerAddress(ts.network.Peer(ts.org1Name, ts.peer.Name), nwo.ListenPort),
-			ts.network.PeerAddress(ts.network.Peer(ts.org2Name, ts.peer.Name), nwo.ListenPort),
+			ts.Network.PeerAddress(ts.Network.Peer(ts.Org1Name, ts.Peer.Name), nwo.ListenPort),
+			ts.Network.PeerAddress(ts.Network.Peer(ts.Org2Name, ts.Peer.Name), nwo.ListenPort),
 		},
 		WaitForEvent: true,
 	})
 	Expect(err).NotTo(HaveOccurred())
-	Eventually(sess, ts.network.EventuallyTimeout).Should(gexec.Exit(0))
+	Eventually(sess, ts.Network.EventuallyTimeout).Should(gexec.Exit(0))
 	Expect(sess.Err).To(gbytes.Say("Chaincode invoke successful. result: status:200"))
 
 	ts.CheckRights(channelName, chaincodeName, role, operation, user, true)
 }
 
 // RemoveRights removes right for defined user with specified role and operation to ACL channel
-func (ts *testSuite) RemoveRights(channelName, chaincodeName, role, operation string, user *UserFoundation) {
-	sess, err := ts.network.PeerUserSession(ts.peer, ts.mainUserName, commands.ChaincodeInvoke{
+func (ts *FoundationTestSuite) RemoveRights(channelName, chaincodeName, role, operation string, user *UserFoundation) {
+	sess, err := ts.Network.PeerUserSession(ts.Peer, ts.MainUserName, commands.ChaincodeInvoke{
 		ChannelID: cmn.ChannelAcl,
-		Orderer:   ts.network.OrdererAddress(ts.orderer, nwo.ListenPort),
+		Orderer:   ts.Network.OrdererAddress(ts.Orderer, nwo.ListenPort),
 		Name:      cmn.ChannelAcl,
 		Ctor:      cmn.CtorFromSlice([]string{"removeRights", channelName, chaincodeName, role, operation, user.AddressBase58Check}),
 		PeerAddresses: []string{
-			ts.network.PeerAddress(ts.network.Peer(ts.org1Name, ts.peer.Name), nwo.ListenPort),
-			ts.network.PeerAddress(ts.network.Peer(ts.org2Name, ts.peer.Name), nwo.ListenPort),
+			ts.Network.PeerAddress(ts.Network.Peer(ts.Org1Name, ts.Peer.Name), nwo.ListenPort),
+			ts.Network.PeerAddress(ts.Network.Peer(ts.Org2Name, ts.Peer.Name), nwo.ListenPort),
 		},
 		WaitForEvent: true,
 	})
 	Expect(err).NotTo(HaveOccurred())
-	Eventually(sess, ts.network.EventuallyTimeout).Should(gexec.Exit(0))
+	Eventually(sess, ts.Network.EventuallyTimeout).Should(gexec.Exit(0))
 	Expect(sess.Err).To(gbytes.Say("Chaincode invoke successful. result: status:200"))
 
 	ts.CheckRights(channelName, chaincodeName, role, operation, user, false)
 }
 
-func (ts *testSuite) CheckRights(channelName, chaincodeName, role, operation string, user *UserFoundation, result bool) {
+func (ts *FoundationTestSuite) CheckRights(channelName, chaincodeName, role, operation string, user *UserFoundation, result bool) {
 	Eventually(func() string {
-		sess, err := ts.network.PeerUserSession(ts.peer, ts.mainUserName, commands.ChaincodeQuery{
+		sess, err := ts.Network.PeerUserSession(ts.Peer, ts.MainUserName, commands.ChaincodeQuery{
 			ChannelID: cmn.ChannelAcl,
 			Name:      cmn.ChannelAcl,
 			Ctor:      cmn.CtorFromSlice([]string{"getAccountOperationRightJSON", channelName, chaincodeName, role, operation, user.AddressBase58Check}),
 		})
-		Eventually(sess, ts.network.EventuallyTimeout).Should(gexec.Exit())
+		Eventually(sess, ts.Network.EventuallyTimeout).Should(gexec.Exit())
 		if sess.ExitCode() != 0 {
 			return fmt.Sprintf("exit code is %d: %s, %v", sess.ExitCode(), string(sess.Err.Contents()), err)
 		}
@@ -217,11 +217,11 @@ func (ts *testSuite) CheckRights(channelName, chaincodeName, role, operation str
 		}
 
 		return ""
-	}, ts.network.EventuallyTimeout, time.Second).Should(BeEmpty())
+	}, ts.Network.EventuallyTimeout, time.Second).Should(BeEmpty())
 }
 
 // ChangeMultisigPublicKey changes public key for multisigned user by validators
-func (ts *testSuite) ChangeMultisigPublicKey(
+func (ts *FoundationTestSuite) ChangeMultisigPublicKey(
 	multisignedUser *UserFoundationMultisigned,
 	oldPubKeyBase58 string,
 	newPubKeyBase58 string,
@@ -248,38 +248,38 @@ func (ts *testSuite) ChangeMultisigPublicKey(
 
 	ctorArgs = append(append(ctorArgs, pKeys...), sMsgsStr...)
 
-	sess, err := ts.network.PeerUserSession(ts.peer, ts.mainUserName, commands.ChaincodeInvoke{
+	sess, err := ts.Network.PeerUserSession(ts.Peer, ts.MainUserName, commands.ChaincodeInvoke{
 		ChannelID: cmn.ChannelAcl,
-		Orderer:   ts.network.OrdererAddress(ts.orderer, nwo.ListenPort),
+		Orderer:   ts.Network.OrdererAddress(ts.Orderer, nwo.ListenPort),
 		Name:      cmn.ChannelAcl,
 		Ctor:      cmn.CtorFromSlice(ctorArgs),
 		PeerAddresses: []string{
-			ts.network.PeerAddress(ts.network.Peer(ts.org1Name, ts.peer.Name), nwo.ListenPort),
-			ts.network.PeerAddress(ts.network.Peer(ts.org2Name, ts.peer.Name), nwo.ListenPort),
+			ts.Network.PeerAddress(ts.Network.Peer(ts.Org1Name, ts.Peer.Name), nwo.ListenPort),
+			ts.Network.PeerAddress(ts.Network.Peer(ts.Org2Name, ts.Peer.Name), nwo.ListenPort),
 		},
 		WaitForEvent: true,
 	})
 	Expect(err).NotTo(HaveOccurred())
-	Eventually(sess, ts.network.EventuallyTimeout).Should(gexec.Exit(0))
+	Eventually(sess, ts.Network.EventuallyTimeout).Should(gexec.Exit(0))
 	Expect(sess.Err).To(gbytes.Say("Chaincode invoke successful. result: status:200"))
 
 	ts.CheckUserMultisigned(multisignedUser)
 }
 
 // AddToBlackList adds user to a black list
-func (ts *testSuite) AddToBlackList(user *UserFoundation) {
+func (ts *FoundationTestSuite) AddToBlackList(user *UserFoundation) {
 	ts.addToList(cc.BlackList, user)
 }
 
 // AddToGrayList adds user to a gray list
-func (ts *testSuite) AddToGrayList(user *UserFoundation) {
+func (ts *FoundationTestSuite) AddToGrayList(user *UserFoundation) {
 	ts.addToList(cc.GrayList, user)
 }
 
-func (ts *testSuite) addToList(listType cc.ListType, user *UserFoundation) {
-	sess, err := ts.network.PeerUserSession(ts.peer, ts.mainUserName, commands.ChaincodeInvoke{
+func (ts *FoundationTestSuite) addToList(listType cc.ListType, user *UserFoundation) {
+	sess, err := ts.Network.PeerUserSession(ts.Peer, ts.MainUserName, commands.ChaincodeInvoke{
 		ChannelID: cmn.ChannelAcl,
-		Orderer:   ts.network.OrdererAddress(ts.orderer, nwo.ListenPort),
+		Orderer:   ts.Network.OrdererAddress(ts.Orderer, nwo.ListenPort),
 		Name:      cmn.ChannelAcl,
 		Ctor: cmn.CtorFromSlice([]string{
 			common.FnAddToList,
@@ -287,35 +287,35 @@ func (ts *testSuite) addToList(listType cc.ListType, user *UserFoundation) {
 			listType.String(),
 		}),
 		PeerAddresses: []string{
-			ts.network.PeerAddress(ts.network.Peer(ts.org1Name, ts.peer.Name), nwo.ListenPort),
-			ts.network.PeerAddress(ts.network.Peer(ts.org2Name, ts.peer.Name), nwo.ListenPort),
+			ts.Network.PeerAddress(ts.Network.Peer(ts.Org1Name, ts.Peer.Name), nwo.ListenPort),
+			ts.Network.PeerAddress(ts.Network.Peer(ts.Org2Name, ts.Peer.Name), nwo.ListenPort),
 		},
 		WaitForEvent: true,
 	})
 	Expect(err).NotTo(HaveOccurred())
-	Eventually(sess, ts.network.EventuallyTimeout).Should(gexec.Exit(0))
+	Eventually(sess, ts.Network.EventuallyTimeout).Should(gexec.Exit(0))
 	Expect(sess.Err).To(gbytes.Say("Chaincode invoke successful. result: status:200"))
 
 	ts.CheckUserInList(listType, user)
 }
 
 // DelFromBlackList adds user to a black list
-func (ts *testSuite) DelFromBlackList(user *UserFoundation) {
+func (ts *FoundationTestSuite) DelFromBlackList(user *UserFoundation) {
 	ts.delFromList(cc.BlackList, user)
 }
 
 // DelFromGrayList adds user to a gray list
-func (ts *testSuite) DelFromGrayList(user *UserFoundation) {
+func (ts *FoundationTestSuite) DelFromGrayList(user *UserFoundation) {
 	ts.delFromList(cc.GrayList, user)
 }
 
-func (ts *testSuite) delFromList(
+func (ts *FoundationTestSuite) delFromList(
 	listType cc.ListType,
 	user *UserFoundation,
 ) {
-	sess, err := ts.network.PeerUserSession(ts.peer, ts.mainUserName, commands.ChaincodeInvoke{
+	sess, err := ts.Network.PeerUserSession(ts.Peer, ts.MainUserName, commands.ChaincodeInvoke{
 		ChannelID: cmn.ChannelAcl,
-		Orderer:   ts.network.OrdererAddress(ts.orderer, nwo.ListenPort),
+		Orderer:   ts.Network.OrdererAddress(ts.Orderer, nwo.ListenPort),
 		Name:      cmn.ChannelAcl,
 		Ctor: cmn.CtorFromSlice([]string{
 			common.FnDelFromList,
@@ -323,27 +323,27 @@ func (ts *testSuite) delFromList(
 			listType.String(),
 		}),
 		PeerAddresses: []string{
-			ts.network.PeerAddress(ts.network.Peer(ts.org1Name, ts.peer.Name), nwo.ListenPort),
-			ts.network.PeerAddress(ts.network.Peer(ts.org2Name, ts.peer.Name), nwo.ListenPort),
+			ts.Network.PeerAddress(ts.Network.Peer(ts.Org1Name, ts.Peer.Name), nwo.ListenPort),
+			ts.Network.PeerAddress(ts.Network.Peer(ts.Org2Name, ts.Peer.Name), nwo.ListenPort),
 		},
 		WaitForEvent: true,
 	})
 	Expect(err).NotTo(HaveOccurred())
-	Eventually(sess, ts.network.EventuallyTimeout).Should(gexec.Exit(0))
+	Eventually(sess, ts.Network.EventuallyTimeout).Should(gexec.Exit(0))
 	Expect(sess.Err).To(gbytes.Say("Chaincode invoke successful. result: status:200"))
 
 	ts.CheckUserNotInList(listType, user)
 }
 
 // CheckUserInList - checks if user in gray or black list
-func (ts *testSuite) CheckUserInList(listType cc.ListType, user *UserFoundation) {
+func (ts *FoundationTestSuite) CheckUserInList(listType cc.ListType, user *UserFoundation) {
 	Eventually(func() string {
-		sess, err := ts.network.PeerUserSession(ts.peer, ts.mainUserName, commands.ChaincodeQuery{
+		sess, err := ts.Network.PeerUserSession(ts.Peer, ts.MainUserName, commands.ChaincodeQuery{
 			ChannelID: cmn.ChannelAcl,
 			Name:      cmn.ChannelAcl,
 			Ctor:      cmn.CtorFromSlice([]string{common.FnCheckKeys, user.PublicKeyBase58}),
 		})
-		Eventually(sess, ts.network.EventuallyTimeout).Should(gexec.Exit())
+		Eventually(sess, ts.Network.EventuallyTimeout).Should(gexec.Exit())
 		if sess.ExitCode() != 0 {
 			return fmt.Sprintf("exit code is %d: %s, %v", sess.ExitCode(), string(sess.Err.Contents()), err)
 		}
@@ -366,18 +366,18 @@ func (ts *testSuite) CheckUserInList(listType cc.ListType, user *UserFoundation)
 		}
 
 		return ""
-	}, ts.network.EventuallyTimeout, time.Second).Should(BeEmpty())
+	}, ts.Network.EventuallyTimeout, time.Second).Should(BeEmpty())
 }
 
 // CheckUserNotInList - checks if user in gray or black list
-func (ts *testSuite) CheckUserNotInList(listType cc.ListType, user *UserFoundation) {
+func (ts *FoundationTestSuite) CheckUserNotInList(listType cc.ListType, user *UserFoundation) {
 	Eventually(func() string {
-		sess, err := ts.network.PeerUserSession(ts.peer, ts.mainUserName, commands.ChaincodeQuery{
+		sess, err := ts.Network.PeerUserSession(ts.Peer, ts.MainUserName, commands.ChaincodeQuery{
 			ChannelID: cmn.ChannelAcl,
 			Name:      cmn.ChannelAcl,
 			Ctor:      cmn.CtorFromSlice([]string{common.FnCheckKeys, user.PublicKeyBase58}),
 		})
-		Eventually(sess, ts.network.EventuallyTimeout).Should(gexec.Exit())
+		Eventually(sess, ts.Network.EventuallyTimeout).Should(gexec.Exit())
 		if sess.ExitCode() != 0 {
 			return fmt.Sprintf("exit code is %d: %s, %v", sess.ExitCode(), string(sess.Err.Contents()), err)
 		}
@@ -400,11 +400,11 @@ func (ts *testSuite) CheckUserNotInList(listType cc.ListType, user *UserFoundati
 		}
 
 		return ""
-	}, ts.network.EventuallyTimeout, time.Second).Should(BeEmpty())
+	}, ts.Network.EventuallyTimeout, time.Second).Should(BeEmpty())
 }
 
 // ChangePublicKey - changes user public key by validators
-func (ts *testSuite) ChangePublicKey(
+func (ts *FoundationTestSuite) ChangePublicKey(
 	user *UserFoundation,
 	newPubKeyBase58 string,
 	reason string,
@@ -426,26 +426,26 @@ func (ts *testSuite) ChangePublicKey(
 	}
 
 	ctorArgs = append(append(ctorArgs, pKeys...), sMsgsStr...)
-	sess, err := ts.network.PeerUserSession(ts.peer, ts.mainUserName, commands.ChaincodeInvoke{
+	sess, err := ts.Network.PeerUserSession(ts.Peer, ts.MainUserName, commands.ChaincodeInvoke{
 		ChannelID: cmn.ChannelAcl,
-		Orderer:   ts.network.OrdererAddress(ts.orderer, nwo.ListenPort),
+		Orderer:   ts.Network.OrdererAddress(ts.Orderer, nwo.ListenPort),
 		Name:      cmn.ChannelAcl,
 		Ctor:      cmn.CtorFromSlice(ctorArgs),
 		PeerAddresses: []string{
-			ts.network.PeerAddress(ts.network.Peer(ts.org1Name, ts.peer.Name), nwo.ListenPort),
-			ts.network.PeerAddress(ts.network.Peer(ts.org2Name, ts.peer.Name), nwo.ListenPort),
+			ts.Network.PeerAddress(ts.Network.Peer(ts.Org1Name, ts.Peer.Name), nwo.ListenPort),
+			ts.Network.PeerAddress(ts.Network.Peer(ts.Org2Name, ts.Peer.Name), nwo.ListenPort),
 		},
 		WaitForEvent: true,
 	})
 	Expect(err).NotTo(HaveOccurred())
-	Eventually(sess, ts.network.EventuallyTimeout).Should(gexec.Exit(0))
+	Eventually(sess, ts.Network.EventuallyTimeout).Should(gexec.Exit(0))
 	Expect(sess.Err).To(gbytes.Say("Chaincode invoke successful. result: status:200"))
 
 	ts.CheckUserChangedKey(newPubKeyBase58, user.AddressBase58Check)
 }
 
 // ChangePublicKeyBase58signed - changes user public key by validators with base58 signatures
-func (ts *testSuite) ChangePublicKeyBase58signed(
+func (ts *FoundationTestSuite) ChangePublicKeyBase58signed(
 	user *UserFoundation,
 	requestID string,
 	chaincodeName string,
@@ -470,33 +470,33 @@ func (ts *testSuite) ChangePublicKeyBase58signed(
 	}
 
 	ctorArgs = append(append(ctorArgs, pKeys...), sMsgsStr...)
-	sess, err := ts.network.PeerUserSession(ts.peer, ts.mainUserName, commands.ChaincodeInvoke{
+	sess, err := ts.Network.PeerUserSession(ts.Peer, ts.MainUserName, commands.ChaincodeInvoke{
 		ChannelID: cmn.ChannelAcl,
-		Orderer:   ts.network.OrdererAddress(ts.orderer, nwo.ListenPort),
+		Orderer:   ts.Network.OrdererAddress(ts.Orderer, nwo.ListenPort),
 		Name:      cmn.ChannelAcl,
 		Ctor:      cmn.CtorFromSlice(ctorArgs),
 		PeerAddresses: []string{
-			ts.network.PeerAddress(ts.network.Peer(ts.org1Name, ts.peer.Name), nwo.ListenPort),
-			ts.network.PeerAddress(ts.network.Peer(ts.org2Name, ts.peer.Name), nwo.ListenPort),
+			ts.Network.PeerAddress(ts.Network.Peer(ts.Org1Name, ts.Peer.Name), nwo.ListenPort),
+			ts.Network.PeerAddress(ts.Network.Peer(ts.Org2Name, ts.Peer.Name), nwo.ListenPort),
 		},
 		WaitForEvent: true,
 	})
 	Expect(err).NotTo(HaveOccurred())
-	Eventually(sess, ts.network.EventuallyTimeout).Should(gexec.Exit(0))
+	Eventually(sess, ts.Network.EventuallyTimeout).Should(gexec.Exit(0))
 	Expect(sess.Err).To(gbytes.Say("Chaincode invoke successful. result: status:200"))
 
 	ts.CheckUserChangedKey(newPubKeyBase58, user.AddressBase58Check)
 }
 
 // CheckUserChangedKey checks if user changed key
-func (ts *testSuite) CheckUserChangedKey(newPublicKeyBase58Check, oldAddressBase58Check string) {
+func (ts *FoundationTestSuite) CheckUserChangedKey(newPublicKeyBase58Check, oldAddressBase58Check string) {
 	Eventually(func() string {
-		sess, err := ts.network.PeerUserSession(ts.peer, ts.mainUserName, commands.ChaincodeQuery{
+		sess, err := ts.Network.PeerUserSession(ts.Peer, ts.MainUserName, commands.ChaincodeQuery{
 			ChannelID: cmn.ChannelAcl,
 			Name:      cmn.ChannelAcl,
 			Ctor:      cmn.CtorFromSlice([]string{"checkKeys", newPublicKeyBase58Check}),
 		})
-		Eventually(sess, ts.network.EventuallyTimeout).Should(gexec.Exit())
+		Eventually(sess, ts.Network.EventuallyTimeout).Should(gexec.Exit())
 		if sess.ExitCode() != 0 {
 			return fmt.Sprintf("exit code is %d: %s, %v", sess.ExitCode(), string(sess.Err.Contents()), err)
 		}
@@ -514,23 +514,23 @@ func (ts *testSuite) CheckUserChangedKey(newPublicKeyBase58Check, oldAddressBase
 		}
 
 		return ""
-	}, ts.network.EventuallyTimeout, time.Second).Should(BeEmpty())
+	}, ts.Network.EventuallyTimeout, time.Second).Should(BeEmpty())
 }
 
 // CheckAccountInfo checks account info
-func (ts *testSuite) CheckAccountInfo(
+func (ts *FoundationTestSuite) CheckAccountInfo(
 	user *UserFoundation,
 	kycHash string,
 	isGrayListed,
 	isBlackListed bool,
 ) {
 	Eventually(func() string {
-		sess, err := ts.network.PeerUserSession(ts.peer, ts.mainUserName, commands.ChaincodeQuery{
+		sess, err := ts.Network.PeerUserSession(ts.Peer, ts.MainUserName, commands.ChaincodeQuery{
 			ChannelID: cmn.ChannelAcl,
 			Name:      cmn.ChannelAcl,
 			Ctor:      cmn.CtorFromSlice([]string{common.FnGetAccInfoFn, user.AddressBase58Check}),
 		})
-		Eventually(sess, ts.network.EventuallyTimeout).Should(gexec.Exit())
+		Eventually(sess, ts.Network.EventuallyTimeout).Should(gexec.Exit())
 		if sess.ExitCode() != 0 {
 			return fmt.Sprintf("exit code is %d: %s, %v", sess.ExitCode(), string(sess.Err.Contents()), err)
 		}
@@ -555,19 +555,19 @@ func (ts *testSuite) CheckAccountInfo(
 		}
 
 		return ""
-	}, ts.network.EventuallyTimeout, time.Second).Should(BeEmpty())
+	}, ts.Network.EventuallyTimeout, time.Second).Should(BeEmpty())
 }
 
 // SetAccountInfo sets account info
-func (ts *testSuite) SetAccountInfo(
+func (ts *FoundationTestSuite) SetAccountInfo(
 	user *UserFoundation,
 	kycHash string,
 	isGrayListed,
 	isBlackListed bool,
 ) {
-	sess, err := ts.network.PeerUserSession(ts.peer, ts.mainUserName, commands.ChaincodeInvoke{
+	sess, err := ts.Network.PeerUserSession(ts.Peer, ts.MainUserName, commands.ChaincodeInvoke{
 		ChannelID: cmn.ChannelAcl,
-		Orderer:   ts.network.OrdererAddress(ts.orderer, nwo.ListenPort),
+		Orderer:   ts.Network.OrdererAddress(ts.Orderer, nwo.ListenPort),
 		Name:      cmn.ChannelAcl,
 		Ctor: cmn.CtorFromSlice([]string{
 			"setAccountInfo",
@@ -577,20 +577,20 @@ func (ts *testSuite) SetAccountInfo(
 			strconv.FormatBool(isBlackListed),
 		}),
 		PeerAddresses: []string{
-			ts.network.PeerAddress(ts.network.Peer(ts.org1Name, ts.peer.Name), nwo.ListenPort),
-			ts.network.PeerAddress(ts.network.Peer(ts.org2Name, ts.peer.Name), nwo.ListenPort),
+			ts.Network.PeerAddress(ts.Network.Peer(ts.Org1Name, ts.Peer.Name), nwo.ListenPort),
+			ts.Network.PeerAddress(ts.Network.Peer(ts.Org2Name, ts.Peer.Name), nwo.ListenPort),
 		},
 		WaitForEvent: true,
 	})
 	Expect(err).NotTo(HaveOccurred())
-	Eventually(sess, ts.network.EventuallyTimeout).Should(gexec.Exit(0))
+	Eventually(sess, ts.Network.EventuallyTimeout).Should(gexec.Exit(0))
 	Expect(sess.Err).To(gbytes.Say("Chaincode invoke successful. result: status:200"))
 
 	ts.CheckAccountInfo(user, kycHash, isGrayListed, isBlackListed)
 }
 
 // SetKYC sets kyc hash
-func (ts *testSuite) SetKYC(
+func (ts *FoundationTestSuite) SetKYC(
 	user *UserFoundation,
 	kycHash string,
 	validators ...*UserFoundation,
@@ -610,19 +610,19 @@ func (ts *testSuite) SetKYC(
 	}
 
 	ctorArgs = append(append(ctorArgs, pKeys...), sMsgsStr...)
-	sess, err := ts.network.PeerUserSession(ts.peer, ts.mainUserName, commands.ChaincodeInvoke{
+	sess, err := ts.Network.PeerUserSession(ts.Peer, ts.MainUserName, commands.ChaincodeInvoke{
 		ChannelID: cmn.ChannelAcl,
-		Orderer:   ts.network.OrdererAddress(ts.orderer, nwo.ListenPort),
+		Orderer:   ts.Network.OrdererAddress(ts.Orderer, nwo.ListenPort),
 		Name:      cmn.ChannelAcl,
 		Ctor:      cmn.CtorFromSlice(ctorArgs),
 		PeerAddresses: []string{
-			ts.network.PeerAddress(ts.network.Peer(ts.org1Name, ts.peer.Name), nwo.ListenPort),
-			ts.network.PeerAddress(ts.network.Peer(ts.org2Name, ts.peer.Name), nwo.ListenPort),
+			ts.Network.PeerAddress(ts.Network.Peer(ts.Org1Name, ts.Peer.Name), nwo.ListenPort),
+			ts.Network.PeerAddress(ts.Network.Peer(ts.Org2Name, ts.Peer.Name), nwo.ListenPort),
 		},
 		WaitForEvent: true,
 	})
 	Expect(err).NotTo(HaveOccurred())
-	Eventually(sess, ts.network.EventuallyTimeout).Should(gexec.Exit(0))
+	Eventually(sess, ts.Network.EventuallyTimeout).Should(gexec.Exit(0))
 	Expect(sess.Err).To(gbytes.Say("Chaincode invoke successful. result: status:200"))
 
 	ts.CheckAccountInfo(user, kycHash, false, false)

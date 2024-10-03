@@ -27,7 +27,7 @@ import (
 
 var _ = Describe("Channel transfer multi-transfers foundation Tests", func() {
 	var (
-		ts client.TestSuite
+		ts *client.FoundationTestSuite
 	)
 
 	BeforeEach(func() {
@@ -80,8 +80,8 @@ var _ = Describe("Channel transfer multi-transfers foundation Tests", func() {
 	)
 
 	BeforeEach(func() {
-		network = ts.Network()
-		networkFound = ts.NetworkFound()
+		network = ts.Network
+		networkFound = ts.NetworkFound
 
 		By("add admin to acl")
 		ts.AddAdminToACL()

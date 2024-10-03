@@ -10,7 +10,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func TestVarsionAndNonce(t *testing.T) {
+func TestVersionAndNonce(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Version and Nonce Suite")
 }
