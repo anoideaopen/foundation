@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"runtime/debug"
 	"sort"
 	"strings"
 	"time"
@@ -225,7 +226,7 @@ func (e *TaskExecutor) ExecuteTask(
 	traceCtx telemetry.TraceContext,
 	task *proto.Task,
 	stub *cachestub.BatchCacheStub,
-) (*proto.TxResponse, *proto.BatchTxEvent) {
+) (txResponse *proto.TxResponse, batchTxEvent *proto.BatchTxEvent) {
 	traceCtx, span := e.TracingHandler.StartNewSpan(traceCtx, "TaskExecutor.ExecuteTasks")
 	defer span.End()
 
@@ -236,6 +237,14 @@ func (e *TaskExecutor) ExecuteTask(
 	span.SetAttributes(attribute.String("task_id", task.GetId()))
 	defer func() {
 		log.Infof("task method %s task %s elapsed: %s", task.GetMethod(), task.GetId(), time.Since(start))
+	}()
+
+	defer func() {
+		if rc := recover(); rc != nil {
+			txResponse = &proto.TxResponse{Id: []byte(task.GetId()), Method: task.GetMethod(), Error: &proto.ResponseError{Error: "panic while executing task"}}
+			batchTxEvent = &proto.BatchTxEvent{Id: []byte(task.GetId()), Method: task.GetMethod(), Error: &proto.ResponseError{Error: "panic ExecuteTask"}}
+			log.Criticalf("Task id: %s, panic: %s", task.GetId(), string(debug.Stack()))
+		}
 	}()
 
 	txCacheStub := stub.NewTxCacheStub(task.GetId())
@@ -261,10 +270,17 @@ func (e *TaskExecutor) ExecuteTask(
 	})
 
 	span.SetStatus(codes.Ok, "")
-	return &proto.TxResponse{Id: []byte(task.GetId()), Method: task.GetMethod(), Writes: writes},
+	return &proto.TxResponse{
+			Id:     []byte(task.GetId()),
+			Method: task.GetMethod(),
+			Writes: writes,
+		},
 		&proto.BatchTxEvent{
-			Id: []byte(task.GetId()), Method: task.GetMethod(),
-			Accounting: txCacheStub.Accounting, Events: events, Result: response,
+			Id:         []byte(task.GetId()),
+			Method:     task.GetMethod(),
+			Accounting: txCacheStub.Accounting,
+			Events:     events,
+			Result:     response,
 		}
 }
 
