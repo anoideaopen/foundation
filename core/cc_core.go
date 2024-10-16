@@ -62,7 +62,8 @@ const (
 	SwapDone             = "swapDone"
 	MultiSwapDone        = "multiSwapDone"
 	CreateCCTransferTo   = "createCCTransferTo"
-	DeleteCCTransferTo   = "deleteCCTransferTo"
+	RemoveCCTransferTo   = "removeCCTransferTo"
+	DeleteCCTransferTo   = "deleteCCTransferTo" // Deprecated
 	CommitCCTransferFrom = "commitCCTransferFrom"
 	CancelCCTransferFrom = "cancelCCTransferFrom"
 	DeleteCCTransferFrom = "deleteCCTransferFrom"

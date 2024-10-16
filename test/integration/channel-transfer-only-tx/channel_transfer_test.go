@@ -157,7 +157,7 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 			ts.NBTxInvokeByRobot(cmn.ChannelFiat, cmn.ChannelFiat, "commitCCTransferFrom", id).CheckErrorIsNil()
 
 			By("delete cc transfer to")
-			ts.NBTxInvokeByRobot(cmn.ChannelCC, cmn.ChannelCC, "deleteCCTransferTo", id).CheckErrorIsNil()
+			ts.TxInvokeByRobot(cmn.ChannelCC, cmn.ChannelCC, "removeCCTransferTo", id).CheckErrorIsNil()
 
 			By("delete cc transfer from")
 			ts.NBTxInvokeByRobot(cmn.ChannelFiat, cmn.ChannelFiat, "deleteCCTransferFrom", id).CheckErrorIsNil()
@@ -194,7 +194,7 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 			ts.NBTxInvokeByRobot(cmn.ChannelCC, cmn.ChannelCC, "commitCCTransferFrom", id2).CheckErrorIsNil()
 
 			By("delete cc transfer to")
-			ts.NBTxInvokeByRobot(cmn.ChannelFiat, cmn.ChannelFiat, "deleteCCTransferTo", id2).CheckErrorIsNil()
+			ts.TxInvokeByRobot(cmn.ChannelFiat, cmn.ChannelFiat, "removeCCTransferTo", id2).CheckErrorIsNil()
 
 			By("delete cc transfer from")
 			ts.NBTxInvokeByRobot(cmn.ChannelCC, cmn.ChannelCC, "deleteCCTransferFrom", id2).CheckErrorIsNil()
@@ -249,7 +249,7 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 			ts.NBTxInvokeByRobot(cmn.ChannelFiat, cmn.ChannelFiat, "commitCCTransferFrom", id).CheckErrorIsNil()
 
 			By("delete cc transfer to")
-			ts.NBTxInvokeByRobot(cmn.ChannelCC, cmn.ChannelCC, "deleteCCTransferTo", id).CheckErrorIsNil()
+			ts.TxInvokeByRobot(cmn.ChannelCC, cmn.ChannelCC, "removeCCTransferTo", id).CheckErrorIsNil()
 
 			By("delete cc transfer from")
 			ts.NBTxInvokeByRobot(cmn.ChannelFiat, cmn.ChannelFiat, "deleteCCTransferFrom", id).CheckErrorIsNil()
@@ -286,7 +286,7 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 			ts.NBTxInvokeByRobot(cmn.ChannelCC, cmn.ChannelCC, "commitCCTransferFrom", id2).CheckErrorIsNil()
 
 			By("delete cc transfer to")
-			ts.NBTxInvokeByRobot(cmn.ChannelFiat, cmn.ChannelFiat, "deleteCCTransferTo", id2).CheckErrorIsNil()
+			ts.TxInvokeByRobot(cmn.ChannelFiat, cmn.ChannelFiat, "removeCCTransferTo", id2).CheckErrorIsNil()
 
 			By("delete cc transfer from")
 			ts.NBTxInvokeByRobot(cmn.ChannelCC, cmn.ChannelCC, "deleteCCTransferFrom", id2).CheckErrorIsNil()
@@ -368,7 +368,7 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 			ts.NBTxInvokeByRobot(cmn.ChannelFiat, cmn.ChannelFiat, "commitCCTransferFrom", id).CheckErrorIsNil()
 
 			By("delete cc transfer to")
-			ts.NBTxInvokeByRobot(cmn.ChannelCC, cmn.ChannelCC, "deleteCCTransferTo", id).CheckErrorIsNil()
+			ts.TxInvokeByRobot(cmn.ChannelCC, cmn.ChannelCC, "removeCCTransferTo", id).CheckErrorIsNil()
 
 			By("delete cc transfer from")
 			ts.NBTxInvokeByRobot(cmn.ChannelFiat, cmn.ChannelFiat, "deleteCCTransferFrom", id).CheckErrorIsNil()
@@ -550,7 +550,7 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 			ts.NBTxInvokeByRobot(cmn.ChannelIndustrial, cmn.ChannelIndustrial, "commitCCTransferFrom", id).CheckErrorIsNil()
 
 			By("FORWARD. delete cc transfer to")
-			ts.NBTxInvokeByRobot(cmn.ChannelCC, cmn.ChannelCC, "deleteCCTransferTo", id).CheckErrorIsNil()
+			ts.TxInvokeByRobot(cmn.ChannelCC, cmn.ChannelCC, "removeCCTransferTo", id).CheckErrorIsNil()
 
 			By("FORWARD. delete cc transfer from")
 			ts.NBTxInvokeByRobot(cmn.ChannelIndustrial, cmn.ChannelIndustrial, "deleteCCTransferFrom", id).CheckErrorIsNil()
@@ -609,7 +609,7 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 			ts.NBTxInvokeByRobot(cmn.ChannelCC, cmn.ChannelCC, "commitCCTransferFrom", id2).CheckErrorIsNil()
 
 			By("BACKWARD. delete cc transfer to")
-			ts.NBTxInvokeByRobot(cmn.ChannelIndustrial, cmn.ChannelIndustrial, "deleteCCTransferTo", id2).CheckErrorIsNil()
+			ts.TxInvokeByRobot(cmn.ChannelIndustrial, cmn.ChannelIndustrial, "removeCCTransferTo", id2).CheckErrorIsNil()
 
 			By("BACKWARD. delete cc transfer from")
 			ts.NBTxInvokeByRobot(cmn.ChannelCC, cmn.ChannelCC, "deleteCCTransferFrom", id2).CheckErrorIsNil()
@@ -687,7 +687,7 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 			ts.NBTxInvokeByRobot(cmn.ChannelIndustrial, cmn.ChannelIndustrial, "commitCCTransferFrom", id).CheckErrorIsNil()
 
 			By("FORWARD. delete cc transfer to")
-			ts.NBTxInvokeByRobot(cmn.ChannelCC, cmn.ChannelCC, "deleteCCTransferTo", id).CheckErrorIsNil()
+			ts.TxInvokeByRobot(cmn.ChannelCC, cmn.ChannelCC, "removeCCTransferTo", id).CheckErrorIsNil()
 
 			By("FORWARD. delete cc transfer from")
 			ts.NBTxInvokeByRobot(cmn.ChannelIndustrial, cmn.ChannelIndustrial, "deleteCCTransferFrom", id).CheckErrorIsNil()
@@ -747,7 +747,7 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 			ts.NBTxInvokeByRobot(cmn.ChannelCC, cmn.ChannelCC, "commitCCTransferFrom", id2).CheckErrorIsNil()
 
 			By("BACKWARD. delete cc transfer to")
-			ts.NBTxInvokeByRobot(cmn.ChannelIndustrial, cmn.ChannelIndustrial, "deleteCCTransferTo", id2).CheckErrorIsNil()
+			ts.TxInvokeByRobot(cmn.ChannelIndustrial, cmn.ChannelIndustrial, "removeCCTransferTo", id2).CheckErrorIsNil()
 
 			By("BACKWARD. delete cc transfer from")
 			ts.NBTxInvokeByRobot(cmn.ChannelCC, cmn.ChannelCC, "deleteCCTransferFrom", id2).CheckErrorIsNil()

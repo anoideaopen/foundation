@@ -439,7 +439,7 @@ func (bc *BaseContract) NBTxCommitCCTransferFrom(id string) error {
 }
 
 // NBTxDeleteCCTransferFrom - transaction deletes the transfer record in the channel From.
-// Performed after successful removal in the canal To (NBTxDeleteCCTransferTo)
+// Performed after successful removal in the channel To (TxRemoveCCTransferTo)
 // This transaction is sent only by the channel-transfer service with a "robot" certificate
 func (bc *BaseContract) NBTxDeleteCCTransferFrom(id string) error {
 	// see if it's already gone
@@ -459,7 +459,28 @@ func (bc *BaseContract) NBTxDeleteCCTransferFrom(id string) error {
 // NBTxDeleteCCTransferTo - transaction deletes transfer record in channel To.
 // Executed after a successful commit in the From channel (NBTxCommitCCTransferFrom)
 // This transaction is sent only by the channel-transfer service with a "robot" certificate
+//
+// Deprecated: Use of this function may result in double spending.
+// Since it takes a different route and can overtake the TxCreateCCTransferTo function
 func (bc *BaseContract) NBTxDeleteCCTransferTo(id string) error {
+	// Let's check if it's not already
+	tr, err := cctransfer.LoadCCToTransfer(bc.GetStub(), id)
+	if err != nil {
+		return cctransfer.ErrNotFound
+	}
+
+	// if it is not committed, error
+	if !tr.GetIsCommit() {
+		return cctransfer.ErrTransferNotCommit
+	}
+
+	return cctransfer.DelCCToTransfer(bc.GetStub(), id)
+}
+
+// TxRemoveCCTransferTo - transaction deletes transfer record in channel To whit robot or batcher.
+// Executed after a successful commit in the From channel (NBTxCommitCCTransferFrom)
+// This transaction is sent only by the channel-transfer service with a "robot" certificate
+func (bc *BaseContract) TxRemoveCCTransferTo(id string) error {
 	// Let's check if it's not already
 	tr, err := cctransfer.LoadCCToTransfer(bc.GetStub(), id)
 	if err != nil {

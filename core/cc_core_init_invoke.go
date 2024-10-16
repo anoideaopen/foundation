@@ -179,6 +179,7 @@ func (cc *Chaincode) Invoke(stub shim.ChaincodeStubInterface) (r peer.Response) 
 	case
 		CreateCCTransferTo,
 		DeleteCCTransferTo,
+		RemoveCCTransferTo,
 		CommitCCTransferFrom,
 		CancelCCTransferFrom,
 		DeleteCCTransferFrom:

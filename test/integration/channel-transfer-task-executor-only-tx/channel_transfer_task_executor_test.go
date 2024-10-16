@@ -147,7 +147,7 @@ var _ = Describe("Channel transfer with task executor only tx foundation Tests",
 			ts.ExecuteTask(cmn.ChannelFiat, cmn.ChannelFiat, "commitCCTransferFrom", id)
 
 			By("delete cc transfer to")
-			ts.ExecuteTask(cmn.ChannelCC, cmn.ChannelCC, "deleteCCTransferTo", id)
+			ts.ExecuteTask(cmn.ChannelCC, cmn.ChannelCC, "removeCCTransferTo", id)
 
 			By("delete cc transfer from")
 			ts.ExecuteTask(cmn.ChannelFiat, cmn.ChannelFiat, "deleteCCTransferFrom", id)
@@ -191,7 +191,7 @@ var _ = Describe("Channel transfer with task executor only tx foundation Tests",
 			ts.ExecuteTask(cmn.ChannelCC, cmn.ChannelCC, "commitCCTransferFrom", id2)
 
 			By("delete cc transfer to")
-			ts.ExecuteTask(cmn.ChannelFiat, cmn.ChannelFiat, "deleteCCTransferTo", id2)
+			ts.ExecuteTask(cmn.ChannelFiat, cmn.ChannelFiat, "removeCCTransferTo", id2)
 
 			By("delete cc transfer from")
 			ts.ExecuteTask(cmn.ChannelCC, cmn.ChannelCC, "deleteCCTransferFrom", id2)
@@ -253,7 +253,7 @@ var _ = Describe("Channel transfer with task executor only tx foundation Tests",
 			ts.ExecuteTask(cmn.ChannelFiat, cmn.ChannelFiat, "commitCCTransferFrom", id)
 
 			By("delete cc transfer to")
-			ts.ExecuteTask(cmn.ChannelCC, cmn.ChannelCC, "deleteCCTransferTo", id)
+			ts.ExecuteTask(cmn.ChannelCC, cmn.ChannelCC, "removeCCTransferTo", id)
 
 			By("delete cc transfer from")
 			ts.ExecuteTask(cmn.ChannelFiat, cmn.ChannelFiat, "deleteCCTransferFrom", id)
@@ -297,7 +297,7 @@ var _ = Describe("Channel transfer with task executor only tx foundation Tests",
 			ts.ExecuteTask(cmn.ChannelCC, cmn.ChannelCC, "commitCCTransferFrom", id2)
 
 			By("delete cc transfer to")
-			ts.ExecuteTask(cmn.ChannelFiat, cmn.ChannelFiat, "deleteCCTransferTo", id2)
+			ts.ExecuteTask(cmn.ChannelFiat, cmn.ChannelFiat, "removeCCTransferTo", id2)
 
 			By("delete cc transfer from")
 			ts.ExecuteTask(cmn.ChannelCC, cmn.ChannelCC, "deleteCCTransferFrom", id2)
@@ -391,7 +391,7 @@ var _ = Describe("Channel transfer with task executor only tx foundation Tests",
 			ts.ExecuteTask(cmn.ChannelFiat, cmn.ChannelFiat, "commitCCTransferFrom", id)
 
 			By("delete cc transfer to")
-			ts.ExecuteTask(cmn.ChannelCC, cmn.ChannelCC, "deleteCCTransferTo", id)
+			ts.ExecuteTask(cmn.ChannelCC, cmn.ChannelCC, "removeCCTransferTo", id)
 
 			By("delete cc transfer from")
 			ts.ExecuteTask(cmn.ChannelFiat, cmn.ChannelFiat, "deleteCCTransferFrom", id)
@@ -595,7 +595,7 @@ var _ = Describe("Channel transfer with task executor only tx foundation Tests",
 			ts.ExecuteTask(cmn.ChannelIndustrial, cmn.ChannelIndustrial, "commitCCTransferFrom", id)
 
 			By("FORWARD. delete cc transfer to")
-			ts.ExecuteTask(cmn.ChannelCC, cmn.ChannelCC, "deleteCCTransferTo", id)
+			ts.ExecuteTask(cmn.ChannelCC, cmn.ChannelCC, "removeCCTransferTo", id)
 
 			By("FORWARD. delete cc transfer from")
 			ts.ExecuteTask(cmn.ChannelIndustrial, cmn.ChannelIndustrial, "deleteCCTransferFrom", id)
@@ -663,7 +663,7 @@ var _ = Describe("Channel transfer with task executor only tx foundation Tests",
 			ts.ExecuteTask(cmn.ChannelCC, cmn.ChannelCC, "commitCCTransferFrom", id2)
 
 			By("BACKWARD. delete cc transfer to")
-			ts.ExecuteTask(cmn.ChannelIndustrial, cmn.ChannelIndustrial, "deleteCCTransferTo", id2)
+			ts.ExecuteTask(cmn.ChannelIndustrial, cmn.ChannelIndustrial, "removeCCTransferTo", id2)
 
 			By("BACKWARD. delete cc transfer from")
 			ts.ExecuteTask(cmn.ChannelCC, cmn.ChannelCC, "deleteCCTransferFrom", id2)
@@ -750,7 +750,7 @@ var _ = Describe("Channel transfer with task executor only tx foundation Tests",
 			ts.ExecuteTask(cmn.ChannelIndustrial, cmn.ChannelIndustrial, "commitCCTransferFrom", id)
 
 			By("FORWARD. delete cc transfer to")
-			ts.ExecuteTask(cmn.ChannelCC, cmn.ChannelCC, "deleteCCTransferTo", id)
+			ts.ExecuteTask(cmn.ChannelCC, cmn.ChannelCC, "removeCCTransferTo", id)
 
 			By("FORWARD. delete cc transfer from")
 			ts.ExecuteTask(cmn.ChannelIndustrial, cmn.ChannelIndustrial, "deleteCCTransferFrom", id)
@@ -819,7 +819,7 @@ var _ = Describe("Channel transfer with task executor only tx foundation Tests",
 			ts.ExecuteTask(cmn.ChannelCC, cmn.ChannelCC, "commitCCTransferFrom", id2)
 
 			By("BACKWARD. delete cc transfer to")
-			ts.ExecuteTask(cmn.ChannelIndustrial, cmn.ChannelIndustrial, "deleteCCTransferTo", id2)
+			ts.ExecuteTask(cmn.ChannelIndustrial, cmn.ChannelIndustrial, "removeCCTransferTo", id2)
 
 			By("BACKWARD. delete cc transfer from")
 			ts.ExecuteTask(cmn.ChannelCC, cmn.ChannelCC, "deleteCCTransferFrom", id2)

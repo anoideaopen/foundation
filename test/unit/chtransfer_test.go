@@ -48,7 +48,7 @@ func TestByCustomerForwardSuccess(t *testing.T) {
 	_, _, err = user1.RawChTransferInvoke("cc", "commitCCTransferFrom", id)
 	require.NoError(t, err)
 
-	_, _, err = user1.RawChTransferInvoke("vt", "deleteCCTransferTo", id)
+	_, _, err = user1.RawChTransferInvokeWithBatch("vt", "removeCCTransferTo", id)
 	require.NoError(t, err)
 
 	_, _, err = user1.RawChTransferInvoke("cc", "deleteCCTransferFrom", id)
@@ -119,7 +119,7 @@ func TestByAdminForwardSuccess(t *testing.T) {
 	_, _, err = user1.RawChTransferInvoke("cc", "commitCCTransferFrom", id)
 	require.NoError(t, err)
 
-	_, _, err = user1.RawChTransferInvoke("vt", "deleteCCTransferTo", id)
+	_, _, err = user1.RawChTransferInvokeWithBatch("vt", "removeCCTransferTo", id)
 	require.NoError(t, err)
 
 	_, _, err = user1.RawChTransferInvoke("cc", "deleteCCTransferFrom", id)
@@ -207,7 +207,7 @@ func TestByCustomerBackSuccess(t *testing.T) {
 	_, _, err = user1.RawChTransferInvoke("cc", "commitCCTransferFrom", id)
 	require.NoError(t, err)
 
-	_, _, err = user1.RawChTransferInvoke("vt", "deleteCCTransferTo", id)
+	_, _, err = user1.RawChTransferInvokeWithBatch("vt", "removeCCTransferTo", id)
 	require.NoError(t, err)
 
 	_, _, err = user1.RawChTransferInvoke("cc", "deleteCCTransferFrom", id)
@@ -264,7 +264,7 @@ func TestByAdminBackSuccess(t *testing.T) {
 	_, _, err = user1.RawChTransferInvoke("cc", "commitCCTransferFrom", id)
 	require.NoError(t, err)
 
-	_, _, err = user1.RawChTransferInvoke("vt", "deleteCCTransferTo", id)
+	_, _, err = user1.RawChTransferInvokeWithBatch("vt", "removeCCTransferTo", id)
 	require.NoError(t, err)
 
 	_, _, err = user1.RawChTransferInvoke("cc", "deleteCCTransferFrom", id)
@@ -618,7 +618,7 @@ func TestFailDeleteTransferTo(t *testing.T) {
 	// TESTS
 
 	// transfer not found
-	_, _, err := user1.RawChTransferInvokeWithBatch("vt", "deleteCCTransferTo", uuid.NewString())
+	_, _, err := user1.RawChTransferInvokeWithBatch("vt", "removeCCTransferTo", uuid.NewString())
 	require.EqualError(t, err, cctransfer.ErrNotFound.Error())
 }
 
@@ -873,7 +873,7 @@ func TestMultiTransferByCustomerForwardSuccess(t *testing.T) {
 	_, _, err = user1.RawChTransferInvoke("it1", "commitCCTransferFrom", id)
 	require.NoError(t, err)
 
-	_, _, err = user1.RawChTransferInvoke("it2", "deleteCCTransferTo", id)
+	_, _, err = user1.RawChTransferInvokeWithBatch("it2", "removeCCTransferTo", id)
 	require.NoError(t, err)
 
 	_, _, err = user1.RawChTransferInvoke("it1", "deleteCCTransferFrom", id)
@@ -940,7 +940,7 @@ func TestMultiTransferByAdminForwardSuccess(t *testing.T) {
 	_, _, err = user1.RawChTransferInvoke("it1", "commitCCTransferFrom", id)
 	require.NoError(t, err)
 
-	_, _, err = user1.RawChTransferInvoke("it2", "deleteCCTransferTo", id)
+	_, _, err = user1.RawChTransferInvokeWithBatch("it2", "removeCCTransferTo", id)
 	require.NoError(t, err)
 
 	_, _, err = user1.RawChTransferInvoke("it1", "deleteCCTransferFrom", id)
@@ -1051,7 +1051,7 @@ func TestMultiTransferByCustomerBackSuccess(t *testing.T) {
 	_, _, err = user1.RawChTransferInvoke("it1", "commitCCTransferFrom", id)
 	require.NoError(t, err)
 
-	_, _, err = user1.RawChTransferInvoke("it2", "deleteCCTransferTo", id)
+	_, _, err = user1.RawChTransferInvokeWithBatch("it2", "removeCCTransferTo", id)
 	require.NoError(t, err)
 
 	_, _, err = user1.RawChTransferInvoke("it1", "deleteCCTransferFrom", id)
@@ -1128,7 +1128,7 @@ func TestMultiTransferByAdminBackSuccess(t *testing.T) {
 	_, _, err = user1.RawChTransferInvoke("it1", "commitCCTransferFrom", id)
 	require.NoError(t, err)
 
-	_, _, err = user1.RawChTransferInvoke("it2", "deleteCCTransferTo", id)
+	_, _, err = user1.RawChTransferInvokeWithBatch("it2", "removeCCTransferTo", id)
 	require.NoError(t, err)
 
 	_, _, err = user1.RawChTransferInvoke("it1", "deleteCCTransferFrom", id)
@@ -1559,7 +1559,7 @@ func TestMultiTransferFailDeleteTransferTo(t *testing.T) {
 	// TESTS
 
 	// transfer not found
-	_, _, err := user1.RawChTransferInvokeWithBatch("it2", "deleteCCTransferTo", uuid.NewString())
+	_, _, err := user1.RawChTransferInvokeWithBatch("it2", "removeCCTransferTo", uuid.NewString())
 	require.EqualError(t, err, cctransfer.ErrNotFound.Error())
 }
 
