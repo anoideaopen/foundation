@@ -367,3 +367,29 @@ func TestInitWithEmptyConfig(t *testing.T) {
 
 	return
 }
+
+func TestConfigValidation(t *testing.T) {
+	t.Parallel()
+
+	allowedSymbols := []string{`TT`, `TT-2`, `TT-2.0`}
+	for _, s := range allowedSymbols {
+		cfg := &proto.Config{
+			Contract: &proto.ContractConfig{
+				Symbol:   s,
+				RobotSKI: fixtures_test.RobotHashedCert,
+			},
+		}
+		require.NoError(t, cfg.Validate(), s)
+	}
+
+	disallowedSymbols := []string{`TT_1`}
+	for _, s := range disallowedSymbols {
+		cfg := &proto.Config{
+			Contract: &proto.ContractConfig{
+				Symbol:   s,
+				RobotSKI: fixtures_test.RobotHashedCert,
+			},
+		}
+		require.Error(t, cfg.Validate(), s)
+	}
+}
