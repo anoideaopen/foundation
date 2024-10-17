@@ -2,7 +2,7 @@ package cachestub_test
 
 import "github.com/hyperledger/fabric-chaincode-go/shim"
 
-//go:generate counterfeiter -o ../../mock/chaincode_stub.go --fake-name ChaincodeStub . chaincodeStub
+//go:generate counterfeiter -o ../../mocks/chaincode_stub.go --fake-name ChaincodeStub . chaincodeStub
 type chaincodeStub interface {
 	shim.ChaincodeStubInterface
 }
