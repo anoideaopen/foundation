@@ -8,36 +8,36 @@ import (
 )
 
 func TestBatchStub(t *testing.T) {
-	stub := newMockStub()
-	_ = stub.PutState("KEY1", []byte("key1_value_1"))
-	_ = stub.PutState("KEY2", []byte("key2_value_1"))
-	_ = stub.PutState("KEY3", []byte("key3_value_1"))
+	mockStub := newMockStub()
+	_ = mockStub.PutState("KEY1", []byte("key1_value_1"))
+	_ = mockStub.PutState("KEY2", []byte("key2_value_1"))
+	_ = mockStub.PutState("KEY3", []byte("key3_value_1"))
 
-	btchStub := cachestub.NewBatchCacheStub(stub)
+	batchStub := cachestub.NewBatchCacheStub(mockStub)
 
-	_ = btchStub.PutState("KEY1", []byte("key1_value_2"))
-	_ = btchStub.DelState("KEY2")
-	_ = btchStub.Commit()
+	_ = batchStub.PutState("KEY1", []byte("key1_value_2"))
+	_ = batchStub.DelState("KEY2")
+	_ = batchStub.Commit()
 
-	val1, _ := btchStub.GetState("KEY2")
+	val1, _ := batchStub.GetState("KEY2")
 	require.Equal(t, "", string(val1))
 
-	val2, _ := btchStub.GetState("KEY1")
+	val2, _ := batchStub.GetState("KEY1")
 	require.Equal(t, "key1_value_2", string(val2))
 
-	_ = btchStub.PutState("KEY2", []byte("key2_value_2"))
-	_ = btchStub.DelState("KEY3")
-	_ = btchStub.Commit()
+	_ = batchStub.PutState("KEY2", []byte("key2_value_2"))
+	_ = batchStub.DelState("KEY3")
+	_ = batchStub.Commit()
 
-	require.Equal(t, 2, len(stub.state))
-	require.Equal(t, "key1_value_2", string(stub.state["KEY1"]))
-	require.Equal(t, "key2_value_2", string(stub.state["KEY2"]))
+	require.Equal(t, 2, len(mockStub.state))
+	require.Equal(t, "key1_value_2", string(mockStub.state["KEY1"]))
+	require.Equal(t, "key2_value_2", string(mockStub.state["KEY2"]))
 
-	_ = btchStub.PutState("KEY4", []byte("key4_value_1"))
-	_ = btchStub.DelState("KEY4")
+	_ = batchStub.PutState("KEY4", []byte("key4_value_1"))
+	_ = batchStub.DelState("KEY4")
 
-	_ = btchStub.Commit()
+	_ = batchStub.Commit()
 
-	_, ok := stub.state["KEY4"]
+	_, ok := mockStub.state["KEY4"]
 	require.Equal(t, false, ok)
 }
