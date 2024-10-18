@@ -256,7 +256,7 @@ func (m *ContractConfig) validate(all bool) error {
 	if !_ContractConfig_Symbol_Pattern.MatchString(m.GetSymbol()) {
 		err := ContractConfigValidationError{
 			field:  "Symbol",
-			reason: "value does not match regex pattern \"^[A-Z]+[A-Z0-9]+(-[A-Z0-9]+(.[A-Z0-9]+)?)?$\"",
+			reason: "value does not match regex pattern \"^[A-Z]+[A-Z0-9]+([-_][A-Z0-9]+(.[A-Z0-9]+)?)?$\"",
 		}
 		if !all {
 			return err
@@ -442,7 +442,7 @@ var _ interface {
 	ErrorName() string
 } = ContractConfigValidationError{}
 
-var _ContractConfig_Symbol_Pattern = regexp.MustCompile("^[A-Z]+[A-Z0-9]+(-[A-Z0-9]+(.[A-Z0-9]+)?)?$")
+var _ContractConfig_Symbol_Pattern = regexp.MustCompile("^[A-Z]+[A-Z0-9]+([-_][A-Z0-9]+(.[A-Z0-9]+)?)?$")
 
 var _ContractConfig_RobotSKI_Pattern = regexp.MustCompile("^[0-9a-f]+$")
 
