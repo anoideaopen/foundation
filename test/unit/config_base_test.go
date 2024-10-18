@@ -371,7 +371,7 @@ func TestInitWithEmptyConfig(t *testing.T) {
 func TestConfigValidation(t *testing.T) {
 	t.Parallel()
 
-	allowedSymbols := []string{`TT`, `TT-2`, `TT-2.0`}
+	allowedSymbols := []string{`TT`, `TT-2`, `TT-2.0`, `TT-2.A`, `TT-23.AB`}
 	for _, s := range allowedSymbols {
 		cfg := &proto.Config{
 			Contract: &proto.ContractConfig{
@@ -382,7 +382,7 @@ func TestConfigValidation(t *testing.T) {
 		require.NoError(t, cfg.Validate(), s)
 	}
 
-	disallowedSymbols := []string{`TT_1`}
+	disallowedSymbols := []string{`TT_1`, `TT-2.4.6`, `TT-.1`, `TT-1.`, `TT-1..2`}
 	for _, s := range disallowedSymbols {
 		cfg := &proto.Config{
 			Contract: &proto.ContractConfig{
