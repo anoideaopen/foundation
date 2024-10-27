@@ -76,12 +76,12 @@ func TasksExecutorHandler(
 	_, args := stub.GetFunctionAndParameters()
 
 	if len(args) != 1 {
-		err := fmt.Errorf("failed to validate args for transaction %s: expected exactly 1 argument, received %d", txID, len(args))
+		err = fmt.Errorf("failed to validate args for transaction %s: expected exactly 1 argument, received %d", txID, len(args))
 		return nil, handleTasksError(span, err)
 	}
 
 	var executeTaskRequest proto.ExecuteTasksRequest
-	if err := unmarshalExecuteTaskRequest([]byte(args[0]), &executeTaskRequest); err != nil {
+	if err = unmarshalExecuteTaskRequest([]byte(args[0]), &executeTaskRequest); err != nil {
 		err = fmt.Errorf("failed to unmarshal argument to ExecuteTasksRequest for transaction %s, argument: %s", txID, args[0])
 		return nil, handleTasksError(span, err)
 	}
@@ -89,7 +89,7 @@ func TasksExecutorHandler(
 	log.Warningf("tasks executor: tx id: %s, txs: %d", txID, len(executeTaskRequest.GetTasks()))
 
 	if len(executeTaskRequest.GetTasks()) == 0 {
-		err := fmt.Errorf("failed to validate argument: no tasks found in ExecuteTasksRequest for transaction %s: %w", txID, ErrTasksNotFound)
+		err = fmt.Errorf("failed to validate argument: no tasks found in ExecuteTasksRequest for transaction %s: %w", txID, ErrTasksNotFound)
 		return nil, handleTasksError(span, err)
 	}
 
@@ -122,7 +122,7 @@ func TasksExecutorHandler(
 func unmarshalExecuteTaskRequest(data []byte, executeTaskRequest *proto.ExecuteTasksRequest) error {
 	if err := pb.Unmarshal(data, executeTaskRequest); err != nil {
 		// If standard protobuf unmarshalling fails, try JSON format
-		if err := protojson.Unmarshal(data, executeTaskRequest); err != nil {
+		if err = protojson.Unmarshal(data, executeTaskRequest); err != nil {
 			return err
 		}
 	}
@@ -209,7 +209,8 @@ func (e *TaskExecutor) validatedTxSenderMethodAndArgs(
 
 	span.AddEvent("validating nonce")
 	sender := types.NewSenderFromAddr((*types.Address)(senderAddress))
-	err = checkNonce(stub, sender, nonce)
+	n := new(Nonce)
+	err = n.check(stub, sender, nonce)
 	if err != nil {
 		err = fmt.Errorf("failed to validate nonce for task %s, nonce %d: %w", task.GetId(), nonce, err)
 		span.SetStatus(codes.Error, err.Error())

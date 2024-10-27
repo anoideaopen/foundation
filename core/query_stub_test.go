@@ -24,19 +24,19 @@ func TestQueryStub(t *testing.T) {
 
 	t.Run("PutState [negative]", func(t *testing.T) {
 		t.Skip()
-		err := qs.PutState("key", []byte(""))
+		err = qs.PutState("key", []byte(""))
 		require.EqualError(t, err, ErrMethodNotImplemented)
 	})
 
 	t.Run("DelState [negative]", func(t *testing.T) {
 		t.Skip()
-		err := qs.DelState("key")
+		err = qs.DelState("key")
 		require.Errorf(t, err, ErrMethodNotImplemented)
 	})
 
 	t.Run("SetStateValidationParameter [negative]", func(t *testing.T) {
 		t.Skip()
-		err := qs.SetStateValidationParameter("key", []byte("new"))
+		err = qs.SetStateValidationParameter("key", []byte("new"))
 		require.Errorf(t, err, ErrMethodNotImplemented)
 	})
 
@@ -57,19 +57,19 @@ func TestQueryStub(t *testing.T) {
 
 	t.Run("PurgePrivateData [negative]", func(t *testing.T) {
 		t.Skip()
-		err := qs.PurgePrivateData("collection", "key")
+		err = qs.PurgePrivateData("collection", "key")
 		require.Errorf(t, err, ErrMethodNotImplemented)
 	})
 
 	t.Run("SetPrivateDataValidationParameter [negative]", func(t *testing.T) {
 		t.Skip()
-		err := qs.SetPrivateDataValidationParameter("collection", "key", []byte("new"))
+		err = qs.SetPrivateDataValidationParameter("collection", "key", []byte("new"))
 		require.Errorf(t, err, ErrMethodNotImplemented)
 	})
 
 	t.Run("SetEvent [negative]", func(t *testing.T) {
 		t.Skip()
-		err := qs.SetEvent("event", []byte("payload"))
+		err = qs.SetEvent("event", []byte("payload"))
 		require.Errorf(t, err, ErrMethodNotImplemented)
 	})
 }

@@ -16,7 +16,7 @@ func NewNonceByTime() *Nonce {
 }
 
 func NewNonceByUint64(val uint64) *Nonce {
-	if len(strconv.FormatUint(val, 10)) != core.LenTimeInMilliseconds {
+	if val < core.LeftBorderNonce || val >= core.RightBorderNonce {
 		return &Nonce{}
 	}
 
@@ -24,7 +24,7 @@ func NewNonceByUint64(val uint64) *Nonce {
 }
 
 func (n *Nonce) Get() string {
-	if len(strconv.FormatUint(n.val, 10)) != core.LenTimeInMilliseconds {
+	if n.val < core.LeftBorderNonce || n.val >= core.RightBorderNonce {
 		return ""
 	}
 
