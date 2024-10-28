@@ -4,9 +4,9 @@ package mocks
 import (
 	"sync"
 
+	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/hyperledger/fabric-chaincode-go/shim"
 	"github.com/hyperledger/fabric-protos-go/peer"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type ChaincodeStub struct {
@@ -388,16 +388,16 @@ type ChaincodeStub struct {
 	getTxIDReturnsOnCall map[int]struct {
 		result1 string
 	}
-	GetTxTimestampStub        func() (*timestamppb.Timestamp, error)
+	GetTxTimestampStub        func() (*timestamp.Timestamp, error)
 	getTxTimestampMutex       sync.RWMutex
 	getTxTimestampArgsForCall []struct {
 	}
 	getTxTimestampReturns struct {
-		result1 *timestamppb.Timestamp
+		result1 *timestamp.Timestamp
 		result2 error
 	}
 	getTxTimestampReturnsOnCall map[int]struct {
-		result1 *timestamppb.Timestamp
+		result1 *timestamp.Timestamp
 		result2 error
 	}
 	InvokeChaincodeStub        func(string, [][]byte, string) peer.Response
@@ -2302,7 +2302,7 @@ func (fake *ChaincodeStub) GetTxIDReturnsOnCall(i int, result1 string) {
 	}{result1}
 }
 
-func (fake *ChaincodeStub) GetTxTimestamp() (*timestamppb.Timestamp, error) {
+func (fake *ChaincodeStub) GetTxTimestamp() (*timestamp.Timestamp, error) {
 	fake.getTxTimestampMutex.Lock()
 	ret, specificReturn := fake.getTxTimestampReturnsOnCall[len(fake.getTxTimestampArgsForCall)]
 	fake.getTxTimestampArgsForCall = append(fake.getTxTimestampArgsForCall, struct {
@@ -2326,34 +2326,34 @@ func (fake *ChaincodeStub) GetTxTimestampCallCount() int {
 	return len(fake.getTxTimestampArgsForCall)
 }
 
-func (fake *ChaincodeStub) GetTxTimestampCalls(stub func() (*timestamppb.Timestamp, error)) {
+func (fake *ChaincodeStub) GetTxTimestampCalls(stub func() (*timestamp.Timestamp, error)) {
 	fake.getTxTimestampMutex.Lock()
 	defer fake.getTxTimestampMutex.Unlock()
 	fake.GetTxTimestampStub = stub
 }
 
-func (fake *ChaincodeStub) GetTxTimestampReturns(result1 *timestamppb.Timestamp, result2 error) {
+func (fake *ChaincodeStub) GetTxTimestampReturns(result1 *timestamp.Timestamp, result2 error) {
 	fake.getTxTimestampMutex.Lock()
 	defer fake.getTxTimestampMutex.Unlock()
 	fake.GetTxTimestampStub = nil
 	fake.getTxTimestampReturns = struct {
-		result1 *timestamppb.Timestamp
+		result1 *timestamp.Timestamp
 		result2 error
 	}{result1, result2}
 }
 
-func (fake *ChaincodeStub) GetTxTimestampReturnsOnCall(i int, result1 *timestamppb.Timestamp, result2 error) {
+func (fake *ChaincodeStub) GetTxTimestampReturnsOnCall(i int, result1 *timestamp.Timestamp, result2 error) {
 	fake.getTxTimestampMutex.Lock()
 	defer fake.getTxTimestampMutex.Unlock()
 	fake.GetTxTimestampStub = nil
 	if fake.getTxTimestampReturnsOnCall == nil {
 		fake.getTxTimestampReturnsOnCall = make(map[int]struct {
-			result1 *timestamppb.Timestamp
+			result1 *timestamp.Timestamp
 			result2 error
 		})
 	}
 	fake.getTxTimestampReturnsOnCall[i] = struct {
-		result1 *timestamppb.Timestamp
+		result1 *timestamp.Timestamp
 		result2 error
 	}{result1, result2}
 }

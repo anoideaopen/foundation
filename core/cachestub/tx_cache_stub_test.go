@@ -1,96 +1,103 @@
-package cachestub_test
+package cachestub
 
 import (
 	"testing"
 
-	"github.com/anoideaopen/foundation/core/cachestub"
 	"github.com/stretchr/testify/require"
 )
 
-func TestTxStub(t *testing.T) {
-	mockStub := newMockStub()
-	_ = mockStub.PutState("KEY1", []byte("key1_value_1"))
-	_ = mockStub.PutState("KEY2", []byte("key2_value_1"))
-	_ = mockStub.PutState("KEY3", []byte("key3_value_1"))
+const (
+	txID1 = "txID1"
+	txID2 = "txID2"
+	txID3 = "txID3"
+)
 
-	batchStub := cachestub.NewBatchCacheStub(mockStub)
+func TestTxStub(t *testing.T) {
+	stateStub := newStateStub()
+
+	// preparing cacheStub values
+	_ = stateStub.PutState(valKey1, []byte(valKey1Value1))
+	_ = stateStub.PutState(valKey2, []byte(valKey2Value1))
+	_ = stateStub.PutState(valKey3, []byte(valKey3Value1))
+
+	batchStub := NewBatchCacheStub(stateStub)
 
 	// transaction 1 changes value of key1 and deletes key2
 	t.Run("tx1", func(t *testing.T) {
-		txStub := batchStub.NewTxCacheStub("tx1")
-		val, _ := txStub.GetState("KEY2")
-		require.Equal(t, "key2_value_1", string(val))
+		txStub := batchStub.NewTxCacheStub(txID1)
+		val, _ := txStub.GetState(valKey2)
+		require.Equal(t, valKey2Value1, string(val))
 
-		_ = txStub.PutState("KEY1", []byte("key1_value_2"))
-		_ = txStub.DelState("KEY2")
+		_ = txStub.PutState(valKey1, []byte(valKey1Value2))
+		_ = txStub.DelState(valKey2)
 		txStub.Commit()
 	})
 
 	// checking first transaction results were properly committed
-	val1, _ := batchStub.GetState("KEY2")
+	val1, _ := batchStub.GetState(valKey2)
 	require.Equal(t, "", string(val1))
 
-	val2, _ := batchStub.GetState("KEY1")
-	require.Equal(t, "key1_value_2", string(val2))
+	val2, _ := batchStub.GetState(valKey1)
+	require.Equal(t, valKey1Value2, string(val2))
 
 	// transaction 2 changes value of the key2 and deletes key3
 	t.Run("tx2", func(t *testing.T) {
-		txStub := batchStub.NewTxCacheStub("tx1")
-		val11, _ := txStub.GetState("KEY2")
+		txStub := batchStub.NewTxCacheStub(txID1)
+		val11, _ := txStub.GetState(valKey2)
 		require.Equal(t, "", string(val11))
 
-		val22, _ := txStub.GetState("KEY1")
-		require.Equal(t, "key1_value_2", string(val22))
+		val22, _ := txStub.GetState(valKey1)
+		require.Equal(t, valKey1Value2, string(val22))
 
-		_ = txStub.PutState("KEY2", []byte("key2_value_2"))
-		_ = txStub.DelState("KEY3")
+		_ = txStub.PutState(valKey2, []byte(valKey2Value2))
+		_ = txStub.DelState(valKey3)
 		txStub.Commit()
 	})
 
 	_ = batchStub.Commit()
 
 	// checking state after batch commit
-	require.Equal(t, 2, len(mockStub.state))
-	require.Equal(t, "key1_value_2", string(mockStub.state["KEY1"]))
-	require.Equal(t, "key2_value_2", string(mockStub.state["KEY2"]))
+	require.Equal(t, 2, len(stateStub.state))
+	require.Equal(t, valKey1Value2, string(stateStub.state[valKey1]))
+	require.Equal(t, valKey2Value2, string(stateStub.state[valKey2]))
 
 	// transaction 3 adds and deletes value for key 4
-	t.Run("tx3", func(t *testing.T) {
-		txStub := batchStub.NewTxCacheStub("tx2")
-		_ = txStub.PutState("KEY4", []byte("key4_value_1"))
-		_ = txStub.DelState("KEY4")
+	t.Run("tx3", func(_ *testing.T) {
+		txStub := batchStub.NewTxCacheStub(txID2)
+		_ = txStub.PutState(valKey4, []byte(valKey4Value1))
+		_ = txStub.DelState(valKey4)
 		txStub.Commit()
 	})
 
 	// batchStub checks if key 4 was deleted and changes its value
-	val4, _ := batchStub.GetState("KEY4")
+	val4, _ := batchStub.GetState(valKey4)
 	require.Equal(t, "", string(val4))
-	_ = batchStub.PutState("KEY4", []byte("key4_value_2"))
+	_ = batchStub.PutState(valKey4, []byte(valKey4Value2))
 
 	_ = batchStub.Commit()
 
-	require.Equal(t, "key4_value_2", string(mockStub.state["KEY4"]))
+	require.Equal(t, valKey4Value2, string(stateStub.state[valKey4]))
 
 	// transaction 4 will not be committed, because value of key 4 was changed in batch state
-	t.Run("tx4", func(t *testing.T) {
-		txStub := batchStub.NewTxCacheStub("tx3")
+	t.Run("tx4", func(_ *testing.T) {
+		txStub := batchStub.NewTxCacheStub(txID3)
 
-		val, _ := txStub.GetState("KEY4")
+		val, _ := txStub.GetState(valKey4)
 		if string(val) == "" {
-			_ = txStub.PutState("KEY4", []byte("key4_value_3"))
+			_ = txStub.PutState(valKey4, []byte(valKey4Value3))
 			txStub.Commit()
 		}
 	})
 
 	// checking key 4 value was not changed, deleting key 4
-	val5, _ := batchStub.GetState("KEY4")
-	require.Equal(t, "key4_value_2", string(val5))
+	val5, _ := batchStub.GetState(valKey4)
+	require.Equal(t, valKey4Value2, string(val5))
 
-	_ = batchStub.DelState("KEY4")
+	_ = batchStub.DelState(valKey4)
 	_ = batchStub.Commit()
 
 	// checking state for key 4 was deleted
-	require.Equal(t, 2, len(mockStub.state))
-	_, ok := mockStub.state["KEY4"]
+	require.Equal(t, 2, len(stateStub.state))
+	_, ok := stateStub.state[valKey4]
 	require.Equal(t, false, ok)
 }

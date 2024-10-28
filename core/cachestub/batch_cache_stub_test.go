@@ -1,43 +1,76 @@
-package cachestub_test
+package cachestub
 
 import (
 	"testing"
 
-	"github.com/anoideaopen/foundation/core/cachestub"
 	"github.com/stretchr/testify/require"
 )
 
+const (
+	valKey1 = "KEY1"
+	valKey2 = "KEY2"
+	valKey3 = "KEY3"
+	valKey4 = "KEY4"
+
+	valKey1Value1 = "key1_value1"
+	valKey2Value1 = "key2_value1"
+	valKey3Value1 = "key3_value1"
+	valKey4Value1 = "key4_value1"
+
+	valKey1Value2 = "key1_value2"
+	valKey2Value2 = "key2_value2"
+	valKey4Value2 = "key4_value2"
+
+	valKey4Value3 = "key4_value3"
+)
+
 func TestBatchStub(t *testing.T) {
-	mockStub := newMockStub()
-	_ = mockStub.PutState("KEY1", []byte("key1_value_1"))
-	_ = mockStub.PutState("KEY2", []byte("key2_value_1"))
-	_ = mockStub.PutState("KEY3", []byte("key3_value_1"))
+	stateStub := newStateStub()
 
-	batchStub := cachestub.NewBatchCacheStub(mockStub)
+	// preparing cacheStub values
+	_ = stateStub.PutState(valKey1, []byte(valKey1Value1))
+	_ = stateStub.PutState(valKey2, []byte(valKey2Value1))
+	_ = stateStub.PutState(valKey3, []byte(valKey3Value1))
 
-	_ = batchStub.PutState("KEY1", []byte("key1_value_2"))
-	_ = batchStub.DelState("KEY2")
+	// creating batch cache stub
+	batchStub := NewBatchCacheStub(stateStub)
+
+	// changing key1 value
+	_ = batchStub.PutState(valKey1, []byte(valKey1Value2))
+	// deleting key2 value
+	_ = batchStub.DelState(valKey2)
+	// committing changes to mockStub
 	_ = batchStub.Commit()
 
-	val1, _ := batchStub.GetState("KEY2")
+	// checking key2 value is deleted
+	val1, _ := batchStub.GetState(valKey2)
 	require.Equal(t, "", string(val1))
 
-	val2, _ := batchStub.GetState("KEY1")
-	require.Equal(t, "key1_value_2", string(val2))
+	// checking key1 value changed
+	val2, _ := batchStub.GetState(valKey1)
+	require.Equal(t, valKey1Value2, string(val2))
 
-	_ = batchStub.PutState("KEY2", []byte("key2_value_2"))
-	_ = batchStub.DelState("KEY3")
+	// setting key2 value 2
+	_ = batchStub.PutState(valKey2, []byte(valKey2Value2))
+	// deleting key3 value
+	_ = batchStub.DelState(valKey3)
+	// committing changes to mock stub
 	_ = batchStub.Commit()
 
-	require.Equal(t, 2, len(mockStub.state))
-	require.Equal(t, "key1_value_2", string(mockStub.state["KEY1"]))
-	require.Equal(t, "key2_value_2", string(mockStub.state["KEY2"]))
+	// checking mock stub state length
+	require.Equal(t, 2, len(stateStub.state))
+	// checking mock stub key1 value
+	require.Equal(t, valKey1Value2, string(stateStub.state[valKey1]))
+	// checking mock stub key2 value
+	require.Equal(t, valKey2Value2, string(stateStub.state[valKey2]))
 
-	_ = batchStub.PutState("KEY4", []byte("key4_value_1"))
-	_ = batchStub.DelState("KEY4")
-
+	// adding key4 value
+	_ = batchStub.PutState(valKey4, []byte(valKey4Value1))
+	// deleting key4 value
+	_ = batchStub.DelState(valKey4)
+	// committing changes to mock stub
 	_ = batchStub.Commit()
 
-	_, ok := mockStub.state["KEY4"]
+	_, ok := stateStub.state[valKey4]
 	require.Equal(t, false, ok)
 }
