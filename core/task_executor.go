@@ -4,11 +4,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"runtime/debug"
-	"sort"
-	"strings"
-	"time"
-
 	"github.com/anoideaopen/foundation/core/cachestub"
 	"github.com/anoideaopen/foundation/core/logger"
 	"github.com/anoideaopen/foundation/core/telemetry"
@@ -21,11 +16,18 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/protobuf/encoding/protojson"
+	"runtime/debug"
+	"sort"
+	"strings"
+	"time"
 )
 
 const ExecuteTasksEvent = "executeTasks"
 
 var ErrTasksNotFound = errors.New("no tasks found")
+
+// TaskIDPrefix is a prefix for store task id
+const TaskIDPrefix = "task"
 
 // TaskExecutor handles the execution of a group of tasks.
 type TaskExecutor struct {
@@ -249,6 +251,25 @@ func (e *TaskExecutor) ExecuteTask(
 
 	txCacheStub := stub.NewTxCacheStub(task.GetId())
 
+	ok, err := isTaskIDExists(txCacheStub, task.GetId())
+	if err != nil {
+		err = fmt.Errorf("failed to validate task id %s: %w", task.GetId(), err)
+		log.Warn(err)
+		return handleTaskError(span, task, err)
+	}
+	if ok {
+		err := fmt.Errorf("%s already exists", task.GetId())
+		log.Warn(err)
+		return handleTaskError(span, task, err)
+	}
+
+	err = saveTaskID(txCacheStub, task.GetId())
+	if err != nil {
+		err = fmt.Errorf("failed to save task id %s: %w", task.GetId(), err)
+		log.Warn(err)
+		return handleTaskError(span, task, err)
+	}
+
 	span.AddEvent("validating tx sender method and args")
 	senderAddress, method, args, err := e.validatedTxSenderMethodAndArgs(traceCtx, stub, task)
 	if err != nil {
@@ -282,6 +303,40 @@ func (e *TaskExecutor) ExecuteTask(
 			Events:     events,
 			Result:     response,
 		}
+}
+
+func saveTaskID(stub *cachestub.TxCacheStub, id string) error {
+	key, err := stub.CreateCompositeKey(TaskIDPrefix, []string{id})
+	if err != nil {
+		return fmt.Errorf("failed to create composite key by id %s: %w", id, err)
+	}
+
+	taskExistsFlag := []byte{0}
+	err = stub.PutState(key, taskExistsFlag)
+	if err != nil {
+		return fmt.Errorf("failed to put state by key %s: %w", key, err)
+	}
+
+	return nil
+}
+
+func isTaskIDExists(stub *cachestub.TxCacheStub, id string) (bool, error) {
+	key, err := stub.CreateCompositeKey(TaskIDPrefix, []string{id})
+	if err != nil {
+		return false, fmt.Errorf("failed to create composite key by id %s: %w", id, err)
+	}
+
+	data, err := stub.GetState(key)
+	if err != nil {
+		return false, fmt.Errorf("failed to get state by id %s: %w", id, err)
+	}
+	if len(data) == 0 {
+		// data not found
+		return false, nil
+	}
+
+	// already exists
+	return true, nil
 }
 
 func handleTasksError(span trace.Span, err error) error {

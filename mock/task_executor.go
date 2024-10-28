@@ -2,7 +2,6 @@ package mock
 
 import (
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"math/rand"
 	"net/http"
@@ -14,6 +13,7 @@ import (
 )
 
 type ExecutorRequest struct {
+	ID             string
 	Channel        string
 	Method         string
 	Args           []string
@@ -75,8 +75,11 @@ func (w *Wallet) TaskExecutorRequest(channel string, requests ...ExecutorRequest
 			args = r.Args
 		}
 
+		if r.ID == "" {
+			r.ID = strconv.FormatInt(rand.Int63(), 10)
+		}
 		task := &proto.Task{
-			Id:     strconv.FormatInt(rand.Int63(), 10),
+			Id:     r.ID,
 			Method: r.Method,
 			Args:   args,
 		}
@@ -104,9 +107,6 @@ func (w *Wallet) TaskExecutorRequest(channel string, requests ...ExecutorRequest
 			return nil, fmt.Errorf("could not find response for event %v", batchTxEvent.GetId())
 		}
 
-		if responseErr := txResponse.GetError(); responseErr != nil {
-			return nil, errors.New(responseErr.GetError())
-		}
 		executorResponses = append(executorResponses, ExecutorResponse{
 			TxResponse:   txResponse,
 			BatchTxEvent: batchTxEvent,

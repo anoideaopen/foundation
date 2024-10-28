@@ -62,6 +62,69 @@ func TestGroupTxExecutorEmitAndTransfer(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestGroupTxExecutorEmitAndTransferErrAlreadyExists(t *testing.T) {
+	t.Parallel()
+
+	ledger := mock.NewLedger(t)
+	owner := ledger.NewWallet()
+	feeAddressSetter := ledger.NewWallet()
+	feeSetter := ledger.NewWallet()
+	feeAggregator := ledger.NewWallet()
+
+	fiat := NewFiatTestToken(token.BaseToken{})
+	fiatConfig := makeBaseTokenConfig("fiat", "FIAT", 8,
+		owner.Address(), feeSetter.Address(), feeAddressSetter.Address(), "", nil)
+	initMsg := ledger.NewCC("fiat", fiat, fiatConfig)
+	require.Empty(t, initMsg)
+
+	user1 := ledger.NewWallet()
+
+	_, err := owner.ExecuteSignedInvoke("fiat", "emit", user1.Address(), "1000")
+	require.NoError(t, err)
+
+	user1.BalanceShouldBe("fiat", 1000)
+
+	_, err = feeAddressSetter.ExecuteSignedInvoke("fiat", "setFeeAddress", feeAggregator.Address())
+	require.NoError(t, err)
+	_, err = feeSetter.ExecuteSignedInvoke("fiat", "setFee", "FIAT", "500000", "100", "100000")
+	require.NoError(t, err)
+
+	rawMD := feeSetter.Invoke("fiat", "metadata")
+	md := &metadata{}
+	require.NoError(t, json.Unmarshal([]byte(rawMD), md))
+
+	require.Equal(t, "FIAT", md.Fee.Currency)
+	require.Equal(t, "500000", md.Fee.Fee.String())
+	require.Equal(t, "100000", md.Fee.Cap.String())
+	require.Equal(t, "100", md.Fee.Floor.String())
+	require.Equal(t, feeAggregator.Address(), md.Fee.Address)
+
+	user2 := ledger.NewWallet()
+	executorRequest := mock.NewExecutorRequest("fiat", "transfer", []string{user2.Address(), "400", ""}, true)
+	executorRequest.ID = "task1"
+	resp, err := user1.TaskExecutorRequest("fiat", executorRequest, executorRequest)
+	require.NoError(t, err)
+	require.Len(t, resp, 2)
+	require.Nil(t, resp[0].BatchTxEvent.GetError())
+	require.Empty(t, resp[0].BatchTxEvent.GetError().GetError())
+	require.NotNil(t, resp[1].BatchTxEvent.GetError())
+	require.Equal(t, "task1 already exists", resp[1].BatchTxEvent.GetError().GetError())
+
+	resp, err = user1.TaskExecutorRequest("fiat", executorRequest, executorRequest)
+	require.Len(t, resp, 2)
+	require.NotNil(t, resp[0].BatchTxEvent.GetError())
+	require.Equal(t, "task1 already exists", resp[0].BatchTxEvent.GetError().GetError())
+	require.NotNil(t, resp[1].BatchTxEvent.GetError())
+	require.Equal(t, "task1 already exists", resp[1].BatchTxEvent.GetError().GetError())
+
+	user1.BalanceShouldBe("fiat", 500)
+	user2.BalanceShouldBe("fiat", 400)
+
+	user1.PublicKeyBase58 = base58.Encode(user1.PublicKeyEd25519)
+	_, err = user2.ExecuteSignedInvoke("fiat", "accountsTest", user1.Address(), user1.PublicKeyBase58)
+	require.NoError(t, err)
+}
+
 func TestTxExecutorHealthcheck(t *testing.T) {
 	t.Parallel()
 
