@@ -1,6 +1,7 @@
 package cachestub
 
 import (
+	"github.com/anoideaopen/foundation/core/cachestub/mock"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -13,7 +14,7 @@ const (
 )
 
 func TestTxStub(t *testing.T) {
-	stateStub := newStateStub()
+	stateStub := mock.NewStateStub()
 
 	// preparing cacheStub values
 	_ = stateStub.PutState(valKey1, []byte(valKey1Value1))
@@ -57,9 +58,9 @@ func TestTxStub(t *testing.T) {
 	_ = batchStub.Commit()
 
 	// checking state after batch commit
-	require.Equal(t, 2, len(stateStub.state))
-	require.Equal(t, valKey1Value2, string(stateStub.state[valKey1]))
-	require.Equal(t, valKey2Value2, string(stateStub.state[valKey2]))
+	require.Equal(t, 2, len(stateStub.State))
+	require.Equal(t, valKey1Value2, string(stateStub.State[valKey1]))
+	require.Equal(t, valKey2Value2, string(stateStub.State[valKey2]))
 
 	// transaction 3 adds and deletes value for key 4
 	t.Run("tx3", func(_ *testing.T) {
@@ -76,7 +77,7 @@ func TestTxStub(t *testing.T) {
 
 	_ = batchStub.Commit()
 
-	require.Equal(t, valKey4Value2, string(stateStub.state[valKey4]))
+	require.Equal(t, valKey4Value2, string(stateStub.State[valKey4]))
 
 	// transaction 4 will not be committed, because value of key 4 was changed in batch state
 	t.Run("tx4", func(_ *testing.T) {
@@ -97,7 +98,7 @@ func TestTxStub(t *testing.T) {
 	_ = batchStub.Commit()
 
 	// checking state for key 4 was deleted
-	require.Equal(t, 2, len(stateStub.state))
-	_, ok := stateStub.state[valKey4]
+	require.Equal(t, 2, len(stateStub.State))
+	_, ok := stateStub.State[valKey4]
 	require.Equal(t, false, ok)
 }

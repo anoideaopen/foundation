@@ -1,6 +1,7 @@
 package cachestub
 
 import (
+	"github.com/anoideaopen/foundation/core/cachestub/mock"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -25,7 +26,7 @@ const (
 )
 
 func TestBatchStub(t *testing.T) {
-	stateStub := newStateStub()
+	stateStub := mock.NewStateStub()
 
 	// preparing cacheStub values
 	_ = stateStub.PutState(valKey1, []byte(valKey1Value1))
@@ -58,11 +59,11 @@ func TestBatchStub(t *testing.T) {
 	_ = batchStub.Commit()
 
 	// checking mock stub state length
-	require.Equal(t, 2, len(stateStub.state))
+	require.Equal(t, 2, len(stateStub.State))
 	// checking mock stub key1 value
-	require.Equal(t, valKey1Value2, string(stateStub.state[valKey1]))
+	require.Equal(t, valKey1Value2, string(stateStub.State[valKey1]))
 	// checking mock stub key2 value
-	require.Equal(t, valKey2Value2, string(stateStub.state[valKey2]))
+	require.Equal(t, valKey2Value2, string(stateStub.State[valKey2]))
 
 	// adding key4 value
 	_ = batchStub.PutState(valKey4, []byte(valKey4Value1))
@@ -71,6 +72,6 @@ func TestBatchStub(t *testing.T) {
 	// committing changes to mock stub
 	_ = batchStub.Commit()
 
-	_, ok := stateStub.state[valKey4]
+	_, ok := stateStub.State[valKey4]
 	require.Equal(t, false, ok)
 }
