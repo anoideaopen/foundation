@@ -19,7 +19,7 @@ func TokenBalanceAdd(
 	reason string,
 ) error {
 	if stub, ok := stub.(Accounting); ok {
-		stub.AddAccountingRecord(symbol, &types.Address{}, address, amount, reason)
+		stub.AddAccountingRecord(symbol, &types.Address{}, address, amount, 0, balance.BalanceTypeToken, reason)
 	}
 
 	return balance.Add(stub, balance.BalanceTypeToken, address.String(), "", &amount.Int)
@@ -52,7 +52,7 @@ func IndustrialBalanceTransfer(
 	parts := strings.Split(token, "_")
 	token = parts[len(parts)-1]
 	if stub, ok := stub.(Accounting); ok {
-		stub.AddAccountingRecord(symbol+"_"+token, from, to, amount, reason)
+		stub.AddAccountingRecord(symbol+"_"+token, from, to, amount, balance.BalanceTypeToken, balance.BalanceTypeToken, reason)
 	}
 	return balance.Move(
 		stub,
@@ -81,6 +81,8 @@ func IndustrialBalanceAdd(
 			&types.Address{},
 			address,
 			amount,
+			0,
+			balance.BalanceTypeToken,
 			reason,
 		)
 	}
@@ -103,6 +105,8 @@ func IndustrialBalanceSub(
 			address,
 			&types.Address{},
 			amount,
+			balance.BalanceTypeToken,
+			0,
 			reason,
 		)
 	}
@@ -118,7 +122,7 @@ func TokenBalanceTransfer(
 	reason string,
 ) error {
 	if stub, ok := stub.(Accounting); ok {
-		stub.AddAccountingRecord(symbol, from, to, amount, reason)
+		stub.AddAccountingRecord(symbol, from, to, amount, balance.BalanceTypeToken, balance.BalanceTypeToken, reason)
 	}
 	return balance.Move(
 		stub,
@@ -140,7 +144,7 @@ func AllowedBalanceTransfer(
 	reason string,
 ) error {
 	if stub, ok := stub.(Accounting); ok {
-		stub.AddAccountingRecord(token, from, to, amount, reason)
+		stub.AddAccountingRecord(token, from, to, amount, balance.BalanceTypeAllowed, balance.BalanceTypeAllowed, reason)
 	}
 	return balance.Move(
 		stub,
@@ -166,7 +170,7 @@ func TokenBalanceAddWithReason(
 	reason string,
 ) error {
 	if stub, ok := stub.(Accounting); ok {
-		stub.AddAccountingRecord(symbol, &types.Address{}, address, amount, reason)
+		stub.AddAccountingRecord(symbol, &types.Address{}, address, amount, 0, balance.BalanceTypeToken, reason)
 	}
 	return balance.Add(stub, balance.BalanceTypeToken, address.String(), "", &amount.Int)
 }
@@ -191,6 +195,8 @@ func TokenBalanceAddWithTicker(
 			&types.Address{},
 			address,
 			amount,
+			0,
+			balance.BalanceTypeToken,
 			reason,
 		)
 	}
@@ -208,7 +214,7 @@ func TokenBalanceSub(
 	reason string,
 ) error {
 	if stub, ok := stub.(Accounting); ok {
-		stub.AddAccountingRecord(symbol, address, &types.Address{}, amount, reason)
+		stub.AddAccountingRecord(symbol, address, &types.Address{}, amount, balance.BalanceTypeToken, 0, reason)
 	}
 	return balance.Sub(stub, balance.BalanceTypeToken, address.String(), "", &amount.Int)
 }
@@ -233,6 +239,8 @@ func TokenBalanceSubWithTicker(
 			address,
 			&types.Address{},
 			amount,
+			balance.BalanceTypeToken,
+			0,
 			reason,
 		)
 	}
@@ -259,7 +267,7 @@ func TokenBalanceTransferLocked(
 	reason string,
 ) error {
 	if stub, ok := stub.(Accounting); ok {
-		stub.AddAccountingRecord(symbol, from, to, amount, reason)
+		stub.AddAccountingRecord(symbol, from, to, amount, balance.BalanceTypeTokenLocked, balance.BalanceTypeToken, reason)
 	}
 	return balance.Move(
 		stub,
@@ -280,7 +288,7 @@ func TokenBalanceBurnLocked(
 	reason string,
 ) error {
 	if stub, ok := stub.(Accounting); ok {
-		stub.AddAccountingRecord(symbol, address, &types.Address{}, amount, reason)
+		stub.AddAccountingRecord(symbol, address, &types.Address{}, amount, balance.BalanceTypeTokenLocked, 0, reason)
 	}
 	return balance.Sub(
 		stub,
@@ -308,7 +316,7 @@ func AllowedBalanceAdd(
 	reason string,
 ) error {
 	if stub, ok := stub.(Accounting); ok {
-		stub.AddAccountingRecord(token, &types.Address{}, address, amount, reason)
+		stub.AddAccountingRecord(token, &types.Address{}, address, amount, 0, balance.BalanceTypeAllowed, reason)
 	}
 	return balance.Add(stub, balance.BalanceTypeAllowed, address.String(), token, &amount.Int)
 }
@@ -321,7 +329,7 @@ func AllowedBalanceSub(
 	reason string,
 ) error {
 	if stub, ok := stub.(Accounting); ok {
-		stub.AddAccountingRecord(token, address, &types.Address{}, amount, reason)
+		stub.AddAccountingRecord(token, address, &types.Address{}, amount, balance.BalanceTypeAllowed, 0, reason)
 	}
 	return balance.Sub(
 		stub,
@@ -342,7 +350,7 @@ func AllowedIndustrialBalanceTransfer(
 	for _, industrialAsset := range industrialAssets {
 		amount := new(big.Int).SetBytes(industrialAsset.GetAmount())
 		if stub, ok := stub.(Accounting); ok {
-			stub.AddAccountingRecord(industrialAsset.GetGroup(), from, to, amount, reason)
+			stub.AddAccountingRecord(industrialAsset.GetGroup(), from, to, amount, balance.BalanceTypeAllowed, balance.BalanceTypeAllowed, reason)
 		}
 		if err := balance.Move(
 			stub,
@@ -373,6 +381,8 @@ func AllowedIndustrialBalanceAdd(
 				&types.Address{},
 				address,
 				amount,
+				0,
+				balance.BalanceTypeAllowed,
 				reason,
 			)
 		}
@@ -398,7 +408,7 @@ func AllowedIndustrialBalanceSub(
 	for _, asset := range industrialAssets {
 		amount := new(big.Int).SetBytes(asset.GetAmount())
 		if stub, ok := stub.(Accounting); ok {
-			stub.AddAccountingRecord(asset.GetGroup(), address, &types.Address{}, amount, reason)
+			stub.AddAccountingRecord(asset.GetGroup(), address, &types.Address{}, amount, balance.BalanceTypeAllowed, 0, reason)
 		}
 		if err := balance.Sub(
 			stub,
@@ -436,7 +446,7 @@ func AllowedBalanceTransferLocked(
 	reason string,
 ) error {
 	if stub, ok := stub.(Accounting); ok {
-		stub.AddAccountingRecord(token, from, to, amount, reason)
+		stub.AddAccountingRecord(token, from, to, amount, balance.BalanceTypeAllowedLocked, balance.BalanceTypeAllowed, reason)
 	}
 	return balance.Move(
 		stub,
@@ -457,7 +467,7 @@ func AllowedBalanceBurnLocked(
 	reason string,
 ) error {
 	if stub, ok := stub.(Accounting); ok {
-		stub.AddAccountingRecord(token, address, &types.Address{}, amount, reason)
+		stub.AddAccountingRecord(token, address, &types.Address{}, amount, balance.BalanceTypeAllowedLocked, 0, reason)
 	}
 	return balance.Sub(
 		stub,
@@ -495,7 +505,7 @@ func IndustrialBalanceTransferLocked(
 	parts := strings.Split(token, "_")
 	token = parts[len(parts)-1]
 	if stub, ok := stub.(Accounting); ok {
-		stub.AddAccountingRecord(symbol+"_"+token, from, to, amount, reason)
+		stub.AddAccountingRecord(symbol+"_"+token, from, to, amount, balance.BalanceTypeTokenLocked, balance.BalanceTypeToken, reason)
 	}
 	return balance.Move(
 		stub,
@@ -524,6 +534,8 @@ func IndustrialBalanceBurnLocked(
 			address,
 			&types.Address{},
 			amount,
+			balance.BalanceTypeTokenLocked,
+			0,
 			reason,
 		)
 	}

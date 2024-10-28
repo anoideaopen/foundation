@@ -53,7 +53,7 @@ func TokenBalanceLock(
 	}
 
 	if stub, ok := stub.(Accounting); ok {
-		stub.AddAccountingRecord(symbol, address, address, amount, opt.reason)
+		stub.AddAccountingRecord(symbol, address, address, amount, balance.BalanceTypeToken, balance.BalanceTypeTokenLocked, opt.reason)
 	}
 	return balance.Move(
 		stub,
@@ -84,6 +84,8 @@ func TokenBalanceUnlock(
 			address,
 			address,
 			amount,
+			balance.BalanceTypeTokenLocked,
+			balance.BalanceTypeToken,
 			opt.reason,
 		)
 	}
@@ -117,6 +119,8 @@ func AllowedBalanceLock(
 			address,
 			address,
 			amount,
+			balance.BalanceTypeAllowed,
+			balance.BalanceTypeAllowedLocked,
 			opt.reason,
 		)
 	}
@@ -150,6 +154,8 @@ func AllowedBalanceUnlock(
 			address,
 			address,
 			amount,
+			balance.BalanceTypeAllowedLocked,
+			balance.BalanceTypeAllowed,
 			opt.reason,
 		)
 	}
@@ -186,6 +192,8 @@ func IndustrialBalanceLock(
 			address,
 			address,
 			amount,
+			balance.BalanceTypeToken,
+			balance.BalanceTypeTokenLocked,
 			opt.reason,
 		)
 	}
@@ -221,6 +229,8 @@ func IndustrialBalanceUnlock(
 			address,
 			address,
 			amount,
+			balance.BalanceTypeTokenLocked,
+			balance.BalanceTypeToken,
 			opt.reason,
 		)
 	}
