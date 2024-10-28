@@ -4,6 +4,11 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"runtime/debug"
+	"sort"
+	"strings"
+	"time"
+
 	"github.com/anoideaopen/foundation/core/cachestub"
 	"github.com/anoideaopen/foundation/core/logger"
 	"github.com/anoideaopen/foundation/core/telemetry"
@@ -16,10 +21,6 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/protobuf/encoding/protojson"
-	"runtime/debug"
-	"sort"
-	"strings"
-	"time"
 )
 
 const ExecuteTasksEvent = "executeTasks"
