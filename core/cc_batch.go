@@ -134,7 +134,8 @@ func (cc *Chaincode) loadFromBatch(
 	}
 
 	sender := types.NewSenderFromAddr((*types.Address)(pending.GetSender()))
-	if err = checkNonce(stub, sender, pending.GetNonce()); err != nil {
+	n := new(Nonce)
+	if err = n.check(stub, sender, pending.GetNonce()); err != nil {
 		log.Errorf("incorrect tx %s nonce: %s", txID, err.Error())
 		return pending, key, err
 	}

@@ -3,13 +3,14 @@ package version_and_nonce
 import (
 	"encoding/json"
 	"fmt"
+	"runtime/debug"
+
 	pbfound "github.com/anoideaopen/foundation/proto"
 	"github.com/anoideaopen/foundation/test/integration/cmn"
 	"github.com/anoideaopen/foundation/test/integration/cmn/client"
 	"github.com/hyperledger/fabric/integration"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"runtime/debug"
 )
 
 var _ = Describe("Version and Nonce Tests", func() {
@@ -156,11 +157,11 @@ var _ = Describe("Version and Nonce Tests", func() {
 
 		By("NEGATIVE: emit tokens 3")
 		ts.TxInvokeWithSign(cmn.ChannelFiat, cmn.ChannelFiat, ts.Admin(),
-			"emit", "", nonce1, user1.AddressBase58Check, emitAmount).CheckErrorEquals(fmt.Sprintf("function and args loading error: incorrect nonce %s, less than %s", nonce1, nonce3))
+			"emit", "", nonce1, user1.AddressBase58Check, emitAmount).CheckErrorEquals(fmt.Sprintf("function and args loading error: incorrect nonce %s000000, less than %s000000", nonce1, nonce3))
 
 		By("NEGATIVE: emit tokens 4")
 		ts.TxInvokeWithSign(cmn.ChannelFiat, cmn.ChannelFiat, ts.Admin(),
-			"emit", "", nonce3, user1.AddressBase58Check, emitAmount).CheckErrorEquals(fmt.Sprintf("function and args loading error: nonce %s already exists", nonce3))
+			"emit", "", nonce3, user1.AddressBase58Check, emitAmount).CheckErrorEquals(fmt.Sprintf("function and args loading error: nonce %s000000 already exists", nonce3))
 
 		By("emit tokens 5")
 		ts.TxInvokeWithSign(cmn.ChannelFiat, cmn.ChannelFiat, ts.Admin(),

@@ -48,7 +48,7 @@ func TestByCustomerForwardSuccess(t *testing.T) {
 	_, _, err = user1.RawChTransferInvoke("cc", "commitCCTransferFrom", id)
 	require.NoError(t, err)
 
-	_, _, err = user1.RawChTransferInvokeWithBatch("vt", "removeCCTransferTo", id)
+	_, _, err = user1.RawChTransferInvoke("vt", "deleteCCTransferTo", id)
 	require.NoError(t, err)
 
 	_, _, err = user1.RawChTransferInvoke("cc", "deleteCCTransferFrom", id)
@@ -119,7 +119,7 @@ func TestByAdminForwardSuccess(t *testing.T) {
 	_, _, err = user1.RawChTransferInvoke("cc", "commitCCTransferFrom", id)
 	require.NoError(t, err)
 
-	_, _, err = user1.RawChTransferInvokeWithBatch("vt", "removeCCTransferTo", id)
+	_, _, err = user1.RawChTransferInvoke("vt", "deleteCCTransferTo", id)
 	require.NoError(t, err)
 
 	_, _, err = user1.RawChTransferInvoke("cc", "deleteCCTransferFrom", id)
@@ -207,7 +207,7 @@ func TestByCustomerBackSuccess(t *testing.T) {
 	_, _, err = user1.RawChTransferInvoke("cc", "commitCCTransferFrom", id)
 	require.NoError(t, err)
 
-	_, _, err = user1.RawChTransferInvokeWithBatch("vt", "removeCCTransferTo", id)
+	_, _, err = user1.RawChTransferInvoke("vt", "deleteCCTransferTo", id)
 	require.NoError(t, err)
 
 	_, _, err = user1.RawChTransferInvoke("cc", "deleteCCTransferFrom", id)
@@ -264,7 +264,7 @@ func TestByAdminBackSuccess(t *testing.T) {
 	_, _, err = user1.RawChTransferInvoke("cc", "commitCCTransferFrom", id)
 	require.NoError(t, err)
 
-	_, _, err = user1.RawChTransferInvokeWithBatch("vt", "removeCCTransferTo", id)
+	_, _, err = user1.RawChTransferInvoke("vt", "deleteCCTransferTo", id)
 	require.NoError(t, err)
 
 	_, _, err = user1.RawChTransferInvoke("cc", "deleteCCTransferFrom", id)
@@ -507,6 +507,54 @@ func TestFailCreateTransferTo(t *testing.T) {
 	require.EqualError(t, err, cctransfer.ErrIDTransferExist.Error())
 }
 
+func TestFailCreateTransferToAfterDeleteTransferTo(t *testing.T) {
+	// preparation
+	ledger := mock.NewLedger(t)
+	owner := ledger.NewWallet()
+
+	ccConfig := makeBaseTokenConfig("CC Token", "CC", 8,
+		owner.Address(), "", "", owner.Address(), nil)
+
+	initMsg := ledger.NewCC("cc", &token.BaseToken{}, ccConfig)
+	require.Empty(t, initMsg)
+
+	vtConfig := makeBaseTokenConfig("VT Token", "VT", 8,
+		owner.Address(), "", "", owner.Address(), nil)
+
+	initMsg = ledger.NewCC("vt", &token.BaseToken{}, vtConfig)
+	require.Empty(t, initMsg)
+
+	user1 := ledger.NewWallet()
+	user1.AddBalance("cc", 1000)
+
+	id := uuid.NewString()
+	err := user1.RawSignedInvokeWithErrorReturned("cc", "channelTransferByCustomer",
+		id, "VT", "CC", "450")
+	require.NoError(t, err)
+
+	cctRaw := user1.Invoke("cc", "channelTransferFrom", id)
+	cct := new(pb.CCTransfer)
+	err = json.Unmarshal([]byte(cctRaw), &cct)
+	require.NoError(t, err)
+
+	// TESTS
+
+	// The transfer is already in place
+	_, _, err = user1.RawChTransferInvokeWithBatch("vt", "createCCTransferTo", cctRaw)
+	require.NoError(t, err)
+	_, _, err = user1.RawChTransferInvokeWithBatch("vt", "createCCTransferTo", cctRaw)
+	require.EqualError(t, err, cctransfer.ErrIDTransferExist.Error())
+
+	// del transfer to
+	_, _, err = user1.RawChTransferInvoke("vt", "deleteCCTransferTo", id)
+	require.NoError(t, err)
+
+	// I'm trying to create again.
+	_, _, err = user1.RawChTransferInvokeWithBatch("vt", "createCCTransferTo", cctRaw)
+	require.ErrorContains(t, err, "nonce")
+	require.ErrorContains(t, err, "already exists")
+}
+
 func TestFailCancelTransferFrom(t *testing.T) { //nolint:dupl
 	// preparation
 	ledger := mock.NewLedger(t)
@@ -618,7 +666,7 @@ func TestFailDeleteTransferTo(t *testing.T) {
 	// TESTS
 
 	// transfer not found
-	_, _, err := user1.RawChTransferInvokeWithBatch("vt", "removeCCTransferTo", uuid.NewString())
+	_, _, err := user1.RawChTransferInvoke("vt", "deleteCCTransferTo", uuid.NewString())
 	require.EqualError(t, err, cctransfer.ErrNotFound.Error())
 }
 
@@ -873,7 +921,7 @@ func TestMultiTransferByCustomerForwardSuccess(t *testing.T) {
 	_, _, err = user1.RawChTransferInvoke("it1", "commitCCTransferFrom", id)
 	require.NoError(t, err)
 
-	_, _, err = user1.RawChTransferInvokeWithBatch("it2", "removeCCTransferTo", id)
+	_, _, err = user1.RawChTransferInvoke("it2", "deleteCCTransferTo", id)
 	require.NoError(t, err)
 
 	_, _, err = user1.RawChTransferInvoke("it1", "deleteCCTransferFrom", id)
@@ -940,7 +988,7 @@ func TestMultiTransferByAdminForwardSuccess(t *testing.T) {
 	_, _, err = user1.RawChTransferInvoke("it1", "commitCCTransferFrom", id)
 	require.NoError(t, err)
 
-	_, _, err = user1.RawChTransferInvokeWithBatch("it2", "removeCCTransferTo", id)
+	_, _, err = user1.RawChTransferInvoke("it2", "deleteCCTransferTo", id)
 	require.NoError(t, err)
 
 	_, _, err = user1.RawChTransferInvoke("it1", "deleteCCTransferFrom", id)
@@ -1051,7 +1099,7 @@ func TestMultiTransferByCustomerBackSuccess(t *testing.T) {
 	_, _, err = user1.RawChTransferInvoke("it1", "commitCCTransferFrom", id)
 	require.NoError(t, err)
 
-	_, _, err = user1.RawChTransferInvokeWithBatch("it2", "removeCCTransferTo", id)
+	_, _, err = user1.RawChTransferInvoke("it2", "deleteCCTransferTo", id)
 	require.NoError(t, err)
 
 	_, _, err = user1.RawChTransferInvoke("it1", "deleteCCTransferFrom", id)
@@ -1128,7 +1176,7 @@ func TestMultiTransferByAdminBackSuccess(t *testing.T) {
 	_, _, err = user1.RawChTransferInvoke("it1", "commitCCTransferFrom", id)
 	require.NoError(t, err)
 
-	_, _, err = user1.RawChTransferInvokeWithBatch("it2", "removeCCTransferTo", id)
+	_, _, err = user1.RawChTransferInvoke("it2", "deleteCCTransferTo", id)
 	require.NoError(t, err)
 
 	_, _, err = user1.RawChTransferInvoke("it1", "deleteCCTransferFrom", id)
@@ -1559,7 +1607,7 @@ func TestMultiTransferFailDeleteTransferTo(t *testing.T) {
 	// TESTS
 
 	// transfer not found
-	_, _, err := user1.RawChTransferInvokeWithBatch("it2", "removeCCTransferTo", uuid.NewString())
+	_, _, err := user1.RawChTransferInvoke("it2", "deleteCCTransferTo", uuid.NewString())
 	require.EqualError(t, err, cctransfer.ErrNotFound.Error())
 }
 

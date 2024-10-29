@@ -145,7 +145,12 @@ func (bc *BaseContract) QueryGetNonce(owner *types.Address) (string, error) {
 			// let's just say it's an old nonsense
 			lastNonce.Nonce = []uint64{new(big.Int).SetBytes(data).Uint64()}
 		}
-		exist = strconv.FormatUint(lastNonce.GetNonce()[len(lastNonce.GetNonce())-1], 10)
+		// to support common (old) nones multiply and divide by a factor
+		nonce := lastNonce.GetNonce()[len(lastNonce.GetNonce())-1]
+		if nonce >= RightBorderNonce {
+			nonce /= multiKoeffForGeneralNonce
+		}
+		exist = strconv.FormatUint(nonce, 10)
 	}
 
 	return exist, nil

@@ -107,7 +107,7 @@ func TestMetadataMethods(t *testing.T) {
 		"cancelCCTransferFrom", "allowedBalancesWithPagination",
 		"channelTransferByAdmin", "channelMultiTransferByAdmin", "channelTransferByCustomer", "channelMultiTransferByCustomer", "channelTransferFrom",
 		"channelTransferTo", "channelTransfersFrom", "commitCCTransferFrom", "coreChaincodeIDName",
-		"createCCTransferTo", "deleteCCTransferFrom", "removeCCTransferTo", "deleteCCTransferTo", "deleteDoc",
+		"createCCTransferTo", "deleteCCTransferFrom", "deleteCCTransferTo", "deleteDoc",
 		"deleteRate", "documentsList", "getFeeTransfer", "getLockedAllowedBalance",
 		"getLockedTokenBalance", "getNonce", "givenBalance", "givenBalancesWithPagination", "groupBalanceOf",
 		"healthCheck", "lockAllowedBalance", "tokenBalancesWithPagination",

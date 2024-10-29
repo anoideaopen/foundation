@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"sort"
-	"strconv"
 	"time"
 
 	"github.com/anoideaopen/foundation/core/logger"
@@ -19,21 +18,34 @@ import (
 const StateKeyNonce byte = 42 // hex: 2a
 
 const (
-	doublingMemoryCoef    = 2
-	LenTimeInMilliseconds = 13
-	// defaultNonceTTL is time in seconds for nonce. If attempting to execute a transaction in a batch
+	doublingMemoryCoef = 2
+	LeftBorderNonce    = 1e12
+	RightBorderNonce   = 1e13
+	// defaultNonceTTL is time for nonce. If attempting to execute a transaction in a batch
 	// that is older than the maximum nonce (at the current moment) by more than NonceTTL,
 	// we will not execute it and return an error.
-	defaultNonceTTL = 50
+	defaultNonceTTL               = 50 * time.Second
+	defaultNonceTTLForCreateCCTTo = 3 * time.Hour
+	multiKoeffForGeneralNonce     = 1e6
 )
 
-func checkNonce(
+type Nonce struct {
+	ttl        time.Duration
+	guardF     func(uint64) error
+	transformF func(uint64) uint64
+}
+
+func (n *Nonce) check(
 	stub shim.ChaincodeStubInterface,
 	sender *types.Sender,
 	nonce uint64,
+	args ...string,
 ) error {
+	var attributes []string
+
 	noncePrefix := hex.EncodeToString([]byte{StateKeyNonce})
-	nonceKey, err := stub.CreateCompositeKey(noncePrefix, []string{sender.Address().String()})
+	attributes = append(append(attributes, args...), sender.Address().String())
+	nonceKey, err := stub.CreateCompositeKey(noncePrefix, attributes)
 	if err != nil {
 		return err
 	}
@@ -52,7 +64,35 @@ func checkNonce(
 		}
 	}
 
-	lastNonce.Nonce, err = setNonce(nonce, lastNonce.GetNonce(), defaultNonceTTL)
+	nonceTTL := n.ttl
+	if nonceTTL == 0 {
+		nonceTTL = defaultNonceTTL
+	}
+
+	// guard function
+	if n.guardF == nil {
+		n.guardF = func(nnc uint64) error {
+			// to support common (old) nones multiply and divide by a factor
+			if nnc < LeftBorderNonce || nnc >= RightBorderNonce {
+				return errors.New("incorrect nonce format")
+			}
+			return nil
+		}
+	}
+	if err = n.guardF(nonce); err != nil {
+		return err
+	}
+
+	// transform func
+	if n.transformF == nil {
+		// to support common (old) nones multiply and divide by a factor
+		n.transformF = func(u uint64) uint64 {
+			return u * multiKoeffForGeneralNonce
+		}
+	}
+	nonce = n.transformF(nonce)
+
+	lastNonce.Nonce, err = n.set(nonce, lastNonce.GetNonce(), nonceTTL)
 	if err != nil {
 		return err
 	}
@@ -65,11 +105,7 @@ func checkNonce(
 	return stub.PutState(nonceKey, data)
 }
 
-func setNonce(nonce uint64, lastNonce []uint64, nonceTTL uint) ([]uint64, error) {
-	if len(strconv.FormatUint(nonce, 10)) != LenTimeInMilliseconds {
-		return lastNonce, errors.New("incorrect nonce format")
-	}
-
+func (n *Nonce) set(nonce uint64, lastNonce []uint64, nonceTTL time.Duration) ([]uint64, error) {
 	if len(lastNonce) == 0 {
 		return []uint64{nonce}, nil
 	}
@@ -78,18 +114,16 @@ func setNonce(nonce uint64, lastNonce []uint64, nonceTTL uint) ([]uint64, error)
 
 	last := lastNonce[l-1]
 
-	ttl := time.Second * time.Duration(nonceTTL)
-
 	if nonce > last {
 		lastNonce = append(lastNonce, nonce)
 		l = len(lastNonce)
 		last = lastNonce[l-1]
 
-		index := sort.Search(l, func(i int) bool { return last-lastNonce[i] <= uint64(ttl.Milliseconds()) })
+		index := sort.Search(l, func(i int) bool { return last-lastNonce[i] <= uint64(nonceTTL.Nanoseconds()) })
 		return lastNonce[index:], nil
 	}
 
-	if last-nonce > uint64(ttl.Milliseconds()) {
+	if last-nonce > uint64(nonceTTL.Nanoseconds()) {
 		return lastNonce, fmt.Errorf("incorrect nonce %d, less than %d", nonce, last)
 	}
 
