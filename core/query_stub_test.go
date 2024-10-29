@@ -19,7 +19,7 @@ const (
 	valPayload    = "payload"
 )
 
-//go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 -generate
+//go:generate counterfeiter -generate
 
 //counterfeiter:generate -o ../mocks/chaincode_stub.go --fake-name ChaincodeStub . chaincodeStub
 type chaincodeStub interface {

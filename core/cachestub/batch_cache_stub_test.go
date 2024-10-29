@@ -1,6 +1,7 @@
 package cachestub
 
 import (
+	"github.com/hyperledger/fabric-chaincode-go/shim"
 	"testing"
 
 	"github.com/anoideaopen/foundation/mocks"
@@ -17,6 +18,13 @@ const (
 	valKey2Value1 = "key2_value1"
 	valKey4Value1 = "key4_value1"
 )
+
+//go:generate counterfeiter -generate
+
+//counterfeiter:generate -o ../mocks/chaincode_stub.go --fake-name ChaincodeStub . chaincodeStub
+type chaincodeStub interface {
+	shim.ChaincodeStubInterface
+}
 
 func TestBatchStub(t *testing.T) {
 	stateStub := &mocks.ChaincodeStub{}
