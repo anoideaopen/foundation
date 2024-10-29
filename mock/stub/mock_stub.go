@@ -14,6 +14,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"github.com/anoideaopen/foundation/core/balance"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -935,14 +936,18 @@ func (stub *Stub) AddAccountingRecord(
 	from *types.Address,
 	to *types.Address,
 	amount *big.Int,
+	senderBalanceType balance.BalanceType,
+	recipientBalanceType balance.BalanceType,
 	reason string,
 ) {
 	stub.logger.Infof(
-		"AddAccountingRecord: token: %s, from: %v, to: %v, amount: %s, reason: %s",
+		"AddAccountingRecord: token: %s, from: %v, to: %v, amount: %s, senderBalanceType: %d, recipientBalanceType: %d, reason: %s",
 		token,
 		from,
 		to,
 		amount.String(),
+		int32(senderBalanceType),
+		int32(recipientBalanceType),
 		reason,
 	)
 }
