@@ -1,9 +1,9 @@
 package cachestub
 
 import (
-	"github.com/anoideaopen/foundation/core/balance"
 	"sort"
 
+	"github.com/anoideaopen/foundation/core/balance"
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/core/types/big"
 	"github.com/anoideaopen/foundation/proto"
@@ -60,7 +60,8 @@ func (bts *TxCacheStub) AddAccountingRecord(
 	amount *big.Int,
 	senderBalanceType balance.BalanceType,
 	recipientBalanceType balance.BalanceType,
-	reason string) {
+	reason string,
+) {
 	bts.Accounting = append(bts.Accounting, &proto.AccountingRecord{
 		Token:                token,
 		Sender:               from.Bytes(),
