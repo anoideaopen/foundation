@@ -15,14 +15,7 @@ const (
 
 	valKey1Value1 = "key1_value1"
 	valKey2Value1 = "key2_value1"
-	valKey3Value1 = "key3_value1"
 	valKey4Value1 = "key4_value1"
-
-	valKey1Value2 = "key1_value2"
-	valKey2Value2 = "key2_value2"
-	valKey4Value2 = "key4_value2"
-
-	valKey4Value3 = "key4_value3"
 )
 
 func TestBatchStub(t *testing.T) {
