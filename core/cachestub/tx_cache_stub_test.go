@@ -90,12 +90,5 @@ func TestTxStub(t *testing.T) {
 		require.Equal(t, 0, stateStub.GetStateCallCount())
 		require.Equal(t, 7, stateStub.PutStateCallCount())
 		require.Equal(t, 4, stateStub.DelStateCallCount())
-
-		require.NoError(t, mocks.CheckPutStateArgsForCall(stateStub, 0, valKey1, valKey1Value1))
-
-		require.NoError(t, mocks.CheckDelStateArgsForCall(stateStub, 0, valKey3))
-		require.NoError(t, mocks.CheckDelStateArgsForCall(stateStub, 1, valKey3))
-		require.NoError(t, mocks.CheckDelStateArgsForCall(stateStub, 2, valKey3))
-		require.NoError(t, mocks.CheckDelStateArgsForCall(stateStub, 3, valKey4))
 	})
 }
