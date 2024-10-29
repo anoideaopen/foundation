@@ -1,96 +1,94 @@
-package cachestub_test
+package cachestub
 
 import (
 	"testing"
 
-	"github.com/anoideaopen/foundation/core/cachestub"
+	"github.com/anoideaopen/foundation/mocks"
 	"github.com/stretchr/testify/require"
 )
 
+const (
+	txID1 = "txID1"
+	txID2 = "txID2"
+	txID3 = "txID3"
+
+	valKey4Value2 = "key4_value2"
+	valKey4Value3 = "key4_value3"
+)
+
 func TestTxStub(t *testing.T) {
-	stub := newMockStub()
-	_ = stub.PutState("KEY1", []byte("key1_value_1"))
-	_ = stub.PutState("KEY2", []byte("key2_value_1"))
-	_ = stub.PutState("KEY3", []byte("key3_value_1"))
+	stateStub := &mocks.ChaincodeStub{}
 
-	btchStub := cachestub.NewBatchCacheStub(stub)
+	batchStub := NewBatchCacheStub(stateStub)
 
-	// transaction 1 changes value of key1 and deletes key2
-	t.Run("tx1", func(t *testing.T) {
-		txStub := btchStub.NewTxCacheStub("tx1")
-		val, _ := txStub.GetState("KEY2")
-		require.Equal(t, "key2_value_1", string(val))
+	// 1st batch transaction 1 adds value of key1, deletes key2 then adds key 2 value
+	t.Run("batch transaction 1", func(t *testing.T) {
+		txStub := batchStub.NewTxCacheStub(txID1)
 
-		_ = txStub.PutState("KEY1", []byte("key1_value_2"))
-		_ = txStub.DelState("KEY2")
+		_ = txStub.PutState(valKey1, []byte(valKey1Value1))
+		_ = txStub.DelState(valKey2)
 		txStub.Commit()
+
+		// checking first transaction results were properly committed
+		val, _ := batchStub.GetState(valKey2)
+		require.Equal(t, "", string(val))
+
+		val, _ = batchStub.GetState(valKey1)
+		require.Equal(t, valKey1Value1, string(val))
+
+		// 2nd iteration of 1st tx stub changes
+		_ = txStub.PutState(valKey2, []byte(valKey2Value1))
+		_ = txStub.DelState(valKey3)
+		txStub.Commit()
+
+		_ = batchStub.Commit()
+
+		// checking mock stub calls
+		require.Equal(t, 0, stateStub.GetStateCallCount())
+		require.Equal(t, 2, stateStub.PutStateCallCount())
+		require.Equal(t, 1, stateStub.DelStateCallCount())
 	})
 
-	// checking first transaction results were properly committed
-	val1, _ := btchStub.GetState("KEY2")
-	require.Equal(t, "", string(val1))
-
-	val2, _ := btchStub.GetState("KEY1")
-	require.Equal(t, "key1_value_2", string(val2))
-
-	// transaction 2 changes value of the key2 and deletes key3
-	t.Run("tx2", func(t *testing.T) {
-		txStub := btchStub.NewTxCacheStub("tx1")
-		val11, _ := txStub.GetState("KEY2")
-		require.Equal(t, "", string(val11))
-
-		val22, _ := txStub.GetState("KEY1")
-		require.Equal(t, "key1_value_2", string(val22))
-
-		_ = txStub.PutState("KEY2", []byte("key2_value_2"))
-		_ = txStub.DelState("KEY3")
+	// 2nd batch transaction adds and deletes value for key 4, then changes key4 value
+	t.Run("batch transaction 2", func(_ *testing.T) {
+		txStub := batchStub.NewTxCacheStub(txID2)
+		_ = txStub.PutState(valKey4, []byte(valKey4Value1))
+		_ = txStub.DelState(valKey4)
 		txStub.Commit()
+
+		// batchStub checks if key 4 was deleted and changes its value
+		val, _ := batchStub.GetState(valKey4)
+		require.Equal(t, "", string(val))
+		_ = batchStub.PutState(valKey4, []byte(valKey4Value2))
+
+		_ = batchStub.Commit()
+
+		// checking mock stub calls
+		require.Equal(t, 0, stateStub.GetStateCallCount())
+		require.Equal(t, 5, stateStub.PutStateCallCount())
+		require.Equal(t, 2, stateStub.DelStateCallCount())
 	})
 
-	_ = btchStub.Commit()
+	// 3rd tx transaction will not be committed, because value of key 4 was changed in batch state
+	t.Run("batch transaction 3", func(_ *testing.T) {
+		txStub := batchStub.NewTxCacheStub(txID3)
 
-	// checking state after batch commit
-	require.Equal(t, 2, len(stub.state))
-	require.Equal(t, "key1_value_2", string(stub.state["KEY1"]))
-	require.Equal(t, "key2_value_2", string(stub.state["KEY2"]))
-
-	// transaction 3 adds and deletes value for key 4
-	t.Run("tx3", func(t *testing.T) {
-		txStub := btchStub.NewTxCacheStub("tx2")
-		_ = txStub.PutState("KEY4", []byte("key4_value_1"))
-		_ = txStub.DelState("KEY4")
-		txStub.Commit()
-	})
-
-	// btchStub checks if key 4 was deleted and changes its value
-	val4, _ := btchStub.GetState("KEY4")
-	require.Equal(t, "", string(val4))
-	_ = btchStub.PutState("KEY4", []byte("key4_value_2"))
-
-	_ = btchStub.Commit()
-
-	require.Equal(t, "key4_value_2", string(stub.state["KEY4"]))
-
-	// transaction 4 will not be committed, because value of key 4 was changed in batch state
-	t.Run("tx4", func(t *testing.T) {
-		txStub := btchStub.NewTxCacheStub("tx3")
-
-		val, _ := txStub.GetState("KEY4")
+		val, _ := txStub.GetState(valKey4)
 		if string(val) == "" {
-			_ = txStub.PutState("KEY4", []byte("key4_value_3"))
+			_ = txStub.PutState(valKey4, []byte(valKey4Value3))
 			txStub.Commit()
 		}
+
+		// checking key 4 value was not changed, deleting key 4
+		val, _ = batchStub.GetState(valKey4)
+		require.Equal(t, valKey4Value2, string(val))
+
+		_ = batchStub.DelState(valKey4)
+		_ = batchStub.Commit()
+
+		// checking mock stub calls
+		require.Equal(t, 0, stateStub.GetStateCallCount())
+		require.Equal(t, 7, stateStub.PutStateCallCount())
+		require.Equal(t, 4, stateStub.DelStateCallCount())
 	})
-
-	// checking key 4 value was not changed, deleting key 4
-	val5, _ := btchStub.GetState("KEY4")
-	require.Equal(t, "key4_value_2", string(val5))
-
-	_ = btchStub.DelState("KEY4")
-	_ = btchStub.Commit()
-
-	// checking state for key 4 was deleted
-	require.Equal(t, 2, len(stub.state))
-	_, ok := stub.state["KEY4"]
-	require.Equal(t, false, ok)
 }
