@@ -18,7 +18,6 @@ const (
 	valKey1Value1 = "key1_value1"
 	valKey1Value2 = "key1_value2"
 	valKey2Value1 = "key2_value1"
-	valKey3Value1 = "key3_value1"
 	valKey4Value1 = "key4_value1"
 )
 
@@ -174,6 +173,7 @@ func TestBatchStub(t *testing.T) {
 		stateStub.GetStateReturnsOnCall(0, []byte(valKey1Value1), nil)
 		stateStub.GetStateReturnsOnCall(1, []byte(valKey2Value1), nil)
 		stateStub.GetStateReturnsOnCall(2, []byte(nil), nil)
+		stateStub.GetStateReturnsOnCall(3, []byte(valKey4Value1), nil)
 
 		// creating batch cache stub
 		batchStub := NewBatchCacheStub(stateStub)
@@ -191,6 +191,10 @@ func TestBatchStub(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, []byte(nil), result)
 
+		result, err = batchStub.GetState(valKey4)
+		require.NoError(t, err)
+		require.Equal(t, []byte(valKey4Value1), result)
+
 		// changing data in key 1
 		err = batchStub.PutState(valKey1, []byte(valKey1Value2))
 		require.NoError(t, err)
@@ -199,11 +203,11 @@ func TestBatchStub(t *testing.T) {
 		err = batchStub.DelState(valKey2)
 		require.NoError(t, err)
 
-		// adding and deleting data in key 3
-		err = batchStub.PutState(valKey3, []byte(valKey3Value1))
+		// adding and deleting data in key 4
+		err = batchStub.PutState(valKey4, []byte(valKey4Value2))
 		require.NoError(t, err)
 
-		err = batchStub.DelState(valKey3)
+		err = batchStub.DelState(valKey4)
 		require.NoError(t, err)
 
 		// checking changed data before commit
@@ -216,6 +220,10 @@ func TestBatchStub(t *testing.T) {
 		require.Equal(t, []byte(nil), result)
 
 		result, err = batchStub.GetState(valKey3)
+		require.NoError(t, err)
+		require.Equal(t, []byte(nil), result)
+
+		result, err = batchStub.GetState(valKey4)
 		require.NoError(t, err)
 		require.Equal(t, []byte(nil), result)
 
@@ -234,8 +242,12 @@ func TestBatchStub(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, []byte(nil), result)
 
+		result, err = batchStub.GetState(valKey4)
+		require.NoError(t, err)
+		require.Equal(t, []byte(nil), result)
+
 		// checking mock stub calls
-		require.Equal(t, 3, stateStub.GetStateCallCount())
+		require.Equal(t, 4, stateStub.GetStateCallCount())
 		require.Equal(t, 1, stateStub.PutStateCallCount())
 		require.Equal(t, 2, stateStub.DelStateCallCount())
 	})
