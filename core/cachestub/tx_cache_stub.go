@@ -1,6 +1,7 @@
 package cachestub
 
 import (
+	"github.com/anoideaopen/foundation/core/balance"
 	"sort"
 
 	"github.com/anoideaopen/foundation/core/types"
@@ -52,13 +53,22 @@ func (bts *TxCacheStub) SetEvent(name string, payload []byte) error {
 	return nil
 }
 
-func (bts *TxCacheStub) AddAccountingRecord(token string, from *types.Address, to *types.Address, amount *big.Int, reason string) {
+func (bts *TxCacheStub) AddAccountingRecord(
+	token string,
+	from *types.Address,
+	to *types.Address,
+	amount *big.Int,
+	senderBalanceType balance.BalanceType,
+	recipientBalanceType balance.BalanceType,
+	reason string) {
 	bts.Accounting = append(bts.Accounting, &proto.AccountingRecord{
-		Token:     token,
-		Sender:    from.Bytes(),
-		Recipient: to.Bytes(),
-		Amount:    amount.Bytes(),
-		Reason:    reason,
+		Token:                token,
+		Sender:               from.Bytes(),
+		Recipient:            to.Bytes(),
+		Amount:               amount.Bytes(),
+		SenderBalanceType:    int32(senderBalanceType),
+		RecipientBalanceType: int32(recipientBalanceType),
+		Reason:               reason,
 	})
 }
 

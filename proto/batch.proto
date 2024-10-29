@@ -75,6 +75,8 @@ message AccountingRecord {
     bytes recipient = 3;
     bytes amount    = 4;
     string reason   = 5;
+    int32 senderBalanceType = 6;
+    int32 recipientBalanceType = 7;
 }
 
 message Event {
