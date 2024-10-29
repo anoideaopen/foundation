@@ -1,11 +1,12 @@
 package unit
 
 import (
+	"testing"
+
 	"github.com/anoideaopen/foundation/core/cachestub"
 	"github.com/anoideaopen/foundation/core/ledger"
 	"github.com/anoideaopen/foundation/mock/stub"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func TestAccountingInterfaceMatchWithTxCacheStubImplementation(t *testing.T) {
