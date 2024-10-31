@@ -5,7 +5,7 @@ import (
 	"encoding/pem"
 	"errors"
 
-	"github.com/golang/protobuf/proto"
+	"github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/hyperledger/fabric-protos-go/msp"
 )
 
