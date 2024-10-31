@@ -423,6 +423,10 @@ func BatchExecuteTest(t *testing.T, ser *serieBatchExecute, args []string) peer.
 	dataIn, err := pb.Marshal(&proto.Batch{TxIDs: [][]byte{ser.testIDBytes}})
 	require.NoError(t, err)
 
+	if ser.paramsWrongON {
+		mockStub.GetStateReturns(nil, fmt.Errorf("transaction 776f6e646572 not found"))
+	}
+
 	return chainCode.batchExecute(telemetry.TraceContext{}, mockStub, string(dataIn))
 }
 
