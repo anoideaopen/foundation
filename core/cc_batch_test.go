@@ -28,8 +28,6 @@ const (
 )
 
 var (
-	testChaincodeName = "chaincode"
-
 	argsForTestFnWithFive          = []string{"4aap@*", "hyexc566", "kiubfvr$", ";3vkpp", "g?otov;"}
 	argsForTestFnWithSignedTwoArgs = []string{"1", "arg1"}
 
@@ -65,7 +63,6 @@ func (*testBatchContract) TxTestFnWithSignedTwoArgs(_ *types.Sender, _ int64, _ 
 type serieBatchExecute struct {
 	testIDBytes   []byte
 	paramsWrongON bool
-	expectedError string
 }
 
 type serieBatches struct {
@@ -125,8 +122,6 @@ func TestSaveToBatchWithSignedArgs(t *testing.T) {
 	require.NoError(t, errChainCode)
 
 	mockStub := &mocks.ChaincodeStub{}
-	mockStub.GetTxTimestampReturns(s.timestamp, nil)
-	mockStub.PutStateReturns(nil)
 
 	cfgEtl := &proto.Config{
 		Contract: &proto.ContractConfig{
@@ -167,7 +162,6 @@ func TestSaveToBatchWithWrongSignedArgs(t *testing.T) {
 	require.NoError(t, errChainCode)
 
 	mockStub := &mocks.ChaincodeStub{}
-	mockStub.GetTxTimestampReturns(s.timestamp, nil)
 
 	cfgEtl := &proto.Config{
 		Contract: &proto.ContractConfig{
@@ -200,12 +194,6 @@ func TestSaveToBatchWrongFnName(t *testing.T) {
 	chainCode, errChainCode := NewCC(&testBatchContract{})
 	require.NoError(t, errChainCode)
 
-	mockStub := &mocks.ChaincodeStub{}
-	mockStub.GetTxTimestampReturns(s.timestamp, nil)
-
-	_, err := mockStub.GetTxTimestamp()
-	require.NoError(t, err)
-
 	cfg := &proto.Config{
 		Contract: &proto.ContractConfig{
 			Symbol:   "CC",
@@ -215,7 +203,7 @@ func TestSaveToBatchWrongFnName(t *testing.T) {
 	}
 	cfgBytes, _ := protojson.Marshal(cfg)
 
-	err = config.Configure(chainCode.contract, cfgBytes)
+	err := config.Configure(chainCode.contract, cfgBytes)
 	require.NoError(t, err)
 
 	method := chainCode.Router().Method(s.FnName)
@@ -242,7 +230,6 @@ func SaveAndLoadToBatchTest(t *testing.T, ser *serieBatches, args []string) {
 	require.NoError(t, errChainCode)
 
 	mockStub := &mocks.ChaincodeStub{}
-	mockStub.GetTxTimestampReturns(ser.timestamp, nil)
 
 	cfg := &proto.Config{
 		Contract: &proto.ContractConfig{
@@ -263,7 +250,7 @@ func SaveAndLoadToBatchTest(t *testing.T, ser *serieBatches, args []string) {
 	err = config.Configure(chainCode.contract, cfgBytes)
 	require.NoError(t, err)
 
-	batchTimestamp, err := mockStub.GetTxTimestamp()
+	batchTimestamp := createUtcTimestamp()
 	require.NoError(t, err)
 
 	errSave := chainCode.saveToBatch(
@@ -338,7 +325,6 @@ func TestBatchExecuteWithWrongParams(t *testing.T) {
 	s := &serieBatchExecute{
 		testIDBytes:   testIDBytes,
 		paramsWrongON: true,
-		expectedError: "function and args loading error: transaction 776f6e646572 not found",
 	}
 
 	resp := BatchExecuteTest(t, s, argsForTestFnWithFive)
@@ -353,8 +339,8 @@ func TestBatchExecuteWithWrongParams(t *testing.T) {
 
 	txResponse := response.TxResponses[0]
 	require.Equal(t, testIDBytes, txResponse.Id)
-	//require.Equal(t, "", txResponse.Method)
-	require.Equal(t, s.expectedError, txResponse.Error.Error)
+	require.Equal(t, "", txResponse.Method)
+	require.Equal(t, "function and args loading error: transaction 776f6e646572 not found", txResponse.Error.Error)
 }
 
 // BatchExecuteTest - basic test for SaveBatch, LoadBatch and batchExecute
@@ -383,8 +369,7 @@ func BatchExecuteTest(t *testing.T, ser *serieBatchExecute, args []string) peer.
 	err = config.Configure(chainCode.contract, cfgBytes)
 	require.NoError(t, err)
 
-	mockStub.GetTxTimestampReturns(createUtcTimestamp(), nil)
-	batchTimestamp, err := mockStub.GetTxTimestamp()
+	batchTimestamp := createUtcTimestamp()
 	require.NoError(t, err)
 
 	err = chainCode.saveToBatch(
@@ -396,6 +381,20 @@ func BatchExecuteTest(t *testing.T, ser *serieBatchExecute, args []string) peer.
 		uint64(batchTimestamp.Seconds),
 	)
 	require.NoError(t, err)
+
+	calls := mockStub.PutStateCallCount()
+	for i := 0; i < calls; i++ {
+		key, value := mockStub.PutStateArgsForCall(i)
+		if key == fmt.Sprintf("\u0000batchTransactions\u0000%s\u0000", testEncodedTxID) {
+			pending := new(proto.PendingTx)
+			err = pb.Unmarshal(value, pending)
+			require.NoError(t, err)
+
+			require.Equal(t, pending.Method, testFnWithFiveArgsMethod)
+			require.Equal(t, pending.Timestamp, batchTimestamp.Seconds)
+			require.Equal(t, pending.Args, args)
+		}
+	}
 
 	pendingTx := &proto.PendingTx{
 		Method:    testFnWithFiveArgsMethod,
@@ -411,14 +410,6 @@ func BatchExecuteTest(t *testing.T, ser *serieBatchExecute, args []string) peer.
 	state, err := mockStub.GetState(fmt.Sprintf("\u0000batchTransactions\u0000%s\u0000", testEncodedTxID))
 	require.NotNil(t, state)
 	require.NoError(t, err)
-
-	pending := new(proto.PendingTx)
-	err = pb.Unmarshal(state, pending)
-	require.NoError(t, err)
-
-	require.Equal(t, pending.Method, testFnWithFiveArgsMethod)
-	require.Equal(t, pending.Timestamp, batchTimestamp.Seconds)
-	require.Equal(t, pending.Args, args)
 
 	dataIn, err := pb.Marshal(&proto.Batch{TxIDs: [][]byte{ser.testIDBytes}})
 	require.NoError(t, err)
@@ -460,8 +451,7 @@ func TestBatchedTxExecute(t *testing.T) {
 
 	batchStub := cachestub.NewBatchCacheStub(mockStub)
 
-	mockStub.GetTxTimestampReturns(createUtcTimestamp(), nil)
-	batchTimestamp, err := mockStub.GetTxTimestamp()
+	batchTimestamp := createUtcTimestamp()
 	require.NoError(t, err)
 
 	err = chainCode.saveToBatch(
