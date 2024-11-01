@@ -263,22 +263,13 @@ func SaveAndLoadToBatchTest(t *testing.T, ser *serieBatches, args []string) {
 	)
 	require.NoError(t, errSave)
 
-	pendingTx := &proto.PendingTx{
-		Method: ser.FnName,
-		Args:   args,
-	}
-	marshalled, err := pb.Marshal(pendingTx)
-	require.NoError(t, err)
-
-	mockStub.GetStateReturns(marshalled, nil)
-	state, err := mockStub.GetState(fmt.Sprintf("\u0000batchTransactions\u0000%s\u0000", testEncodedTxID))
-	require.NotNil(t, state)
-	require.NoError(t, err)
-
+	// there ara two PutState operations: 1st one is the config init, 2nd is the transaction we need
+	_, value := mockStub.PutStateArgsForCall(1)
 	pending := new(proto.PendingTx)
-	err = pb.Unmarshal(state, pending)
+	err = pb.Unmarshal(value, pending)
 	require.NoError(t, err)
 
+	require.Equal(t, pending.Method, testFnWithFiveArgsMethod)
 	require.Equal(t, pending.Args, args)
 
 	pending, _, err = chainCode.loadFromBatch(mockStub, ser.testID)
@@ -381,20 +372,6 @@ func BatchExecuteTest(t *testing.T, ser *serieBatchExecute, args []string) peer.
 		uint64(batchTimestamp.Seconds),
 	)
 	require.NoError(t, err)
-
-	calls := mockStub.PutStateCallCount()
-	for i := 0; i < calls; i++ {
-		key, value := mockStub.PutStateArgsForCall(i)
-		if key == fmt.Sprintf("\u0000batchTransactions\u0000%s\u0000", testEncodedTxID) {
-			pending := new(proto.PendingTx)
-			err = pb.Unmarshal(value, pending)
-			require.NoError(t, err)
-
-			require.Equal(t, pending.Method, testFnWithFiveArgsMethod)
-			require.Equal(t, pending.Timestamp, batchTimestamp.Seconds)
-			require.Equal(t, pending.Args, args)
-		}
-	}
 
 	pendingTx := &proto.PendingTx{
 		Method:    testFnWithFiveArgsMethod,
