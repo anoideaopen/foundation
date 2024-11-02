@@ -240,7 +240,7 @@ func SaveAndLoadToBatchTest(t *testing.T, ser *serieBatches, args []string) {
 	}
 	cfgBytes, _ := protojson.Marshal(cfg)
 
-	err := mocks.SetAdminCert(mockStub, "platformMSP")
+	err := mockStub.SetAdminCreatorCert("platformMSP")
 	require.NoError(t, err)
 
 	mockStub.GetStringArgsReturns([]string{string(cfgBytes)})
@@ -350,7 +350,7 @@ func BatchExecuteTest(t *testing.T, ser *serieBatchExecute, args []string) peer.
 	}
 	cfgBytes, _ := protojson.Marshal(cfg)
 
-	err = mocks.SetAdminCert(mockStub, "platformMSP")
+	err = mockStub.SetAdminCreatorCert("platformMSP")
 	require.NoError(t, err)
 
 	mockStub.GetStringArgsReturns([]string{string(cfgBytes)})
@@ -416,7 +416,7 @@ func TestBatchedTxExecute(t *testing.T) {
 
 	cfgBytes, _ := protojson.Marshal(cfg)
 
-	err = mocks.SetAdminCert(mockStub, "platformMSP")
+	err = mockStub.SetAdminCreatorCert("platformMSP")
 	require.NoError(t, err)
 
 	mockStub.GetStringArgsReturns([]string{string(cfgBytes)})

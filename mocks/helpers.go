@@ -4,6 +4,9 @@ import (
 	"encoding/base64"
 	"encoding/pem"
 	"errors"
+	"github.com/anoideaopen/foundation/core/balance"
+	"github.com/anoideaopen/foundation/core/types"
+	"github.com/anoideaopen/foundation/core/types/big"
 
 	"github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/hyperledger/fabric-protos-go/msp"
@@ -37,23 +40,23 @@ AwOtbOjaLd68woAqAklfKKhfu10K+DAKBggqhkjOPQQDAgNIADBFAiEAoKRQLe4U
 FfAAwQs3RCWpevOPq+J8T4KEsYvswKjzfJYCIAs2kOmN/AsVUF63unXJY0k9ktfD
 fAaqNRaboY1Yg1iQ`
 
-func SetAdminCert(stub *ChaincodeStub, msp string) error {
+func (cs *ChaincodeStub) SetAdminCreatorCert(msp string) error {
 	cert, _ := base64.StdEncoding.DecodeString(adminCert)
 	creator, err := BuildCreator(msp, cert)
 	if err != nil {
 		return err
 	}
-	stub.GetCreatorReturns(creator, nil)
+	cs.GetCreatorReturns(creator, nil)
 	return nil
 }
 
-func SetDefaultCreatorCert(stub *ChaincodeStub, msp string) error {
+func (cs *ChaincodeStub) SetDefaultCreatorCert(msp string) error {
 	cert, _ := base64.StdEncoding.DecodeString(defaultCert)
 	creator, err := BuildCreator(msp, cert)
 	if err != nil {
 		return err
 	}
-	stub.GetCreatorReturns(creator, nil)
+	cs.GetCreatorReturns(creator, nil)
 	return nil
 }
 
@@ -70,4 +73,16 @@ func BuildCreator(creatorMSP string, creatorCert []byte) ([]byte, error) {
 		return nil, err
 	}
 	return marshaledIdentity, nil
+}
+
+func (cs *ChaincodeStub) AddAccountingRecord(
+	token string,
+	from *types.Address,
+	to *types.Address,
+	amount *big.Int,
+	senderBalanceType balance.BalanceType,
+	recipientBalanceType balance.BalanceType,
+	reason string,
+) {
+	return
 }

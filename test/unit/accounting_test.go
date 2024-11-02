@@ -5,7 +5,7 @@ import (
 
 	"github.com/anoideaopen/foundation/core/cachestub"
 	"github.com/anoideaopen/foundation/core/ledger"
-	"github.com/anoideaopen/foundation/mock/stub"
+	"github.com/anoideaopen/foundation/mocks"
 	"github.com/stretchr/testify/require"
 )
 
@@ -20,7 +20,7 @@ func TestAccountingInterfaceMatchWithTxCacheStubImplementation(t *testing.T) {
 }
 
 func TestAccountingInterfaceMatchWithMockStub(t *testing.T) {
-	var s interface{} = &stub.Stub{}
+	var s interface{} = &mocks.ChaincodeStub{}
 
 	t.Run("Check if mock stub implements Accounting interface", func(t *testing.T) {
 		if _, ok := s.(ledger.Accounting); !ok {
