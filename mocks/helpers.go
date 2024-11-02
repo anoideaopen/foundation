@@ -4,10 +4,10 @@ import (
 	"encoding/base64"
 	"encoding/pem"
 	"errors"
+
 	"github.com/anoideaopen/foundation/core/balance"
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/core/types/big"
-
 	"github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/hyperledger/fabric-protos-go/msp"
 )
@@ -84,5 +84,4 @@ func (cs *ChaincodeStub) AddAccountingRecord(
 	recipientBalanceType balance.BalanceType,
 	reason string,
 ) {
-	return
 }
