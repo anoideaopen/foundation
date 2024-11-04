@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/anoideaopen/acl/cc"
-	"github.com/anoideaopen/acl/tests/common"
 	pb "github.com/anoideaopen/foundation/proto"
 	"github.com/anoideaopen/foundation/test/integration/cmn"
 	"github.com/btcsuite/btcd/btcutil/base58"
@@ -19,6 +18,18 @@ import (
 	"github.com/onsi/gomega/gbytes"
 	"github.com/onsi/gomega/gexec"
 	"google.golang.org/protobuf/encoding/protojson"
+)
+
+const (
+	FnAddMultisig                        = "addMultisig"
+	FnAddToList                          = "addToList"
+	FnDelFromList                        = "delFromList"
+	FnCheckKeys                          = "checkKeys"
+	FnGetAccInfoFn                       = "getAccountInfo"
+	FnChangePublicKey                    = "changePublicKey"
+	FnChangePublicKeyWithBase58Signature = "changePublicKeyWithBase58Signature"
+	FnChangeMultisigPublicKey            = "changeMultisigPublicKey"
+	FnSetKYC                             = "setkyc"
 )
 
 // AddUser adds user to ACL channel
@@ -67,7 +78,7 @@ func (ts *FoundationTestSuite) AddFeeAddressSetterToACL() {
 
 // AddUserMultisigned adds multisigned user to ACL channel
 func (ts *FoundationTestSuite) AddUserMultisigned(user *UserFoundationMultisigned) {
-	ctorArgs := []string{common.FnAddMultisig, strconv.Itoa(len(user.Users)), NewNonceByTime().Get()}
+	ctorArgs := []string{FnAddMultisig, strconv.Itoa(len(user.Users)), NewNonceByTime().Get()}
 	publicKeys, sMsgsByte, err := user.Sign(ctorArgs...)
 	var sMsgsStr []string
 	for _, sMsgByte := range sMsgsByte {
@@ -127,7 +138,7 @@ func (ts *FoundationTestSuite) CheckUserMultisigned(user *UserFoundationMultisig
 		sess, err := ts.Network.PeerUserSession(ts.Peer, ts.MainUserName, commands.ChaincodeQuery{
 			ChannelID: cmn.ChannelAcl,
 			Name:      cmn.ChannelAcl,
-			Ctor:      cmn.CtorFromSlice([]string{common.FnCheckKeys, user.PublicKey()}),
+			Ctor:      cmn.CtorFromSlice([]string{FnCheckKeys, user.PublicKey()}),
 		})
 		Eventually(sess, ts.Network.EventuallyTimeout).Should(gexec.Exit())
 		Expect(sess.ExitCode()).To(Equal(0))
@@ -231,7 +242,7 @@ func (ts *FoundationTestSuite) ChangeMultisigPublicKey(
 ) {
 	nc := NewNonceByTime().Get()
 	// ToDo - Why are we signing arguments that differs we are sending?
-	ctorArgsToSign := []string{common.FnChangeMultisigPublicKey, multisignedUser.AddressBase58Check, oldPubKeyBase58, multisignedUser.PublicKey(), reason, reasonID, nc}
+	ctorArgsToSign := []string{FnChangeMultisigPublicKey, multisignedUser.AddressBase58Check, oldPubKeyBase58, multisignedUser.PublicKey(), reason, reasonID, nc}
 	validatorMultisignedUser := &UserFoundationMultisigned{
 		UserID: "multisigned validators",
 		Users:  validators,
@@ -241,7 +252,7 @@ func (ts *FoundationTestSuite) ChangeMultisigPublicKey(
 	Expect(err).NotTo(HaveOccurred())
 
 	var sMsgsStr []string
-	ctorArgs := []string{common.FnChangeMultisigPublicKey, multisignedUser.AddressBase58Check, oldPubKeyBase58, newPubKeyBase58, reason, reasonID, nc}
+	ctorArgs := []string{FnChangeMultisigPublicKey, multisignedUser.AddressBase58Check, oldPubKeyBase58, newPubKeyBase58, reason, reasonID, nc}
 	for _, sMsgByte := range sMsgsByte {
 		sMsgsStr = append(sMsgsStr, hex.EncodeToString(sMsgByte))
 	}
@@ -282,7 +293,7 @@ func (ts *FoundationTestSuite) addToList(listType cc.ListType, user *UserFoundat
 		Orderer:   ts.Network.OrdererAddress(ts.Orderer, nwo.ListenPort),
 		Name:      cmn.ChannelAcl,
 		Ctor: cmn.CtorFromSlice([]string{
-			common.FnAddToList,
+			FnAddToList,
 			user.AddressBase58Check,
 			listType.String(),
 		}),
@@ -318,7 +329,7 @@ func (ts *FoundationTestSuite) delFromList(
 		Orderer:   ts.Network.OrdererAddress(ts.Orderer, nwo.ListenPort),
 		Name:      cmn.ChannelAcl,
 		Ctor: cmn.CtorFromSlice([]string{
-			common.FnDelFromList,
+			FnDelFromList,
 			user.AddressBase58Check,
 			listType.String(),
 		}),
@@ -341,7 +352,7 @@ func (ts *FoundationTestSuite) CheckUserInList(listType cc.ListType, user *UserF
 		sess, err := ts.Network.PeerUserSession(ts.Peer, ts.MainUserName, commands.ChaincodeQuery{
 			ChannelID: cmn.ChannelAcl,
 			Name:      cmn.ChannelAcl,
-			Ctor:      cmn.CtorFromSlice([]string{common.FnCheckKeys, user.PublicKeyBase58}),
+			Ctor:      cmn.CtorFromSlice([]string{FnCheckKeys, user.PublicKeyBase58}),
 		})
 		Eventually(sess, ts.Network.EventuallyTimeout).Should(gexec.Exit())
 		if sess.ExitCode() != 0 {
@@ -375,7 +386,7 @@ func (ts *FoundationTestSuite) CheckUserNotInList(listType cc.ListType, user *Us
 		sess, err := ts.Network.PeerUserSession(ts.Peer, ts.MainUserName, commands.ChaincodeQuery{
 			ChannelID: cmn.ChannelAcl,
 			Name:      cmn.ChannelAcl,
-			Ctor:      cmn.CtorFromSlice([]string{common.FnCheckKeys, user.PublicKeyBase58}),
+			Ctor:      cmn.CtorFromSlice([]string{FnCheckKeys, user.PublicKeyBase58}),
 		})
 		Eventually(sess, ts.Network.EventuallyTimeout).Should(gexec.Exit())
 		if sess.ExitCode() != 0 {
@@ -411,7 +422,7 @@ func (ts *FoundationTestSuite) ChangePublicKey(
 	reasonID string,
 	validators ...*UserFoundation,
 ) {
-	ctorArgs := []string{common.FnChangePublicKey, user.AddressBase58Check, reason, reasonID, newPubKeyBase58, NewNonceByTime().Get()}
+	ctorArgs := []string{FnChangePublicKey, user.AddressBase58Check, reason, reasonID, newPubKeyBase58, NewNonceByTime().Get()}
 	validatorMultisignedUser := &UserFoundationMultisigned{
 		UserID: "multisigned validators",
 		Users:  validators,
@@ -455,7 +466,7 @@ func (ts *FoundationTestSuite) ChangePublicKeyBase58signed(
 	reasonID string,
 	validators ...*UserFoundation,
 ) {
-	ctorArgs := []string{common.FnChangePublicKeyWithBase58Signature, requestID, chaincodeName, channelID, user.AddressBase58Check, reason, reasonID, newPubKeyBase58, NewNonceByTime().Get()}
+	ctorArgs := []string{FnChangePublicKeyWithBase58Signature, requestID, chaincodeName, channelID, user.AddressBase58Check, reason, reasonID, newPubKeyBase58, NewNonceByTime().Get()}
 	validatorMultisignedUser := &UserFoundationMultisigned{
 		UserID: "multisigned validators",
 		Users:  validators,
@@ -528,7 +539,7 @@ func (ts *FoundationTestSuite) CheckAccountInfo(
 		sess, err := ts.Network.PeerUserSession(ts.Peer, ts.MainUserName, commands.ChaincodeQuery{
 			ChannelID: cmn.ChannelAcl,
 			Name:      cmn.ChannelAcl,
-			Ctor:      cmn.CtorFromSlice([]string{common.FnGetAccInfoFn, user.AddressBase58Check}),
+			Ctor:      cmn.CtorFromSlice([]string{FnGetAccInfoFn, user.AddressBase58Check}),
 		})
 		Eventually(sess, ts.Network.EventuallyTimeout).Should(gexec.Exit())
 		if sess.ExitCode() != 0 {
@@ -595,7 +606,7 @@ func (ts *FoundationTestSuite) SetKYC(
 	kycHash string,
 	validators ...*UserFoundation,
 ) {
-	ctorArgs := []string{common.FnSetKYC, user.AddressBase58Check, kycHash, NewNonceByTime().Get()}
+	ctorArgs := []string{FnSetKYC, user.AddressBase58Check, kycHash, NewNonceByTime().Get()}
 	validatorMultisignedUser := &UserFoundationMultisigned{
 		UserID: "multisigned validators",
 		Users:  validators,

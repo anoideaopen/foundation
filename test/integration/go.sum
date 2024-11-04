@@ -655,8 +655,8 @@ github.com/alicebob/miniredis/v2 v2.30.1/go.mod h1:b25qWj4fCEsBeAAR2mlb0ufImGC6u
 github.com/allegro/bigcache v1.2.1-0.20190218064605-e24eb225f156 h1:eMwmnE/GDgah4HI848JfFxHt+iPb26b4zyfspmqY0/8=
 github.com/allegro/bigcache v1.2.1-0.20190218064605-e24eb225f156/go.mod h1:Cb/ax3seSYIx7SuZdm2G2xzfwmv3TPSk2ucNfQESPXM=
 github.com/andybalholm/brotli v1.0.4/go.mod h1:fO7iG3H7G2nSZ7m0zPUDn85XEX2GTukHGRSepvi9Eig=
-github.com/anoideaopen/acl v0.0.4-0.20240709131543-bf642c53380c h1:sEpbALmki6CXUmH+TG/bYLczfZ0eVGLKjivNfvvS+r8=
-github.com/anoideaopen/acl v0.0.4-0.20240709131543-bf642c53380c/go.mod h1:t2MkA2fxlOAcH3XU0twKFIksVuKkDZsEOWmi0J5nxCY=
+github.com/anoideaopen/acl v0.0.8-0.20241104155855-0c2783d8bbcd h1:ZUMeJuA5Ne2Hmhe7/ARCLP8TlZWY9VYMOvmDL+hCL6M=
+github.com/anoideaopen/acl v0.0.8-0.20241104155855-0c2783d8bbcd/go.mod h1:KhaXHfz1EcMhO6Bk4uJqbQi9lUU9kPEdIqX2FIEAasQ=
 github.com/anoideaopen/channel-transfer v0.0.6-0.20240924163837-6a354e9667a6 h1:+560J459/mgx+lwYPu0GM3n+VWSzvqmq4R6zr6iKFkc=
 github.com/anoideaopen/channel-transfer v0.0.6-0.20240924163837-6a354e9667a6/go.mod h1:XX5H2SKEZtGZjLaAo3FqskFq5yOykfNUBXCnX7O1JKw=
 github.com/anoideaopen/common-component v0.0.6 h1:drRkPGoeIowzyUZn/YUdNa3GmD5j1ppkEkqjnSLuhDc=
