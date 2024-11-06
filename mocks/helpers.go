@@ -4,9 +4,14 @@ import (
 	"encoding/base64"
 	"encoding/pem"
 	"errors"
+	"testing"
 
+	"github.com/anoideaopen/foundation/core"
 	"github.com/golang/protobuf/proto" //nolint:staticcheck
+	"github.com/hyperledger/fabric-chaincode-go/shim"
 	"github.com/hyperledger/fabric-protos-go/msp"
+	"github.com/hyperledger/fabric-protos-go/peer"
+	"github.com/stretchr/testify/require"
 )
 
 const DefaultCert = `MIICSjCCAfGgAwIBAgIRAKeZTS2c/qkXBN0Vkh+0WYQwCgYIKoZIzj0EAwIwgYcx
@@ -37,9 +42,11 @@ AwOtbOjaLd68woAqAklfKKhfu10K+DAKBggqhkjOPQQDAgNIADBFAiEAoKRQLe4U
 FfAAwQs3RCWpevOPq+J8T4KEsYvswKjzfJYCIAs2kOmN/AsVUF63unXJY0k9ktfD
 fAaqNRaboY1Yg1iQ`
 
+const TestCreatorMSP = "platformMSP"
+
 func SetCreatorCert(mockStub *ChaincodeStub, msp string, cert string) error {
 	certificate, _ := base64.StdEncoding.DecodeString(cert)
-	creator, err := BuildCreator(msp, certificate)
+	creator, err := MarshalIdentity(msp, certificate)
 	if err != nil {
 		return err
 	}
@@ -47,7 +54,7 @@ func SetCreatorCert(mockStub *ChaincodeStub, msp string, cert string) error {
 	return nil
 }
 
-func BuildCreator(creatorMSP string, creatorCert []byte) ([]byte, error) {
+func MarshalIdentity(creatorMSP string, creatorCert []byte) ([]byte, error) {
 	pemblock := &pem.Block{Type: "CERTIFICATE", Bytes: creatorCert}
 	pemBytes := pem.EncodeToMemory(pemblock)
 	if pemBytes == nil {
@@ -60,4 +67,50 @@ func BuildCreator(creatorMSP string, creatorCert []byte) ([]byte, error) {
 		return nil, err
 	}
 	return marshaledIdentity, nil
+}
+
+// NewMockStub returns new mock stub
+func NewMockStub(t *testing.T) *ChaincodeStub {
+	mockStub := new(ChaincodeStub)
+	mockStub.GetTxIDReturns("0")
+	mockStub.GetSignedProposalReturns(&peer.SignedProposal{}, nil)
+
+	err := SetCreatorCert(mockStub, TestCreatorMSP, AdminCert)
+	require.NoError(t, err)
+
+	mockStub.CreateCompositeKeyCalls(shim.CreateCompositeKey)
+	mockStub.SplitCompositeKeyCalls(func(s string) (string, []string, error) {
+		componentIndex := 1
+		var components []string
+		for i := 1; i < len(s); i++ {
+			if s[i] == 0 {
+				components = append(components, s[componentIndex:i])
+				componentIndex = i + 1
+			}
+		}
+		return components[0], components[1:], nil
+	})
+
+	return mockStub
+}
+
+func NewCC(
+	stub *ChaincodeStub,
+	bci core.BaseContractInterface,
+	config string,
+	opts ...core.ChaincodeOption,
+) (*core.Chaincode, error) {
+	cc, err := core.NewCC(bci, opts...)
+	if err != nil {
+		return nil, err
+	}
+
+	stub.GetStringArgsReturns([]string{config})
+	res := cc.Init(stub)
+	message := res.GetMessage()
+	if message != "" {
+		return nil, errors.New(message)
+	}
+
+	return cc, nil
 }

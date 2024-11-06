@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/anoideaopen/foundation/mocks"
-	"github.com/hyperledger/fabric-chaincode-go/shim"
 	"github.com/stretchr/testify/require"
 )
 
@@ -18,13 +17,6 @@ const (
 	valEvent      = "event"
 	valPayload    = "payload"
 )
-
-//go:generate counterfeiter -generate
-
-//counterfeiter:generate -o ../mocks/chaincode_stub.go --fake-name ChaincodeStub . chaincodeStub
-type chaincodeStub interface {
-	shim.ChaincodeStubInterface
-}
 
 func TestQueryStub(t *testing.T) {
 	mockStub := &mocks.ChaincodeStub{}

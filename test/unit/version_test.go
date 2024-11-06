@@ -2,17 +2,21 @@ package unit
 
 import (
 	"embed"
+	"encoding/hex"
 	"encoding/json"
+	"github.com/anoideaopen/foundation/core"
+	ma "github.com/anoideaopen/foundation/mock"
+	"github.com/anoideaopen/foundation/mocks"
+	"github.com/anoideaopen/foundation/token"
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/require"
 	"runtime/debug"
 	"strconv"
 	"testing"
 	"time"
-
-	"github.com/anoideaopen/foundation/core"
-	ma "github.com/anoideaopen/foundation/mock"
-	"github.com/anoideaopen/foundation/token"
-	"github.com/stretchr/testify/require"
 )
+
+const issuerAddress = "SkXcT15CDtiEFWSWcT3G8GnWfG2kAJw9yW28tmPEeatZUvRct"
 
 //go:embed *.go
 var f embed.FS
@@ -20,64 +24,125 @@ var f embed.FS
 func TestEmbedSrcFiles(t *testing.T) {
 	t.Parallel()
 
-	ledger := ma.NewLedger(t)
-	issuer := ledger.NewWallet()
+	mockStub := mocks.NewMockStub(t)
 
 	tt := &token.BaseToken{}
-	config := makeBaseTokenConfig(testTokenName, testTokenSymbol, 8,
-		issuer.Address(), "", "", "", nil)
-	initMsg := ledger.NewCC("tt", tt, config, core.WithSrcFS(&f))
-	require.Empty(t, initMsg)
+	config := makeBaseTokenConfig(
+		testTokenName,
+		testTokenSymbol,
+		8,
+		issuerAddress,
+		"",
+		"",
+		"",
+		nil,
+	)
+	cc, err := mocks.NewCC(mockStub, tt, config, core.WithSrcFS(&f))
+	require.NoError(t, err)
+	mockStub.GetChannelIDReturns("tt")
 
-	rawFiles := issuer.Invoke("tt", "nameOfFiles")
+	txID := [16]byte(uuid.New())
+	mockStub.GetTxIDReturns(hex.EncodeToString(txID[:]))
+	mockStub.GetFunctionAndParametersReturns("nameOfFiles", []string{})
+	mockStub.GetStateReturns([]byte(config), nil)
+
+	resp := cc.Invoke(mockStub)
 	var files []string
-	require.NoError(t, json.Unmarshal([]byte(rawFiles), &files))
+	require.NoError(t, json.Unmarshal(resp.GetPayload(), &files))
 
-	rawFile := issuer.Invoke("tt", "srcFile", "version_test.go")
+	txID = uuid.New()
+	mockStub.GetTxIDReturns(hex.EncodeToString(txID[:]))
+	mockStub.GetFunctionAndParametersReturns("srcFile", []string{"version_test.go"})
+
+	resp = cc.Invoke(mockStub)
 	var file string
-	require.NoError(t, json.Unmarshal([]byte(rawFile), &file))
+	require.NoError(t, json.Unmarshal(resp.GetPayload(), &file))
 	require.Equal(t, "unit", file[8:12])
 	l := len(file)
 	l += 10
 	lStr := strconv.Itoa(l)
 
-	rawPartFile := issuer.Invoke("tt", "srcPartFile", "version_test.go", "8", "12")
+	txID = uuid.New()
+	mockStub.GetTxIDReturns(hex.EncodeToString(txID[:]))
+	mockStub.GetFunctionAndParametersReturns("srcPartFile", []string{"version_test.go", "8", "12"})
+
+	resp = cc.Invoke(mockStub)
 	var partFile string
-	require.NoError(t, json.Unmarshal([]byte(rawPartFile), &partFile))
+	require.NoError(t, json.Unmarshal(resp.GetPayload(), &partFile))
 	require.Equal(t, "unit", partFile)
 
 	time.Sleep(10 * time.Second)
 
-	rawPartFile = issuer.Invoke("tt", "srcPartFile", "version_test.go", "-1", "12")
-	require.NoError(t, json.Unmarshal([]byte(rawPartFile), &partFile))
+	txID = uuid.New()
+	mockStub.GetTxIDReturns(hex.EncodeToString(txID[:]))
+	mockStub.GetFunctionAndParametersReturns("srcPartFile", []string{"version_test.go", "-1", "12"})
+
+	resp = cc.Invoke(mockStub)
+	require.NoError(t, json.Unmarshal(resp.GetPayload(), &partFile))
 	require.Equal(t, "unit", partFile[8:12])
 
 	time.Sleep(10 * time.Second)
 
-	rawPartFile = issuer.Invoke("tt", "srcPartFile", "version_test.go", "-1", lStr)
-	require.NoError(t, json.Unmarshal([]byte(rawPartFile), &partFile))
+	txID = uuid.New()
+	mockStub.GetTxIDReturns(hex.EncodeToString(txID[:]))
+	mockStub.GetFunctionAndParametersReturns("srcPartFile", []string{"version_test.go", "-1", lStr})
+
+	resp = cc.Invoke(mockStub)
+	require.NoError(t, json.Unmarshal(resp.GetPayload(), &partFile))
 	require.Equal(t, "unit", partFile[8:12])
 }
 
 func TestEmbedSrcFilesWithoutFS(t *testing.T) {
 	t.Parallel()
 
-	ledger := ma.NewLedger(t)
-	issuer := ledger.NewWallet()
+	mockStub := mocks.NewMockStub(t)
 
 	tt := &token.BaseToken{}
-	config := makeBaseTokenConfig(testTokenName, testTokenSymbol, 8,
-		issuer.Address(), "", "", "", nil)
-	ledger.NewCC("tt", tt, config)
+	config := makeBaseTokenConfig(
+		testTokenName,
+		testTokenSymbol,
+		8,
+		issuerAddress,
+		"",
+		"",
+		"",
+		nil,
+	)
+	cc, err := mocks.NewCC(mockStub, tt, config, core.WithSrcFS(&f))
+	require.NoError(t, err)
+	mockStub.GetChannelIDReturns("tt")
 
-	err := issuer.InvokeWithError("tt", "nameOfFiles")
-	require.Error(t, err)
+	txID := [16]byte(uuid.New())
+	mockStub.GetTxIDReturns(hex.EncodeToString(txID[:]))
+	mockStub.GetFunctionAndParametersReturns("nameOfFiles", []string{})
 
-	err = issuer.InvokeWithError("tt", "srcFile", "embed_test.go")
-	require.Error(t, err)
+	//err := issuer.InvokeWithError("tt", "nameOfFiles")
+	resp := cc.Invoke(mockStub)
+	msg := resp.GetMessage()
+	require.Equal(t, msg, "invoke: loading raw config: config bytes is empty")
+	//require.Error(t, err)
 
-	err = issuer.InvokeWithError("tt", "srcPartFile", "embed_test.go", "8", "13")
-	require.Error(t, err)
+	txID = uuid.New()
+	mockStub.GetTxIDReturns(hex.EncodeToString(txID[:]))
+	mockStub.GetFunctionAndParametersReturns("srcFile", []string{"embed_test.go"})
+
+	//err = issuer.InvokeWithError("tt", "srcFile", "embed_test.go")
+	resp = cc.Invoke(mockStub)
+	msg = resp.GetMessage()
+	require.Equal(t, msg, "invoke: loading raw config: config bytes is empty")
+
+	//require.Error(t, err)
+
+	txID = uuid.New()
+	mockStub.GetTxIDReturns(hex.EncodeToString(txID[:]))
+	mockStub.GetFunctionAndParametersReturns("srcPartFile", []string{"embed_test.go", "8", "13"})
+
+	//err = issuer.InvokeWithError("tt", "srcPartFile", "embed_test.go", "8", "13")
+	resp = cc.Invoke(mockStub)
+	msg = resp.GetMessage()
+	require.Equal(t, msg, "invoke: loading raw config: config bytes is empty")
+
+	//require.Error(t, err)
 }
 
 func TestBuildInfo(t *testing.T) {

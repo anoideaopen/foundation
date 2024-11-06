@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/anoideaopen/foundation/mocks"
-	"github.com/hyperledger/fabric-chaincode-go/shim"
 	"github.com/stretchr/testify/require"
 )
 
@@ -22,13 +21,6 @@ const (
 )
 
 var testError = fmt.Errorf("test error")
-
-//go:generate counterfeiter -generate
-
-//counterfeiter:generate -o ../mocks/chaincode_stub.go --fake-name ChaincodeStub . chaincodeStub
-type chaincodeStub interface {
-	shim.ChaincodeStubInterface
-}
 
 func TestBatchStub(t *testing.T) {
 
