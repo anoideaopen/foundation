@@ -5,10 +5,10 @@ import (
 	"encoding/hex"
 	"encoding/pem"
 	"errors"
-	"github.com/google/uuid"
 	"testing"
 
 	"github.com/golang/protobuf/proto" //nolint:staticcheck
+	"github.com/google/uuid"
 	"github.com/hyperledger/fabric-protos-go/msp"
 	"github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/stretchr/testify/require"
