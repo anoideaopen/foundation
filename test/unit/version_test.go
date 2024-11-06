@@ -37,8 +37,15 @@ func TestEmbedSrcFiles(t *testing.T) {
 		"",
 		nil,
 	)
-	cc, err := mocks.NewCC(mockStub, tt, config, core.WithSrcFS(&f))
+
+	cc, err := core.NewCC(tt, core.WithSrcFS(&f))
 	require.NoError(t, err)
+
+	mockStub.GetStringArgsReturns([]string{config})
+	res := cc.Init(mockStub)
+	message := res.GetMessage()
+	require.Empty(t, message)
+
 	mockStub.GetChannelIDReturns(testTokenCCName)
 
 	txID := [16]byte(uuid.New())
@@ -110,8 +117,14 @@ func TestEmbedSrcFilesWithoutFS(t *testing.T) {
 		"",
 		nil,
 	)
-	cc, err := mocks.NewCC(mockStub, tt, config)
+	cc, err := core.NewCC(tt)
 	require.NoError(t, err)
+
+	mockStub.GetStringArgsReturns([]string{config})
+	res := cc.Init(mockStub)
+	message := res.GetMessage()
+	require.Empty(t, message)
+
 	mockStub.GetChannelIDReturns(testTokenCCName)
 
 	txID := [16]byte(uuid.New())
@@ -156,8 +169,14 @@ func TestBuildInfo(t *testing.T) {
 		"",
 		nil,
 	)
-	cc, err := mocks.NewCC(mockStub, tt, config)
+	cc, err := core.NewCC(tt)
 	require.NoError(t, err)
+
+	mockStub.GetStringArgsReturns([]string{config})
+	res := cc.Init(mockStub)
+	message := res.GetMessage()
+	require.Empty(t, message)
+
 	mockStub.GetChannelIDReturns(testTokenCCName)
 
 	txID := [16]byte(uuid.New())
@@ -191,8 +210,15 @@ func TestSysEnv(t *testing.T) {
 		"",
 		nil,
 	)
-	cc, err := mocks.NewCC(mockStub, tt, config)
+
+	cc, err := core.NewCC(tt)
 	require.NoError(t, err)
+
+	mockStub.GetStringArgsReturns([]string{config})
+	res := cc.Init(mockStub)
+	message := res.GetMessage()
+	require.Empty(t, message)
+
 	mockStub.GetChannelIDReturns(testTokenCCName)
 
 	txID := [16]byte(uuid.New())
@@ -227,8 +253,14 @@ func TestCoreChaincodeIdName(t *testing.T) {
 		"",
 		nil,
 	)
-	cc, err := mocks.NewCC(mockStub, tt, config)
+	cc, err := core.NewCC(tt)
 	require.NoError(t, err)
+
+	mockStub.GetStringArgsReturns([]string{config})
+	res := cc.Init(mockStub)
+	message := res.GetMessage()
+	require.Empty(t, message)
+
 	mockStub.GetChannelIDReturns(testTokenCCName)
 
 	txID := [16]byte(uuid.New())

@@ -6,7 +6,6 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/anoideaopen/foundation/core"
 	"github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/hyperledger/fabric-protos-go/msp"
 	"github.com/hyperledger/fabric-protos-go/peer"
@@ -78,25 +77,4 @@ func NewMockStub(t *testing.T) *ChaincodeStub {
 	require.NoError(t, err)
 
 	return mockStub
-}
-
-func NewCC(
-	stub *ChaincodeStub,
-	bci core.BaseContractInterface,
-	config string,
-	opts ...core.ChaincodeOption,
-) (*core.Chaincode, error) {
-	cc, err := core.NewCC(bci, opts...)
-	if err != nil {
-		return nil, err
-	}
-
-	stub.GetStringArgsReturns([]string{config})
-	res := cc.Init(stub)
-	message := res.GetMessage()
-	if message != "" {
-		return nil, errors.New(message)
-	}
-
-	return cc, nil
 }
