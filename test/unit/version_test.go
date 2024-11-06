@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"github.com/anoideaopen/foundation/core"
-	ma "github.com/anoideaopen/foundation/mock"
 	"github.com/anoideaopen/foundation/mocks"
 	"github.com/anoideaopen/foundation/token"
 	"github.com/google/uuid"
@@ -39,7 +38,7 @@ func TestEmbedSrcFiles(t *testing.T) {
 	)
 	cc, err := mocks.NewCC(mockStub, tt, config, core.WithSrcFS(&f))
 	require.NoError(t, err)
-	mockStub.GetChannelIDReturns("tt")
+	mockStub.GetChannelIDReturns(testTokenCCName)
 
 	txID := [16]byte(uuid.New())
 	mockStub.GetTxIDReturns(hex.EncodeToString(txID[:]))
@@ -93,6 +92,8 @@ func TestEmbedSrcFiles(t *testing.T) {
 }
 
 func TestEmbedSrcFilesWithoutFS(t *testing.T) {
+	const errMsg = "embed fs is nil"
+
 	t.Parallel()
 
 	mockStub := mocks.NewMockStub(t)
@@ -108,60 +109,67 @@ func TestEmbedSrcFilesWithoutFS(t *testing.T) {
 		"",
 		nil,
 	)
-	cc, err := mocks.NewCC(mockStub, tt, config, core.WithSrcFS(&f))
+	cc, err := mocks.NewCC(mockStub, tt, config)
 	require.NoError(t, err)
-	mockStub.GetChannelIDReturns("tt")
+	mockStub.GetChannelIDReturns(testTokenCCName)
 
 	txID := [16]byte(uuid.New())
 	mockStub.GetTxIDReturns(hex.EncodeToString(txID[:]))
+	mockStub.GetStateReturns([]byte(config), nil)
 	mockStub.GetFunctionAndParametersReturns("nameOfFiles", []string{})
 
-	//err := issuer.InvokeWithError("tt", "nameOfFiles")
 	resp := cc.Invoke(mockStub)
 	msg := resp.GetMessage()
-	require.Equal(t, msg, "invoke: loading raw config: config bytes is empty")
-	//require.Error(t, err)
+	require.Equal(t, msg, errMsg)
 
 	txID = uuid.New()
 	mockStub.GetTxIDReturns(hex.EncodeToString(txID[:]))
 	mockStub.GetFunctionAndParametersReturns("srcFile", []string{"embed_test.go"})
 
-	//err = issuer.InvokeWithError("tt", "srcFile", "embed_test.go")
 	resp = cc.Invoke(mockStub)
 	msg = resp.GetMessage()
-	require.Equal(t, msg, "invoke: loading raw config: config bytes is empty")
-
-	//require.Error(t, err)
+	require.Equal(t, msg, errMsg)
 
 	txID = uuid.New()
 	mockStub.GetTxIDReturns(hex.EncodeToString(txID[:]))
 	mockStub.GetFunctionAndParametersReturns("srcPartFile", []string{"embed_test.go", "8", "13"})
 
-	//err = issuer.InvokeWithError("tt", "srcPartFile", "embed_test.go", "8", "13")
 	resp = cc.Invoke(mockStub)
 	msg = resp.GetMessage()
-	require.Equal(t, msg, "invoke: loading raw config: config bytes is empty")
-
-	//require.Error(t, err)
+	require.Equal(t, msg, errMsg)
 }
 
 func TestBuildInfo(t *testing.T) {
 	t.Parallel()
 
-	lm := ma.NewLedger(t)
-	issuer := lm.NewWallet()
+	mockStub := mocks.NewMockStub(t)
 
 	tt := &token.BaseToken{}
-	config := makeBaseTokenConfig(testTokenName, testTokenSymbol, 8,
-		issuer.Address(), "", "", "", nil)
-	initMsg := lm.NewCC("tt", tt, config)
-	require.Empty(t, initMsg)
+	config := makeBaseTokenConfig(
+		testTokenName,
+		testTokenSymbol,
+		8,
+		issuerAddress,
+		"",
+		"",
+		"",
+		nil,
+	)
+	cc, err := mocks.NewCC(mockStub, tt, config)
+	require.NoError(t, err)
+	mockStub.GetChannelIDReturns(testTokenCCName)
 
-	biData := issuer.Invoke(testTokenCCName, "buildInfo")
+	txID := [16]byte(uuid.New())
+	mockStub.GetTxIDReturns(hex.EncodeToString(txID[:]))
+	mockStub.GetStateReturns([]byte(config), nil)
+	mockStub.GetFunctionAndParametersReturns("buildInfo", []string{})
+
+	resp := cc.Invoke(mockStub)
+	biData := resp.GetPayload()
 	require.NotEmpty(t, biData)
 
 	var bi debug.BuildInfo
-	err := json.Unmarshal([]byte(biData), &bi)
+	err = json.Unmarshal([]byte(biData), &bi)
 	require.NoError(t, err)
 	require.NotNil(t, bi)
 }
@@ -169,20 +177,34 @@ func TestBuildInfo(t *testing.T) {
 func TestSysEnv(t *testing.T) {
 	t.Parallel()
 
-	lm := ma.NewLedger(t)
-	issuer := lm.NewWallet()
+	mockStub := mocks.NewMockStub(t)
 
 	tt := &token.BaseToken{}
-	config := makeBaseTokenConfig(testTokenName, testTokenSymbol, 8,
-		issuer.Address(), "", "", "", nil)
-	initMsg := lm.NewCC("tt", tt, config)
-	require.Empty(t, initMsg)
+	config := makeBaseTokenConfig(
+		testTokenName,
+		testTokenSymbol,
+		8,
+		issuerAddress,
+		"",
+		"",
+		"",
+		nil,
+	)
+	cc, err := mocks.NewCC(mockStub, tt, config)
+	require.NoError(t, err)
+	mockStub.GetChannelIDReturns(testTokenCCName)
 
-	sysEnv := issuer.Invoke(testTokenCCName, "systemEnv")
+	txID := [16]byte(uuid.New())
+	mockStub.GetTxIDReturns(hex.EncodeToString(txID[:]))
+	mockStub.GetStateReturns([]byte(config), nil)
+	mockStub.GetFunctionAndParametersReturns("systemEnv", []string{})
+
+	resp := cc.Invoke(mockStub)
+	sysEnv := resp.GetPayload()
 	require.NotEmpty(t, sysEnv)
 
 	systemEnv := make(map[string]string)
-	err := json.Unmarshal([]byte(sysEnv), &systemEnv)
+	err = json.Unmarshal(sysEnv, &systemEnv)
 	require.NoError(t, err)
 	_, ok := systemEnv["/etc/issue"]
 	require.True(t, ok)
@@ -191,20 +213,34 @@ func TestSysEnv(t *testing.T) {
 func TestCoreChaincodeIdName(t *testing.T) {
 	t.Parallel()
 
-	lm := ma.NewLedger(t)
-	issuer := lm.NewWallet()
+	mockStub := mocks.NewMockStub(t)
 
 	tt := &token.BaseToken{}
-	config := makeBaseTokenConfig(testTokenName, testTokenSymbol, 8,
-		issuer.Address(), "", "", "", nil)
-	initMsg := lm.NewCC("tt", tt, config)
-	require.Empty(t, initMsg)
+	config := makeBaseTokenConfig(
+		testTokenName,
+		testTokenSymbol,
+		8,
+		issuerAddress,
+		"",
+		"",
+		"",
+		nil,
+	)
+	cc, err := mocks.NewCC(mockStub, tt, config)
+	require.NoError(t, err)
+	mockStub.GetChannelIDReturns(testTokenCCName)
 
-	ChNameData := issuer.Invoke(testTokenCCName, "coreChaincodeIDName")
+	txID := [16]byte(uuid.New())
+	mockStub.GetTxIDReturns(hex.EncodeToString(txID[:]))
+	mockStub.GetStateReturns([]byte(config), nil)
+	mockStub.GetFunctionAndParametersReturns("coreChaincodeIDName", []string{})
+
+	resp := cc.Invoke(mockStub)
+	ChNameData := resp.GetPayload()
 	require.NotEmpty(t, ChNameData)
 
 	var name string
-	err := json.Unmarshal([]byte(ChNameData), &name)
+	err = json.Unmarshal(ChNameData, &name)
 	require.NoError(t, err)
 	require.NotEmpty(t, name)
 }
