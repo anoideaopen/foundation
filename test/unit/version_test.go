@@ -4,15 +4,16 @@ import (
 	"embed"
 	"encoding/hex"
 	"encoding/json"
+	"runtime/debug"
+	"strconv"
+	"testing"
+	"time"
+
 	"github.com/anoideaopen/foundation/core"
 	"github.com/anoideaopen/foundation/mocks"
 	"github.com/anoideaopen/foundation/token"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
-	"runtime/debug"
-	"strconv"
-	"testing"
-	"time"
 )
 
 const issuerAddress = "SkXcT15CDtiEFWSWcT3G8GnWfG2kAJw9yW28tmPEeatZUvRct"

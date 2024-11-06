@@ -8,7 +8,6 @@ import (
 
 	"github.com/anoideaopen/foundation/core"
 	"github.com/golang/protobuf/proto" //nolint:staticcheck
-	"github.com/hyperledger/fabric-chaincode-go/shim"
 	"github.com/hyperledger/fabric-protos-go/msp"
 	"github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/stretchr/testify/require"
@@ -77,19 +76,6 @@ func NewMockStub(t *testing.T) *ChaincodeStub {
 
 	err := SetCreatorCert(mockStub, TestCreatorMSP, AdminCert)
 	require.NoError(t, err)
-
-	mockStub.CreateCompositeKeyCalls(shim.CreateCompositeKey)
-	mockStub.SplitCompositeKeyCalls(func(s string) (string, []string, error) {
-		componentIndex := 1
-		var components []string
-		for i := 1; i < len(s); i++ {
-			if s[i] == 0 {
-				components = append(components, s[componentIndex:i])
-				componentIndex = i + 1
-			}
-		}
-		return components[0], components[1:], nil
-	})
 
 	return mockStub
 }
