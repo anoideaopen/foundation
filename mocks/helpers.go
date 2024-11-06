@@ -2,8 +2,10 @@ package mocks
 
 import (
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/pem"
 	"errors"
+	"github.com/google/uuid"
 	"testing"
 
 	"github.com/golang/protobuf/proto" //nolint:staticcheck
@@ -70,7 +72,8 @@ func MarshalIdentity(creatorMSP string, creatorCert []byte) ([]byte, error) {
 // NewMockStub returns new mock stub
 func NewMockStub(t *testing.T) *ChaincodeStub {
 	mockStub := new(ChaincodeStub)
-	mockStub.GetTxIDReturns("0")
+	txID := [16]byte(uuid.New())
+	mockStub.GetTxIDReturns(hex.EncodeToString(txID[:]))
 	mockStub.GetSignedProposalReturns(&peer.SignedProposal{}, nil)
 
 	err := SetCreatorCert(mockStub, TestCreatorMSP, AdminCert)

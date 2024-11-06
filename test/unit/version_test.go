@@ -2,7 +2,6 @@ package unit
 
 import (
 	"embed"
-	"encoding/hex"
 	"encoding/json"
 	"runtime/debug"
 	"strconv"
@@ -12,7 +11,6 @@ import (
 	"github.com/anoideaopen/foundation/core"
 	"github.com/anoideaopen/foundation/mocks"
 	"github.com/anoideaopen/foundation/token"
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 )
 
@@ -43,8 +41,6 @@ func TestEmbedSrcFiles(t *testing.T) {
 
 	mockStub.GetChannelIDReturns(testTokenCCName)
 
-	txID := [16]byte(uuid.New())
-	mockStub.GetTxIDReturns(hex.EncodeToString(txID[:]))
 	mockStub.GetFunctionAndParametersReturns("nameOfFiles", []string{})
 	mockStub.GetStateReturns([]byte(config), nil)
 
@@ -52,8 +48,6 @@ func TestEmbedSrcFiles(t *testing.T) {
 	var files []string
 	require.NoError(t, json.Unmarshal(resp.GetPayload(), &files))
 
-	txID = uuid.New()
-	mockStub.GetTxIDReturns(hex.EncodeToString(txID[:]))
 	mockStub.GetFunctionAndParametersReturns("srcFile", []string{"version_test.go"})
 
 	resp = cc.Invoke(mockStub)
@@ -64,8 +58,6 @@ func TestEmbedSrcFiles(t *testing.T) {
 	l += 10
 	lStr := strconv.Itoa(l)
 
-	txID = uuid.New()
-	mockStub.GetTxIDReturns(hex.EncodeToString(txID[:]))
 	mockStub.GetFunctionAndParametersReturns("srcPartFile", []string{"version_test.go", "8", "12"})
 
 	resp = cc.Invoke(mockStub)
@@ -75,8 +67,6 @@ func TestEmbedSrcFiles(t *testing.T) {
 
 	time.Sleep(10 * time.Second)
 
-	txID = uuid.New()
-	mockStub.GetTxIDReturns(hex.EncodeToString(txID[:]))
 	mockStub.GetFunctionAndParametersReturns("srcPartFile", []string{"version_test.go", "-1", "12"})
 
 	resp = cc.Invoke(mockStub)
@@ -85,8 +75,6 @@ func TestEmbedSrcFiles(t *testing.T) {
 
 	time.Sleep(10 * time.Second)
 
-	txID = uuid.New()
-	mockStub.GetTxIDReturns(hex.EncodeToString(txID[:]))
 	mockStub.GetFunctionAndParametersReturns("srcPartFile", []string{"version_test.go", "-1", lStr})
 
 	resp = cc.Invoke(mockStub)
@@ -117,8 +105,6 @@ func TestEmbedSrcFilesWithoutFS(t *testing.T) {
 
 	mockStub.GetChannelIDReturns(testTokenCCName)
 
-	txID := [16]byte(uuid.New())
-	mockStub.GetTxIDReturns(hex.EncodeToString(txID[:]))
 	mockStub.GetStateReturns([]byte(config), nil)
 	mockStub.GetFunctionAndParametersReturns("nameOfFiles", []string{})
 
@@ -126,16 +112,12 @@ func TestEmbedSrcFilesWithoutFS(t *testing.T) {
 	msg := resp.GetMessage()
 	require.Equal(t, msg, errMsg)
 
-	txID = uuid.New()
-	mockStub.GetTxIDReturns(hex.EncodeToString(txID[:]))
 	mockStub.GetFunctionAndParametersReturns("srcFile", []string{"embed_test.go"})
 
 	resp = cc.Invoke(mockStub)
 	msg = resp.GetMessage()
 	require.Equal(t, msg, errMsg)
 
-	txID = uuid.New()
-	mockStub.GetTxIDReturns(hex.EncodeToString(txID[:]))
 	mockStub.GetFunctionAndParametersReturns("srcPartFile", []string{"embed_test.go", "8", "13"})
 
 	resp = cc.Invoke(mockStub)
@@ -164,8 +146,6 @@ func TestBuildInfo(t *testing.T) {
 
 	mockStub.GetChannelIDReturns(testTokenCCName)
 
-	txID := [16]byte(uuid.New())
-	mockStub.GetTxIDReturns(hex.EncodeToString(txID[:]))
 	mockStub.GetStateReturns([]byte(config), nil)
 	mockStub.GetFunctionAndParametersReturns("buildInfo", []string{})
 
@@ -201,8 +181,6 @@ func TestSysEnv(t *testing.T) {
 
 	mockStub.GetChannelIDReturns(testTokenCCName)
 
-	txID := [16]byte(uuid.New())
-	mockStub.GetTxIDReturns(hex.EncodeToString(txID[:]))
 	mockStub.GetStateReturns([]byte(config), nil)
 	mockStub.GetFunctionAndParametersReturns("systemEnv", []string{})
 
@@ -238,8 +216,6 @@ func TestCoreChaincodeIdName(t *testing.T) {
 
 	mockStub.GetChannelIDReturns(testTokenCCName)
 
-	txID := [16]byte(uuid.New())
-	mockStub.GetTxIDReturns(hex.EncodeToString(txID[:]))
 	mockStub.GetStateReturns([]byte(config), nil)
 	mockStub.GetFunctionAndParametersReturns("coreChaincodeIDName", []string{})
 
