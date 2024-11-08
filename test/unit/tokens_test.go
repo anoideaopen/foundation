@@ -3,9 +3,9 @@ package unit
 import (
 	"encoding/json"
 	"errors"
-	"github.com/anoideaopen/foundation/core/balance"
 	"testing"
 
+	"github.com/anoideaopen/foundation/core/balance"
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/core/types/big"
 	"github.com/anoideaopen/foundation/mock"
