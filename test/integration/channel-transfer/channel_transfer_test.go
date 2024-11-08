@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	cligrpc "github.com/anoideaopen/channel-transfer/proto"
+	"github.com/anoideaopen/foundation/mocks"
 	pbfound "github.com/anoideaopen/foundation/proto"
 	"github.com/anoideaopen/foundation/test/integration/cmn"
 	"github.com/anoideaopen/foundation/test/integration/cmn/client"
@@ -34,7 +35,7 @@ var _ = Describe("Channel transfer foundation Tests", func() {
 
 	var (
 		channels     = []string{cmn.ChannelAcl, cmn.ChannelCC, cmn.ChannelFiat, cmn.ChannelIndustrial}
-		user         *client.UserFoundation
+		user         *mocks.UserFoundation
 		clientCtx    context.Context
 		apiClient    cligrpc.APIClient
 		conn         *grpc.ClientConn
@@ -73,7 +74,7 @@ var _ = Describe("Channel transfer foundation Tests", func() {
 
 		By("add user to acl")
 		var err error
-		user, err = client.NewUserFoundation(pbfound.KeyType_ed25519)
+		user, err = mocks.NewUserFoundation(pbfound.KeyType_ed25519)
 		Expect(err).NotTo(HaveOccurred())
 
 		ts.AddUser(user)

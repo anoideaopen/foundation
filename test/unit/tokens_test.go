@@ -3,6 +3,7 @@ package unit
 import (
 	"encoding/json"
 	"errors"
+	"github.com/anoideaopen/foundation/core/balance"
 	"testing"
 
 	"github.com/anoideaopen/foundation/core/types"
@@ -104,6 +105,15 @@ func (ft *FiatTestToken) TxAccountsTest(_ *types.Sender, addr string, pub string
 // IMPLEMENTING A PROPER SOLUTION WOULD REQUIRE SIGNIFICANT CHANGES.
 func (ft *FiatTestToken) QueryIndustrialBalanceOf(address *types.Address) (map[string]string, error) {
 	return ft.IndustrialBalanceGet(address)
+}
+
+// QueryIndexCreated - returns true if index was created
+func (ft *FiatTestToken) QueryIndexCreated(balanceTypeStr string) (bool, error) {
+	balanceType, err := balance.StringToBalanceType(balanceTypeStr)
+	if err != nil {
+		return false, err
+	}
+	return balance.HasIndexCreatedFlag(ft.GetStub(), balanceType)
 }
 
 type MintableTestToken struct {

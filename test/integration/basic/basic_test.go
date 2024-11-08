@@ -2,6 +2,8 @@ package basic
 
 import (
 	"encoding/json"
+
+	"github.com/anoideaopen/foundation/mocks"
 	pbfound "github.com/anoideaopen/foundation/proto"
 	"github.com/anoideaopen/foundation/test/integration/cmn"
 	"github.com/anoideaopen/foundation/test/integration/cmn/client"
@@ -47,7 +49,7 @@ var _ = Describe("Basic foundation Tests", func() {
 		})
 
 		It("add user", func() {
-			user, err := client.NewUserFoundation(pbfound.KeyType_ed25519)
+			user, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
 			Expect(err).NotTo(HaveOccurred())
 			ts.AddUser(user)
 		})
@@ -64,7 +66,7 @@ var _ = Describe("Basic foundation Tests", func() {
 		})
 
 		It("query test", func() {
-			user, err := client.NewUserFoundation(pbfound.KeyType_ed25519)
+			user, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
 			Expect(err).NotTo(HaveOccurred())
 			ts.AddUser(user)
 
@@ -86,8 +88,8 @@ var _ = Describe("Basic foundation Tests", func() {
 
 		Describe("transfer tests", func() {
 			var (
-				user1 *client.UserFoundation
-				user2 *client.UserFoundation
+				user1 *mocks.UserFoundation
+				user2 *mocks.UserFoundation
 			)
 
 			BeforeEach(func() {
@@ -97,9 +99,9 @@ var _ = Describe("Basic foundation Tests", func() {
 				By("create users")
 				var err error
 
-				user1, err = client.NewUserFoundation(pbfound.KeyType_ed25519)
+				user1, err = mocks.NewUserFoundation(pbfound.KeyType_ed25519)
 				Expect(err).NotTo(HaveOccurred())
-				user2, err = client.NewUserFoundation(pbfound.KeyType_ed25519)
+				user2, err = mocks.NewUserFoundation(pbfound.KeyType_ed25519)
 				Expect(err).NotTo(HaveOccurred())
 			})
 
@@ -149,7 +151,7 @@ var _ = Describe("Basic foundation Tests", func() {
 				ts.AddFeeSetterToACL()
 				ts.AddFeeAddressSetterToACL()
 
-				feeWallet, err := client.NewUserFoundation(pbfound.KeyType_ed25519)
+				feeWallet, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
 				Expect(err).NotTo(HaveOccurred())
 
 				ts.AddUser(feeWallet)
@@ -220,7 +222,7 @@ var _ = Describe("Basic foundation Tests", func() {
 				ts.AddFeeSetterToACL()
 				ts.AddFeeAddressSetterToACL()
 
-				feeWallet, err := client.NewUserFoundation(pbfound.KeyType_ed25519)
+				feeWallet, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
 				Expect(err).NotTo(HaveOccurred())
 
 				ts.AddUser(feeWallet)
@@ -287,7 +289,7 @@ var _ = Describe("Basic foundation Tests", func() {
 				ts.AddFeeSetterToACL()
 				ts.AddFeeAddressSetterToACL()
 
-				feeWallet, err := client.NewUserFoundation(pbfound.KeyType_ed25519)
+				feeWallet, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
 				Expect(err).NotTo(HaveOccurred())
 
 				ts.AddUser(feeWallet)
@@ -346,12 +348,12 @@ var _ = Describe("Basic foundation Tests", func() {
 
 		It("accessmatrix - add and remove rights", func() {
 			By("add user to acl")
-			user1, err := client.NewUserFoundation(pbfound.KeyType_ed25519)
+			user1, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
 			Expect(err).NotTo(HaveOccurred())
 
 			ts.AddUser(user1)
 
-			user2, err := client.NewUserFoundation(pbfound.KeyType_ed25519)
+			user2, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
 			Expect(err).NotTo(HaveOccurred())
 
 			ts.AddUser(user2)

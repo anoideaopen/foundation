@@ -8,6 +8,7 @@ import (
 	"math"
 	"regexp"
 
+	"github.com/anoideaopen/foundation/mocks"
 	pbfound "github.com/anoideaopen/foundation/proto"
 	"github.com/anoideaopen/foundation/test/integration/cmn"
 	"github.com/anoideaopen/foundation/test/integration/cmn/client/types"
@@ -265,7 +266,7 @@ func (ts *FoundationTestSuite) TxInvokeByRobot(channelName, chaincodeName string
 func (ts *FoundationTestSuite) TxInvokeWithSign(
 	channelName string,
 	chaincodeName string,
-	user *UserFoundation,
+	user *mocks.UserFoundation,
 	fn string,
 	requestID string,
 	nonce string,
@@ -282,7 +283,7 @@ func (ts *FoundationTestSuite) TxInvokeWithSign(
 func (ts *FoundationTestSuite) TxInvokeWithMultisign(
 	channelName string,
 	chaincodeName string,
-	user *UserFoundationMultisigned,
+	user *mocks.UserFoundationMultisigned,
 	fn string,
 	requestID string,
 	nonce string,
@@ -312,7 +313,7 @@ func (ts *FoundationTestSuite) NBTxInvokeByRobot(channelName, chaincodeName stri
 func (ts *FoundationTestSuite) NBTxInvokeWithSign(
 	channelName string,
 	chaincodeName string,
-	user *UserFoundation,
+	user *mocks.UserFoundation,
 	fn string,
 	requestID string,
 	nonce string,

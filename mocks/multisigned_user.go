@@ -1,4 +1,4 @@
-package client
+package mocks
 
 import (
 	"bytes"
@@ -54,7 +54,7 @@ func NewUserFoundationMultisigned(keyType pbfound.KeyType, n int) (*UserFoundati
 }
 
 func UserFoundationMultisignedFromEd25519PrivateKeys(keys []PrivateKeyWithType) (*UserFoundationMultisigned, error) {
-	var pKeys [][]byte
+	pKeys := make([][]byte, len(keys))
 	userMultisigned := &UserFoundationMultisigned{
 		Users:  make([]*UserFoundation, 0),
 		UserID: "testUserMultisigned",
@@ -79,7 +79,7 @@ func UserFoundationMultisignedFromEd25519PrivateKeys(keys []PrivateKeyWithType) 
 }
 
 func UserFoundationMultisignedFromBase58CheckPrivateKey(keysBase58Check []string) (*UserFoundationMultisigned, error) {
-	var privateKeys []PrivateKeyWithType
+	privateKeys := make([]PrivateKeyWithType, len(keysBase58Check))
 	for _, keyBase58Check := range keysBase58Check {
 		decode, ver, err := base58.CheckDecode(keyBase58Check)
 		if err != nil {

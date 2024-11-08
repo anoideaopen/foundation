@@ -3,6 +3,7 @@ package multisigned_user
 import (
 	"slices"
 
+	"github.com/anoideaopen/foundation/mocks"
 	pbfound "github.com/anoideaopen/foundation/proto"
 	"github.com/anoideaopen/foundation/test/integration/cmn"
 	"github.com/anoideaopen/foundation/test/integration/cmn/client"
@@ -22,7 +23,7 @@ var _ = Describe("Multisigned user ACL tests", func() {
 		ts       client.TestSuite
 		channels = []string{cmn.ChannelAcl, cmn.ChannelFiat}
 
-		user        *client.UserFoundation
+		user        *mocks.UserFoundation
 		usersPolicy = 3
 	)
 
@@ -58,7 +59,7 @@ var _ = Describe("Multisigned user ACL tests", func() {
 
 		By("add user to acl")
 		var err error
-		user, err = client.NewUserFoundation(pbfound.KeyType_secp256k1)
+		user, err = mocks.NewUserFoundation(pbfound.KeyType_secp256k1)
 		Expect(err).NotTo(HaveOccurred())
 
 		ts.AddUser(user)
@@ -80,7 +81,7 @@ var _ = Describe("Multisigned user ACL tests", func() {
 		ts.AddAdminToACL()
 
 		By("creating multisigned user")
-		multisigUser, err := client.NewUserFoundationMultisigned(pbfound.KeyType_ed25519, usersPolicy)
+		multisigUser, err := mocks.NewUserFoundationMultisigned(pbfound.KeyType_ed25519, usersPolicy)
 		Expect(err).NotTo(HaveOccurred())
 
 		By("adding users to ACL")
@@ -95,7 +96,7 @@ var _ = Describe("Multisigned user ACL tests", func() {
 		ts.DeployFiat(multisigUser.AddressBase58Check, ts.FeeSetter().AddressBase58Check, ts.FeeAddressSetter().AddressBase58Check)
 
 		By("add user to acl")
-		user, err = client.NewUserFoundation(pbfound.KeyType_ed25519)
+		user, err = mocks.NewUserFoundation(pbfound.KeyType_ed25519)
 		Expect(err).NotTo(HaveOccurred())
 
 		ts.AddUser(user)
@@ -114,7 +115,7 @@ var _ = Describe("Multisigned user ACL tests", func() {
 		ts.AddAdminToACL()
 
 		By("creating multisigned user")
-		multisigUser, err := client.NewUserFoundationMultisigned(pbfound.KeyType_ed25519, usersPolicy)
+		multisigUser, err := mocks.NewUserFoundationMultisigned(pbfound.KeyType_ed25519, usersPolicy)
 		Expect(err).NotTo(HaveOccurred())
 
 		By("adding users to ACL")
@@ -129,7 +130,7 @@ var _ = Describe("Multisigned user ACL tests", func() {
 		ts.DeployFiat(multisigUser.AddressBase58Check, ts.FeeSetter().AddressBase58Check, ts.FeeAddressSetter().AddressBase58Check)
 
 		By("creating new user for multisig")
-		newUser, err := client.NewUserFoundation(pbfound.KeyType_ed25519)
+		newUser, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
 		Expect(err).NotTo(HaveOccurred())
 
 		By("adding new user to ACL")
@@ -143,7 +144,7 @@ var _ = Describe("Multisigned user ACL tests", func() {
 		ts.ChangeMultisigPublicKey(multisigUser, oldUser.PublicKeyBase58, newUser.PublicKeyBase58, "reason", "0", ts.Admin())
 
 		By("add user to acl")
-		user, err = client.NewUserFoundation(pbfound.KeyType_ed25519)
+		user, err = mocks.NewUserFoundation(pbfound.KeyType_ed25519)
 		Expect(err).NotTo(HaveOccurred())
 
 		ts.AddUser(user)

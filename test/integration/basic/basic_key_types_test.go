@@ -2,6 +2,8 @@ package basic
 
 import (
 	"encoding/json"
+
+	"github.com/anoideaopen/foundation/mocks"
 	pbfound "github.com/anoideaopen/foundation/proto"
 	"github.com/anoideaopen/foundation/test/integration/cmn"
 	"github.com/anoideaopen/foundation/test/integration/cmn/client"
@@ -46,9 +48,9 @@ var _ = Describe("Basic foundation tests with different key types", func() {
 
 		It("transfer", func() {
 			By("create users")
-			user1, err := client.NewUserFoundation(pbfound.KeyType_ed25519)
+			user1, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
 			Expect(err).NotTo(HaveOccurred())
-			user2, err := client.NewUserFoundation(pbfound.KeyType_secp256k1)
+			user2, err := mocks.NewUserFoundation(pbfound.KeyType_secp256k1)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("add users to acl")

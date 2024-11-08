@@ -1,6 +1,7 @@
 package task_executor_only_tx
 
 import (
+	"github.com/anoideaopen/foundation/mocks"
 	pbfound "github.com/anoideaopen/foundation/proto"
 	"github.com/anoideaopen/foundation/test/integration/cmn"
 	"github.com/anoideaopen/foundation/test/integration/cmn/client"
@@ -29,7 +30,7 @@ var _ = Describe("Task Executor only tx foundation Tests", func() {
 
 	Describe("task executor test", func() {
 		var (
-			user1 *client.UserFoundation
+			user1 *mocks.UserFoundation
 		)
 
 		BeforeEach(func() {
@@ -38,7 +39,7 @@ var _ = Describe("Task Executor only tx foundation Tests", func() {
 
 			By("add user to acl")
 			var err error
-			user1, err = client.NewUserFoundation(pbfound.KeyType_ed25519)
+			user1, err = mocks.NewUserFoundation(pbfound.KeyType_ed25519)
 			Expect(err).NotTo(HaveOccurred())
 			ts.AddUser(user1)
 		})

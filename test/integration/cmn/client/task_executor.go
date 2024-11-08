@@ -2,6 +2,7 @@ package client
 
 import (
 	"fmt"
+	"github.com/anoideaopen/foundation/mocks"
 	"time"
 
 	"github.com/anoideaopen/foundation/core"
@@ -29,7 +30,7 @@ func createTask(method string, args ...string) *pbfound.Task {
 	}
 }
 
-func CreateTaskWithSignArgs(method string, channel string, chaincode string, user *UserFoundation, args ...string) (*pbfound.Task, error) {
+func CreateTaskWithSignArgs(method string, channel string, chaincode string, user *mocks.UserFoundation, args ...string) (*pbfound.Task, error) {
 	requestID := time.Now().UTC().Format(time.RFC3339Nano)
 
 	args = append(append([]string{method, requestID, channel, chaincode}, args...), NewNonceByTime().Get())
@@ -98,7 +99,7 @@ func (ts *FoundationTestSuite) ExecuteTasks(channel string, chaincode string, ta
 	).TxID()
 }
 
-func (ts *FoundationTestSuite) ExecuteTaskWithSign(channel string, chaincode string, user *UserFoundation, method string, args ...string) string {
+func (ts *FoundationTestSuite) ExecuteTaskWithSign(channel string, chaincode string, user *mocks.UserFoundation, method string, args ...string) string {
 	task, err := CreateTaskWithSignArgs(method, channel, chaincode, user, args...)
 	if err != nil {
 		panic(err)

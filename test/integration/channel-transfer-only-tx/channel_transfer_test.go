@@ -6,6 +6,7 @@ import (
 
 	"github.com/anoideaopen/foundation/core"
 	"github.com/anoideaopen/foundation/core/types/big"
+	"github.com/anoideaopen/foundation/mocks"
 	pbfound "github.com/anoideaopen/foundation/proto"
 	"github.com/anoideaopen/foundation/test/integration/cmn"
 	"github.com/anoideaopen/foundation/test/integration/cmn/client"
@@ -50,7 +51,7 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 
 	Describe("channel transfer test", func() {
 		var (
-			user1                *client.UserFoundation
+			user1                *mocks.UserFoundation
 			transferAmount       = "450"
 			balanceAfterTransfer = "550"
 			emitAmount           = "1000"
@@ -65,7 +66,7 @@ var _ = Describe("Channel transfer only tx foundation Tests", func() {
 
 			By("add user to acl")
 			var err error
-			user1, err = client.NewUserFoundation(pbfound.KeyType_ed25519)
+			user1, err = mocks.NewUserFoundation(pbfound.KeyType_ed25519)
 			Expect(err).NotTo(HaveOccurred())
 			ts.AddUser(user1)
 

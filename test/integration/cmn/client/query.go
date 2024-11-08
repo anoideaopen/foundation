@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/anoideaopen/foundation/mocks"
 	"github.com/anoideaopen/foundation/test/integration/cmn"
 	"github.com/anoideaopen/foundation/test/integration/cmn/client/types"
 	"github.com/btcsuite/btcd/btcutil/base58"
@@ -40,7 +41,7 @@ func (ts *FoundationTestSuite) Query(channelName, chaincodeName string, args ...
 func (ts *FoundationTestSuite) QueryWithSign(
 	channelName string,
 	chaincodeName string,
-	user *UserFoundation,
+	user *mocks.UserFoundation,
 	fn string,
 	requestID string,
 	nonce string,

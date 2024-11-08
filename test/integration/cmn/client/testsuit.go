@@ -1,6 +1,7 @@
 package client
 
 import (
+	"github.com/anoideaopen/foundation/mocks"
 	"os"
 	"path/filepath"
 	"syscall"
@@ -53,9 +54,9 @@ type FoundationTestSuite struct {
 	channelTransferProc ifrit.Process
 	peerRunner          ifrit.Runner
 	ordererRunners      []*ginkgomon.Runner
-	admin               *UserFoundation
-	feeSetter           *UserFoundation
-	feeAddressSetter    *UserFoundation
+	admin               *mocks.UserFoundation
+	feeSetter           *mocks.UserFoundation
+	feeAddressSetter    *mocks.UserFoundation
 	skiBackend          string
 	skiRobot            string
 
@@ -193,30 +194,30 @@ func (ts *FoundationTestSuite) InitNetwork(channels []string, testPort integrati
 	ts.skiBackend = skiBackend
 	ts.skiRobot = skiRobot
 
-	ts.admin, err = NewUserFoundation(pbfound.KeyType_ed25519)
+	ts.admin, err = mocks.NewUserFoundation(pbfound.KeyType_ed25519)
 	Expect(err).NotTo(HaveOccurred())
 	Expect(ts.admin.PrivateKeyBytes).NotTo(Equal(nil))
 
-	ts.feeSetter, err = NewUserFoundation(pbfound.KeyType_ed25519)
+	ts.feeSetter, err = mocks.NewUserFoundation(pbfound.KeyType_ed25519)
 	Expect(err).NotTo(HaveOccurred())
 	Expect(ts.feeSetter.PrivateKeyBytes).NotTo(Equal(nil))
 
-	ts.feeAddressSetter, err = NewUserFoundation(pbfound.KeyType_ed25519)
+	ts.feeAddressSetter, err = mocks.NewUserFoundation(pbfound.KeyType_ed25519)
 	Expect(err).NotTo(HaveOccurred())
 	Expect(ts.feeAddressSetter.PrivateKeyBytes).NotTo(Equal(nil))
 
 	ts.isInit = true
 }
 
-func (ts *FoundationTestSuite) Admin() *UserFoundation {
+func (ts *FoundationTestSuite) Admin() *mocks.UserFoundation {
 	return ts.admin
 }
 
-func (ts *FoundationTestSuite) FeeSetter() *UserFoundation {
+func (ts *FoundationTestSuite) FeeSetter() *mocks.UserFoundation {
 	return ts.feeSetter
 }
 
-func (ts *FoundationTestSuite) FeeAddressSetter() *UserFoundation {
+func (ts *FoundationTestSuite) FeeAddressSetter() *mocks.UserFoundation {
 	return ts.feeAddressSetter
 }
 

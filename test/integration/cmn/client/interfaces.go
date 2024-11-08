@@ -2,6 +2,7 @@ package client
 
 import (
 	"github.com/anoideaopen/acl/cc"
+	"github.com/anoideaopen/foundation/mocks"
 	pbfound "github.com/anoideaopen/foundation/proto"
 	"github.com/anoideaopen/foundation/test/integration/cmn/client/types"
 	"github.com/anoideaopen/robot/helpers/ntesting"
@@ -15,22 +16,22 @@ type InvokeInterface interface {
 	// TxInvokeByRobot func for invoke to foundation fabric from robot
 	TxInvokeByRobot(channelName, chaincodeName string, args ...string) *types.InvokeResult
 	// TxInvokeWithSign func for invoke with sign to foundation fabric
-	TxInvokeWithSign(channelName, chaincodeName string, user *UserFoundation, fn, requestID, nonce string, args ...string) *types.InvokeResult
+	TxInvokeWithSign(channelName, chaincodeName string, user *mocks.UserFoundation, fn, requestID, nonce string, args ...string) *types.InvokeResult
 	// TxInvokeWithMultisign invokes transaction to foundation fabric with multisigned user
-	TxInvokeWithMultisign(channelName, chaincodeName string, user *UserFoundationMultisigned, fn, requestID, nonce string, args ...string) *types.InvokeResult
+	TxInvokeWithMultisign(channelName, chaincodeName string, user *mocks.UserFoundationMultisigned, fn, requestID, nonce string, args ...string) *types.InvokeResult
 	// NBTxInvoke func for invoke to foundation fabric
 	NBTxInvoke(channelName, chaincodeName string, args ...string) *types.InvokeResult
 	// NBTxInvokeByRobot func for invoke to foundation fabric from robot
 	NBTxInvokeByRobot(channelName, chaincodeName string, args ...string) *types.InvokeResult
 	// NBTxInvokeWithSign func for invoke with sign to foundation fabric
-	NBTxInvokeWithSign(channelName, chaincodeName string, user *UserFoundation, fn, requestID, nonce string, args ...string) *types.InvokeResult
+	NBTxInvokeWithSign(channelName, chaincodeName string, user *mocks.UserFoundation, fn, requestID, nonce string, args ...string) *types.InvokeResult
 }
 
 type QueryInterface interface {
 	// Query func for query from foundation fabric
 	Query(channelName, chaincodeName string, args ...string) *types.QueryResult
 	// QueryWithSign func for query with sign from foundation fabric
-	QueryWithSign(channelName, chaincodeName string, user *UserFoundation, fn, requestID, nonce string, args ...string) *types.QueryResult
+	QueryWithSign(channelName, chaincodeName string, user *mocks.UserFoundation, fn, requestID, nonce string, args ...string) *types.QueryResult
 	// SwapGet requests specified channel for swap information until it appears
 	SwapGet(channelName, chaincodeName string, functionName SwapFunctionName, swapBeginTxID string) *types.QueryResult
 	// Metadata returns chaincode metadata
@@ -39,7 +40,7 @@ type QueryInterface interface {
 
 type ACLAddUserInterface interface {
 	// AddUser adds new user to ACL channel
-	AddUser(user *UserFoundation)
+	AddUser(user *mocks.UserFoundation)
 	// AddAdminToACL adds testsuite admin to ACL channel
 	AddAdminToACL()
 	// AddFeeSetterToACL adds testsuite fee setter to ACL channel
@@ -47,32 +48,32 @@ type ACLAddUserInterface interface {
 	// AddFeeAddressSetterToACL adds testsuite fee address setter to ACL channel
 	AddFeeAddressSetterToACL()
 	// AddUserMultisigned adds multisigned user to ACL channel
-	AddUserMultisigned(user *UserFoundationMultisigned)
+	AddUserMultisigned(user *mocks.UserFoundationMultisigned)
 	// AddRights adds right for defined user with specified role and operation to ACL channel
 }
 
 type ACLListsInterface interface {
 	// AddToBlackList adds user to blacklist
-	AddToBlackList(user *UserFoundation)
+	AddToBlackList(user *mocks.UserFoundation)
 	// AddToGrayList adds user to graylist
-	AddToGrayList(user *UserFoundation)
+	AddToGrayList(user *mocks.UserFoundation)
 	// DelFromBlackList adds user to a black list
-	DelFromBlackList(user *UserFoundation)
+	DelFromBlackList(user *mocks.UserFoundation)
 	// DelFromGrayList adds user to a gray list
-	DelFromGrayList(user *UserFoundation)
+	DelFromGrayList(user *mocks.UserFoundation)
 	// CheckUserInList - checks if user in gray or black list
-	CheckUserInList(listType cc.ListType, user *UserFoundation)
+	CheckUserInList(listType cc.ListType, user *mocks.UserFoundation)
 	// CheckUserNotInList - checks if user in gray or black list
-	CheckUserNotInList(listType cc.ListType, user *UserFoundation)
+	CheckUserNotInList(listType cc.ListType, user *mocks.UserFoundation)
 }
 
 type ACLKeysInterface interface {
 	// ChangePublicKey - changes user public key by validators
-	ChangePublicKey(user *UserFoundation, newPubKeyBase58 string, reason string, reasonID string, validators ...*UserFoundation)
+	ChangePublicKey(user *mocks.UserFoundation, newPubKeyBase58 string, reason string, reasonID string, validators ...*mocks.UserFoundation)
 	// ChangePublicKeyBase58signed - changes user public key by validators with base58 signatures
-	ChangePublicKeyBase58signed(user *UserFoundation, requestID string, chaincodeName string, channelID string, newPubKeyBase58 string, reason string, reasonID string, validators ...*UserFoundation)
+	ChangePublicKeyBase58signed(user *mocks.UserFoundation, requestID string, chaincodeName string, channelID string, newPubKeyBase58 string, reason string, reasonID string, validators ...*mocks.UserFoundation)
 	// ChangeMultisigPublicKey changes public key for multisigned user by validators
-	ChangeMultisigPublicKey(multisignedUser *UserFoundationMultisigned, oldPubKeyBase58 string, newPubKeyBase58 string, reason string, reasonID string, validators ...*UserFoundation)
+	ChangeMultisigPublicKey(multisignedUser *mocks.UserFoundationMultisigned, oldPubKeyBase58 string, newPubKeyBase58 string, reason string, reasonID string, validators ...*mocks.UserFoundation)
 	// CheckUserChangedKey checks if user changed key
 	CheckUserChangedKey(newPublicKeyBase58Check, oldAddressBase58Check string)
 }
@@ -81,15 +82,15 @@ type ACLInterface interface {
 	ACLAddUserInterface
 	ACLListsInterface
 	ACLKeysInterface
-	AddRights(channelName, chaincodeName, role, operation string, user *UserFoundation)
+	AddRights(channelName, chaincodeName, role, operation string, user *mocks.UserFoundation)
 	// RemoveRights removes right for defined user with specified role and operation to ACL channel
-	RemoveRights(channelName, chaincodeName, role, operation string, user *UserFoundation)
+	RemoveRights(channelName, chaincodeName, role, operation string, user *mocks.UserFoundation)
 	// CheckAccountInfo checks account info
-	CheckAccountInfo(user *UserFoundation, kycHash string, isGrayListed, isBlackListed bool)
+	CheckAccountInfo(user *mocks.UserFoundation, kycHash string, isGrayListed, isBlackListed bool)
 	// SetAccountInfo sets account info
-	SetAccountInfo(user *UserFoundation, kycHash string, isGrayListed, isBlackListed bool)
+	SetAccountInfo(user *mocks.UserFoundation, kycHash string, isGrayListed, isBlackListed bool)
 	// SetKYC sets kyc hash
-	SetKYC(user *UserFoundation, kycHash string, validators ...*UserFoundation)
+	SetKYC(user *mocks.UserFoundation, kycHash string, validators ...*mocks.UserFoundation)
 }
 
 type StarterInterface interface {
@@ -124,11 +125,11 @@ type StopperInterface interface {
 
 type FieldGetter interface {
 	// Admin returns testsuite admin
-	Admin() *UserFoundation
+	Admin() *mocks.UserFoundation
 	// FeeSetter returns testsuite fee setter user
-	FeeSetter() *UserFoundation
+	FeeSetter() *mocks.UserFoundation
 	// FeeAddressSetter returns testsuite fee address setter
-	FeeAddressSetter() *UserFoundation
+	FeeAddressSetter() *mocks.UserFoundation
 	// TestDir returns testsuite temporary test directory
 	TestDir() string
 	// DockerClient returns testsuite docker client
@@ -140,7 +141,7 @@ type FieldGetter interface {
 type TaskExecutor interface {
 	ExecuteTask(channel string, chaincode string, method string, args ...string) string
 	ExecuteTasks(channel string, chaincode string, tasks ...*pbfound.Task) string
-	ExecuteTaskWithSign(channel string, chaincode string, user *UserFoundation, method string, args ...string) string
+	ExecuteTaskWithSign(channel string, chaincode string, user *mocks.UserFoundation, method string, args ...string) string
 }
 
 type TestSuite interface {

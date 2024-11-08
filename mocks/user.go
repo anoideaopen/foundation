@@ -1,4 +1,4 @@
-package client
+package mocks
 
 import (
 	"crypto/ed25519"

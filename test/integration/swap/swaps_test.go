@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 
 	"github.com/anoideaopen/foundation/core/types"
+	"github.com/anoideaopen/foundation/mocks"
 	pbfound "github.com/anoideaopen/foundation/proto"
 	"github.com/anoideaopen/foundation/test/integration/cmn"
 	"github.com/anoideaopen/foundation/test/integration/cmn/client"
@@ -50,7 +51,7 @@ var _ = Describe("Swap Tests", func() {
 
 	Describe("swap tests", func() {
 		var (
-			user1           *client.UserFoundation
+			user1           *mocks.UserFoundation
 			swapAmount      = "1"
 			zeroAmount      = "0"
 			defaultSwapHash = "7d4e3eec80026719639ed4dba68916eb94c7a49a053e05c8f9578fe4e5a3d7ea"
@@ -63,7 +64,7 @@ var _ = Describe("Swap Tests", func() {
 
 			By("add user to acl")
 			var err error
-			user1, err = client.NewUserFoundation(pbfound.KeyType_ed25519)
+			user1, err = mocks.NewUserFoundation(pbfound.KeyType_ed25519)
 			Expect(err).NotTo(HaveOccurred())
 
 			ts.AddUser(user1)
@@ -163,7 +164,7 @@ var _ = Describe("Swap Tests", func() {
 
 	Describe("multiswap tests", func() {
 		var (
-			user1           *client.UserFoundation
+			user1           *mocks.UserFoundation
 			swapAmount      = "1"
 			zeroAmount      = "0"
 			defaultSwapHash = "7d4e3eec80026719639ed4dba68916eb94c7a49a053e05c8f9578fe4e5a3d7ea"
@@ -176,7 +177,7 @@ var _ = Describe("Swap Tests", func() {
 
 			By("add user to acl")
 			var err error
-			user1, err = client.NewUserFoundation(pbfound.KeyType_ed25519)
+			user1, err = mocks.NewUserFoundation(pbfound.KeyType_ed25519)
 			Expect(err).NotTo(HaveOccurred())
 
 			ts.AddUser(user1)

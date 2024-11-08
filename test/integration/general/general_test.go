@@ -6,6 +6,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/anoideaopen/foundation/mocks"
 	pbfound "github.com/anoideaopen/foundation/proto"
 	"github.com/anoideaopen/foundation/test/chaincode/fiat/service"
 	"github.com/anoideaopen/foundation/test/integration/cmn"
@@ -193,7 +194,7 @@ var _ = Describe("Basic foundation Tests", func() {
 			ts.AddAdminToACL()
 
 			By("add user to acl")
-			user1, err := client.NewUserFoundation(pbfound.KeyType_ed25519)
+			user1, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
 			Expect(err).NotTo(HaveOccurred())
 
 			ts.AddUser(user1)

@@ -9,6 +9,7 @@ import (
 
 	"github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/google/uuid"
+	"github.com/hyperledger/fabric-chaincode-go/shim"
 	"github.com/hyperledger/fabric-protos-go/msp"
 	"github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/stretchr/testify/require"
@@ -44,6 +45,15 @@ fAaqNRaboY1Yg1iQ`
 
 const TestCreatorMSP = "platformMSP"
 
+func SetCreator(mockStub *ChaincodeStub, certString string) error {
+	certificate, err := hex.DecodeString(certString)
+	if err != nil {
+		return err
+	}
+	mockStub.GetCreatorReturns(certificate, nil)
+	return nil
+}
+
 func SetCreatorCert(mockStub *ChaincodeStub, msp string, cert string) error {
 	certificate, _ := base64.StdEncoding.DecodeString(cert)
 	creator, err := MarshalIdentity(msp, certificate)
@@ -78,6 +88,19 @@ func NewMockStub(t *testing.T) *ChaincodeStub {
 
 	err := SetCreatorCert(mockStub, TestCreatorMSP, AdminCert)
 	require.NoError(t, err)
+
+	mockStub.CreateCompositeKeyCalls(shim.CreateCompositeKey)
+	mockStub.SplitCompositeKeyCalls(func(s string) (string, []string, error) {
+		componentIndex := 1
+		var components []string
+		for i := 1; i < len(s); i++ {
+			if s[i] == 0 {
+				components = append(components, s[componentIndex:i])
+				componentIndex = i + 1
+			}
+		}
+		return components[0], components[1:], nil
+	})
 
 	return mockStub
 }

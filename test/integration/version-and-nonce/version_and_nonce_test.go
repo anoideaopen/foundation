@@ -3,6 +3,7 @@ package version_and_nonce
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/anoideaopen/foundation/mocks"
 	"runtime/debug"
 
 	pbfound "github.com/anoideaopen/foundation/proto"
@@ -130,7 +131,7 @@ var _ = Describe("Version and Nonce Tests", func() {
 		ts.AddAdminToACL()
 
 		By("add user to acl")
-		user1, err := client.NewUserFoundation(pbfound.KeyType_ed25519)
+		user1, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
 		Expect(err).NotTo(HaveOccurred())
 
 		ts.AddUser(user1)

@@ -155,7 +155,7 @@ func (cc *Chaincode) batchExecute(
 	log := logger.Logger()
 	batchID := stub.GetTxID()
 	span.SetAttributes(attribute.String("batch_tx_id", batchID))
-	btchStub := cachestub.NewBatchCacheStub(stub)
+	batchStub := cachestub.NewBatchCacheStub(stub)
 	start := time.Now()
 	defer func() {
 		log.Infof("batch: tx id: %s, elapsed: %s", batchID, time.Since(start))
@@ -174,7 +174,7 @@ func (cc *Chaincode) batchExecute(
 	ids := make([]string, 0, len(batch.GetTxIDs()))
 	for _, txID := range batch.GetTxIDs() {
 		ids = append(ids, hex.EncodeToString(txID))
-		resp, event := cc.batchedTxExecute(traceCtx, btchStub, txID)
+		resp, event := cc.batchedTxExecute(traceCtx, batchStub, txID)
 		response.TxResponses = append(response.TxResponses, resp)
 		events.Events = append(events.Events, event)
 	}
@@ -183,31 +183,31 @@ func (cc *Chaincode) batchExecute(
 	if !cc.contract.ContractConfig().GetOptions().GetDisableSwaps() {
 		span.AddEvent("handle swaps")
 		for _, s := range batch.GetSwaps() {
-			response.SwapResponses = append(response.SwapResponses, swap.Answer(btchStub, s, robotSideTimeout))
+			response.SwapResponses = append(response.SwapResponses, swap.Answer(batchStub, s, robotSideTimeout))
 		}
 		for _, swapKey := range batch.GetKeys() {
-			response.SwapKeyResponses = append(response.SwapKeyResponses, swap.RobotDone(btchStub, swapKey.GetId(), swapKey.GetKey()))
+			response.SwapKeyResponses = append(response.SwapKeyResponses, swap.RobotDone(batchStub, swapKey.GetId(), swapKey.GetKey()))
 		}
 	}
 
 	if !cc.contract.ContractConfig().GetOptions().GetDisableMultiSwaps() {
 		span.AddEvent("handle multi-swaps")
 		for _, s := range batch.GetMultiSwaps() {
-			response.SwapResponses = append(response.SwapResponses, multiswap.Answer(btchStub, s, robotSideTimeout))
+			response.SwapResponses = append(response.SwapResponses, multiswap.Answer(batchStub, s, robotSideTimeout))
 		}
 		for _, swapKey := range batch.GetMultiSwapsKeys() {
-			response.SwapKeyResponses = append(response.SwapKeyResponses, multiswap.RobotDone(btchStub, swapKey.GetId(), swapKey.GetKey()))
+			response.SwapKeyResponses = append(response.SwapKeyResponses, multiswap.RobotDone(batchStub, swapKey.GetId(), swapKey.GetKey()))
 		}
 	}
 
 	span.AddEvent("commit")
-	if err := btchStub.Commit(); err != nil {
+	if err := batchStub.Commit(); err != nil {
 		log.Errorf("Couldn't commit batch %s: %s", batchID, err.Error())
 		return shim.Error(err.Error())
 	}
 
-	response.CreatedSwaps = btchStub.Swaps
-	response.CreatedMultiSwap = btchStub.MultiSwaps
+	response.CreatedSwaps = batchStub.Swaps
+	response.CreatedMultiSwap = batchStub.MultiSwaps
 
 	data, err := pb.Marshal(&response)
 	if err != nil {

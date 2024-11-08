@@ -24,6 +24,27 @@ const (
 	BalanceTypeGiven                 BalanceType = 0x2d
 )
 
+// BalanceTypeToStringMapValue returns string map value of the BalanceType
+func BalanceTypeToStringMapValue(ot BalanceType) (string, error) {
+	balanceTypeToStringMap := map[BalanceType]string{
+		BalanceTypeToken:                 "Token",
+		BalanceTypeTokenLocked:           "TokenLocked",
+		BalanceTypeTokenExternalLocked:   "TokenExternalLocked",
+		BalanceTypeAllowed:               "Allowed",
+		BalanceTypeAllowedLocked:         "AllowedLocked",
+		BalanceTypeAllowedExternalLocked: "AllowedExternalLocked",
+		BalanceTypeGiven:                 "Given",
+	}
+
+	// Look up the BalanceType in the map.
+	s, ok := balanceTypeToStringMap[ot]
+	if !ok {
+		return "", fmt.Errorf("unknown BalanceType: %s", ot.String())
+	}
+
+	return s, nil
+}
+
 // StringToBalanceType converts a string representation of a balance state key to its corresponding BalanceType.
 func StringToBalanceType(s string) (BalanceType, error) {
 	stringToBalanceTypeMap := map[string]BalanceType{

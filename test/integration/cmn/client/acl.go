@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/anoideaopen/acl/cc"
+	"github.com/anoideaopen/foundation/mocks"
 	pb "github.com/anoideaopen/foundation/proto"
 	"github.com/anoideaopen/foundation/test/integration/cmn"
 	"github.com/btcsuite/btcd/btcutil/base58"
@@ -33,7 +34,7 @@ const (
 )
 
 // AddUser adds user to ACL channel
-func (ts *FoundationTestSuite) AddUser(user *UserFoundation) {
+func (ts *FoundationTestSuite) AddUser(user *mocks.UserFoundation) {
 	sess, err := ts.Network.PeerUserSession(ts.Peer, ts.MainUserName, commands.ChaincodeInvoke{
 		ChannelID: cmn.ChannelAcl,
 		Orderer:   ts.Network.OrdererAddress(ts.Orderer, nwo.ListenPort),
@@ -77,7 +78,7 @@ func (ts *FoundationTestSuite) AddFeeAddressSetterToACL() {
 }
 
 // AddUserMultisigned adds multisigned user to ACL channel
-func (ts *FoundationTestSuite) AddUserMultisigned(user *UserFoundationMultisigned) {
+func (ts *FoundationTestSuite) AddUserMultisigned(user *mocks.UserFoundationMultisigned) {
 	ctorArgs := []string{FnAddMultisig, strconv.Itoa(len(user.Users)), NewNonceByTime().Get()}
 	publicKeys, sMsgsByte, err := user.Sign(ctorArgs...)
 	var sMsgsStr []string
@@ -104,7 +105,7 @@ func (ts *FoundationTestSuite) AddUserMultisigned(user *UserFoundationMultisigne
 }
 
 // CheckUser checks if user was added to ACL channel
-func (ts *FoundationTestSuite) CheckUser(user *UserFoundation) {
+func (ts *FoundationTestSuite) CheckUser(user *mocks.UserFoundation) {
 	Eventually(func() string {
 		sess, err := ts.Network.PeerUserSession(ts.Peer, ts.MainUserName, commands.ChaincodeQuery{
 			ChannelID: cmn.ChannelAcl,
@@ -133,7 +134,7 @@ func (ts *FoundationTestSuite) CheckUser(user *UserFoundation) {
 }
 
 // CheckUserMultisigned checks if multisigned user was added to ACL channel
-func (ts *FoundationTestSuite) CheckUserMultisigned(user *UserFoundationMultisigned) {
+func (ts *FoundationTestSuite) CheckUserMultisigned(user *mocks.UserFoundationMultisigned) {
 	Eventually(func() string {
 		sess, err := ts.Network.PeerUserSession(ts.Peer, ts.MainUserName, commands.ChaincodeQuery{
 			ChannelID: cmn.ChannelAcl,
@@ -165,7 +166,7 @@ func (ts *FoundationTestSuite) CheckUserMultisigned(user *UserFoundationMultisig
 }
 
 // AddRights adds right for defined user with specified role and operation to ACL channel
-func (ts *FoundationTestSuite) AddRights(channelName, chaincodeName, role, operation string, user *UserFoundation) {
+func (ts *FoundationTestSuite) AddRights(channelName, chaincodeName, role, operation string, user *mocks.UserFoundation) {
 	sess, err := ts.Network.PeerUserSession(ts.Peer, ts.MainUserName, commands.ChaincodeInvoke{
 		ChannelID: cmn.ChannelAcl,
 		Orderer:   ts.Network.OrdererAddress(ts.Orderer, nwo.ListenPort),
@@ -185,7 +186,7 @@ func (ts *FoundationTestSuite) AddRights(channelName, chaincodeName, role, opera
 }
 
 // RemoveRights removes right for defined user with specified role and operation to ACL channel
-func (ts *FoundationTestSuite) RemoveRights(channelName, chaincodeName, role, operation string, user *UserFoundation) {
+func (ts *FoundationTestSuite) RemoveRights(channelName, chaincodeName, role, operation string, user *mocks.UserFoundation) {
 	sess, err := ts.Network.PeerUserSession(ts.Peer, ts.MainUserName, commands.ChaincodeInvoke{
 		ChannelID: cmn.ChannelAcl,
 		Orderer:   ts.Network.OrdererAddress(ts.Orderer, nwo.ListenPort),
@@ -204,7 +205,7 @@ func (ts *FoundationTestSuite) RemoveRights(channelName, chaincodeName, role, op
 	ts.CheckRights(channelName, chaincodeName, role, operation, user, false)
 }
 
-func (ts *FoundationTestSuite) CheckRights(channelName, chaincodeName, role, operation string, user *UserFoundation, result bool) {
+func (ts *FoundationTestSuite) CheckRights(channelName, chaincodeName, role, operation string, user *mocks.UserFoundation, result bool) {
 	Eventually(func() string {
 		sess, err := ts.Network.PeerUserSession(ts.Peer, ts.MainUserName, commands.ChaincodeQuery{
 			ChannelID: cmn.ChannelAcl,
@@ -233,17 +234,17 @@ func (ts *FoundationTestSuite) CheckRights(channelName, chaincodeName, role, ope
 
 // ChangeMultisigPublicKey changes public key for multisigned user by validators
 func (ts *FoundationTestSuite) ChangeMultisigPublicKey(
-	multisignedUser *UserFoundationMultisigned,
+	multisignedUser *mocks.UserFoundationMultisigned,
 	oldPubKeyBase58 string,
 	newPubKeyBase58 string,
 	reason string,
 	reasonID string,
-	validators ...*UserFoundation,
+	validators ...*mocks.UserFoundation,
 ) {
 	nc := NewNonceByTime().Get()
 	// ToDo - Why are we signing arguments that differs we are sending?
 	ctorArgsToSign := []string{FnChangeMultisigPublicKey, multisignedUser.AddressBase58Check, oldPubKeyBase58, multisignedUser.PublicKey(), reason, reasonID, nc}
-	validatorMultisignedUser := &UserFoundationMultisigned{
+	validatorMultisignedUser := &mocks.UserFoundationMultisigned{
 		UserID: "multisigned validators",
 		Users:  validators,
 	}
@@ -278,16 +279,16 @@ func (ts *FoundationTestSuite) ChangeMultisigPublicKey(
 }
 
 // AddToBlackList adds user to a black list
-func (ts *FoundationTestSuite) AddToBlackList(user *UserFoundation) {
+func (ts *FoundationTestSuite) AddToBlackList(user *mocks.UserFoundation) {
 	ts.addToList(cc.BlackList, user)
 }
 
 // AddToGrayList adds user to a gray list
-func (ts *FoundationTestSuite) AddToGrayList(user *UserFoundation) {
+func (ts *FoundationTestSuite) AddToGrayList(user *mocks.UserFoundation) {
 	ts.addToList(cc.GrayList, user)
 }
 
-func (ts *FoundationTestSuite) addToList(listType cc.ListType, user *UserFoundation) {
+func (ts *FoundationTestSuite) addToList(listType cc.ListType, user *mocks.UserFoundation) {
 	sess, err := ts.Network.PeerUserSession(ts.Peer, ts.MainUserName, commands.ChaincodeInvoke{
 		ChannelID: cmn.ChannelAcl,
 		Orderer:   ts.Network.OrdererAddress(ts.Orderer, nwo.ListenPort),
@@ -311,18 +312,18 @@ func (ts *FoundationTestSuite) addToList(listType cc.ListType, user *UserFoundat
 }
 
 // DelFromBlackList adds user to a black list
-func (ts *FoundationTestSuite) DelFromBlackList(user *UserFoundation) {
+func (ts *FoundationTestSuite) DelFromBlackList(user *mocks.UserFoundation) {
 	ts.delFromList(cc.BlackList, user)
 }
 
 // DelFromGrayList adds user to a gray list
-func (ts *FoundationTestSuite) DelFromGrayList(user *UserFoundation) {
+func (ts *FoundationTestSuite) DelFromGrayList(user *mocks.UserFoundation) {
 	ts.delFromList(cc.GrayList, user)
 }
 
 func (ts *FoundationTestSuite) delFromList(
 	listType cc.ListType,
-	user *UserFoundation,
+	user *mocks.UserFoundation,
 ) {
 	sess, err := ts.Network.PeerUserSession(ts.Peer, ts.MainUserName, commands.ChaincodeInvoke{
 		ChannelID: cmn.ChannelAcl,
@@ -347,7 +348,7 @@ func (ts *FoundationTestSuite) delFromList(
 }
 
 // CheckUserInList - checks if user in gray or black list
-func (ts *FoundationTestSuite) CheckUserInList(listType cc.ListType, user *UserFoundation) {
+func (ts *FoundationTestSuite) CheckUserInList(listType cc.ListType, user *mocks.UserFoundation) {
 	Eventually(func() string {
 		sess, err := ts.Network.PeerUserSession(ts.Peer, ts.MainUserName, commands.ChaincodeQuery{
 			ChannelID: cmn.ChannelAcl,
@@ -381,7 +382,7 @@ func (ts *FoundationTestSuite) CheckUserInList(listType cc.ListType, user *UserF
 }
 
 // CheckUserNotInList - checks if user in gray or black list
-func (ts *FoundationTestSuite) CheckUserNotInList(listType cc.ListType, user *UserFoundation) {
+func (ts *FoundationTestSuite) CheckUserNotInList(listType cc.ListType, user *mocks.UserFoundation) {
 	Eventually(func() string {
 		sess, err := ts.Network.PeerUserSession(ts.Peer, ts.MainUserName, commands.ChaincodeQuery{
 			ChannelID: cmn.ChannelAcl,
@@ -416,14 +417,14 @@ func (ts *FoundationTestSuite) CheckUserNotInList(listType cc.ListType, user *Us
 
 // ChangePublicKey - changes user public key by validators
 func (ts *FoundationTestSuite) ChangePublicKey(
-	user *UserFoundation,
+	user *mocks.UserFoundation,
 	newPubKeyBase58 string,
 	reason string,
 	reasonID string,
-	validators ...*UserFoundation,
+	validators ...*mocks.UserFoundation,
 ) {
 	ctorArgs := []string{FnChangePublicKey, user.AddressBase58Check, reason, reasonID, newPubKeyBase58, NewNonceByTime().Get()}
-	validatorMultisignedUser := &UserFoundationMultisigned{
+	validatorMultisignedUser := &mocks.UserFoundationMultisigned{
 		UserID: "multisigned validators",
 		Users:  validators,
 	}
@@ -457,17 +458,17 @@ func (ts *FoundationTestSuite) ChangePublicKey(
 
 // ChangePublicKeyBase58signed - changes user public key by validators with base58 signatures
 func (ts *FoundationTestSuite) ChangePublicKeyBase58signed(
-	user *UserFoundation,
+	user *mocks.UserFoundation,
 	requestID string,
 	chaincodeName string,
 	channelID string,
 	newPubKeyBase58 string,
 	reason string,
 	reasonID string,
-	validators ...*UserFoundation,
+	validators ...*mocks.UserFoundation,
 ) {
 	ctorArgs := []string{FnChangePublicKeyWithBase58Signature, requestID, chaincodeName, channelID, user.AddressBase58Check, reason, reasonID, newPubKeyBase58, NewNonceByTime().Get()}
-	validatorMultisignedUser := &UserFoundationMultisigned{
+	validatorMultisignedUser := &mocks.UserFoundationMultisigned{
 		UserID: "multisigned validators",
 		Users:  validators,
 	}
@@ -530,7 +531,7 @@ func (ts *FoundationTestSuite) CheckUserChangedKey(newPublicKeyBase58Check, oldA
 
 // CheckAccountInfo checks account info
 func (ts *FoundationTestSuite) CheckAccountInfo(
-	user *UserFoundation,
+	user *mocks.UserFoundation,
 	kycHash string,
 	isGrayListed,
 	isBlackListed bool,
@@ -571,7 +572,7 @@ func (ts *FoundationTestSuite) CheckAccountInfo(
 
 // SetAccountInfo sets account info
 func (ts *FoundationTestSuite) SetAccountInfo(
-	user *UserFoundation,
+	user *mocks.UserFoundation,
 	kycHash string,
 	isGrayListed,
 	isBlackListed bool,
@@ -602,12 +603,12 @@ func (ts *FoundationTestSuite) SetAccountInfo(
 
 // SetKYC sets kyc hash
 func (ts *FoundationTestSuite) SetKYC(
-	user *UserFoundation,
+	user *mocks.UserFoundation,
 	kycHash string,
-	validators ...*UserFoundation,
+	validators ...*mocks.UserFoundation,
 ) {
 	ctorArgs := []string{FnSetKYC, user.AddressBase58Check, kycHash, NewNonceByTime().Get()}
-	validatorMultisignedUser := &UserFoundationMultisigned{
+	validatorMultisignedUser := &mocks.UserFoundationMultisigned{
 		UserID: "multisigned validators",
 		Users:  validators,
 	}
