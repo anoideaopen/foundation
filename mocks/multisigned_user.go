@@ -54,7 +54,7 @@ func NewUserFoundationMultisigned(keyType pbfound.KeyType, n int) (*UserFoundati
 }
 
 func UserFoundationMultisignedFromEd25519PrivateKeys(keys []PrivateKeyWithType) (*UserFoundationMultisigned, error) {
-	pKeys := make([][]byte, len(keys))
+	pKeys := make([][]byte, 0, len(keys))
 	userMultisigned := &UserFoundationMultisigned{
 		Users:  make([]*UserFoundation, 0),
 		UserID: "testUserMultisigned",
@@ -79,7 +79,7 @@ func UserFoundationMultisignedFromEd25519PrivateKeys(keys []PrivateKeyWithType) 
 }
 
 func UserFoundationMultisignedFromBase58CheckPrivateKey(keysBase58Check []string) (*UserFoundationMultisigned, error) {
-	privateKeys := make([]PrivateKeyWithType, len(keysBase58Check))
+	privateKeys := make([]PrivateKeyWithType, 0, len(keysBase58Check))
 	for _, keyBase58Check := range keysBase58Check {
 		decode, ver, err := base58.CheckDecode(keyBase58Check)
 		if err != nil {
