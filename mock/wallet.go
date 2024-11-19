@@ -269,18 +269,18 @@ func (w *Wallet) AddressType() *types.Address {
 }
 
 func (w *Wallet) addBalance(stub *stub.Stub, amount *big.Int, balanceType balance.BalanceType, path ...string) {
-	key, err := stub.CreateCompositeKey(balanceType.String(), append([]string{w.Address()}, path...))
+	key, err := stub.CreateCompositeKey(balanceType.String(), append([]string{w.Address()}, path...)) //nolint:staticcheck
 	require.NoError(w.ledger.t, err)
 	data := stub.State[key]
 	bal := new(big.Int).SetBytes(data)
 	newBalance := new(big.Int).Add(bal, amount)
-	_ = stub.PutBalanceToState(key, newBalance)
+	_ = stub.PutBalanceToState(key, newBalance) //nolint:staticcheck
 }
 
 // CheckGivenBalanceShouldBe checks the balance of the wallet
 func (w *Wallet) CheckGivenBalanceShouldBe(ch string, token string, expectedBalance uint64) {
 	st := w.ledger.stubs[ch]
-	key, err := st.CreateCompositeKey(balance.BalanceTypeGiven.String(), []string{token})
+	key, err := st.CreateCompositeKey(balance.BalanceTypeGiven.String(), []string{token}) //nolint:staticcheck
 	require.NoError(w.ledger.t, err)
 	rawRecord := st.State[key]
 	if rawRecord == nil && expectedBalance == 0 {
@@ -304,10 +304,10 @@ func (w *Wallet) AddAllowedBalance(ch string, token string, amount uint64) {
 // AddGivenBalance adds given balance to the wallet
 func (w *Wallet) AddGivenBalance(ch string, givenBalanceChannel string, amount uint64) {
 	st := w.ledger.stubs[ch]
-	key, err := st.CreateCompositeKey(balance.BalanceTypeGiven.String(), []string{givenBalanceChannel})
+	key, err := st.CreateCompositeKey(balance.BalanceTypeGiven.String(), []string{givenBalanceChannel}) //nolint:staticcheck
 	require.NoError(w.ledger.t, err)
 	newBalance := new(big.Int).SetUint64(amount)
-	_ = st.PutBalanceToState(key, newBalance)
+	_ = st.PutBalanceToState(key, newBalance) //nolint:staticcheck
 }
 
 // AddTokenBalance adds token balance to the wallet
@@ -416,7 +416,7 @@ func (w *Wallet) BatchedInvoke(ch, fn string, args ...string) (string, TxRespons
 
 	cert, err := hex.DecodeString(batchRobotCert)
 	require.NoError(w.ledger.t, err)
-	w.ledger.stubs[ch].SetCreator(cert)
+	w.ledger.stubs[ch].SetCreator(cert) //nolint:staticcheck
 	res := w.Invoke(ch, core.BatchExecute, string(data))
 	out := &proto.BatchResponse{}
 	require.NoError(w.ledger.t, pb.Unmarshal([]byte(res), out))
@@ -511,7 +511,7 @@ func (w *Wallet) DoBatch(ch string, txID ...string) BatchTxResponse {
 
 	cert, err := hex.DecodeString(batchRobotCert)
 	require.NoError(w.ledger.t, err)
-	w.ledger.stubs[ch].SetCreator(cert)
+	w.ledger.stubs[ch].SetCreator(cert) //nolint:staticcheck
 	res := w.Invoke(ch, core.BatchExecute, string(data))
 	out := &proto.BatchResponse{}
 	require.NoError(w.ledger.t, pb.Unmarshal([]byte(res), out))
@@ -562,7 +562,7 @@ func (w *Wallet) RawSignedMultiSwapInvoke(ch, fn string, args ...string) (string
 	args, _ = w.sign(fn, ch, args...)
 	cert, err := base64.StdEncoding.DecodeString(userCert)
 	require.NoError(w.ledger.t, err)
-	_ = w.ledger.stubs[ch].SetCreatorCert("platformMSP", cert)
+	_ = w.ledger.stubs[ch].SetCreatorCert("platformMSP", cert) //nolint:staticcheck
 	w.ledger.doInvoke(ch, txID, fn, args...)
 
 	id, err := hex.DecodeString(txID)
@@ -572,7 +572,7 @@ func (w *Wallet) RawSignedMultiSwapInvoke(ch, fn string, args ...string) (string
 
 	cert, err = hex.DecodeString(batchRobotCert)
 	require.NoError(w.ledger.t, err)
-	w.ledger.stubs[ch].SetCreator(cert)
+	w.ledger.stubs[ch].SetCreator(cert) //nolint:staticcheck
 	res := w.Invoke(ch, core.BatchExecute, string(data))
 	out := &proto.BatchResponse{}
 	require.NoError(w.ledger.t, pb.Unmarshal([]byte(res), out))
@@ -613,7 +613,7 @@ func (w *Wallet) RawSignedInvokeWithErrorReturned(ch, fn string, args ...string)
 	args, _ = w.sign(fn, ch, args...)
 	cert, err := base64.StdEncoding.DecodeString(userCert)
 	require.NoError(w.ledger.t, err)
-	_ = w.ledger.stubs[ch].SetCreatorCert("platformMSP", cert)
+	_ = w.ledger.stubs[ch].SetCreatorCert("platformMSP", cert) //nolint:staticcheck
 	err = w.ledger.doInvokeWithErrorReturned(ch, txID, fn, args...)
 	if err != nil {
 		return err
@@ -632,7 +632,7 @@ func (w *Wallet) RawSignedInvokeWithErrorReturned(ch, fn string, args ...string)
 	if err != nil {
 		return err
 	}
-	w.ledger.stubs[ch].SetCreator(cert)
+	w.ledger.stubs[ch].SetCreator(cert) //nolint:staticcheck
 	res := w.Invoke(ch, core.BatchExecute, string(data))
 	out := &proto.BatchResponse{}
 	err = pb.Unmarshal([]byte(res), out)
@@ -672,7 +672,7 @@ func (w *Wallet) RawChTransferInvoke(ch, fn string, args ...string) (string, TxR
 	txID := txIDGen()
 	cert, err := hex.DecodeString(batchRobotCert)
 	require.NoError(w.ledger.t, err)
-	w.ledger.stubs[ch].SetCreator(cert)
+	w.ledger.stubs[ch].SetCreator(cert) //nolint:staticcheck
 	err = w.ledger.doInvokeWithErrorReturned(ch, txID, fn, args...)
 	if err != nil {
 		return "", TxResponse{}, err
@@ -701,7 +701,7 @@ func (w *Wallet) RawChTransferInvokeWithBatch(ch string, fn string, args ...stri
 	if err != nil {
 		return "", TxResponse{}, err
 	}
-	w.ledger.stubs[ch].SetCreator(cert)
+	w.ledger.stubs[ch].SetCreator(cert) //nolint:staticcheck
 	res := w.Invoke(ch, core.BatchExecute, string(data))
 	out := &proto.BatchResponse{}
 	err = pb.Unmarshal([]byte(res), out)
@@ -761,7 +761,7 @@ func (w *Wallet) SignedInvoke(ch string, fn string, args ...string) string {
 		require.NoError(w.ledger.t, err)
 		cert, err := hex.DecodeString(batchRobotCert)
 		require.NoError(w.ledger.t, err)
-		w.ledger.stubs[strings.ToLower(swap.GetTo())].SetCreator(cert)
+		w.ledger.stubs[strings.ToLower(swap.GetTo())].SetCreator(cert) //nolint:staticcheck
 		w.Invoke(strings.ToLower(swap.GetTo()), core.BatchExecute, string(data))
 	}
 	return txID
@@ -791,7 +791,7 @@ func (w *Wallet) SignedMultiSwapsInvoke(ch string, fn string, args ...string) st
 		require.NoError(w.ledger.t, err)
 		cert, err := hex.DecodeString(batchRobotCert)
 		require.NoError(w.ledger.t, err)
-		w.ledger.stubs[swap.GetTo()].SetCreator(cert)
+		w.ledger.stubs[swap.GetTo()].SetCreator(cert) //nolint:staticcheck
 		w.Invoke(swap.GetTo(), core.BatchExecute, string(data))
 	}
 	return txID
@@ -814,7 +814,7 @@ func (w *Wallet) NbInvoke(ch string, fn string, args ...string) (string, string)
 	message, hash := w.sign(fn, ch, args...)
 	cert, err := base64.StdEncoding.DecodeString(userCert)
 	require.NoError(w.ledger.t, err)
-	_ = w.ledger.stubs[ch].SetCreatorCert("platformMSP", cert)
+	_ = w.ledger.stubs[ch].SetCreatorCert("platformMSP", cert) //nolint:staticcheck
 	w.ledger.doInvoke(ch, txID, fn, message...)
 
 	nested, err := pb.Marshal(&proto.Nested{Args: append([]string{fn}, message...)})

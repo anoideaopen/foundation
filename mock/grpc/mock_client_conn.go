@@ -17,7 +17,7 @@ import (
 
 // Deprecated: use package ../mocks instead
 type MockClientConn struct {
-	caller *mock.Wallet
+	caller *mock.Wallet //nolint:staticcheck
 	ch     string
 }
 

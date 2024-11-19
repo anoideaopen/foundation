@@ -112,12 +112,12 @@ func (l *Ledger) NewCCArgsArr(
 
 	cc, err := core.NewCC(bci, opts...)
 	require.NoError(l.t, err)
-	l.stubs[name] = stub.NewMockStub(name, cc)
+	l.stubs[name] = stub.NewMockStub(name, cc) //nolint:staticcheck
 	l.stubs[name].ChannelID = name
 
-	l.stubs[name].MockPeerChaincode("acl/acl", l.stubs["acl"])
+	l.stubs[name].MockPeerChaincode("acl/acl", l.stubs["acl"]) //nolint:staticcheck
 
-	err = l.stubs[name].SetAdminCreatorCert("platformMSP")
+	err = l.stubs[name].SetAdminCreatorCert("platformMSP") //nolint:staticcheck
 	require.NoError(l.t, err)
 
 	args := make([][]byte, 0, len(initArgs))
@@ -125,7 +125,7 @@ func (l *Ledger) NewCCArgsArr(
 		args = append(args, []byte(ia))
 	}
 
-	res := l.stubs[name].MockInit(txIDGen(), args)
+	res := l.stubs[name].MockInit(txIDGen(), args) //nolint:staticcheck
 	message := res.GetMessage()
 	if message != "" {
 		return message
@@ -180,7 +180,7 @@ func (l *Ledger) WaitMultiSwapAnswer(name string, id string, timeout time.Durati
 	interval := time.Second / 2 //nolint:gomnd
 	ticker := time.NewTicker(interval)
 	count := timeout.Microseconds() / interval.Microseconds()
-	key, err := l.stubs[name].CreateCompositeKey(multiswap.MultiSwapCompositeType, []string{id})
+	key, err := l.stubs[name].CreateCompositeKey(multiswap.MultiSwapCompositeType, []string{id}) //nolint:staticcheck
 	require.NoError(l.t, err)
 	for count > 0 {
 		count--

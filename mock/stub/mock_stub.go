@@ -42,9 +42,9 @@ func init() {
 // ErrFuncNotImplemented is returned when a function is not implemented
 const ErrFuncNotImplemented = "function %s is not implemented"
 
-// Deprecated: use package ../mocks instead
 // Stub is an implementation of ChaincodeStubInterface for unit testing chaincode.
 // Use this instead of ChaincodeStub in your chaincode's unit test calls to Init or Invoke.
+// Deprecated: use package ../mocks instead
 type Stub struct {
 	// A pointer back to the chaincode that will invoke this, set by constructor.
 	// If a peer calls this stub, the chaincode will be invoked from here.
