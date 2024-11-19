@@ -95,16 +95,19 @@ func (ar AddressRight) IsValid() error {
 
 type operation string
 
+// Deprecated: use package ../mocks instead
 // AddAccountRight adds a right to the access matrix
 func (w *Wallet) AddAccountRight(right *Right) error {
 	return w.modifyRight(FnAddRights, right)
 }
 
+// Deprecated: use package ../mocks instead
 // RemoveAccountRight removes a right from the access matrix
 func (w *Wallet) RemoveAccountRight(right *Right) error {
 	return w.modifyRight(FnRemoveRights, right)
 }
 
+// Deprecated: use package ../mocks instead
 func (w *Wallet) modifyRight(opFn operation, right *Right) error {
 	if right == nil {
 		return errors.New(ErrRightNotSet)
@@ -135,16 +138,19 @@ func (w *Wallet) modifyRight(opFn operation, right *Right) error {
 	return nil
 }
 
+// Deprecated: use package ../mocks instead
 // AddAddressRightForNominee adds right to transfer from specified principal address for nominee
 func (w *Wallet) AddAddressRightForNominee(right *AddressRight) error {
 	return w.modifyAddressRightForNominee(FnAddAddressRightForNominee, right)
 }
 
+// Deprecated: use package ../mocks instead
 // RemoveAddressRightFromNominee removes right to transfer from specified principal address from nominee
 func (w *Wallet) RemoveAddressRightFromNominee(right *AddressRight) error {
 	return w.modifyAddressRightForNominee(FnRemoveAddressRightFromNominee, right)
 }
 
+// Deprecated: use package ../mocks instead
 func (w *Wallet) modifyAddressRightForNominee(opFn operation, right *AddressRight) error {
 	if right == nil {
 		return errors.New(ErrRightNotSet)

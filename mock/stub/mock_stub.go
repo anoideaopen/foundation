@@ -42,6 +42,7 @@ func init() {
 // ErrFuncNotImplemented is returned when a function is not implemented
 const ErrFuncNotImplemented = "function %s is not implemented"
 
+// Deprecated: use package ../mocks instead
 // Stub is an implementation of ChaincodeStubInterface for unit testing chaincode.
 // Use this instead of ChaincodeStub in your chaincode's unit test calls to Init or Invoke.
 type Stub struct {
@@ -66,6 +67,7 @@ type Stub struct {
 	transientMap           map[string][]byte
 }
 
+// Deprecated: use package ../mocks instead
 // NewMockStub - Constructor to config the internal State map
 func NewMockStub(name string, cc shim.Chaincode) *Stub {
 	s := new(Stub)
@@ -84,21 +86,25 @@ func NewMockStub(name string, cc shim.Chaincode) *Stub {
 	return s
 }
 
+// Deprecated: use package ../mocks instead
 // GetTxID returns the transaction ID for the current chaincode invocation request.
 func (stub *Stub) GetTxID() string {
 	return stub.TxID
 }
 
+// Deprecated: use package ../mocks instead
 // GetChannelID returns the channel ID for the proposal for the current chaincode invocation request.
 func (stub *Stub) GetChannelID() string {
 	return stub.ChannelID
 }
 
+// Deprecated: use package ../mocks instead
 // GetArgs returns the arguments for the chaincode invocation request.
 func (stub *Stub) GetArgs() [][]byte {
 	return stub.Args
 }
 
+// Deprecated: use package ../mocks instead
 // GetStringArgs returns the arguments for the chaincode invocation request as strings.
 func (stub *Stub) GetStringArgs() []string {
 	args := stub.GetArgs()
@@ -109,6 +115,7 @@ func (stub *Stub) GetStringArgs() []string {
 	return strargs
 }
 
+// Deprecated: use package ../mocks instead
 // GetFunctionAndParameters returns the first argument as the function name and the rest of the arguments as parameters in a string array.
 func (stub *Stub) GetFunctionAndParameters() (function string, params []string) {
 	allArgs := stub.GetStringArgs()
@@ -121,6 +128,7 @@ func (stub *Stub) GetFunctionAndParameters() (function string, params []string) 
 	return
 }
 
+// Deprecated: use package ../mocks instead
 // MockTransactionStart is used to indicate to a chaincode that it is part of a transaction.
 // This is important when chaincodes invoke each other.
 // Stub doesn't support concurrent transactions at present.
@@ -130,12 +138,14 @@ func (stub *Stub) MockTransactionStart(txID string) {
 	stub.setTxTimestamp(createUtcTimestamp())
 }
 
+// Deprecated: use package ../mocks instead
 // MockTransactionEnd ends a mocked transaction, clearing the UUID.
 func (stub *Stub) MockTransactionEnd(_ string) { // uuid
 	stub.signedProposal = nil
 	stub.TxID = ""
 }
 
+// Deprecated: use package ../mocks instead
 // MockPeerChaincode registers a peer chaincode with this Stub
 // invokeableChaincodeName is the name or hash of the peer
 // otherStub is a Stub of the peer, already intialised
@@ -143,6 +153,7 @@ func (stub *Stub) MockPeerChaincode(invokableChaincodeName string, otherStub *St
 	stub.Invokables[invokableChaincodeName] = otherStub
 }
 
+// Deprecated: use package ../mocks instead
 // MockPeerChaincodeWithChannel registers a peer chaincode with this Stub
 func (stub *Stub) MockPeerChaincodeWithChannel(invokableChaincodeName string, otherStub *Stub, channel string) {
 	// Internally we use chaincode name as a composite name
@@ -153,6 +164,7 @@ func (stub *Stub) MockPeerChaincodeWithChannel(invokableChaincodeName string, ot
 	stub.Invokables[invokableChaincodeName] = otherStub
 }
 
+// Deprecated: use package ../mocks instead
 // MockInit initializes this chaincode,  also starts and ends a transaction.
 func (stub *Stub) MockInit(uuid string, args [][]byte) pb.Response {
 	stub.Args = args
@@ -165,6 +177,7 @@ func (stub *Stub) MockInit(uuid string, args [][]byte) pb.Response {
 	return res
 }
 
+// Deprecated: use package ../mocks instead
 // MockInvoke invokes this chaincode, also starts and ends a transaction.
 func (stub *Stub) MockInvoke(uuid string, args [][]byte) pb.Response {
 	stub.Args = args
@@ -177,11 +190,13 @@ func (stub *Stub) MockInvoke(uuid string, args [][]byte) pb.Response {
 	return res
 }
 
+// Deprecated: use package ../mocks instead
 // GetDecorations returns the transaction decorations.
 func (stub *Stub) GetDecorations() map[string][]byte {
 	return stub.Decorations
 }
 
+// Deprecated: use package ../mocks instead
 // MockInvokeWithSignedProposal invokes this chaincode, also starts and ends a transaction.
 func (stub *Stub) MockInvokeWithSignedProposal(uuid string, args [][]byte, sp *pb.SignedProposal) pb.Response {
 	var (
@@ -208,6 +223,7 @@ func (stub *Stub) MockInvokeWithSignedProposal(uuid string, args [][]byte, sp *p
 	return res
 }
 
+// Deprecated: use package ../mocks instead
 // GetPrivateData returns the value of the specified `key` from the specified `collection`.
 func (stub *Stub) GetPrivateData(collection string, key string) ([]byte, error) {
 	m, in := stub.PvtState[collection]
@@ -219,11 +235,13 @@ func (stub *Stub) GetPrivateData(collection string, key string) ([]byte, error) 
 	return m[key], nil
 }
 
+// Deprecated: use package ../mocks instead
 // GetPrivateDataHash returns the hash of the specified `key` from the specified `collection`.
 func (stub *Stub) GetPrivateDataHash(_, _ string) ([]byte, error) { // collection, key
 	return nil, fmt.Errorf(ErrFuncNotImplemented, "GetPrivateDataHash")
 }
 
+// Deprecated: use package ../mocks instead
 // PutPrivateData puts the specified `key` and `value` into the transaction's
 func (stub *Stub) PutPrivateData(collection string, key string, value []byte) error {
 	m, in := stub.PvtState[collection]
@@ -237,21 +255,25 @@ func (stub *Stub) PutPrivateData(collection string, key string, value []byte) er
 	return nil
 }
 
+// Deprecated: use package ../mocks instead
 // DelPrivateData removes the specified `key` and its value from the specified `collection`
 func (stub *Stub) DelPrivateData(_, _ string) error { // collection, key
 	return fmt.Errorf(ErrFuncNotImplemented, "DelPrivateData")
 }
 
+// Deprecated: use package ../mocks instead
 // GetPrivateDataByRange returns a range iterator over a set of keys in the
 func (stub *Stub) GetPrivateDataByRange(_, _, _ string) (shim.StateQueryIteratorInterface, error) { // collection, startKey, endKey
 	return nil, fmt.Errorf(ErrFuncNotImplemented, "GetPrivateDataByRange")
 }
 
+// Deprecated: use package ../mocks instead
 // GetPrivateDataByPartialCompositeKey returns an iterator over a set of keys
 func (stub *Stub) GetPrivateDataByPartialCompositeKey(_, _ string, _ []string) (shim.StateQueryIteratorInterface, error) { // collection, objectType, attributes
 	return nil, fmt.Errorf(ErrFuncNotImplemented, "GetPrivateDataByPartialCompositeKey")
 }
 
+// Deprecated: use package ../mocks instead
 // GetPrivateDataQueryResult performs a "rich" query against a given private
 func (stub *Stub) GetPrivateDataQueryResult(_, _ string) (shim.StateQueryIteratorInterface, error) { // collection, query
 	// Not implemented since the mock engine does not have a query engine.
@@ -260,11 +282,13 @@ func (stub *Stub) GetPrivateDataQueryResult(_, _ string) (shim.StateQueryIterato
 	return nil, fmt.Errorf(ErrFuncNotImplemented, "GetPrivateDataQueryResult")
 }
 
+// Deprecated: use package ../mocks instead
 // PurgePrivateData records the specified keys in the private data collection
 func (stub *Stub) PurgePrivateData(_, _ string) error {
 	return fmt.Errorf(ErrFuncNotImplemented, "PurgePrivateData")
 }
 
+// Deprecated: use package ../mocks instead
 // GetState retrieves the value for a given key from the Ledger
 func (stub *Stub) GetState(key string) ([]byte, error) {
 	value := stub.State[key]
@@ -272,11 +296,13 @@ func (stub *Stub) GetState(key string) ([]byte, error) {
 	return value, nil
 }
 
+// Deprecated: use package ../mocks instead
 // PutState writes the specified `value` and `key` into the Ledger.
 func (stub *Stub) PutState(key string, value []byte) error {
 	return stub.putState(key, value, true)
 }
 
+// Deprecated: use package ../mocks instead
 // PutState writes the specified `value` and `key` into the Ledger.
 func (stub *Stub) putState(key string, value []byte, checkTxID bool) error {
 	if checkTxID && stub.TxID == "" {
@@ -331,12 +357,14 @@ OuterLoop:
 	return nil
 }
 
+// Deprecated: use package ../mocks instead
 // PutBalanceToState writes the specified `value` and `key` into the Ledger.
 func (stub *Stub) PutBalanceToState(key string, balance *big.Int) error {
 	value := balance.Bytes()
 	return stub.putState(key, value, false)
 }
 
+// Deprecated: use package ../mocks instead
 // DelState removes the specified `key` and its value from the Ledger.
 func (stub *Stub) DelState(key string) error {
 	stub.logger.Debug("Stub", stub.Name, "Deleting", key, stub.State[key])
@@ -355,6 +383,7 @@ func (stub *Stub) DelState(key string) error {
 	return nil
 }
 
+// Deprecated: use package ../mocks instead
 // GetStateByRange returns a range iterator over a set of keys in the Ledger.
 func (stub *Stub) GetStateByRange(startKey, endKey string) (shim.StateQueryIteratorInterface, error) {
 	if err := validateSimpleKeys(startKey, endKey); err != nil {
@@ -363,6 +392,7 @@ func (stub *Stub) GetStateByRange(startKey, endKey string) (shim.StateQueryItera
 	return NewMockStateRangeQueryIterator(stub, startKey, endKey), nil
 }
 
+// Deprecated: use package ../mocks instead
 // GetQueryResult function can be invoked by a chaincode to perform a
 // rich query against state database.  Only supported by state database implementations
 // that support rich query.  The query string is in the syntax of the underlying
@@ -375,12 +405,14 @@ func (stub *Stub) GetQueryResult(_ string) (shim.StateQueryIteratorInterface, er
 	return nil, fmt.Errorf(ErrFuncNotImplemented, "GetQueryResult")
 }
 
+// Deprecated: use package ../mocks instead
 // GetHistoryForKey function can be invoked by a chaincode to return a history of
 // key values across time. GetHistoryForKey is intended to be used for read-only queries.
 func (stub *Stub) GetHistoryForKey(_ string) (shim.HistoryQueryIteratorInterface, error) { // key
 	return nil, fmt.Errorf(ErrFuncNotImplemented, "GetHistoryForKey")
 }
 
+// Deprecated: use package ../mocks instead
 // GetStateByPartialCompositeKey function can be invoked by a chaincode to query the
 // state based on a given partial composite key. This function returns an
 // iterator which can be used to iterate over all composite keys whose prefix
@@ -395,18 +427,21 @@ func (stub *Stub) GetStateByPartialCompositeKey(objectType string, attributes []
 	return NewMockStateRangeQueryIterator(stub, partialCompositeKey, partialCompositeKey+string(utf8.MaxRune)), nil
 }
 
+// Deprecated: use package ../mocks instead
 // CreateCompositeKey combines the list of attributes
 // to form a composite key.
 func (stub *Stub) CreateCompositeKey(objectType string, attributes []string) (string, error) {
 	return createCompositeKey(objectType, attributes)
 }
 
+// Deprecated: use package ../mocks instead
 // SplitCompositeKey splits the composite key into attributes
 // on which the composite key was formed.
 func (stub *Stub) SplitCompositeKey(compositeKey string) (string, []string, error) {
 	return splitCompositeKey(compositeKey)
 }
 
+// Deprecated: use package ../mocks instead
 // GetStateByRangeWithPagination returns a range iterator over a set of keys in the Ledger.
 func (stub *Stub) GetStateByRangeWithPagination(
 	startKey, endKey string,
@@ -455,6 +490,7 @@ func (stub *Stub) GetStateByRangeWithPagination(
 	return NewMockStateRangeQueryWithPaginationIterator(stub, res), m, nil
 }
 
+// Deprecated: use package ../mocks instead
 // GetStateByPartialCompositeKeyWithPagination returns a range iterator over a set of keys in the Ledger.
 func (stub *Stub) GetStateByPartialCompositeKeyWithPagination(
 	objectType string,
@@ -505,6 +541,7 @@ func (stub *Stub) GetStateByPartialCompositeKeyWithPagination(
 	return NewMockStateRangeQueryWithPaginationIterator(stub, res), m, nil
 }
 
+// Deprecated: use package ../mocks instead
 // GetQueryResultWithPagination performs a "rich" query against a given state database.
 func (stub *Stub) GetQueryResultWithPagination(
 	_ string, // query
@@ -514,6 +551,7 @@ func (stub *Stub) GetQueryResultWithPagination(
 	return nil, nil, fmt.Errorf(ErrFuncNotImplemented, "GetQueryResultWithPagination")
 }
 
+// Deprecated: use package ../mocks instead
 // InvokeChaincode calls a peered chaincode.
 // E.g. stub1.InvokeChaincode("stub2Hash", funcArgs, channel)
 // Before calling this make sure to create another Stub stub2, call stub2.MockInit(uuid, func, Args)
@@ -532,11 +570,13 @@ func (stub *Stub) InvokeChaincode(chaincodeName string, args [][]byte, channel s
 	return res
 }
 
+// Deprecated: use package ../mocks instead
 // SetCreator sets creator
 func (stub *Stub) SetCreator(creator []byte) {
 	stub.creator = creator
 }
 
+// Deprecated: use package ../mocks instead
 // SetCreatorCert sets creator cert
 func (stub *Stub) SetCreatorCert(creatorMSP string, creatorCert []byte) error {
 	creator, err := BuildCreator(creatorMSP, creatorCert)
@@ -547,6 +587,7 @@ func (stub *Stub) SetCreatorCert(creatorMSP string, creatorCert []byte) error {
 	return nil
 }
 
+// Deprecated: use package ../mocks instead
 func BuildCreator(creatorMSP string, creatorCert []byte) ([]byte, error) {
 	pemblock := &pem.Block{Type: "CERTIFICATE", Bytes: creatorCert}
 	pemBytes := pem.EncodeToMemory(pemblock)
@@ -562,39 +603,47 @@ func BuildCreator(creatorMSP string, creatorCert []byte) ([]byte, error) {
 	return marshaledIdentity, nil
 }
 
+// Deprecated: use package ../mocks instead
 // GetCreator returns creator.
 func (stub *Stub) GetCreator() ([]byte, error) {
 	return stub.creator, nil
 }
 
+// Deprecated: use package ../mocks instead
 // GetTransient returns transient. Not implemented
 func (stub *Stub) GetTransient() (map[string][]byte, error) {
 	return stub.transientMap, nil
 }
 
+// Deprecated: use package ../mocks instead
 // GetBinding returns binding. Not implemented
 func (stub *Stub) GetBinding() ([]byte, error) {
 	return nil, fmt.Errorf(ErrFuncNotImplemented, "GetBinding")
 }
 
+// Deprecated: use package ../mocks instead
 // GetSignedProposal returns proposal. Not implemented
 func (stub *Stub) GetSignedProposal() (*pb.SignedProposal, error) {
 	return stub.signedProposal, nil
 }
 
+// Deprecated: use package ../mocks instead
 func (stub *Stub) setSignedProposal(sp *pb.SignedProposal) {
 	stub.signedProposal = sp
 }
 
+// Deprecated: use package ../mocks instead
 // GetArgsSlice returns Args slice. Not implemented
 func (stub *Stub) GetArgsSlice() ([]byte, error) {
 	return nil, fmt.Errorf(ErrFuncNotImplemented, "GetArgsSlice")
 }
 
+// Deprecated: use package ../mocks instead
 func (stub *Stub) setTxTimestamp(time *timestamp.Timestamp) {
 	stub.TxTimestamp = time
 }
 
+// Deprecated: use package ../mocks instead
 // GetTxTimestamp returns timestamp.
 func (stub *Stub) GetTxTimestamp() (*timestamp.Timestamp, error) {
 	if stub.TxTimestamp == nil {
@@ -603,22 +652,26 @@ func (stub *Stub) GetTxTimestamp() (*timestamp.Timestamp, error) {
 	return stub.TxTimestamp, nil
 }
 
+// Deprecated: use package ../mocks instead
 // SetEvent allows the chaincode to set an event
 func (stub *Stub) SetEvent(name string, payload []byte) error {
 	stub.ChaincodeEventsChannel <- &pb.ChaincodeEvent{EventName: name, Payload: payload}
 	return nil
 }
 
+// Deprecated: use package ../mocks instead
 // SetStateValidationParameter sets the state validation parameter for the given key
 func (stub *Stub) SetStateValidationParameter(key string, ep []byte) error {
 	return stub.SetPrivateDataValidationParameter("", key, ep)
 }
 
+// Deprecated: use package ../mocks instead
 // GetStateValidationParameter gets the state validation parameter for the given key
 func (stub *Stub) GetStateValidationParameter(key string) ([]byte, error) {
 	return stub.GetPrivateDataValidationParameter("", key)
 }
 
+// Deprecated: use package ../mocks instead
 // SetPrivateDataValidationParameter sets the private data validation parameter for the given collection and key
 func (stub *Stub) SetPrivateDataValidationParameter(collection, key string, ep []byte) error {
 	m, in := stub.EndorsementPolicies[collection]
@@ -631,6 +684,7 @@ func (stub *Stub) SetPrivateDataValidationParameter(collection, key string, ep [
 	return nil
 }
 
+// Deprecated: use package ../mocks instead
 // GetPrivateDataValidationParameter gets the private data validation parameter for the given collection and key
 func (stub *Stub) GetPrivateDataValidationParameter(collection, key string) ([]byte, error) {
 	m, in := stub.EndorsementPolicies[collection]
@@ -646,6 +700,7 @@ func (stub *Stub) GetPrivateDataValidationParameter(collection, key string) ([]b
  Range Query Iterator
 *****************************/
 
+// Deprecated: use package ../mocks instead
 // StateRangeQueryIterator is an interface that is used to iterate over a set of keys
 type StateRangeQueryIterator struct {
 	Closed   bool
@@ -655,6 +710,7 @@ type StateRangeQueryIterator struct {
 	Current  *list.Element
 }
 
+// Deprecated: use package ../mocks instead
 // HasNext returns true if the range query iterator contains additional keys
 // and values.
 func (iter *StateRangeQueryIterator) HasNext() bool {
@@ -695,6 +751,7 @@ func (iter *StateRangeQueryIterator) HasNext() bool {
 	return false
 }
 
+// Deprecated: use package ../mocks instead
 // Next returns the next key and value in the range query iterator.
 func (iter *StateRangeQueryIterator) Next() (*queryresult.KV, error) {
 	if iter.Closed {
@@ -729,6 +786,7 @@ func (iter *StateRangeQueryIterator) Next() (*queryresult.KV, error) {
 	return nil, err
 }
 
+// Deprecated: use package ../mocks instead
 // Close closes the range query iterator. This should be called when done
 // reading from the iterator to free up resources.
 func (iter *StateRangeQueryIterator) Close() error {
@@ -742,6 +800,7 @@ func (iter *StateRangeQueryIterator) Close() error {
 	return nil
 }
 
+// Deprecated: use package ../mocks instead
 // Print prints the StateRangeQueryIterator
 func (iter *StateRangeQueryIterator) Print() {
 	iter.Stub.logger.Debug("StateRangeQueryIterator {")
@@ -754,6 +813,7 @@ func (iter *StateRangeQueryIterator) Print() {
 	iter.Stub.logger.Debug("}")
 }
 
+// Deprecated: use package ../mocks instead
 // NewMockStateRangeQueryIterator - Constructor for a StateRangeQueryIterator
 func NewMockStateRangeQueryIterator(stub *Stub, startKey string, endKey string) *StateRangeQueryIterator {
 	stub.logger.Debug("NewMockStateRangeQueryIterator(", stub, startKey, endKey, ")")
@@ -773,6 +833,7 @@ func NewMockStateRangeQueryIterator(stub *Stub, startKey string, endKey string) 
  Range Query Iterator With Pagination
 *****************************/
 
+// Deprecated: use package ../mocks instead
 // StateRangeQueryWithPaginationIterator is an interface that is used to iterate over a set of keys
 type StateRangeQueryWithPaginationIterator struct {
 	Closed   bool
@@ -780,6 +841,7 @@ type StateRangeQueryWithPaginationIterator struct {
 	Elements []string
 }
 
+// Deprecated: use package ../mocks instead
 // HasNext returns true if the range query iterator contains additional keys
 // and values.
 func (iter *StateRangeQueryWithPaginationIterator) HasNext() bool {
@@ -798,6 +860,7 @@ func (iter *StateRangeQueryWithPaginationIterator) HasNext() bool {
 	return true
 }
 
+// Deprecated: use package ../mocks instead
 // Next returns the next key and value in the range query iterator.
 func (iter *StateRangeQueryWithPaginationIterator) Next() (*queryresult.KV, error) {
 	if iter.Closed {
@@ -819,6 +882,7 @@ func (iter *StateRangeQueryWithPaginationIterator) Next() (*queryresult.KV, erro
 	return &queryresult.KV{Key: key, Value: value}, err
 }
 
+// Deprecated: use package ../mocks instead
 // Close closes the range query iterator. This should be called when done
 // reading from the iterator to free up resources.
 func (iter *StateRangeQueryWithPaginationIterator) Close() error {
@@ -833,6 +897,7 @@ func (iter *StateRangeQueryWithPaginationIterator) Close() error {
 	return nil
 }
 
+// Deprecated: use package ../mocks instead
 // NewMockStateRangeQueryWithPaginationIterator - Constructor for a StateRangeQueryWithPaginationIterator
 func NewMockStateRangeQueryWithPaginationIterator(stub *Stub, elements []string) *StateRangeQueryWithPaginationIterator {
 	stub.logger.Debug("NewMockStateRangeQueryWithPaginationIterator(", stub, ")")
@@ -909,6 +974,7 @@ func createUtcTimestamp() *timestamp.Timestamp {
 	return &(timestamp.Timestamp{Seconds: secs, Nanos: nanos})
 }
 
+// Deprecated: use package ../mocks instead
 // SetAdminCreatorCert sets admin certificate as creator certificate.
 func (stub *Stub) SetAdminCreatorCert(msp string) error {
 	// assume adminCert has valid base64 encoded certificate
@@ -920,6 +986,7 @@ func (stub *Stub) SetAdminCreatorCert(msp string) error {
 	return nil
 }
 
+// Deprecated: use package ../mocks instead
 // SetDefaultCreatorCert sets default (not admin) certificate as creator certificate.
 func (stub *Stub) SetDefaultCreatorCert(msp string) error {
 	// assume adminCert has valid base64 encoded certificate
@@ -931,6 +998,7 @@ func (stub *Stub) SetDefaultCreatorCert(msp string) error {
 	return nil
 }
 
+// Deprecated: use package ../mocks instead
 func (stub *Stub) AddAccountingRecord(
 	token string,
 	from *types.Address,

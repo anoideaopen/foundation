@@ -17,6 +17,7 @@ import (
 	"golang.org/x/crypto/sha3"
 )
 
+// Deprecated: use package ../mocks instead
 // Multisig is a mock for multisig wallet
 type Multisig struct {
 	Wallet
@@ -24,11 +25,13 @@ type Multisig struct {
 	sKeys []ed25519.PrivateKey
 }
 
+// Deprecated: use package ../mocks instead
 // Address returns address of multisig wallet
 func (w *Multisig) Address() string {
 	return w.addr
 }
 
+// Deprecated: use package ../mocks instead
 // AddressType returns address of multisig wallet
 func (w *Multisig) AddressType() *types.Address {
 	value, ver, err := base58.CheckDecode(w.addr)
@@ -38,6 +41,7 @@ func (w *Multisig) AddressType() *types.Address {
 	return &types.Address{Address: append([]byte{ver}, value...)[:32]}
 }
 
+// Deprecated: use package ../mocks instead
 // ChangeKeysFor changes private and public keys for Multisig member with specific index
 func (w *Multisig) ChangeKeysFor(index int, sKey ed25519.PrivateKey) error {
 	w.sKeys[index] = sKey
@@ -50,6 +54,7 @@ func (w *Multisig) ChangeKeysFor(index int, sKey ed25519.PrivateKey) error {
 	return nil
 }
 
+// Deprecated: use package ../mocks instead
 func (w *Multisig) sign(signCnt int, fn string, ch string, args ...string) ([]string, string) {
 	time.Sleep(time.Millisecond * 5) //nolint:gomnd
 	nonce := strconv.FormatInt(time.Now().UnixNano()/1000000, 10)
@@ -70,6 +75,7 @@ func (w *Multisig) sign(signCnt int, fn string, ch string, args ...string) ([]st
 	return result[1:], hex.EncodeToString(message[:])
 }
 
+// Deprecated: use package ../mocks instead
 // RawSignedInvoke invokes chaincode function with specific arguments and signs it with multisig wallet
 func (w *Multisig) RawSignedInvoke(signCnt int, ch string, fn string, args ...string) (string, TxResponse, []*proto.Swap) {
 	txID := txIDGen()
@@ -115,11 +121,13 @@ func (w *Multisig) RawSignedInvoke(signCnt int, ch string, fn string, args ...st
 	return txID, TxResponse{}, out.GetCreatedSwaps()
 }
 
+// Deprecated: use package ../mocks instead
 // SecretKeys returns private keys of multisig wallet
 func (w *Multisig) SecretKeys() []ed25519.PrivateKey {
 	return w.sKeys
 }
 
+// Deprecated: use package ../mocks instead
 // PubKeys returns public keys of multisig wallet
 func (w *Multisig) PubKeys() []ed25519.PublicKey {
 	return w.pKeys

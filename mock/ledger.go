@@ -26,6 +26,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// Deprecated: use package ../mocks instead
 type Ledger struct {
 	t                   *testing.T
 	stubs               map[string]*stub.Stub
@@ -35,16 +36,19 @@ type Ledger struct {
 	batchPrefix         string
 }
 
+// Deprecated: use package ../mocks instead
 // GetStubByKey returns stub by key
 func (l *Ledger) GetStubByKey(key string) *stub.Stub {
 	return l.stubs[key]
 }
 
+// Deprecated: use package ../mocks instead
 // UpdateStubTxID updates stub txID
 func (l *Ledger) UpdateStubTxID(stubName string, newTxID string) {
 	l.stubs[stubName].TxID = newTxID
 }
 
+// Deprecated: use package ../mocks instead
 // NewLedger creates new ledger
 func NewLedger(t *testing.T, options ...string) *Ledger {
 	lvl := logrus.ErrorLevel
@@ -75,6 +79,7 @@ func NewLedger(t *testing.T, options ...string) *Ledger {
 	}
 }
 
+// Deprecated: use package ../mocks instead
 // SetACL sets acl stub
 func (l *Ledger) SetACL(aclStub *stub.Stub) {
 	l.stubs["acl"] = aclStub
@@ -130,6 +135,7 @@ func (l *Ledger) NewCCArgsArr(
 	return ""
 }
 
+// Deprecated: use package ../mocks instead
 func (l *Ledger) NewCC(
 	name string,
 	bci core.BaseContractInterface,
@@ -163,6 +169,7 @@ func (l *Ledger) NewCC(
 	return ""
 }
 
+// Deprecated: use package ../mocks instead
 // GetStub returns stub
 func (l *Ledger) GetStub(name string) *stub.Stub {
 	return l.stubs[name]
@@ -188,6 +195,7 @@ func (l *Ledger) WaitMultiSwapAnswer(name string, id string, timeout time.Durati
 	require.Fail(l.t, "timeout exceeded")
 }
 
+// Deprecated: use package ../mocks instead
 // WaitSwapAnswer waits for swap answer
 func (l *Ledger) WaitSwapAnswer(name string, id string, timeout time.Duration) {
 	interval := time.Second / 2 //nolint:gomnd
@@ -208,6 +216,7 @@ func (l *Ledger) WaitSwapAnswer(name string, id string, timeout time.Duration) {
 	require.Fail(l.t, "timeout exceeded")
 }
 
+// Deprecated: use package ../mocks instead
 // WaitChTransferTo waits for transfer to event
 func (l *Ledger) WaitChTransferTo(name string, id string, timeout time.Duration) {
 	interval := time.Second / 2 //nolint:gomnd
@@ -227,6 +236,7 @@ func (l *Ledger) WaitChTransferTo(name string, id string, timeout time.Duration)
 	require.Fail(l.t, "timeout exceeded")
 }
 
+// Deprecated: use package ../mocks instead
 func (l *Ledger) doInvoke(ch, txID, fn string, args ...string) string {
 	resp, err := l.doInvokeWithPeerResponse(ch, txID, fn, args...)
 	require.NoError(l.t, err)
@@ -234,6 +244,7 @@ func (l *Ledger) doInvoke(ch, txID, fn string, args ...string) string {
 	return string(resp.GetPayload())
 }
 
+// Deprecated: use package ../mocks instead
 func (l *Ledger) doInvokeWithErrorReturned(ch, txID, fn string, args ...string) error {
 	resp, err := l.doInvokeWithPeerResponse(ch, txID, fn, args...)
 	if err != nil {
@@ -245,6 +256,7 @@ func (l *Ledger) doInvokeWithErrorReturned(ch, txID, fn string, args ...string) 
 	return nil
 }
 
+// Deprecated: use package ../mocks instead
 func (l *Ledger) doInvokeWithPeerResponse(ch, txID, fn string, args ...string) (peer.Response, error) {
 	if err := l.verifyIncoming(ch, fn); err != nil {
 		return peer.Response{}, err
@@ -335,6 +347,7 @@ type MetadataRate struct {
 	Max      *big.Int `json:"max"`
 }
 
+// Deprecated: use package ../mocks instead
 // Metadata returns metadata
 func (l *Ledger) Metadata(ch string) *Metadata {
 	resp := l.doInvoke(ch, txIDGen(), "metadata")
@@ -345,6 +358,7 @@ func (l *Ledger) Metadata(ch string) *Metadata {
 	return &out
 }
 
+// Deprecated: use package ../mocks instead
 // IndustrialMetadata returns metadata for industrial token
 func (l *Ledger) IndustrialMetadata(ch string) *IndustrialMetadata {
 	resp := l.doInvoke(ch, txIDGen(), "metadata")
@@ -371,6 +385,7 @@ func txIDGen() string {
 	return hex.EncodeToString(txID[:])
 }
 
+// Deprecated: use package ../mocks instead
 // GetPending returns pending transactions
 func (l *Ledger) GetPending(token string, txID ...string) {
 	for k, v := range l.stubs[token].State {

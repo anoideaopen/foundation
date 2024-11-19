@@ -24,13 +24,16 @@ const (
 	keyAddressRight = "acl_access_matrix_principal_addresses"
 )
 
+// Deprecated: use package ../mocks instead
 // mockACL emulates alc chaincode, rights are stored in state
 type mockACL struct{}
 
+// Deprecated: use package ../mocks instead
 func (ma *mockACL) Init(_ shim.ChaincodeStubInterface) peer.Response { // stub
 	return shim.Success(nil)
 }
 
+// Deprecated: use package ../mocks instead
 func (ma *mockACL) Invoke(stub shim.ChaincodeStubInterface) peer.Response {
 	fn, args := stub.GetFunctionAndParameters()
 	switch fn {
@@ -61,6 +64,7 @@ func (ma *mockACL) Invoke(stub shim.ChaincodeStubInterface) peer.Response {
 	}
 }
 
+// Deprecated: use package ../mocks instead
 func (ma *mockACL) invokeCheckAddress(args ...string) peer.Response {
 	addr, err := types.AddrFromBase58Check(args[0])
 	if err != nil {
@@ -74,6 +78,7 @@ func (ma *mockACL) invokeCheckAddress(args ...string) peer.Response {
 	return shim.Success(data)
 }
 
+// Deprecated: use package ../mocks instead
 func (ma *mockACL) invokeCheckKeys(stub shim.ChaincodeStubInterface, args ...string) peer.Response {
 	keys := strings.Split(args[0], "/")
 	binPubKeys := make([][]byte, len(keys))
@@ -108,6 +113,7 @@ func (ma *mockACL) invokeCheckKeys(stub shim.ChaincodeStubInterface, args ...str
 	return shim.Success(data)
 }
 
+// Deprecated: use package ../mocks instead
 func (ma *mockACL) invokeGetAccountInfo() peer.Response {
 	data, err := json.Marshal(&pb.AccountInfo{
 		KycHash:     "123",
@@ -120,6 +126,7 @@ func (ma *mockACL) invokeGetAccountInfo() peer.Response {
 	return shim.Success(data)
 }
 
+// Deprecated: use package ../mocks instead
 func (ma *mockACL) invokeGetAccountOperationRight(stub shim.ChaincodeStubInterface, args ...string) peer.Response {
 	if len(args) != acl.ArgsQtyGetAccOpRight {
 		return shim.Error(fmt.Sprintf(acl.ErrWrongArgsCount, len(args), acl.ArgsQtyGetAccOpRight))
@@ -165,6 +172,7 @@ func (ma *mockACL) invokeGetAccountOperationRight(stub shim.ChaincodeStubInterfa
 	return shim.Success(rawResultData)
 }
 
+// Deprecated: use package ../mocks instead
 func (ma *mockACL) invokeAddRights(stub shim.ChaincodeStubInterface, args ...string) peer.Response {
 	if len(args) != acl.ArgsQtyAddRights {
 		return shim.Error(fmt.Sprintf(acl.ErrWrongArgsCount, len(args), acl.ArgsQtyAddRights))
@@ -214,6 +222,7 @@ func (ma *mockACL) invokeAddRights(stub shim.ChaincodeStubInterface, args ...str
 	return shim.Success(nil)
 }
 
+// Deprecated: use package ../mocks instead
 func (ma *mockACL) invokeRemoveRights(stub shim.ChaincodeStubInterface, args ...string) peer.Response {
 	if len(args) != acl.ArgsQtyRemoveRights {
 		return shim.Error(fmt.Sprintf(acl.ErrWrongArgsCount, len(args), acl.ArgsQtyRemoveRights))
@@ -261,6 +270,7 @@ func (ma *mockACL) invokeRemoveRights(stub shim.ChaincodeStubInterface, args ...
 	return shim.Success(nil)
 }
 
+// Deprecated: use package ../mocks instead
 func (ma *mockACL) invokeGetAccountsInfo(stub shim.ChaincodeStubInterface, args ...string) peer.Response {
 	responses := make([]peer.Response, 0)
 	for _, a := range args {
@@ -288,6 +298,7 @@ func (ma *mockACL) invokeGetAccountsInfo(stub shim.ChaincodeStubInterface, args 
 	return shim.Success(b)
 }
 
+// Deprecated: use package ../mocks instead
 func (ma *mockACL) invokeAddAddressRightForNominee(stub shim.ChaincodeStubInterface, args ...string) peer.Response {
 	if len(args) != acl.ArgsQtyAddAddressRightForNominee {
 		return shim.Error(fmt.Sprintf(acl.ErrWrongArgsCount, len(args), acl.ArgsQtyAddAddressRightForNominee))
@@ -337,6 +348,7 @@ func (ma *mockACL) invokeAddAddressRightForNominee(stub shim.ChaincodeStubInterf
 	return shim.Success(nil)
 }
 
+// Deprecated: use package ../mocks instead
 func (ma *mockACL) invokeRemoveAddressRightForNominee(stub shim.ChaincodeStubInterface, args ...string) peer.Response {
 	if len(args) != acl.ArgsQtyRemoveAddressRightFromNominee {
 		return shim.Error(fmt.Sprintf(acl.ErrWrongArgsCount, len(args), acl.ArgsQtyRemoveAddressRightFromNominee))
@@ -384,6 +396,7 @@ func (ma *mockACL) invokeRemoveAddressRightForNominee(stub shim.ChaincodeStubInt
 	return shim.Success(nil)
 }
 
+// Deprecated: use package ../mocks instead
 func (ma *mockACL) invokeGetAddressRightForNominee(stub shim.ChaincodeStubInterface, args ...string) peer.Response {
 	if len(args) != acl.ArgsQtyGetAddressRightForNominee {
 		return shim.Error(fmt.Sprintf(acl.ErrWrongArgsCount, len(args), acl.ArgsQtyGetAddressRightForNominee))
@@ -429,6 +442,7 @@ func (ma *mockACL) invokeGetAddressRightForNominee(stub shim.ChaincodeStubInterf
 	return shim.Success(rawResultData)
 }
 
+// Deprecated: use package ../mocks instead
 func (ma *mockACL) invokeGetAddressesListForNominee(stub shim.ChaincodeStubInterface, args ...string) peer.Response {
 	if len(args) != acl.ArgsQtyGetAddressesListForNominee {
 		return shim.Error(fmt.Sprintf(acl.ErrWrongArgsCount, len(args), acl.ArgsQtyGetAddressesListForNominee))

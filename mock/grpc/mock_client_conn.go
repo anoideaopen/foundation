@@ -15,22 +15,26 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
+// Deprecated: use package ../mocks instead
 type MockClientConn struct {
 	caller *mock.Wallet
 	ch     string
 }
 
+// Deprecated: use package ../mocks instead
 func NewMockClientConn(ch string) *MockClientConn {
 	return &MockClientConn{
 		ch: ch,
 	}
 }
 
+// Deprecated: use package ../mocks instead
 func (m *MockClientConn) SetCaller(caller *mock.Wallet) *MockClientConn {
 	m.caller = caller
 	return m
 }
 
+// Deprecated: use package ../mocks instead
 // Invoke performs a unary RPC and returns after the response is received
 // into reply.
 func (m *MockClientConn) Invoke(ctx context.Context, method string, args interface{}, reply interface{}, opts ...grpc.CallOption) error {
@@ -98,6 +102,7 @@ func (m *MockClientConn) Invoke(ctx context.Context, method string, args interfa
 	return protojson.Unmarshal([]byte(resp.Result), protoMessage)
 }
 
+// Deprecated: use package ../mocks instead
 // NewStream begins a streaming RPC.
 func (m *MockClientConn) NewStream(ctx context.Context, desc *grpc.StreamDesc, method string, opts ...grpc.CallOption) (grpc.ClientStream, error) {
 	panic("streaming methods are not supported")

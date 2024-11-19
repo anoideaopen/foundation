@@ -34,6 +34,7 @@ func NewExecutorRequest(ch string, fn string, args []string, isSignedInvoke bool
 	}
 }
 
+// Deprecated: use package ../mocks instead
 func (w *Wallet) ExecuteSignedInvoke(ch string, fn string, args ...string) ([]byte, error) {
 	executorRequest := NewExecutorRequest(ch, fn, args, true)
 	resp, err := w.TaskExecutorRequest(ch, executorRequest)
@@ -48,6 +49,7 @@ func (w *Wallet) ExecuteSignedInvoke(ch string, fn string, args ...string) ([]by
 	return resp[0].BatchTxEvent.GetResult(), nil
 }
 
+// Deprecated: use package ../mocks instead
 func (w *Wallet) ExecuteNoSignedInvoke(ch string, fn string, args ...string) ([]byte, error) {
 	executorRequest := NewExecutorRequest(ch, fn, args, false)
 	resp, err := w.TaskExecutorRequest(ch, executorRequest)
@@ -62,6 +64,7 @@ func (w *Wallet) ExecuteNoSignedInvoke(ch string, fn string, args ...string) ([]
 	return resp[0].BatchTxEvent.GetResult(), nil
 }
 
+// Deprecated: use package ../mocks instead
 func (w *Wallet) TaskExecutorRequest(channel string, requests ...ExecutorRequest) ([]ExecutorResponse, error) {
 	tasks := make([]*proto.Task, len(requests))
 	for i, r := range requests {
@@ -116,6 +119,7 @@ func (w *Wallet) TaskExecutorRequest(channel string, requests ...ExecutorRequest
 	return executorResponses, nil
 }
 
+// Deprecated: use package ../mocks instead
 func (w *Wallet) TasksExecutor(channel string, tasks []*proto.Task) (*proto.BatchResponse, error) {
 	bytes, err := pb.Marshal(&proto.ExecuteTasksRequest{Tasks: tasks})
 	if err != nil {
@@ -144,6 +148,7 @@ func (w *Wallet) TasksExecutor(channel string, tasks []*proto.Task) (*proto.Batc
 	return batchResponse, nil
 }
 
+// Deprecated: use package ../mocks instead
 func (w *Wallet) fetchBatchEvent(channel string) (*proto.BatchEvent, error) {
 	e := <-w.ledger.stubs[channel].ChaincodeEventsChannel
 	if e.GetEventName() == core.ExecuteTasksEvent {

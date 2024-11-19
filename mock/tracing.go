@@ -18,6 +18,7 @@ import (
 	"go.opentelemetry.io/otel/propagation"
 )
 
+// Deprecated: use package ../mocks instead
 func (w *Wallet) SignedInvokeTraced(ctx context.Context, ch, fn string, args ...string) string {
 	var (
 		txID  string
@@ -53,6 +54,7 @@ func (w *Wallet) SignedInvokeTraced(ctx context.Context, ch, fn string, args ...
 	return txID
 }
 
+// Deprecated: use package ../mocks instead
 func (w *Wallet) InvokeTraced(ctx context.Context, ch, fn string, args ...string) string {
 	if ctx == nil {
 		return w.ledger.doInvoke(ch, txIDGen(), fn, args...)
@@ -60,6 +62,7 @@ func (w *Wallet) InvokeTraced(ctx context.Context, ch, fn string, args ...string
 	return w.ledger.doInvokeTraced(ctx, ch, txIDGen(), fn, args...)
 }
 
+// Deprecated: use package ../mocks instead
 func (w *Wallet) RawSignedInvokeTracedWithErrorReturned(ctx context.Context, ch, fn string, args ...string) error {
 	if err := w.verifyIncoming(ch, fn); err != nil {
 		return err
@@ -123,6 +126,7 @@ func (w *Wallet) RawSignedInvokeTracedWithErrorReturned(ctx context.Context, ch,
 	return nil
 }
 
+// Deprecated: use package ../mocks instead
 func (w *Wallet) RawSignedInvokeTraced(ctx context.Context, ch, fn string, args ...string) (string, TxResponse, []*proto.Swap) {
 	var (
 		invoke   string
@@ -137,6 +141,7 @@ func (w *Wallet) RawSignedInvokeTraced(ctx context.Context, ch, fn string, args 
 	return invoke, response, swaps
 }
 
+// Deprecated: use package ../mocks instead
 func (w *Wallet) RawSignedMultiSwapInvokeTraced(ctx context.Context, ch, fn string, args ...string) (string, TxResponse, []*proto.Swap, []*proto.MultiSwap) {
 	if err := w.verifyIncoming(ch, fn); err != nil {
 		require.NoError(w.ledger.t, err)
@@ -193,6 +198,7 @@ func (w *Wallet) RawSignedMultiSwapInvokeTraced(ctx context.Context, ch, fn stri
 	return txID, TxResponse{}, out.GetCreatedSwaps(), out.GetCreatedMultiSwap()
 }
 
+// Deprecated: use package ../mocks instead
 func (l *Ledger) doInvokeTraced(ctx context.Context, ch, txID, fn string, args ...string) string {
 	var (
 		resp peer.Response
@@ -208,6 +214,7 @@ func (l *Ledger) doInvokeTraced(ctx context.Context, ch, txID, fn string, args .
 	return string(resp.GetPayload())
 }
 
+// Deprecated: use package ../mocks instead
 // NbInvokeTraced executes non-batched transactions with telemetry tracing
 func (w *Wallet) NbInvokeTraced(ctx context.Context, ch string, fn string, args ...string) (string, string) {
 	if err := w.verifyIncoming(ch, fn); err != nil {
@@ -232,6 +239,7 @@ func (w *Wallet) NbInvokeTraced(ctx context.Context, ch string, fn string, args 
 	return base58.Encode(nested), hash
 }
 
+// Deprecated: use package ../mocks instead
 func (l *Ledger) doInvokeTracedWithErrorReturned(ctx context.Context, ch, txID, fn string, args ...string) error {
 	var (
 		resp peer.Response
@@ -251,6 +259,7 @@ func (l *Ledger) doInvokeTracedWithErrorReturned(ctx context.Context, ch, txID, 
 	return nil
 }
 
+// Deprecated: use package ../mocks instead
 func (l *Ledger) doInvokeWithPeerResponseTraced(ctx context.Context, ch, txID, fn string, args ...string) (peer.Response, error) {
 	if err := l.verifyIncoming(ch, fn); err != nil {
 		return peer.Response{}, err

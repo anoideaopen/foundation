@@ -83,6 +83,7 @@ const (
 	shouldNotBeHereMsg = "shouldn't be here"
 )
 
+// Deprecated: use package ../mocks instead
 // Wallet is a wallet
 type Wallet struct {
 	ledger *Ledger
@@ -94,6 +95,7 @@ type Wallet struct {
 	addrGOST      string
 }
 
+// Deprecated: use package ../mocks instead
 // NewWallet creates new wallet
 func (l *Ledger) NewWallet() *Wallet {
 	keysStr, err := keys.GenerateAllKeys()
@@ -112,6 +114,7 @@ func (l *Ledger) NewWallet() *Wallet {
 	}
 }
 
+// Deprecated: use package ../mocks instead
 // NewMultisigWallet creates new multisig wallet
 func (l *Ledger) NewMultisigWallet(n int) *Multisig {
 	wlt := &Multisig{Wallet: Wallet{ledger: l}}
@@ -135,6 +138,7 @@ func (l *Ledger) NewMultisigWallet(n int) *Multisig {
 	return wlt
 }
 
+// Deprecated: use package ../mocks instead
 // NewWalletFromKey creates new wallet from key
 func (l *Ledger) NewWalletFromKey(key string) *Wallet {
 	keysStr, err := keys.GenerateEd25519FromBase58(key)
@@ -147,6 +151,7 @@ func (l *Ledger) NewWalletFromKey(key string) *Wallet {
 	}
 }
 
+// Deprecated: use package ../mocks instead
 // NewWalletFromHexKey creates new wallet from hex key
 func (l *Ledger) NewWalletFromHexKey(key string) *Wallet {
 	keysStr, err := keys.GenerateEd25519FromHex(key)
@@ -159,6 +164,7 @@ func (l *Ledger) NewWalletFromHexKey(key string) *Wallet {
 	}
 }
 
+// Deprecated: use package ../mocks instead
 func getWalletKeyType(stub shim.ChaincodeStubInterface, address string) proto.KeyType {
 	ck, err := stub.CreateCompositeKey("pk_type", []string{address})
 	if err != nil {
@@ -171,6 +177,7 @@ func getWalletKeyType(stub shim.ChaincodeStubInterface, address string) proto.Ke
 	return proto.KeyType(proto.KeyType_value[string(raw)])
 }
 
+// Deprecated: use package ../mocks instead
 func (w *Wallet) saveKeyType() {
 	const (
 		stubACLName      = "acl"
@@ -199,16 +206,19 @@ func (w *Wallet) saveKeyType() {
 	stubACL.MockTransactionEnd(txID)
 }
 
+// Deprecated: use package ../mocks instead
 func (w *Wallet) UseSecp256k1Key() {
 	w.KeyType = proto.KeyType_secp256k1
 	w.saveKeyType()
 }
 
+// Deprecated: use package ../mocks instead
 func (w *Wallet) UseGOSTKey() {
 	w.KeyType = proto.KeyType_gost
 	w.saveKeyType()
 }
 
+// Deprecated: use package ../mocks instead
 // ChangeKeys change private key, then public key will be derived and changed too
 func (w *Wallet) ChangeKeys(sKey ed25519.PrivateKey) error {
 	w.PrivateKeyEd25519 = sKey
@@ -220,6 +230,7 @@ func (w *Wallet) ChangeKeys(sKey ed25519.PrivateKey) error {
 	return nil
 }
 
+// Deprecated: use package ../mocks instead
 // Address returns the address of the wallet
 func (w *Wallet) Address() string {
 	switch w.KeyType {
@@ -232,6 +243,7 @@ func (w *Wallet) Address() string {
 	}
 }
 
+// Deprecated: use package ../mocks instead
 // PubKey returns the public key of the wallet
 func (w *Wallet) PubKey() []byte {
 	return w.PublicKeyEd25519
