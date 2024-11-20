@@ -307,7 +307,6 @@ func prepareArgsWithSign(
 	nonce := strconv.FormatInt(time.Now().UnixNano()/1000000, 10)
 	ctorArgs := append(append([]string{functionName, channelName, chaincodeName}, args...), nonce)
 
-	//ctorArgs := append([]string{functionName, channelName, chaincodeName}, nonce)
 	pubKey, sMsg, err := user.Sign(ctorArgs...)
 	require.NoError(t, err)
 
