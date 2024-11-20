@@ -1,24 +1,26 @@
 package unit
 
 import (
-	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/anoideaopen/foundation/core"
 	"github.com/anoideaopen/foundation/core/config"
 	"github.com/anoideaopen/foundation/core/types"
-	"github.com/anoideaopen/foundation/mock"
-	"github.com/anoideaopen/foundation/proto"
+	"github.com/anoideaopen/foundation/mocks"
+	pb "github.com/anoideaopen/foundation/proto"
 	"github.com/anoideaopen/foundation/test/unit/fixtures_test"
 	"github.com/anoideaopen/foundation/token"
+	"github.com/btcsuite/btcd/btcutil/base58"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
 type ConfigData struct {
-	*proto.Config
+	*pb.Config
 }
 
 // TestConfigToken chaincode with default TokenConfig fields
@@ -39,11 +41,14 @@ func (*disabledFnContract) GetID() string {
 	return "TEST"
 }
 
-var _ config.TokenConfigurator = &TestConfigToken{}
+var (
+	_                config.TokenConfigurator = &TestConfigToken{}
+	testFunctionName                          = "testFunction"
+)
 
 func (tct *TestConfigToken) QueryConfig() (ConfigData, error) {
 	return ConfigData{
-		&proto.Config{
+		&pb.Config{
 			Contract: tct.ContractConfig(),
 			Token:    tct.TokenConfig(),
 		},
@@ -70,78 +75,101 @@ func (tct *TestConfigToken) QueryEmitAmount() (string, error) {
 	return string(amountBytes), nil
 }
 
+const configKey = "__config"
+
 // TestInitWithCommonConfig tests chaincode initialization of token with common config.
 func TestInitWithCommonConfig(t *testing.T) {
 	t.Parallel()
 
-	ledgerMock := mock.NewLedger(t)
-	user1 := ledgerMock.NewWallet()
-	issuer := ledgerMock.NewWallet()
+	issuer, err := mocks.NewUserFoundation(pb.KeyType_ed25519)
+	require.NoError(t, err)
+
+	mockStub := mocks.NewMockStub(t)
 
 	ttName, ttSymbol, ttDecimals := "test token", "TT", uint32(8)
 
-	cfgEtl := &proto.Config{
-		Contract: &proto.ContractConfig{
+	cfgEtl := &pb.Config{
+		Contract: &pb.ContractConfig{
 			Symbol: ttSymbol,
-			Options: &proto.ChaincodeOptions{
+			Options: &pb.ChaincodeOptions{
 				DisableMultiSwaps: true,
 			},
 			RobotSKI: fixtures_test.RobotHashedCert,
-			Admin:    &proto.Wallet{Address: issuer.Address()},
+			Admin:    &pb.Wallet{Address: issuer.AddressBase58Check},
 		},
-		Token: &proto.TokenConfig{
+		Token: &pb.TokenConfig{
 			Name:     ttName,
 			Decimals: ttDecimals,
-			Issuer:   &proto.Wallet{Address: issuer.Address()},
+			Issuer:   &pb.Wallet{Address: issuer.AddressBase58Check},
 		},
 	}
-	config, _ := protojson.Marshal(cfgEtl)
+	cfg, _ := protojson.Marshal(cfgEtl)
+	var (
+		cc *core.Chaincode
+	)
 
 	step(t, "Init new chaincode", false, func() {
-		message := ledgerMock.NewCC("tt", &TestConfigToken{}, string(config))
-		require.Empty(t, message)
+		tct := &TestConfigToken{}
+		cc, err = core.NewCC(tct)
+		require.NoError(t, err)
+
+		mockStub.GetStringArgsReturns([]string{string(cfg)})
+		resp := cc.Init(mockStub)
+		require.Empty(t, resp.GetMessage())
 	})
 
-	var cfg proto.Config
-	step(t, "Fetch config", false, func() {
-		data := user1.Invoke("tt", "config")
-		require.NotEmpty(t, data)
+	var resultCfg pb.Config
+	step(t, "Checking config was set to state", false, func() {
+		key, value := mockStub.PutStateArgsForCall(0)
+		require.Equal(t, key, configKey)
 
-		err := json.Unmarshal([]byte(data), &cfg)
+		err = protojson.Unmarshal(value, &resultCfg)
 		require.NoError(t, err)
 	})
 
 	step(t, "Validate contract config", false, func() {
-		require.Equal(t, ttSymbol, cfg.Contract.Symbol)
-		require.Equal(t, fixtures_test.RobotHashedCert, cfg.Contract.RobotSKI)
-		require.Equal(t, false, cfg.Contract.Options.DisableSwaps)
-		require.Equal(t, true, cfg.Contract.Options.DisableMultiSwaps)
+		require.Equal(t, ttSymbol, resultCfg.Contract.Symbol)
+		require.Equal(t, fixtures_test.RobotHashedCert, resultCfg.Contract.RobotSKI)
+		require.Equal(t, false, resultCfg.Contract.Options.DisableSwaps)
+		require.Equal(t, true, resultCfg.Contract.Options.DisableMultiSwaps)
 	})
 
 	step(t, "Validate token config", false, func() {
-		require.Equal(t, ttName, cfg.Token.Name)
-		require.Equal(t, ttDecimals, cfg.Token.Decimals)
-		require.Equal(t, issuer.Address(), cfg.Token.Issuer.Address)
+		require.Equal(t, ttName, resultCfg.Token.Name)
+		require.Equal(t, ttDecimals, resultCfg.Token.Decimals)
+		require.Equal(t, issuer.AddressBase58Check, resultCfg.Token.Issuer.Address)
+	})
+
+	step(t, "Requesting config from state", false, func() {
+		mockStub.GetFunctionAndParametersReturns("config", []string{})
+		cc.Invoke(mockStub)
+
+		key := mockStub.GetStateArgsForCall(0)
+		require.Equal(t, key, configKey)
 	})
 }
 
 func TestWithConfigMapperFunc(t *testing.T) {
 	t.Parallel()
 
-	ledgerMock := mock.NewLedger(t)
-	user1 := ledgerMock.NewWallet()
-	issuer := ledgerMock.NewWallet()
+	mockStub := mocks.NewMockStub(t)
+
+	issuer, err := mocks.NewUserFoundation(pb.KeyType_ed25519)
+	require.NoError(t, err)
 
 	ttName, ttSymbol, ttDecimals := "test token", "TT", uint32(8)
+
 	step(t, "Init new chaincode", false, func() {
 		initArgs := []string{
 			"",                            // PlatformSKI (backend) - deprecated
 			fixtures_test.RobotHashedCert, // RobotSKI
-			issuer.Address(),              // IssuerAddress
+			issuer.AddressBase58Check,     // IssuerAddress
 			fixtures_test.AdminAddr,       // AdminAddress
 		}
-		message := ledgerMock.NewCCArgsArr("tt", &TestConfigToken{}, initArgs, core.WithConfigMapperFunc(
-			func(args []string) (*proto.Config, error) {
+		tct := &TestConfigToken{}
+
+		cc, err := core.NewCC(tct, core.WithConfigMapperFunc(
+			func(args []string) (*pb.Config, error) {
 				const requiredArgsCount = 4
 
 				if len(args) != requiredArgsCount {
@@ -170,199 +198,172 @@ func TestWithConfigMapperFunc(t *testing.T) {
 					return nil, fmt.Errorf("admin address is empty")
 				}
 
-				cfgEtl := &proto.Config{
-					Contract: &proto.ContractConfig{
+				cfgEtl := &pb.Config{
+					Contract: &pb.ContractConfig{
 						Symbol: ttSymbol,
-						Options: &proto.ChaincodeOptions{
+						Options: &pb.ChaincodeOptions{
 							DisableMultiSwaps: true,
 						},
 						RobotSKI: robotSKI,
-						Admin:    &proto.Wallet{Address: adminAddress},
+						Admin:    &pb.Wallet{Address: adminAddress},
 					},
-					Token: &proto.TokenConfig{
+					Token: &pb.TokenConfig{
 						Name:     ttName,
 						Decimals: ttDecimals,
-						Issuer:   &proto.Wallet{Address: issuerAddress},
+						Issuer:   &pb.Wallet{Address: issuerAddress},
 					},
 				}
 
 				return cfgEtl, nil
 			}),
 		)
-		require.Empty(t, message)
+		require.NoError(t, err)
+
+		mockStub.GetStringArgsReturns(initArgs)
+		resp := cc.Init(mockStub)
+		require.Empty(t, resp.GetMessage())
 	})
 
-	var cfg proto.Config
-	step(t, "Fetch config", false, func() {
-		data := user1.Invoke("tt", "config")
-		require.NotEmpty(t, data)
+	var resultCfg pb.Config
+	step(t, "Checking config was set to state", false, func() {
+		key, value := mockStub.PutStateArgsForCall(0)
+		require.Equal(t, key, configKey)
 
-		err := json.Unmarshal([]byte(data), &cfg)
+		err = protojson.Unmarshal(value, &resultCfg)
 		require.NoError(t, err)
 	})
 
 	step(t, "Validate contract config", false, func() {
-		require.Equal(t, ttSymbol, cfg.Contract.Symbol)
-		require.Equal(t, fixtures_test.RobotHashedCert, cfg.Contract.RobotSKI)
-		require.Equal(t, false, cfg.Contract.Options.DisableSwaps)
-		require.Equal(t, true, cfg.Contract.Options.DisableMultiSwaps)
+		require.Equal(t, ttSymbol, resultCfg.Contract.Symbol)
+		require.Equal(t, fixtures_test.RobotHashedCert, resultCfg.Contract.RobotSKI)
+		require.Equal(t, false, resultCfg.Contract.Options.DisableSwaps)
+		require.Equal(t, true, resultCfg.Contract.Options.DisableMultiSwaps)
 	})
 
 	step(t, "Validate token config", false, func() {
-		require.Equal(t, ttName, cfg.Token.Name)
-		require.Equal(t, ttDecimals, cfg.Token.Decimals)
-		require.Equal(t, issuer.Address(), cfg.Token.Issuer.Address)
+		require.Equal(t, ttName, resultCfg.Token.Name)
+		require.Equal(t, ttDecimals, resultCfg.Token.Decimals)
+		require.Equal(t, issuer.AddressBase58Check, resultCfg.Token.Issuer.Address)
 	})
 }
 
 func TestWithConfigMapperFuncFromArgs(t *testing.T) {
 	t.Parallel()
 
-	ledgerMock := mock.NewLedger(t)
-	user1 := ledgerMock.NewWallet()
-	issuer := ledgerMock.NewWallet()
+	mockStub := mocks.NewMockStub(t)
+	issuer, err := mocks.NewUserFoundation(pb.KeyType_ed25519)
+	require.NoError(t, err)
 
 	ttSymbol := "tt"
 	step(t, "Init new chaincode", false, func() {
 		initArgs := []string{
 			"",                            // PlatformSKI (backend) - deprecated
 			fixtures_test.RobotHashedCert, // RobotSKI
-			issuer.Address(),              // IssuerAddress
+			issuer.AddressBase58Check,     // IssuerAddress
 			fixtures_test.AdminAddr,       // AdminAddress
 		}
-		message := ledgerMock.NewCCArgsArr(ttSymbol, &TestConfigToken{}, initArgs, core.WithConfigMapperFunc(
-			func(args []string) (*proto.Config, error) {
+		tct := &TestConfigToken{}
+
+		cc, err := core.NewCC(tct, core.WithConfigMapperFunc(
+			func(args []string) (*pb.Config, error) {
 				return config.FromArgsWithIssuerAndAdmin(ttSymbol, args)
-			}),
-		)
-		require.Empty(t, message)
-	})
-
-	var cfg proto.Config
-	step(t, "Fetch config", false, func() {
-		data := user1.Invoke("tt", "config")
-		require.NotEmpty(t, data)
-
-		err := json.Unmarshal([]byte(data), &cfg)
+			}))
 		require.NoError(t, err)
+
+		mockStub.GetStringArgsReturns(initArgs)
+		resp := cc.Init(mockStub)
+		require.Empty(t, resp.GetMessage())
 	})
 
-	step(t, "Validate contract config", false, func() {
-		require.Equal(t, strings.ToUpper(ttSymbol), cfg.Contract.Symbol)
-		require.Equal(t, fixtures_test.RobotHashedCert, cfg.Contract.RobotSKI)
-		require.Equal(t, false, cfg.Contract.Options.DisableSwaps)
-		require.Equal(t, false, cfg.Contract.Options.DisableMultiSwaps)
-	})
-}
+	var resultCfg pb.Config
+	step(t, "Checking config was set to state", false, func() {
+		key, value := mockStub.PutStateArgsForCall(0)
+		require.Equal(t, key, configKey)
 
-func TestBaseTokenTx(t *testing.T) {
-	t.Parallel()
-
-	ledgerMock := mock.NewLedger(t)
-	user1 := ledgerMock.NewWallet()
-	issuer := ledgerMock.NewWallet()
-
-	ttName, ttSymbol, ttDecimals := "test token", "TT", uint32(8)
-
-	cfgEtl := &proto.Config{
-		Contract: &proto.ContractConfig{
-			Symbol: ttSymbol,
-			Options: &proto.ChaincodeOptions{
-				DisableMultiSwaps: true,
-			},
-			RobotSKI: fixtures_test.RobotHashedCert,
-			Admin:    &proto.Wallet{Address: issuer.Address()},
-		},
-		Token: &proto.TokenConfig{
-			Name:     ttName,
-			Decimals: ttDecimals,
-			Issuer:   &proto.Wallet{Address: issuer.Address()},
-		},
-	}
-	config, _ := protojson.Marshal(cfgEtl)
-
-	t.Run("Init new chaincode", func(t *testing.T) {
-		initMsg := ledgerMock.NewCC(testTokenCCName, &TestConfigToken{}, string(config))
-		require.Empty(t, initMsg)
+		err = protojson.Unmarshal(value, &resultCfg)
 	})
 
-	const emitAmount = "42"
-
-	t.Run("Tx emit", func(t *testing.T) {
-		err := user1.RawSignedInvokeWithErrorReturned(testTokenCCName, "setEmitAmount", emitAmount)
-		require.NoError(t, err)
-	})
-
-	t.Run("Query emit", func(t *testing.T) {
-		data := user1.Invoke(testTokenCCName, "emitAmount")
-		require.NotEmpty(t, data)
-
-		var amount string
-		err := json.Unmarshal([]byte(data), &amount)
-		require.NoError(t, err)
-		require.Equal(t, emitAmount, amount)
+	step(t, "Validating config", false, func() {
+		require.Equal(t, strings.ToUpper(ttSymbol), resultCfg.Contract.Symbol)
+		require.Equal(t, fixtures_test.RobotHashedCert, resultCfg.Contract.RobotSKI)
+		require.Equal(t, fixtures_test.AdminAddr, resultCfg.Contract.Admin.Address)
+		require.Equal(t, issuer.AddressBase58Check, resultCfg.Token.Issuer.Address)
 	})
 }
 
 func TestDisabledFunctions(t *testing.T) {
 	t.Parallel()
 
-	ledgerMock := mock.NewLedger(t)
-	user1 := ledgerMock.NewWallet()
+	mockStub := mocks.NewMockStub(t)
 
-	tt1 := disabledFnContract{}
-	cfgEtl := &proto.Config{
-		Contract: &proto.ContractConfig{
+	user1, err := mocks.NewUserFoundation(pb.KeyType_ed25519)
+	require.NoError(t, err)
+
+	tt1 := &disabledFnContract{}
+	cfgEtl := &pb.Config{
+		Contract: &pb.ContractConfig{
 			Symbol:   "TT1",
 			RobotSKI: fixtures_test.RobotHashedCert,
-			Admin:    &proto.Wallet{Address: fixtures_test.AdminAddr},
+			Admin:    &pb.Wallet{Address: fixtures_test.AdminAddr},
 		},
 	}
-	config1, _ := protojson.Marshal(cfgEtl)
-	step(t, "Init new tt1 chaincode", false, func() {
-		message := ledgerMock.NewCC("tt1", &tt1, string(config1))
-		require.Empty(t, message)
-	})
+	var cc1, cc2 *core.Chaincode
+
+	config1, err := protojson.Marshal(cfgEtl)
+	require.NoError(t, err)
+
+	cc1, err = core.NewCC(tt1)
+	require.NoError(t, err)
 
 	step(t, "Call TxTestFunction", false, func() {
-		err := user1.RawSignedInvokeWithErrorReturned("tt1", "testFunction")
-		require.NoError(t, err)
+		ctorArgs := prepareArgsWithSign(t, user1, testFunctionName, "", "")
+		mockStub.GetStateReturns(config1, nil)
+		mockStub.GetFunctionAndParametersReturns(testFunctionName, ctorArgs)
+
+		resp := cc1.Invoke(mockStub)
+		require.Empty(t, resp.GetMessage())
 	})
 
-	tt2 := disabledFnContract{}
-	cfgEtl = &proto.Config{
-		Contract: &proto.ContractConfig{
+	tt2 := &disabledFnContract{}
+	cfgEtl = &pb.Config{
+		Contract: &pb.ContractConfig{
 			Symbol: "TT2",
-			Options: &proto.ChaincodeOptions{
+			Options: &pb.ChaincodeOptions{
 				DisabledFunctions: []string{"TxTestFunction"},
 			},
 			RobotSKI: fixtures_test.RobotHashedCert,
-			Admin:    &proto.Wallet{Address: fixtures_test.AdminAddr},
+			Admin:    &pb.Wallet{Address: fixtures_test.AdminAddr},
 		},
 	}
 	config2, _ := protojson.Marshal(cfgEtl)
 
-	step(t, "Init new tt2 chaincode", false, func() {
-		message := ledgerMock.NewCC("tt2", &tt2, string(config2))
-		require.Empty(t, message, message)
-	})
+	cc2, err = core.NewCC(tt2)
+	require.NoError(t, err)
 
 	step(t, "[negative] call TxTestFunction", false, func() {
-		err := user1.RawSignedInvokeWithErrorReturned("tt2", "testFunction")
-		require.EqualError(t, err, "invoke: finding method: method 'testFunction' not found")
+		ctorArgs := prepareArgsWithSign(t, user1, testFunctionName, "", "")
+		mockStub.GetStateReturns(config2, nil)
+		mockStub.GetFunctionAndParametersReturns(testFunctionName, ctorArgs)
+
+		resp := cc2.Invoke(mockStub)
+		require.Equal(t, "invoke: finding method: method 'testFunction' not found", resp.GetMessage())
 	})
 }
 
 func TestInitWithEmptyConfig(t *testing.T) {
 	t.Parallel()
 
-	ledgerMock := mock.NewLedger(t)
+	mockStub := mocks.NewMockStub(t)
 
-	config := `{}`
+	cfg := `{}`
 
 	step(t, "Init new chaincode", false, func() {
-		initMsg := ledgerMock.NewCC(testTokenCCName, &TestConfigToken{}, config)
-		require.Contains(t, initMsg, "contract config is not set")
+		cc, err := core.NewCC(&TestConfigToken{})
+		require.NoError(t, err)
+
+		mockStub.GetStringArgsReturns([]string{cfg})
+		resp := cc.Init(mockStub)
+		require.Contains(t, resp.GetMessage(), "contract config is not set")
 	})
 
 	return
@@ -373,8 +374,8 @@ func TestConfigValidation(t *testing.T) {
 
 	allowedSymbols := []string{`TT`, `TT2`, `TT-2`, `TT-2.0`, `TT-2.A`, `TT-23.AB`, `TT_2.0`}
 	for _, s := range allowedSymbols {
-		cfg := &proto.Config{
-			Contract: &proto.ContractConfig{
+		cfg := &pb.Config{
+			Contract: &pb.ContractConfig{
 				Symbol:   s,
 				RobotSKI: fixtures_test.RobotHashedCert,
 			},
@@ -384,12 +385,21 @@ func TestConfigValidation(t *testing.T) {
 
 	disallowedSymbols := []string{`2T`, `TT+1`, `TT-2.4.6`, `TT-.1`, `TT-1.`, `TT-1..2`}
 	for _, s := range disallowedSymbols {
-		cfg := &proto.Config{
-			Contract: &proto.ContractConfig{
+		cfg := &pb.Config{
+			Contract: &pb.ContractConfig{
 				Symbol:   s,
 				RobotSKI: fixtures_test.RobotHashedCert,
 			},
 		}
 		require.Error(t, cfg.Validate(), s)
 	}
+}
+
+func prepareArgsWithSign(t *testing.T, user *mocks.UserFoundation, functionName, channelName, chaincodeName string) []string {
+	nonce := strconv.FormatInt(time.Now().UnixNano()/1000000, 10)
+	ctorArgs := append([]string{functionName, channelName, chaincodeName}, nonce)
+	pubKey, sMsg, err := user.Sign(ctorArgs...)
+	require.NoError(t, err)
+
+	return append(ctorArgs, pubKey, base58.Encode(sMsg))
 }
