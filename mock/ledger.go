@@ -94,47 +94,6 @@ type TxResponse struct {
 	Accounting []*proto.AccountingRecord `json:"accounting"`
 }
 
-// NewCCArgsArr
-// Deprecated: added only for backward compatibility.
-func (l *Ledger) NewCCArgsArr(
-	name string,
-	bci core.BaseContractInterface,
-	initArgs []string,
-	opts ...core.ChaincodeOption,
-) string {
-	_, exists := l.stubs[name]
-	require.False(
-		l.t,
-		exists,
-		fmt.Sprintf("stub with name '%s' has already exist in ledger mock; "+
-			"try to use other chaincode name.", name),
-	)
-
-	cc, err := core.NewCC(bci, opts...)
-	require.NoError(l.t, err)
-	l.stubs[name] = stub.NewMockStub(name, cc) //nolint:staticcheck
-	l.stubs[name].ChannelID = name
-
-	l.stubs[name].MockPeerChaincode("acl/acl", l.stubs["acl"]) //nolint:staticcheck
-
-	err = l.stubs[name].SetAdminCreatorCert("platformMSP") //nolint:staticcheck
-	require.NoError(l.t, err)
-
-	args := make([][]byte, 0, len(initArgs))
-	for _, ia := range initArgs {
-		args = append(args, []byte(ia))
-	}
-
-	res := l.stubs[name].MockInit(txIDGen(), args) //nolint:staticcheck
-	message := res.GetMessage()
-	if message != "" {
-		return message
-	}
-
-	l.keyEvents[name] = make(chan *peer.ChaincodeEvent, 1)
-	return ""
-}
-
 // Deprecated: use package ../mocks instead
 func (l *Ledger) NewCC(
 	name string,

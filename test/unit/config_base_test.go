@@ -60,6 +60,127 @@ func (tct *TestConfigToken) QueryConfig() (ConfigData, error) {
 
 const configKey = "__config"
 
+// TestInitWithPositionedArgs tests chaincode initialization of token with positioned arguments. Deprecated functionality
+func TestInitWithPositionedArgs(t *testing.T) {
+	t.Parallel()
+
+	robotSKI := fixtures_test.RobotHashedCert
+
+	testsCollection := []struct {
+		channel       string
+		args          []string
+		bci           core.BaseContractInterface
+		initMsg       string
+		adminIsIssuer bool // set to true if admin has same address as issuer
+	}{
+		{
+			channel: "nft",
+			args: []string{
+				"<backend_ski>,deprecated",
+				robotSKI,
+				fixtures_test.AdminAddr,
+			},
+			bci: &core.BaseContract{},
+		},
+		{
+			channel: "ct",
+			args: []string{
+				"<backend_ski>,deprecated",
+				robotSKI,
+				fixtures_test.IssuerAddr,
+				fixtures_test.AdminAddr,
+			},
+			bci: &token.BaseToken{},
+		},
+		{
+			channel: "nmmmulti",
+			args: []string{
+				"<backend_ski>,deprecated",
+				robotSKI,
+				fixtures_test.AdminAddr,
+			},
+			bci:     &core.BaseContract{},
+			initMsg: "",
+		},
+		{
+			channel: "curusd",
+			args: []string{
+				"<backend_ski>,deprecated",
+				robotSKI,
+				fixtures_test.IssuerAddr,
+				fixtures_test.FeeSetterAddr,
+				fixtures_test.FeeAddressSetterAddr,
+			},
+			bci:           &core.BaseContract{},
+			initMsg:       "",
+			adminIsIssuer: true,
+		},
+		{
+			channel: "non-handled-channel",
+			args: []string{
+				"<backend_ski>,deprecated",
+				robotSKI,
+				fixtures_test.AdminAddr,
+			},
+			bci:     &core.BaseContract{},
+			initMsg: "chaincode 'non-handled-channel' does not have positional args initialization",
+		},
+		{
+			channel: "otf",
+			args: []string{
+				"<backend_ski>,deprecated",
+				robotSKI,
+				fixtures_test.IssuerAddr,
+				fixtures_test.FeeSetterAddr,
+			},
+			bci:           &core.BaseContract{},
+			initMsg:       "",
+			adminIsIssuer: true,
+		},
+	}
+
+	for _, test := range testsCollection {
+		t.Run(test.channel, func(t *testing.T) {
+			mockStub := mocks.NewMockStub(t)
+
+			cc, err := core.NewCC(test.bci)
+			require.NoError(t, err)
+
+			mockStub.GetChannelIDReturns(test.channel)
+			mockStub.GetStringArgsReturns(test.args)
+			resp := cc.Init(mockStub)
+			message := resp.GetMessage()
+			if message != "" {
+				require.Contains(t, message, test.initMsg)
+				return
+			} else {
+				require.Empty(t, message)
+			}
+
+			// Checking config was set to state
+			key, value := mockStub.PutStateArgsForCall(0)
+			require.Equal(t, key, configKey)
+
+			cfg, err := config.FromBytes(value)
+			require.NoError(t, err)
+
+			symbolExpected := strings.ToUpper(test.channel)
+
+			require.Equal(t, symbolExpected, cfg.GetContract().Symbol)
+			require.Equal(t, robotSKI, cfg.GetContract().RobotSKI)
+			if test.adminIsIssuer {
+				require.Equal(t, fixtures_test.IssuerAddr, cfg.GetContract().GetAdmin().GetAddress())
+			} else {
+				require.Equal(t, fixtures_test.AdminAddr, cfg.GetContract().GetAdmin().GetAddress())
+			}
+
+			if _, ok := test.bci.(token.Tokener); ok {
+				require.Equal(t, fixtures_test.IssuerAddr, cfg.GetToken().GetIssuer().GetAddress())
+			}
+		})
+	}
+}
+
 // TestInitWithCommonConfig tests chaincode initialization of token with common config.
 func TestInitWithCommonConfig(t *testing.T) {
 	t.Parallel()
@@ -193,7 +314,7 @@ func TestWithConfigMapperFuncFromArgs(t *testing.T) {
 	resp := cc.Init(mockStub)
 	require.Empty(t, resp.GetMessage())
 
-	//Checking config was set to state
+	// Checking config was set to state
 	var resultCfg pb.Config
 	key, value := mockStub.PutStateArgsForCall(0)
 	require.Equal(t, key, configKey)
@@ -227,7 +348,7 @@ func TestDisabledFunctions(t *testing.T) {
 	cc, err := core.NewCC(tt)
 	require.NoError(t, err)
 
-	//Calling TxTestFunction while it's not disabled
+	// Calling TxTestFunction while it's not disabled
 	ctorArgs := prepareArgsWithSign(t, user1, testFunctionName, "", "")
 	mockStub.GetStateReturns(config1, nil)
 	mockStub.GetFunctionAndParametersReturns(testFunctionName, ctorArgs)
