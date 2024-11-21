@@ -125,10 +125,11 @@ func TestWithConfigMapperFunc(t *testing.T) {
 	issuer, err := mocks.NewUserFoundation(pb.KeyType_ed25519)
 	require.NoError(t, err)
 
-	ttName, ttSymbol, ttDecimals := "test token", "TT", uint32(8)
-
 	// Initializing new chaincode
 	initArgs := []string{
+		"test token",                  // Chaincode Name
+		"TT",                          // Token Symbol
+		"8",                           // Decimals
 		"",                            // PlatformSKI (backend) - deprecated
 		fixtures_test.RobotHashedCert, // RobotSKI
 		issuer.AddressBase58Check,     // IssuerAddress
@@ -136,55 +137,10 @@ func TestWithConfigMapperFunc(t *testing.T) {
 	}
 	tct := &TestConfigToken{}
 
-	cc, err := core.NewCC(tct, core.WithConfigMapperFunc(
-		func(args []string) (*pb.Config, error) {
-			const requiredArgsCount = 4
+	expectedConfig, err := getExpectedConfigFromArgs(initArgs)
+	require.NoError(t, err)
 
-			if len(args) != requiredArgsCount {
-				return nil, fmt.Errorf(
-					"required args length '%s' is '%d', passed %d",
-					ttSymbol,
-					requiredArgsCount,
-					len(args),
-				)
-			}
-
-			_ = args[0] // PlatformSKI (backend) - deprecated
-
-			robotSKI := args[1]
-			if robotSKI == "" {
-				return nil, fmt.Errorf("robot ski is empty")
-			}
-
-			issuerAddress := args[2]
-			if issuerAddress == "" {
-				return nil, fmt.Errorf("issuer address is empty")
-			}
-
-			adminAddress := args[3]
-			if adminAddress == "" {
-				return nil, fmt.Errorf("admin address is empty")
-			}
-
-			cfgEtl := &pb.Config{
-				Contract: &pb.ContractConfig{
-					Symbol: ttSymbol,
-					Options: &pb.ChaincodeOptions{
-						DisableMultiSwaps: true,
-					},
-					RobotSKI: robotSKI,
-					Admin:    &pb.Wallet{Address: adminAddress},
-				},
-				Token: &pb.TokenConfig{
-					Name:     ttName,
-					Decimals: ttDecimals,
-					Issuer:   &pb.Wallet{Address: issuerAddress},
-				},
-			}
-
-			return cfgEtl, nil
-		}),
-	)
+	cc, err := core.NewCC(tct, core.WithConfigMapperFunc(getExpectedConfigFromArgs))
 	require.NoError(t, err)
 
 	mockStub.GetStringArgsReturns(initArgs)
@@ -200,15 +156,7 @@ func TestWithConfigMapperFunc(t *testing.T) {
 	require.NoError(t, err)
 
 	// Validating contract config
-	require.Equal(t, ttSymbol, resultCfg.Contract.Symbol)
-	require.Equal(t, fixtures_test.RobotHashedCert, resultCfg.Contract.RobotSKI)
-	require.Equal(t, false, resultCfg.Contract.Options.DisableSwaps)
-	require.Equal(t, true, resultCfg.Contract.Options.DisableMultiSwaps)
-
-	// Validating token config
-	require.Equal(t, ttName, resultCfg.Token.Name)
-	require.Equal(t, ttDecimals, resultCfg.Token.Decimals)
-	require.Equal(t, issuer.AddressBase58Check, resultCfg.Token.Issuer.Address)
+	require.True(t, proto.Equal(&resultCfg, expectedConfig))
 }
 
 func TestWithConfigMapperFuncFromArgs(t *testing.T) {
@@ -218,10 +166,11 @@ func TestWithConfigMapperFuncFromArgs(t *testing.T) {
 	issuer, err := mocks.NewUserFoundation(pb.KeyType_ed25519)
 	require.NoError(t, err)
 
-	ttSymbol := "tt"
-
 	// Initializing new chaincode
 	initArgs := []string{
+		"",                            // Chaincode Name
+		"tt",                          // Token Symbol
+		"",                            // Decimals
 		"",                            // PlatformSKI (backend) - deprecated
 		fixtures_test.RobotHashedCert, // RobotSKI
 		issuer.AddressBase58Check,     // IssuerAddress
@@ -229,9 +178,12 @@ func TestWithConfigMapperFuncFromArgs(t *testing.T) {
 	}
 	tct := &TestConfigToken{}
 
+	expectedConfig, err := getExpectedConfigFromArgs(initArgs)
+	require.NoError(t, err)
+
 	cc, err := core.NewCC(tct, core.WithConfigMapperFunc(
 		func(args []string) (*pb.Config, error) {
-			return config.FromArgsWithIssuerAndAdmin(ttSymbol, args)
+			return config.FromArgsWithIssuerAndAdmin(args[1], args[3:])
 		}))
 	require.NoError(t, err)
 
@@ -247,10 +199,7 @@ func TestWithConfigMapperFuncFromArgs(t *testing.T) {
 	err = protojson.Unmarshal(value, &resultCfg)
 
 	// Validating config
-	require.Equal(t, strings.ToUpper(ttSymbol), resultCfg.Contract.Symbol)
-	require.Equal(t, fixtures_test.RobotHashedCert, resultCfg.Contract.RobotSKI)
-	require.Equal(t, fixtures_test.AdminAddr, resultCfg.Contract.Admin.Address)
-	require.Equal(t, issuer.AddressBase58Check, resultCfg.Token.Issuer.Address)
+	require.True(t, proto.Equal(&resultCfg, expectedConfig))
 }
 
 func TestDisabledFunctions(t *testing.T) {
@@ -363,4 +312,68 @@ func prepareArgsWithSign(
 	require.NoError(t, err)
 
 	return append(ctorArgs, pubKey, base58.Encode(sMsg))
+}
+
+func getExpectedConfigFromArgs(args []string) (*pb.Config, error) {
+	const requiredArgsCount = 7
+
+	if len(args) != requiredArgsCount {
+		return nil, fmt.Errorf(
+			"required args length is '%d', got %d",
+			requiredArgsCount,
+			len(args),
+		)
+	}
+
+	var (
+		ttDecimals uint64
+		err        error
+	)
+
+	ttName := args[0]
+	ttSymbol := strings.ToUpper(args[1])
+	if args[2] == "" {
+		ttDecimals = 0
+	} else {
+		ttDecimals, err = strconv.ParseUint(args[2], 10, 32)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if ttName == "" && ttSymbol != "" {
+		ttName = ttSymbol
+	}
+
+	_ = args[3] // PlatformSKI (backend) - deprecated
+
+	robotSKI := args[4]
+	if robotSKI == "" {
+		return nil, fmt.Errorf("robot ski is empty")
+	}
+
+	issuerAddress := args[5]
+	if issuerAddress == "" {
+		return nil, fmt.Errorf("issuer address is empty")
+	}
+
+	adminAddress := args[6]
+	if adminAddress == "" {
+		return nil, fmt.Errorf("admin address is empty")
+	}
+
+	cfgEtl := &pb.Config{
+		Contract: &pb.ContractConfig{
+			Symbol:   ttSymbol,
+			RobotSKI: robotSKI,
+			Admin:    &pb.Wallet{Address: adminAddress},
+		},
+		Token: &pb.TokenConfig{
+			Name:     ttName,
+			Decimals: uint32(ttDecimals),
+			Issuer:   &pb.Wallet{Address: issuerAddress},
+		},
+	}
+
+	return cfgEtl, nil
 }
