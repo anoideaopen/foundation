@@ -1,6 +1,7 @@
 package unit
 
 import (
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -18,6 +19,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/types/known/anypb"
 )
 
 type ConfigData struct {
@@ -375,4 +377,131 @@ func getExpectedConfigFromArgs(args []string) (*pb.Config, error) {
 	}
 
 	return cfgEtl, nil
+}
+
+// Extended config
+
+// TestConfigToken chaincode with extended TokenConfig fields
+type TestExtConfigToken struct {
+	core.BaseContract
+	ExtConfig
+}
+
+// GetID returns chaincode identifier. It required by core.BaseContractInterface.
+func (tect *TestExtConfigToken) GetID() string {
+	return "TEST"
+}
+
+func (tect *TestExtConfigToken) ValidateExtConfig(config []byte) error {
+	var (
+		ec      ExtConfig
+		cfgFull pb.Config
+	)
+
+	if err := protojson.Unmarshal(config, &cfgFull); err != nil {
+		return fmt.Errorf("unmarshalling config: %w", err)
+	}
+
+	if cfgFull.ExtConfig.MessageIs(&ec) {
+		if err := cfgFull.ExtConfig.UnmarshalTo(&ec); err != nil {
+			return fmt.Errorf("unmarshalling ext config: %w", err)
+		}
+	}
+
+	if err := ec.Validate(); err != nil {
+		return fmt.Errorf("validating ext config: %w", err)
+	}
+
+	return nil
+}
+
+func (tect *TestExtConfigToken) ApplyExtConfig(cfgBytes []byte) error {
+	var (
+		extConfig ExtConfig
+		cfgFull   pb.Config
+	)
+
+	if err := protojson.Unmarshal(cfgBytes, &cfgFull); err != nil {
+		return fmt.Errorf("unmarshalling config: %w", err)
+	}
+
+	if cfgFull.ExtConfig.MessageIs(&extConfig) {
+		if err := cfgFull.ExtConfig.UnmarshalTo(&extConfig); err != nil {
+			return fmt.Errorf("unmarshalling ext config: %w", err)
+		}
+	}
+
+	tect.Asset = extConfig.Asset
+	tect.Amount = extConfig.Amount
+	tect.Issuer = extConfig.Issuer
+
+	return nil
+}
+
+// QueryMetadata returns Metadata
+func (tect *TestExtConfigToken) QueryExtConfig() (*ExtConfig, error) {
+	return &tect.ExtConfig, nil
+}
+
+// TestInitWithExtConfig tests chaincode initialization of token with common config.
+func TestInitWithExtConfig(t *testing.T) {
+	t.Parallel()
+
+	mockStub := mocks.NewMockStub(t)
+	//user1, err := mocks.NewUserFoundation(pb.KeyType_ed25519)
+	//require.NoError(t, err)
+
+	issuer, err := mocks.NewUserFoundation(pb.KeyType_ed25519)
+	require.NoError(t, err)
+
+	asset, amount := "SOME_ASSET", "42"
+
+	extCfgEtl := &ExtConfig{
+		Asset:  asset,
+		Amount: amount,
+		Issuer: &pb.Wallet{Address: issuer.AddressBase58Check},
+	}
+	cfgEtl := &pb.Config{
+		Contract: &pb.ContractConfig{
+			Symbol:   "EXTCC",
+			RobotSKI: fixtures_test.RobotHashedCert,
+			Admin:    &pb.Wallet{Address: issuer.AddressBase58Check},
+		},
+	}
+	cfgEtl.ExtConfig, err = anypb.New(extCfgEtl)
+	require.NoError(t, err)
+	cfg, err := protojson.Marshal(cfgEtl)
+	require.NoError(t, err)
+
+	cc, err := core.NewCC(&TestExtConfigToken{})
+	require.NoError(t, err)
+
+	// Init new chaincode
+	mockStub.GetStringArgsReturns([]string{string(cfg)})
+	resp := cc.Init(mockStub)
+	require.Empty(t, resp.GetMessage())
+
+	// Checking config was set to state
+	var resultCfg pb.Config
+	key, value := mockStub.PutStateArgsForCall(0)
+	require.Equal(t, key, configKey)
+
+	err = protojson.Unmarshal(value, &resultCfg)
+	require.NoError(t, err)
+
+	// Validating contract config
+	require.True(t, proto.Equal(&resultCfg, cfgEtl))
+
+	// Read and validate ExtConfig data
+	mockStub.GetStateReturns(cfg, nil)
+	mockStub.GetFunctionAndParametersReturns("extConfig", []string{})
+
+	resp = cc.Invoke(mockStub)
+	require.NotEmpty(t, resp.GetPayload())
+
+	var m ExtConfig
+	err = json.Unmarshal(resp.GetPayload(), &m)
+	require.NoError(t, err)
+
+	require.True(t, proto.Equal(&m, extCfgEtl))
 }
