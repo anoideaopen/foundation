@@ -448,8 +448,6 @@ func TestInitWithExtConfig(t *testing.T) {
 	t.Parallel()
 
 	mockStub := mocks.NewMockStub(t)
-	//user1, err := mocks.NewUserFoundation(pb.KeyType_ed25519)
-	//require.NoError(t, err)
 
 	issuer, err := mocks.NewUserFoundation(pb.KeyType_ed25519)
 	require.NoError(t, err)
