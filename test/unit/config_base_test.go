@@ -349,7 +349,7 @@ func TestDisabledFunctions(t *testing.T) {
 	require.NoError(t, err)
 
 	// Calling TxTestFunction while it's not disabled
-	ctorArgs := prepareArgsWithSign(t, user1, testFunctionName, "", "")
+	ctorArgs := prepareArgsWithSign(t, user1, testFunctionName, "", "", "")
 	mockStub.GetStateReturns(config1, nil)
 	mockStub.GetFunctionAndParametersReturns(testFunctionName, ctorArgs)
 
@@ -369,7 +369,7 @@ func TestDisabledFunctions(t *testing.T) {
 	config2, _ := protojson.Marshal(cfgEtl)
 
 	//Calling TxTestFunction while it's disabled
-	ctorArgs = prepareArgsWithSign(t, user1, testFunctionName, "", "")
+	ctorArgs = prepareArgsWithSign(t, user1, testFunctionName, "", "", "")
 	mockStub.GetStateReturns(config2, nil)
 	mockStub.GetFunctionAndParametersReturns(testFunctionName, ctorArgs)
 
@@ -423,17 +423,18 @@ func prepareArgsWithSign(
 	t *testing.T,
 	user *mocks.UserFoundation,
 	functionName,
+	requestID,
 	channelName,
 	chaincodeName string,
 	args ...string,
 ) []string {
 	nonce := strconv.FormatInt(time.Now().UnixNano()/1000000, 10)
-	ctorArgs := append(append([]string{functionName, channelName, chaincodeName}, args...), nonce)
+	ctorArgs := append(append([]string{functionName, requestID, channelName, chaincodeName}, args...), nonce)
 
 	pubKey, sMsg, err := user.Sign(ctorArgs...)
 	require.NoError(t, err)
 
-	return append(ctorArgs, pubKey, base58.Encode(sMsg))
+	return append(ctorArgs[1:], pubKey, base58.Encode(sMsg))
 }
 
 func getExpectedConfigFromArgs(args []string) (*pb.Config, error) {
