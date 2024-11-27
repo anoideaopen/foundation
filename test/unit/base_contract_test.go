@@ -27,11 +27,14 @@ const (
 	testTokenWithGroup = "tt_testGroup"
 	testGroup          = "testGroup"
 
-	testMessageEmptyNonce = "\"0\""
+	testMessageDecodeWrongParameter = "invalid argument value: '': for type '*unit.TestStruct': 'hello world should not be empty': validate TxHelloWorldSet, argument 0"
+	testMessageEmptyNonce           = "\"0\""
 
-	testGetNonceFnName      = "getNonce"
-	testHelloWorldFnName    = "helloWorld"
-	testHelloWorldSetFnName = "helloWorldSet"
+	testFnGetNonce      = "getNonce"
+	testFnHelloWorld    = "helloWorld"
+	testFnHelloWorldSet = "helloWorldSet"
+	testFnBatchExecute  = "batchExecute"
+	testFnHealthCheck   = "healthCheck"
 )
 
 type TestToken struct {
@@ -97,125 +100,180 @@ func (tt *TestToken) TxEmissionAdd(sender *types.Sender, address *types.Address,
 	return tt.EmissionAdd(amount)
 }
 
-func TestBytesEncoder(t *testing.T) {
-	mockStub := mocks.NewMockStub(t)
-	owner, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
+func prepareAclResponse(t *testing.T, mockStub *mocks.ChaincodeStub) {
+	accInfo := &pbfound.AccountInfo{
+		GrayListed:  false,
+		BlackListed: false,
+	}
+
+	rawAccInfo, err := json.Marshal(accInfo)
 	require.NoError(t, err)
 
-	tt := &TestToken{}
-	config := makeBaseTokenConfig(testTokenName, testTokenSymbol, 8,
-		owner.AddressBase58Check, "", "", "", nil)
-
-	cc, err := core.NewCC(tt)
-	require.NoError(t, err)
-
-	t.Run("Get bytes encoded response", func(t *testing.T) {
-		mockStub.GetStateReturns([]byte(config), nil)
-		mockStub.GetFunctionAndParametersReturns(testHelloWorldFnName, []string{})
-		resp := cc.Invoke(mockStub)
-		require.Equal(t, resp.GetPayload(), []byte("Hello World"))
+	// mock acl response
+	mockStub.InvokeChaincodeReturns(peer.Response{
+		Status:  http.StatusOK,
+		Message: "",
+		Payload: rawAccInfo,
 	})
 }
 
-func TestBytesDecoder(t *testing.T) {
-	mockStub := mocks.NewMockStub(t)
-	owner, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
-	require.NoError(t, err)
+func TestContractMethods(t *testing.T) {
+	t.Parallel()
 
-	tt := &TestToken{}
-	config := makeBaseTokenConfig(testTokenName, testTokenSymbol, 8,
-		owner.AddressBase58Check, "", "", "", nil)
+	testCollection := []struct {
+		name                      string
+		owner                     *mocks.UserFoundation
+		needAclAccess             bool
+		functionName              string
+		resultMessage             string
+		preparePayloadEqual       func() []byte
+		preparePayloadNotEqual    func() []byte
+		prepareFunctionParameters func(owner *mocks.UserFoundation) []string
+		prepareMockStubAdditional func(t *testing.T, mockStub *mocks.ChaincodeStub, owner *mocks.UserFoundation)
+	}{
+		{
+			name:          "bytes encoder test",
+			needAclAccess: false,
+			functionName:  testFnHelloWorld,
+			prepareFunctionParameters: func(owner *mocks.UserFoundation) []string {
+				return []string{}
+			},
+			resultMessage: "",
+			preparePayloadEqual: func() []byte {
+				return []byte("Hello World")
+			},
+		},
+		{
+			name:          "bytes decoder test",
+			needAclAccess: false,
+			functionName:  testFnHelloWorldSet,
+			prepareFunctionParameters: func(owner *mocks.UserFoundation) []string {
+				return []string{"Hi!"}
+			},
+			resultMessage: "",
+			preparePayloadEqual: func() []byte {
+				return nil
+			},
+		},
+		{
+			name:          "[negative] bytes decoder test",
+			needAclAccess: false,
+			functionName:  testFnHelloWorldSet,
+			prepareFunctionParameters: func(owner *mocks.UserFoundation) []string {
+				return []string{""}
+			},
+			resultMessage: testMessageDecodeWrongParameter,
+			preparePayloadEqual: func() []byte {
+				return nil
+			},
+		},
+		{
+			name:          "empty nonce in state",
+			needAclAccess: true,
+			functionName:  testFnGetNonce,
+			prepareFunctionParameters: func(owner *mocks.UserFoundation) []string {
+				return []string{owner.AddressBase58Check}
+			},
+			resultMessage: "",
+			preparePayloadEqual: func() []byte {
+				return []byte(testMessageEmptyNonce)
+			},
+			prepareMockStubAdditional: func(t *testing.T, mockStub *mocks.ChaincodeStub, owner *mocks.UserFoundation) {
+				mockStub.GetStateReturnsOnCall(1, nil, nil)
+			},
+		},
+		{
+			name:          "existed nonce in state",
+			needAclAccess: true,
+			functionName:  testFnGetNonce,
+			prepareFunctionParameters: func(owner *mocks.UserFoundation) []string {
+				return []string{owner.AddressBase58Check}
+			},
+			resultMessage: "",
+			preparePayloadNotEqual: func() []byte {
+				return []byte(testMessageEmptyNonce)
+			},
+			prepareMockStubAdditional: func(t *testing.T, mockStub *mocks.ChaincodeStub, owner *mocks.UserFoundation) {
+				mockStub.GetStateReturnsOnCall(1, []byte(strconv.FormatInt(time.Now().UnixNano()/1000000, 10)), nil)
+			},
+		},
+		{
+			name:         "health check",
+			functionName: testFnBatchExecute,
+			prepareFunctionParameters: func(owner *mocks.UserFoundation) []string {
+				dataIn, err := pb.Marshal(&pbfound.Batch{TxIDs: [][]byte{[]byte("testTxID")}})
+				require.NoError(t, err)
 
-	cc, err := core.NewCC(tt)
-	require.NoError(t, err)
+				return []string{string(dataIn)}
+			},
+			resultMessage: "",
+			preparePayloadNotEqual: func() []byte {
+				return nil
+			},
+			prepareMockStubAdditional: func(t *testing.T, mockStub *mocks.ChaincodeStub, owner *mocks.UserFoundation) {
+				ownerAddress := sha3.Sum256(owner.PublicKeyBytes)
 
-	t.Run("Set bytes encoded response", func(t *testing.T) {
-		mockStub.GetStateReturns([]byte(config), nil)
-		mockStub.GetFunctionAndParametersReturns(testHelloWorldSetFnName, []string{"Hi!"})
-		resp := cc.Invoke(mockStub)
-		require.Empty(t, resp.GetMessage())
-	})
+				pending := &pbfound.PendingTx{
+					Method: testFnHealthCheck,
+					Sender: &pbfound.Address{
+						UserID:       owner.UserID,
+						Address:      ownerAddress[:],
+						IsIndustrial: false,
+						IsMultisig:   false,
+					},
+					Args:  []string{},
+					Nonce: uint64(time.Now().UnixNano() / 1000000),
+				}
+				pendingMarshalled, err := pb.Marshal(pending)
+				require.NoError(t, err)
 
-	t.Run("Set bytes encoded response", func(t *testing.T) {
-		mockStub.GetStateReturns([]byte(config), nil)
-		mockStub.GetFunctionAndParametersReturns(testHelloWorldSetFnName, []string{""})
-		resp := cc.Invoke(mockStub)
-		require.NotEmpty(t, resp.GetMessage())
-	})
-}
+				err = mocks.SetCreator(mockStub, BatchRobotCert)
+				require.NoError(t, err)
 
-// TestGetEmptyNonce - Checking that new wallet have empty nonce
-func TestGetEmptyNonce(t *testing.T) {
-	mockStub := mocks.NewMockStub(t)
-	owner, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
-	require.NoError(t, err)
+				mockStub.GetStateReturnsOnCall(1, pendingMarshalled, nil)
+			},
+		},
+	}
 
-	tt := &TestToken{}
-	config := makeBaseTokenConfig(testTokenName, testTokenSymbol, 8,
-		owner.AddressBase58Check, "", "", "", nil)
+	for _, test := range testCollection {
+		t.Run(test.name, func(t *testing.T) {
+			mockStub := mocks.NewMockStub(t)
+			owner, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
+			require.NoError(t, err)
 
-	cc, err := core.NewCC(tt)
-	require.NoError(t, err)
+			tt := &TestToken{}
+			config := makeBaseTokenConfig(testTokenName, testTokenSymbol, 8,
+				owner.AddressBase58Check, "", "", "", nil)
 
-	t.Run("Get nonce with new wallet", func(t *testing.T) {
-		accInfo := &pbfound.AccountInfo{
-			GrayListed:  false,
-			BlackListed: false,
-		}
+			cc, err := core.NewCC(tt)
+			require.NoError(t, err)
 
-		rawAccInfo, err := json.Marshal(accInfo)
-		require.NoError(t, err)
+			// preparing mockStub
+			if test.needAclAccess {
+				prepareAclResponse(t, mockStub)
+			}
 
-		mockStub.GetStateReturnsOnCall(0, []byte(config), nil)
-		mockStub.GetStateReturnsOnCall(1, nil, nil) // nonce not exists in the chaincode state
-		mockStub.GetFunctionAndParametersReturns(testGetNonceFnName, []string{owner.AddressBase58Check})
-		// mock acl response
-		mockStub.InvokeChaincodeReturns(peer.Response{
-			Status:  http.StatusOK,
-			Message: "",
-			Payload: rawAccInfo,
+			mockStub.GetStateReturnsOnCall(0, []byte(config), nil)
+
+			if test.prepareMockStubAdditional != nil {
+				test.prepareMockStubAdditional(t, mockStub, owner)
+			}
+
+			mockStub.GetFunctionAndParametersReturns(test.functionName, test.prepareFunctionParameters(owner))
+			resp := cc.Invoke(mockStub)
+			if test.resultMessage != "" {
+				require.Equal(t, test.resultMessage, resp.GetMessage())
+			} else {
+				require.Empty(t, resp.GetMessage())
+				if test.preparePayloadEqual != nil {
+					require.Equal(t, test.preparePayloadEqual(), resp.Payload)
+				}
+				if test.preparePayloadNotEqual != nil {
+					require.NotEqual(t, test.preparePayloadNotEqual(), resp.Payload)
+				}
+			}
 		})
-		resp := cc.Invoke(mockStub)
-		require.Equal(t, testMessageEmptyNonce, string(resp.GetPayload()))
-	})
-}
-
-// TestGetNonce - Checking that the nonce after some operation is not null
-func TestGetNonce(t *testing.T) {
-	mockStub := mocks.NewMockStub(t)
-	owner, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
-	require.NoError(t, err)
-
-	tt := &TestToken{}
-	config := makeBaseTokenConfig(testTokenName, testTokenSymbol, 8,
-		owner.AddressBase58Check, "", "", "", nil)
-
-	cc, err := core.NewCC(tt)
-	require.NoError(t, err)
-
-	t.Run("Get nonce with new wallet", func(t *testing.T) {
-		nonce := strconv.FormatInt(time.Now().UnixNano()/1000000, 10)
-
-		accInfo := &pbfound.AccountInfo{
-			GrayListed:  false,
-			BlackListed: false,
-		}
-
-		rawAccInfo, err := json.Marshal(accInfo)
-		require.NoError(t, err)
-
-		mockStub.GetStateReturnsOnCall(0, []byte(config), nil)
-		mockStub.GetStateReturnsOnCall(1, []byte(nonce), nil) // nonce exists in the chaincode state
-		mockStub.GetFunctionAndParametersReturns(testGetNonceFnName, []string{owner.AddressBase58Check})
-		// mock acl response
-		mockStub.InvokeChaincodeReturns(peer.Response{
-			Status:  http.StatusOK,
-			Message: "",
-			Payload: rawAccInfo,
-		})
-		resp := cc.Invoke(mockStub)
-		require.NotEqual(t, testMessageEmptyNonce, string(resp.GetPayload()))
-	})
+	}
 }
 
 // TestInit - Checking that init with right mspId working
@@ -253,54 +311,5 @@ func TestInit(t *testing.T) {
 		key, value := mockStub.PutStateArgsForCall(0)
 		require.Equal(t, configKey, key)
 		require.Equal(t, config, string(value))
-	})
-}
-
-// TestTxHealthCheck - Checking healthcheck method.
-func TestTxHealthCheck(t *testing.T) {
-	mockStub := mocks.NewMockStub(t)
-	owner, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
-	require.NoError(t, err)
-
-	tt := &TestToken{}
-	config := makeBaseTokenConfig(testTokenName, testTokenSymbol, 8,
-		owner.AddressBase58Check, "", "", "", nil)
-
-	cc, err := core.NewCC(tt)
-	require.NoError(t, err)
-
-	t.Run("Healthcheck checking", func(t *testing.T) {
-		fnHealthCheck := "healthCheck"
-
-		ownerAddress := sha3.Sum256(owner.PublicKeyBytes)
-
-		pending := &pbfound.PendingTx{
-			Method: fnHealthCheck,
-			Sender: &pbfound.Address{
-				UserID:       owner.UserID,
-				Address:      ownerAddress[:],
-				IsIndustrial: false,
-				IsMultisig:   false,
-			},
-			Args:  []string{},
-			Nonce: uint64(time.Now().UnixNano() / 1000000),
-		}
-		pendingMarshalled, err := pb.Marshal(pending)
-		require.NoError(t, err)
-
-		dataIn, err := pb.Marshal(&pbfound.Batch{TxIDs: [][]byte{[]byte("testTxID")}})
-		require.NoError(t, err)
-
-		err = mocks.SetCreator(mockStub, BatchRobotCert)
-		require.NoError(t, err)
-
-		mockStub.GetFunctionAndParametersReturns("batchExecute", []string{string(dataIn)})
-
-		mockStub.GetStateReturnsOnCall(0, []byte(config), nil)
-		mockStub.GetStateReturnsOnCall(1, pendingMarshalled, nil)
-
-		resp := cc.Invoke(mockStub)
-		require.Empty(t, resp.GetMessage())
-		require.NotEmpty(t, resp.GetPayload())
 	})
 }
