@@ -3,45 +3,24 @@ package mocks
 import (
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"encoding/pem"
 	"errors"
+	"net/http"
+	"strconv"
 	"testing"
+	"time"
 
+	pbfound "github.com/anoideaopen/foundation/proto"
+	"github.com/btcsuite/btcd/btcutil/base58"
 	"github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/google/uuid"
 	"github.com/hyperledger/fabric-chaincode-go/shim"
 	"github.com/hyperledger/fabric-protos-go/msp"
 	"github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/crypto/sha3"
 )
-
-const DefaultCert = `MIICSjCCAfGgAwIBAgIRAKeZTS2c/qkXBN0Vkh+0WYQwCgYIKoZIzj0EAwIwgYcx
-CzAJBgNVBAYTAlVTMRMwEQYDVQQIEwpDYWxpZm9ybmlhMRYwFAYDVQQHEw1TYW4g
-RnJhbmNpc2NvMSMwIQYDVQQKExphdG9teXplLnVhdC5kbHQuYXRvbXl6ZS5jaDEm
-MCQGA1UEAxMdY2EuYXRvbXl6ZS51YXQuZGx0LmF0b215emUuY2gwHhcNMjAxMDEz
-MDg1NjAwWhcNMzAxMDExMDg1NjAwWjB3MQswCQYDVQQGEwJVUzETMBEGA1UECBMK
-Q2FsaWZvcm5pYTEWMBQGA1UEBxMNU2FuIEZyYW5jaXNjbzEPMA0GA1UECxMGY2xp
-ZW50MSowKAYDVQQDDCFVc2VyMTBAYXRvbXl6ZS51YXQuZGx0LmF0b215emUuY2gw
-WTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAAR3V6z/nVq66HBDxFFN3/3rUaJLvHgW
-FzoKaA/qZQyV919gdKr82LDy8N2kAYpAcP7dMyxMmmGOPbo53locYWIyo00wSzAO
-BgNVHQ8BAf8EBAMCB4AwDAYDVR0TAQH/BAIwADArBgNVHSMEJDAigCBSv0ueZaB3
-qWu/AwOtbOjaLd68woAqAklfKKhfu10K+DAKBggqhkjOPQQDAgNHADBEAiBFB6RK
-O7huI84Dy3fXeA324ezuqpJJkfQOJWkbHjL+pQIgFKIqBJrDl37uXNd3eRGJTL+o
-21ZL8pGXH8h0nHjOF9M=`
-
-const AdminCert = `MIICSDCCAe6gAwIBAgIQAJwYy5PJAYSC1i0UgVN5bjAKBggqhkjOPQQDAjCBhzEL
-MAkGA1UEBhMCVVMxEzARBgNVBAgTCkNhbGlmb3JuaWExFjAUBgNVBAcTDVNhbiBG
-cmFuY2lzY28xIzAhBgNVBAoTGmF0b215emUudWF0LmRsdC5hdG9teXplLmNoMSYw
-JAYDVQQDEx1jYS5hdG9teXplLnVhdC5kbHQuYXRvbXl6ZS5jaDAeFw0yMDEwMTMw
-ODU2MDBaFw0zMDEwMTEwODU2MDBaMHUxCzAJBgNVBAYTAlVTMRMwEQYDVQQIEwpD
-YWxpZm9ybmlhMRYwFAYDVQQHEw1TYW4gRnJhbmNpc2NvMQ4wDAYDVQQLEwVhZG1p
-bjEpMCcGA1UEAwwgQWRtaW5AYXRvbXl6ZS51YXQuZGx0LmF0b215emUuY2gwWTAT
-BgcqhkjOPQIBBggqhkjOPQMBBwNCAAQGQX9IhgjCtd3mYZ9DUszmUgvubepVMPD5
-FlwjCglB2SiWuE2rT/T5tHJsU/Y9ZXFtOOpy/g9tQ/0wxDWwpkbro00wSzAOBgNV
-HQ8BAf8EBAMCB4AwDAYDVR0TAQH/BAIwADArBgNVHSMEJDAigCBSv0ueZaB3qWu/
-AwOtbOjaLd68woAqAklfKKhfu10K+DAKBggqhkjOPQQDAgNIADBFAiEAoKRQLe4U
-FfAAwQs3RCWpevOPq+J8T4KEsYvswKjzfJYCIAs2kOmN/AsVUF63unXJY0k9ktfD
-fAaqNRaboY1Yg1iQ`
 
 const TestCreatorMSP = "platformMSP"
 
@@ -103,4 +82,84 @@ func NewMockStub(t *testing.T) *ChaincodeStub {
 	})
 
 	return mockStub
+}
+
+// GetNewStringNonce returns string value of nonce based on current time
+func GetNewStringNonce() string {
+	return strconv.FormatInt(time.Now().UnixNano()/1000000, 10)
+}
+
+// SetFunctionAndParameters sets function name and its parameters to ChaincodeStub
+func SetFunctionAndParameters(mockStub *ChaincodeStub, functionName, requestID, channelName, chaincodeName string, args ...string) {
+	ctorArgs := append(append([]string{requestID, channelName, chaincodeName}, args...), GetNewStringNonce())
+	mockStub.GetFunctionAndParametersReturns(functionName, ctorArgs)
+}
+
+// SetFunctionAndParametersWithSign sets function name and parameters with sender sign to ChaincodeStub
+func SetFunctionAndParametersWithSign(
+	mockStub *ChaincodeStub,
+	user *UserFoundation,
+	functionName,
+	requestID,
+	channelName,
+	chaincodeName string,
+	args ...string,
+) error {
+	ctorArgs := append(append([]string{functionName, requestID, channelName, chaincodeName}, args...), GetNewStringNonce())
+
+	pubKey, sMsg, err := user.Sign(ctorArgs...)
+	if err != nil {
+		return err
+	}
+
+	mockStub.GetFunctionAndParametersReturns(functionName, append(ctorArgs[1:], pubKey, base58.Encode(sMsg)))
+	return nil
+}
+
+// ACLGetAccountInfo mocks positive response from ACL
+func ACLGetAccountInfo(t *testing.T, mockStub *ChaincodeStub, invokeCallCount int) {
+	accInfo := &pbfound.AccountInfo{
+		GrayListed:  false,
+		BlackListed: false,
+	}
+
+	rawAccInfo, err := json.Marshal(accInfo)
+	require.NoError(t, err)
+
+	// mock acl response
+	mockStub.InvokeChaincodeReturnsOnCall(invokeCallCount, peer.Response{
+		Status:  http.StatusOK,
+		Message: "",
+		Payload: rawAccInfo,
+	})
+}
+
+// ACLCheckSigner mocks positive response from ACL for signer
+func ACLCheckSigner(t *testing.T, mockStub *ChaincodeStub, user *UserFoundation) {
+	userAddress := sha3.Sum256(user.PublicKeyBytes)
+
+	aclResponse := &pbfound.AclResponse{
+		Account: &pbfound.AccountInfo{
+			GrayListed:  false,
+			BlackListed: false,
+		},
+		Address: &pbfound.SignedAddress{
+			Address: &pbfound.Address{
+				UserID:       user.UserID,
+				Address:      userAddress[:],
+				IsIndustrial: false,
+				IsMultisig:   false,
+			},
+		},
+		KeyTypes: []pbfound.KeyType{user.KeyType},
+	}
+
+	rawResponse, err := proto.Marshal(aclResponse)
+	require.NoError(t, err)
+
+	mockStub.InvokeChaincodeReturnsOnCall(0, peer.Response{
+		Status:  http.StatusOK,
+		Message: "",
+		Payload: rawResponse,
+	})
 }

@@ -6,7 +6,6 @@ import (
 	"strconv"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/anoideaopen/foundation/core"
 	"github.com/anoideaopen/foundation/core/config"
@@ -15,7 +14,6 @@ import (
 	pb "github.com/anoideaopen/foundation/proto"
 	"github.com/anoideaopen/foundation/test/unit/fixtures_test"
 	"github.com/anoideaopen/foundation/token"
-	"github.com/btcsuite/btcd/btcutil/base58"
 	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -349,9 +347,10 @@ func TestDisabledFunctions(t *testing.T) {
 	require.NoError(t, err)
 
 	// Calling TxTestFunction while it's not disabled
-	ctorArgs := prepareArgsWithSign(t, user1, testFunctionName, "", "", "")
 	mockStub.GetStateReturns(config1, nil)
-	mockStub.GetFunctionAndParametersReturns(testFunctionName, ctorArgs)
+
+	err = mocks.SetFunctionAndParametersWithSign(mockStub, user1, testFunctionName, "", "", "")
+	require.NoError(t, err)
 
 	resp := cc.Invoke(mockStub)
 	require.Empty(t, resp.GetMessage())
@@ -369,9 +368,9 @@ func TestDisabledFunctions(t *testing.T) {
 	config2, _ := protojson.Marshal(cfgEtl)
 
 	//Calling TxTestFunction while it's disabled
-	ctorArgs = prepareArgsWithSign(t, user1, testFunctionName, "", "", "")
 	mockStub.GetStateReturns(config2, nil)
-	mockStub.GetFunctionAndParametersReturns(testFunctionName, ctorArgs)
+	err = mocks.SetFunctionAndParametersWithSign(mockStub, user1, testFunctionName, "", "", "")
+	require.NoError(t, err)
 
 	resp = cc.Invoke(mockStub)
 	require.Equal(t, "invoke: finding method: method 'testFunction' not found", resp.GetMessage())
@@ -417,24 +416,6 @@ func TestConfigValidation(t *testing.T) {
 		}
 		require.Error(t, cfg.Validate(), s)
 	}
-}
-
-func prepareArgsWithSign(
-	t *testing.T,
-	user *mocks.UserFoundation,
-	functionName,
-	requestID,
-	channelName,
-	chaincodeName string,
-	args ...string,
-) []string {
-	nonce := strconv.FormatInt(time.Now().UnixNano()/1000000, 10)
-	ctorArgs := append(append([]string{functionName, requestID, channelName, chaincodeName}, args...), nonce)
-
-	pubKey, sMsg, err := user.Sign(ctorArgs...)
-	require.NoError(t, err)
-
-	return append(ctorArgs[1:], pubKey, base58.Encode(sMsg))
 }
 
 func getExpectedConfigFromArgs(args []string) (*pb.Config, error) {

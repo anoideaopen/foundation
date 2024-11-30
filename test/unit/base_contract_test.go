@@ -1,9 +1,7 @@
 package unit
 
 import (
-	"encoding/json"
 	"errors"
-	"net/http"
 	"strconv"
 	"testing"
 	"time"
@@ -14,7 +12,6 @@ import (
 	"github.com/anoideaopen/foundation/mocks"
 	pbfound "github.com/anoideaopen/foundation/proto"
 	"github.com/anoideaopen/foundation/token"
-	"github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/sha3"
 	pb "google.golang.org/protobuf/proto"
@@ -100,30 +97,13 @@ func (tt *TestToken) TxEmissionAdd(sender *types.Sender, address *types.Address,
 	return tt.EmissionAdd(amount)
 }
 
-func prepareAclResponse(t *testing.T, mockStub *mocks.ChaincodeStub) {
-	accInfo := &pbfound.AccountInfo{
-		GrayListed:  false,
-		BlackListed: false,
-	}
-
-	rawAccInfo, err := json.Marshal(accInfo)
-	require.NoError(t, err)
-
-	// mock acl response
-	mockStub.InvokeChaincodeReturns(peer.Response{
-		Status:  http.StatusOK,
-		Message: "",
-		Payload: rawAccInfo,
-	})
-}
-
 func TestContractMethods(t *testing.T) {
 	t.Parallel()
 
 	testCollection := []struct {
 		name                      string
 		owner                     *mocks.UserFoundation
-		needAclAccess             bool
+		needACLAccess             bool
 		functionName              string
 		resultMessage             string
 		preparePayloadEqual       func() []byte
@@ -133,7 +113,7 @@ func TestContractMethods(t *testing.T) {
 	}{
 		{
 			name:          "bytes encoder test",
-			needAclAccess: false,
+			needACLAccess: false,
 			functionName:  testFnHelloWorld,
 			prepareFunctionParameters: func(owner *mocks.UserFoundation) []string {
 				return []string{}
@@ -145,7 +125,7 @@ func TestContractMethods(t *testing.T) {
 		},
 		{
 			name:          "bytes decoder test",
-			needAclAccess: false,
+			needACLAccess: false,
 			functionName:  testFnHelloWorldSet,
 			prepareFunctionParameters: func(owner *mocks.UserFoundation) []string {
 				return []string{"Hi!"}
@@ -157,7 +137,7 @@ func TestContractMethods(t *testing.T) {
 		},
 		{
 			name:          "[negative] bytes decoder test",
-			needAclAccess: false,
+			needACLAccess: false,
 			functionName:  testFnHelloWorldSet,
 			prepareFunctionParameters: func(owner *mocks.UserFoundation) []string {
 				return []string{""}
@@ -169,7 +149,7 @@ func TestContractMethods(t *testing.T) {
 		},
 		{
 			name:          "empty nonce in state",
-			needAclAccess: true,
+			needACLAccess: true,
 			functionName:  testFnGetNonce,
 			prepareFunctionParameters: func(owner *mocks.UserFoundation) []string {
 				return []string{owner.AddressBase58Check}
@@ -184,7 +164,7 @@ func TestContractMethods(t *testing.T) {
 		},
 		{
 			name:          "existed nonce in state",
-			needAclAccess: true,
+			needACLAccess: true,
 			functionName:  testFnGetNonce,
 			prepareFunctionParameters: func(owner *mocks.UserFoundation) []string {
 				return []string{owner.AddressBase58Check}
@@ -249,8 +229,8 @@ func TestContractMethods(t *testing.T) {
 			require.NoError(t, err)
 
 			// preparing mockStub
-			if test.needAclAccess {
-				prepareAclResponse(t, mockStub)
+			if test.needACLAccess {
+				mocks.ACLGetAccountInfo(t, mockStub, 0)
 			}
 
 			mockStub.GetStateReturnsOnCall(0, []byte(config), nil)

@@ -54,7 +54,7 @@ func (cc *Chaincode) validateAndExtractInvocationContext(
 		return nil, nil, 0, err
 	}
 
-	// Check the correspondence between the name and the channel of the chancode.
+	// Check the correspondence between the name and the channel of the chaincode.
 	if err = checkChaincodeAndChannelName(
 		stub,
 		invocation.chaincodeNameArg,
