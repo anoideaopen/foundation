@@ -118,10 +118,7 @@ func SetFunctionAndParametersWithSign(
 
 // ACLGetAccountInfo mocks positive response from ACL
 func ACLGetAccountInfo(t *testing.T, mockStub *ChaincodeStub, invokeCallCount int) {
-	accInfo := &pbfound.AccountInfo{
-		GrayListed:  false,
-		BlackListed: false,
-	}
+	accInfo := &pbfound.AccountInfo{}
 
 	rawAccInfo, err := json.Marshal(accInfo)
 	require.NoError(t, err)
@@ -135,20 +132,16 @@ func ACLGetAccountInfo(t *testing.T, mockStub *ChaincodeStub, invokeCallCount in
 }
 
 // ACLCheckSigner mocks positive response from ACL for signer
-func ACLCheckSigner(t *testing.T, mockStub *ChaincodeStub, user *UserFoundation) {
+func ACLCheckSigner(t *testing.T, mockStub *ChaincodeStub, user *UserFoundation, isIndustrial bool) {
 	userAddress := sha3.Sum256(user.PublicKeyBytes)
 
 	aclResponse := &pbfound.AclResponse{
-		Account: &pbfound.AccountInfo{
-			GrayListed:  false,
-			BlackListed: false,
-		},
+		Account: &pbfound.AccountInfo{},
 		Address: &pbfound.SignedAddress{
 			Address: &pbfound.Address{
 				UserID:       user.UserID,
 				Address:      userAddress[:],
-				IsIndustrial: false,
-				IsMultisig:   false,
+				IsIndustrial: isIndustrial,
 			},
 		},
 		KeyTypes: []pbfound.KeyType{user.KeyType},
