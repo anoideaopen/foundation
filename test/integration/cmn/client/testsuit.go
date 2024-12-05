@@ -1,13 +1,13 @@
 package client
 
 import (
-	"github.com/anoideaopen/foundation/mocks"
-	pbfound "github.com/anoideaopen/foundation/proto"
 	"os"
 	"path/filepath"
 	"syscall"
 	"time"
 
+	"github.com/anoideaopen/foundation/mocks"
+	pbfound "github.com/anoideaopen/foundation/proto"
 	"github.com/anoideaopen/foundation/test/integration/cmn"
 	"github.com/anoideaopen/foundation/test/integration/cmn/fabricnetwork"
 	"github.com/anoideaopen/foundation/test/integration/cmn/runner"
