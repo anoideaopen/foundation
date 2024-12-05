@@ -102,11 +102,11 @@ func (l *Ledger) NewCC(
 	opts ...core.ChaincodeOption,
 ) string {
 	_, exists := l.stubs[name]
+	errStubAlreadyExists := fmt.Sprintf("stub with name '%s' has already exist in ledger mock; try to use other chaincode name.", name)
 	require.False(
 		l.t,
 		exists,
-		fmt.Sprintf("stub with name '%s' has already exist in ledger mock; "+
-			"try to use other chaincode name.", name),
+		errStubAlreadyExists,
 	)
 
 	cc, err := core.NewCC(bci, opts...)
