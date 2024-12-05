@@ -2,12 +2,12 @@ package client
 
 import (
 	"github.com/anoideaopen/foundation/mocks"
+	pbfound "github.com/anoideaopen/foundation/proto"
 	"os"
 	"path/filepath"
 	"syscall"
 	"time"
 
-	pbfound "github.com/anoideaopen/foundation/proto"
 	"github.com/anoideaopen/foundation/test/integration/cmn"
 	"github.com/anoideaopen/foundation/test/integration/cmn/fabricnetwork"
 	"github.com/anoideaopen/foundation/test/integration/cmn/runner"
@@ -44,6 +44,7 @@ type FoundationTestSuite struct {
 
 	components          *nwo.Components
 	options             *networkOptions
+	userOptions         *userOptions
 	testDir             string
 	dockerClient        *docker.Client
 	redisDB             *runner.RedisDB
@@ -63,7 +64,7 @@ type FoundationTestSuite struct {
 	isInit bool
 }
 
-func NewTestSuite(components *nwo.Components) *FoundationTestSuite {
+func NewTestSuite(components *nwo.Components, opts ...UserOption) *FoundationTestSuite {
 	testDir, err := os.MkdirTemp("", "foundation")
 	Expect(err).NotTo(HaveOccurred())
 
@@ -89,7 +90,17 @@ func NewTestSuite(components *nwo.Components) *FoundationTestSuite {
 				ChannelTransfer: "",
 			},
 		},
+		userOptions: &userOptions{
+			AdminKeyType:            pbfound.KeyType_ed25519,
+			FeeSetterKeyType:        pbfound.KeyType_ed25519,
+			FeeAddressSetterKeyType: pbfound.KeyType_ed25519,
+		},
 		isInit: false,
+	}
+
+	for _, opt := range opts {
+		err := opt(ts.userOptions)
+		Expect(err).NotTo(HaveOccurred())
 	}
 
 	return ts
@@ -194,15 +205,15 @@ func (ts *FoundationTestSuite) InitNetwork(channels []string, testPort integrati
 	ts.skiBackend = skiBackend
 	ts.skiRobot = skiRobot
 
-	ts.admin, err = mocks.NewUserFoundation(pbfound.KeyType_ed25519)
+	ts.admin, err = mocks.NewUserFoundation(ts.userOptions.AdminKeyType)
 	Expect(err).NotTo(HaveOccurred())
 	Expect(ts.admin.PrivateKeyBytes).NotTo(Equal(nil))
 
-	ts.feeSetter, err = mocks.NewUserFoundation(pbfound.KeyType_ed25519)
+	ts.feeSetter, err = mocks.NewUserFoundation(ts.userOptions.FeeSetterKeyType)
 	Expect(err).NotTo(HaveOccurred())
 	Expect(ts.feeSetter.PrivateKeyBytes).NotTo(Equal(nil))
 
-	ts.feeAddressSetter, err = mocks.NewUserFoundation(pbfound.KeyType_ed25519)
+	ts.feeAddressSetter, err = mocks.NewUserFoundation(ts.userOptions.FeeAddressSetterKeyType)
 	Expect(err).NotTo(HaveOccurred())
 	Expect(ts.feeAddressSetter.PrivateKeyBytes).NotTo(Equal(nil))
 
