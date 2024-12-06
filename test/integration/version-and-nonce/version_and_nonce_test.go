@@ -6,7 +6,6 @@ import (
 	"runtime/debug"
 
 	"github.com/anoideaopen/foundation/mocks"
-
 	pbfound "github.com/anoideaopen/foundation/proto"
 	"github.com/anoideaopen/foundation/test/integration/cmn"
 	"github.com/anoideaopen/foundation/test/integration/cmn/client"
