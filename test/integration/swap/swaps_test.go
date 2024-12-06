@@ -15,7 +15,7 @@ import (
 
 var _ = Describe("Swap Tests", func() {
 	var (
-		channels = []string{cmn.ChannelAcl, cmn.ChannelCC, cmn.ChannelFiat, cmn.ChannelIndustrial}
+		channels = []string{cmn.ChannelACL, cmn.ChannelCC, cmn.ChannelFiat, cmn.ChannelIndustrial}
 		ts       client.TestSuite
 	)
 

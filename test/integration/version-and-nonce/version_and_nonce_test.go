@@ -3,8 +3,9 @@ package version_and_nonce
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/anoideaopen/foundation/mocks"
 	"runtime/debug"
+
+	"github.com/anoideaopen/foundation/mocks"
 
 	pbfound "github.com/anoideaopen/foundation/proto"
 	"github.com/anoideaopen/foundation/test/integration/cmn"
@@ -16,7 +17,7 @@ import (
 
 var _ = Describe("Version and Nonce Tests", func() {
 	var (
-		channels = []string{cmn.ChannelAcl, cmn.ChannelCC, cmn.ChannelFiat, cmn.ChannelIndustrial}
+		channels = []string{cmn.ChannelACL, cmn.ChannelCC, cmn.ChannelFiat, cmn.ChannelIndustrial}
 		ts       client.TestSuite
 	)
 

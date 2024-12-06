@@ -22,14 +22,17 @@ func ReadSKI(pathToPrivateKey string) (string, error) {
 		return "", fmt.Errorf("parse private key file content: %w", err)
 	}
 
-	ski := sKI(privateKey)
+	ski, err := sKI(privateKey)
+	if err != nil {
+		return "", err
+	}
 	return hex.EncodeToString(ski), nil
 }
 
 // sKI returns the subject key identifier of this key.
-func sKI(privKey *ecdsa.PrivateKey) []byte {
+func sKI(privKey *ecdsa.PrivateKey) ([]byte, error) {
 	if privKey == nil {
-		return nil
+		return nil, nil
 	}
 
 	// Marshall the public key
@@ -38,7 +41,7 @@ func sKI(privKey *ecdsa.PrivateKey) []byte {
 	// Hash it
 	hash := sha256.New()
 	hash.Write(raw)
-	return hash.Sum(nil)
+	return hash.Sum(nil), nil
 }
 
 func pemToPrivateKey(raw []byte, pwd []byte) (*ecdsa.PrivateKey, error) {

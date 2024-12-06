@@ -340,7 +340,7 @@ func (ts *FoundationTestSuite) DeployChaincodes() {
 func (ts *FoundationTestSuite) DeployChaincodesByName(channels []string) {
 	for _, channel := range channels {
 		switch channel {
-		case cmn.ChannelAcl:
+		case cmn.ChannelACL:
 			cmn.DeployACL(ts.Network, ts.components, ts.Peer, ts.testDir, ts.skiBackend, ts.admin.PublicKeyBase58, ts.admin.KeyType)
 		case cmn.ChannelFiat:
 			cmn.DeployFiat(ts.Network, ts.components, ts.Peer, ts.testDir, ts.skiRobot, ts.admin.AddressBase58Check, ts.feeSetter.AddressBase58Check, ts.feeAddressSetter.AddressBase58Check)

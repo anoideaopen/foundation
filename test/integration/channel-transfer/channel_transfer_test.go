@@ -34,7 +34,7 @@ var _ = Describe("Channel transfer foundation Tests", func() {
 	})
 
 	var (
-		channels     = []string{cmn.ChannelAcl, cmn.ChannelCC, cmn.ChannelFiat, cmn.ChannelIndustrial}
+		channels     = []string{cmn.ChannelACL, cmn.ChannelCC, cmn.ChannelFiat, cmn.ChannelIndustrial}
 		user         *mocks.UserFoundation
 		clientCtx    context.Context
 		apiClient    cligrpc.APIClient

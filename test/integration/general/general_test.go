@@ -159,7 +159,7 @@ var _ = Describe("Basic foundation Tests", func() {
 
 	Describe("foundation test", func() {
 		var (
-			channels = []string{cmn.ChannelAcl, cmn.ChannelCC, cmn.ChannelFiat, cmn.ChannelIndustrial}
+			channels = []string{cmn.ChannelACL, cmn.ChannelCC, cmn.ChannelFiat, cmn.ChannelIndustrial}
 			ts       client.TestSuite
 		)
 

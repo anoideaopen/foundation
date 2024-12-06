@@ -2,10 +2,10 @@ package client
 
 import (
 	"fmt"
-	"github.com/anoideaopen/foundation/mocks"
 	"time"
 
 	"github.com/anoideaopen/foundation/core"
+	"github.com/anoideaopen/foundation/mocks"
 	pbfound "github.com/anoideaopen/foundation/proto"
 	"github.com/anoideaopen/foundation/test/integration/cmn"
 	"github.com/anoideaopen/foundation/test/integration/cmn/client/types"

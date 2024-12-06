@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"time"
 
@@ -20,7 +21,7 @@ import (
 )
 
 const (
-	HttpPort nwo.PortName = "HttpPort"
+	HTTPPort nwo.PortName = "HttpPort"
 	GrpcPort nwo.PortName = "GrpcPort"
 )
 
@@ -225,14 +226,14 @@ func RobotPortNames() []nwo.PortName {
 
 // ChannelTransferPortNames returns the list of ports that need to be reserved for the Channel Transfer service
 func ChannelTransferPortNames() []nwo.PortName {
-	return []nwo.PortName{nwo.HostPort, GrpcPort, HttpPort}
+	return []nwo.PortName{nwo.HostPort, GrpcPort, HTTPPort}
 }
 
 // ChannelTransferPort returns the named port reserved for the Channel Transfer instance
 func (n *NetworkFoundation) ChannelTransferPort(portName nwo.PortName) string {
 	ports := n.ChannelTransfer.Ports
 	Expect(ports).NotTo(BeNil())
-	return fmt.Sprintf("%d", ports[portName])
+	return strconv.FormatUint(uint64(ports[portName]), 10)
 }
 
 // channelTransferHost returns Channel Transfer host
@@ -259,7 +260,7 @@ func (n *NetworkFoundation) ChannelTransferGRPCAddress() string {
 // ChannelTransferHTTPAddress returns channel transfer HTTP host & port as a string
 func (n *NetworkFoundation) ChannelTransferHTTPAddress() string {
 	host := n.channelTransferHost()
-	port := n.ChannelTransferPort(HttpPort)
+	port := n.ChannelTransferPort(HTTPPort)
 	return net.JoinHostPort(host, port)
 }
 
@@ -337,7 +338,7 @@ func ChannelTransferModulePath() string {
 	return "github.com/anoideaopen/channel-transfer"
 }
 
-func AclModulePath() string {
+func ACLModulePath() string {
 	return "github.com/anoideaopen/acl"
 }
 
@@ -388,7 +389,7 @@ func (c *Channel) taskExecutorHost() string {
 func (c *Channel) taskExecutorPort(portName nwo.PortName) string {
 	ports := c.TaskExecutor.Ports
 	Expect(ports).NotTo(BeNil())
-	return fmt.Sprintf("%d", ports[portName])
+	return strconv.FormatUint(uint64(ports[portName]), 10)
 }
 
 func ChannelsFromNames(names []string) []*Channel {

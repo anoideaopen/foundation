@@ -21,7 +21,7 @@ const (
 var _ = Describe("Multisigned user ACL tests", func() {
 	var (
 		ts       client.TestSuite
-		channels = []string{cmn.ChannelAcl, cmn.ChannelFiat}
+		channels = []string{cmn.ChannelACL, cmn.ChannelFiat}
 
 		user        *mocks.UserFoundation
 		usersPolicy = 3
@@ -40,7 +40,7 @@ var _ = Describe("Multisigned user ACL tests", func() {
 	})
 	BeforeEach(func() {
 		ts.InitNetwork(channels, integration.NWOBasePort)
-		ts.DeployChaincodesByName([]string{cmn.ChannelAcl})
+		ts.DeployChaincodesByName([]string{cmn.ChannelACL})
 	})
 	BeforeEach(func() {
 		By("start robot")

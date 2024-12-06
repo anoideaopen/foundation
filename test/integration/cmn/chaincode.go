@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	ChannelAcl        = "acl"
+	ChannelACL        = "acl"
 	ChannelCC         = "cc"
 	ChannelFiat       = "fiat"
 	ChannelIndustrial = "industrial"
@@ -45,13 +45,13 @@ func DeployACL(
 	cfgBytesACL, err := protojson.Marshal(aclCfg)
 	Expect(err).NotTo(HaveOccurred())
 	ctorACL := CtorFromSlice([]string{string(cfgBytesACL)})
-	DeployChaincodeFoundation(network, ChannelAcl, components,
-		AclModulePath(), ctorACL, testDir)
+	DeployChaincodeFoundation(network, ChannelACL, components,
+		ACLModulePath(), ctorACL, testDir)
 
 	By("querying the chaincode from acl")
 	sess, err := network.PeerUserSession(peer, "User1", commands.ChaincodeQuery{
-		ChannelID: ChannelAcl,
-		Name:      ChannelAcl,
+		ChannelID: ChannelACL,
+		Name:      ChannelACL,
 		Ctor:      CtorFromSlice([]string{"getAddresses", "10", ""}),
 	})
 	Expect(err).NotTo(HaveOccurred())

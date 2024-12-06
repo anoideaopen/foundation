@@ -12,7 +12,7 @@ import (
 
 var _ = Describe("Task Executor only tx foundation Tests", func() {
 	var (
-		channels = []string{cmn.ChannelAcl, cmn.ChannelFiat}
+		channels = []string{cmn.ChannelACL, cmn.ChannelFiat}
 		ts       client.TestSuite
 	)
 

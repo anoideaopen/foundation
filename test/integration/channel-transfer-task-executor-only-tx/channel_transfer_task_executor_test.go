@@ -18,7 +18,7 @@ import (
 
 var _ = Describe("Channel transfer with task executor only tx foundation Tests", func() {
 	var (
-		channels = []string{cmn.ChannelAcl, cmn.ChannelCC, cmn.ChannelFiat, cmn.ChannelIndustrial}
+		channels = []string{cmn.ChannelACL, cmn.ChannelCC, cmn.ChannelFiat, cmn.ChannelIndustrial}
 		ts       client.TestSuite
 	)
 

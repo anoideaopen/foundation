@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
-	"fmt"
 	"math"
 	"regexp"
 
@@ -241,7 +240,7 @@ func invokeTx(
 
 func scanTxIDInLog(data []byte) string {
 	// find: txid [......] committed with status
-	re := regexp.MustCompile(fmt.Sprintf("txid \\[.*\\] committed with status"))
+	re := regexp.MustCompile(`txid \[.*\] committed with status`)
 	loc := re.FindIndex(data)
 	Expect(len(loc)).To(BeNumerically(">", 0))
 
@@ -293,7 +292,7 @@ func (ts *FoundationTestSuite) TxInvokeWithMultisign(
 	pubKey, sMsgsByte, err := user.Sign(ctorArgs...)
 	Expect(err).NotTo(HaveOccurred())
 
-	var sMsgsStr []string
+	sMsgsStr := make([]string, 0, len(sMsgsByte))
 	for _, sMsgByte := range sMsgsByte {
 		sMsgsStr = append(sMsgsStr, base58.Encode(sMsgByte))
 	}
