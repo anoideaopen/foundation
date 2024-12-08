@@ -2,7 +2,6 @@ package cmn
 
 import (
 	"crypto/ecdsa"
-	"crypto/elliptic"
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/hex"
@@ -36,12 +35,16 @@ func sKI(privKey *ecdsa.PrivateKey) ([]byte, error) {
 	}
 
 	// Marshall the public key
-	raw := elliptic.Marshal(privKey.Curve, privKey.PublicKey.X, privKey.PublicKey.Y)
+	edchKey, err := privKey.ECDH()
+	if err != nil {
+		return nil, err
+	}
+
+	raw := edchKey.PublicKey().Bytes()
 
 	// Hash it
-	hash := sha256.New()
-	hash.Write(raw)
-	return hash.Sum(nil), nil
+	hash := sha256.Sum256(raw)
+	return hash[:], nil
 }
 
 func pemToPrivateKey(raw []byte, pwd []byte) (*ecdsa.PrivateKey, error) {

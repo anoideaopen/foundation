@@ -154,7 +154,7 @@ func TestBuildInfo(t *testing.T) {
 	require.NotEmpty(t, biData)
 
 	var bi debug.BuildInfo
-	err = json.Unmarshal([]byte(biData), &bi)
+	err = json.Unmarshal(biData, &bi)
 	require.NoError(t, err)
 	require.NotNil(t, bi)
 }

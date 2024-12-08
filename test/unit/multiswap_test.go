@@ -187,7 +187,7 @@ func TestAtomicMultiSwapMoveToken(t *testing.T) { //nolint:gocognit
 						evts[evt.Name] = evt.Value
 					}
 					if ev.Error != nil {
-						require.FailNow(t, err.Error())
+						require.FailNow(t, ev.GetError().GetError())
 					}
 				}
 			}
@@ -271,7 +271,7 @@ func TestAtomicMultiSwapMoveToken(t *testing.T) { //nolint:gocognit
 						evts[evt.Name] = evt.Value
 					}
 					if ev.Error != nil {
-						require.FailNow(t, err.Error())
+						require.FailNow(t, ev.GetError().GetError())
 					}
 				}
 			}
