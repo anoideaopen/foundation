@@ -268,6 +268,8 @@ func TestQuery(t *testing.T) {
 }
 
 func TestAllowedBalanceInvoke(t *testing.T) {
+	t.Parallel()
+
 	testCollection := []struct {
 		name                      string
 		needACLAccess             bool
