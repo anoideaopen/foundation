@@ -39,6 +39,7 @@ func TestKeyTypesEmission(t *testing.T) {
 	for _, test := range testCollection {
 		t.Run(test.name, func(t *testing.T) {
 			mockStub := mocks.NewMockStub(t)
+			cs := mockStub.GetStub()
 
 			issuer, err := mocks.NewUserFoundation(test.keyType)
 			require.NoError(t, err)
@@ -68,31 +69,31 @@ func TestKeyTypesEmission(t *testing.T) {
 			pendingMarshalled, err := pb.Marshal(pending)
 			require.NoError(t, err)
 
-			mocks.ACLGetAccountInfo(t, mockStub, 0)
-			mockStub.GetStateReturnsOnCall(0, []byte(config), nil)
-			mockStub.GetStateReturnsOnCall(1, pendingMarshalled, nil)
-			mockStub.GetStateReturnsOnCall(2, big.NewInt(1000).Bytes(), nil)
+			mocks.ACLGetAccountInfo(t, cs, 0)
+			cs.GetStateReturnsOnCall(0, []byte(config), nil)
+			cs.GetStateReturnsOnCall(1, pendingMarshalled, nil)
+			cs.GetStateReturnsOnCall(2, big.NewInt(1000).Bytes(), nil)
 
 			dataIn, err := pb.Marshal(&pbfound.Batch{TxIDs: [][]byte{[]byte("testTxID")}})
 			require.NoError(t, err)
 
-			err = mocks.SetCreator(mockStub, BatchRobotCert)
+			err = mocks.SetCreator(cs, BatchRobotCert)
 			require.NoError(t, err)
 
-			mockStub.GetFunctionAndParametersReturns("batchExecute", []string{string(dataIn)})
+			cs.GetFunctionAndParametersReturns("batchExecute", []string{string(dataIn)})
 
 			// invoking chaincode
-			resp := cc.Invoke(mockStub)
+			resp := cc.Invoke(cs)
 			require.Equal(t, int32(http.StatusOK), resp.GetStatus())
 			require.Empty(t, resp.GetMessage())
 
 			// checking put state
-			require.Equal(t, 3, mockStub.PutStateCallCount())
+			require.Equal(t, 3, cs.PutStateCallCount())
 			var i int
-			for i = 0; i < mockStub.PutStateCallCount(); i++ {
-				key, value := mockStub.PutStateArgsForCall(i)
+			for i = 0; i < cs.PutStateCallCount(); i++ {
+				key, value := cs.PutStateArgsForCall(i)
 				if key != "tokenMetadata" {
-					prefix, keys, err := mockStub.SplitCompositeKey(key)
+					prefix, keys, err := cs.SplitCompositeKey(key)
 					require.NoError(t, err)
 
 					if prefix == balance.BalanceTypeToken.String() {

@@ -15,6 +15,7 @@ func TestMetadataMethods(t *testing.T) {
 	t.Parallel()
 
 	mockStub := mocks.NewMockStub(t)
+	cs := mockStub.GetStub()
 
 	issuer, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
 	require.Nil(t, err)
@@ -26,13 +27,13 @@ func TestMetadataMethods(t *testing.T) {
 	cc, err := core.NewCC(tt)
 	require.Nil(t, err)
 
-	mockStub.GetStringArgsReturns([]string{config})
-	cc.Init(mockStub)
+	cs.GetStringArgsReturns([]string{config})
+	cc.Init(cs)
 
-	mockStub.GetFunctionAndParametersReturns("metadata", []string{})
-	mockStub.GetStateReturnsOnCall(0, []byte(config), nil)
-	mockStub.GetStateReturnsOnCall(1, []byte{}, nil)
-	resp := cc.Invoke(mockStub)
+	cs.GetFunctionAndParametersReturns("metadata", []string{})
+	cs.GetStateReturnsOnCall(0, []byte(config), nil)
+	cs.GetStateReturnsOnCall(1, []byte{}, nil)
+	resp := cc.Invoke(cs)
 	require.Empty(t, resp.GetMessage())
 
 	var meta token.Metadata

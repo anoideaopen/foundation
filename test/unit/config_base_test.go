@@ -140,13 +140,14 @@ func TestInitWithPositionedArgs(t *testing.T) {
 	for _, test := range testsCollection {
 		t.Run(test.channel, func(t *testing.T) {
 			mockStub := mocks.NewMockStub(t)
+			cs := mockStub.GetStub()
 
 			cc, err := core.NewCC(test.bci)
 			require.NoError(t, err)
 
-			mockStub.GetChannelIDReturns(test.channel)
-			mockStub.GetStringArgsReturns(test.args)
-			resp := cc.Init(mockStub)
+			cs.GetChannelIDReturns(test.channel)
+			cs.GetStringArgsReturns(test.args)
+			resp := cc.Init(cs)
 			message := resp.GetMessage()
 			if message != "" {
 				require.Contains(t, message, test.initMsg)
@@ -156,7 +157,7 @@ func TestInitWithPositionedArgs(t *testing.T) {
 			}
 
 			// Checking config was set to state
-			key, value := mockStub.PutStateArgsForCall(0)
+			key, value := cs.PutStateArgsForCall(0)
 			require.Equal(t, key, configKey)
 
 			cfg, err := config.FromBytes(value)
@@ -187,6 +188,7 @@ func TestInitWithCommonConfig(t *testing.T) {
 	require.NoError(t, err)
 
 	mockStub := mocks.NewMockStub(t)
+	cs := mockStub.GetStub()
 
 	ttName, ttSymbol, ttDecimals := "test token", "TT", uint32(8)
 
@@ -215,13 +217,13 @@ func TestInitWithCommonConfig(t *testing.T) {
 	cc, err = core.NewCC(tct)
 	require.NoError(t, err)
 
-	mockStub.GetStringArgsReturns([]string{string(cfg)})
-	resp := cc.Init(mockStub)
+	cs.GetStringArgsReturns([]string{string(cfg)})
+	resp := cc.Init(cs)
 	require.Empty(t, resp.GetMessage())
 
 	// Checking config was set to state
 	var resultCfg pb.Config
-	key, value := mockStub.PutStateArgsForCall(0)
+	key, value := cs.PutStateArgsForCall(0)
 	require.Equal(t, key, configKey)
 
 	err = protojson.Unmarshal(value, &resultCfg)
@@ -231,10 +233,10 @@ func TestInitWithCommonConfig(t *testing.T) {
 	require.True(t, proto.Equal(&resultCfg, cfgEtl))
 
 	// Requesting config from state
-	mockStub.GetFunctionAndParametersReturns("config", []string{})
-	cc.Invoke(mockStub)
+	cs.GetFunctionAndParametersReturns("config", []string{})
+	cc.Invoke(cs)
 
-	key = mockStub.GetStateArgsForCall(0)
+	key = cs.GetStateArgsForCall(0)
 	require.Equal(t, key, configKey)
 }
 
@@ -242,6 +244,7 @@ func TestWithConfigMapperFunc(t *testing.T) {
 	t.Parallel()
 
 	mockStub := mocks.NewMockStub(t)
+	cs := mockStub.GetStub()
 
 	issuer, err := mocks.NewUserFoundation(pb.KeyType_ed25519)
 	require.NoError(t, err)
@@ -264,13 +267,13 @@ func TestWithConfigMapperFunc(t *testing.T) {
 	cc, err := core.NewCC(tct, core.WithConfigMapperFunc(getExpectedConfigFromArgs))
 	require.NoError(t, err)
 
-	mockStub.GetStringArgsReturns(initArgs)
-	resp := cc.Init(mockStub)
+	cs.GetStringArgsReturns(initArgs)
+	resp := cc.Init(cs)
 	require.Empty(t, resp.GetMessage())
 
 	// Checking config was set to state
 	var resultCfg pb.Config
-	key, value := mockStub.PutStateArgsForCall(0)
+	key, value := cs.PutStateArgsForCall(0)
 	require.Equal(t, key, configKey)
 
 	err = protojson.Unmarshal(value, &resultCfg)
@@ -284,6 +287,8 @@ func TestWithConfigMapperFuncFromArgs(t *testing.T) {
 	t.Parallel()
 
 	mockStub := mocks.NewMockStub(t)
+	cs := mockStub.GetStub()
+
 	issuer, err := mocks.NewUserFoundation(pb.KeyType_ed25519)
 	require.NoError(t, err)
 
@@ -308,13 +313,13 @@ func TestWithConfigMapperFuncFromArgs(t *testing.T) {
 		}))
 	require.NoError(t, err)
 
-	mockStub.GetStringArgsReturns(initArgs)
-	resp := cc.Init(mockStub)
+	cs.GetStringArgsReturns(initArgs)
+	resp := cc.Init(cs)
 	require.Empty(t, resp.GetMessage())
 
 	// Checking config was set to state
 	var resultCfg pb.Config
-	key, value := mockStub.PutStateArgsForCall(0)
+	key, value := cs.PutStateArgsForCall(0)
 	require.Equal(t, key, configKey)
 
 	err = protojson.Unmarshal(value, &resultCfg)
@@ -327,6 +332,7 @@ func TestDisabledFunctions(t *testing.T) {
 	t.Parallel()
 
 	mockStub := mocks.NewMockStub(t)
+	cs := mockStub.GetStub()
 
 	user1, err := mocks.NewUserFoundation(pb.KeyType_ed25519)
 	require.NoError(t, err)
@@ -347,12 +353,12 @@ func TestDisabledFunctions(t *testing.T) {
 	require.NoError(t, err)
 
 	// Calling TxTestFunction while it's not disabled
-	mockStub.GetStateReturns(config1, nil)
+	cs.GetStateReturns(config1, nil)
 
-	err = mocks.SetFunctionAndParametersWithSign(mockStub, user1, testFunctionName, "", "", "")
+	err = mocks.SetFunctionAndParametersWithSign(cs, user1, testFunctionName, "", "", "")
 	require.NoError(t, err)
 
-	resp := cc.Invoke(mockStub)
+	resp := cc.Invoke(cs)
 	require.Empty(t, resp.GetMessage())
 
 	cfgEtl = &pb.Config{
@@ -368,11 +374,11 @@ func TestDisabledFunctions(t *testing.T) {
 	config2, _ := protojson.Marshal(cfgEtl)
 
 	//Calling TxTestFunction while it's disabled
-	mockStub.GetStateReturns(config2, nil)
-	err = mocks.SetFunctionAndParametersWithSign(mockStub, user1, testFunctionName, "", "", "")
+	cs.GetStateReturns(config2, nil)
+	err = mocks.SetFunctionAndParametersWithSign(cs, user1, testFunctionName, "", "", "")
 	require.NoError(t, err)
 
-	resp = cc.Invoke(mockStub)
+	resp = cc.Invoke(cs)
 	require.Equal(t, "invoke: finding method: method 'testFunction' not found", resp.GetMessage())
 }
 
@@ -380,6 +386,7 @@ func TestInitWithEmptyConfig(t *testing.T) {
 	t.Parallel()
 
 	mockStub := mocks.NewMockStub(t)
+	cs := mockStub.GetStub()
 
 	cfg := `{}`
 
@@ -387,8 +394,8 @@ func TestInitWithEmptyConfig(t *testing.T) {
 	cc, err := core.NewCC(&TestConfigToken{})
 	require.NoError(t, err)
 
-	mockStub.GetStringArgsReturns([]string{cfg})
-	resp := cc.Init(mockStub)
+	cs.GetStringArgsReturns([]string{cfg})
+	resp := cc.Init(cs)
 	require.Contains(t, resp.GetMessage(), "contract config is not set")
 }
 
@@ -551,6 +558,7 @@ func TestInitWithExtConfig(t *testing.T) {
 	t.Parallel()
 
 	mockStub := mocks.NewMockStub(t)
+	cs := mockStub.GetStub()
 
 	issuer, err := mocks.NewUserFoundation(pb.KeyType_ed25519)
 	require.NoError(t, err)
@@ -578,13 +586,13 @@ func TestInitWithExtConfig(t *testing.T) {
 	require.NoError(t, err)
 
 	// Init new chaincode
-	mockStub.GetStringArgsReturns([]string{string(cfg)})
-	resp := cc.Init(mockStub)
+	cs.GetStringArgsReturns([]string{string(cfg)})
+	resp := cc.Init(cs)
 	require.Empty(t, resp.GetMessage())
 
 	// Checking config was set to state
 	var resultCfg pb.Config
-	key, value := mockStub.PutStateArgsForCall(0)
+	key, value := cs.PutStateArgsForCall(0)
 	require.Equal(t, key, configKey)
 
 	err = protojson.Unmarshal(value, &resultCfg)
@@ -594,10 +602,10 @@ func TestInitWithExtConfig(t *testing.T) {
 	require.True(t, proto.Equal(&resultCfg, cfgEtl))
 
 	// Read and validate ExtConfig data
-	mockStub.GetStateReturns(cfg, nil)
-	mockStub.GetFunctionAndParametersReturns("extConfig", []string{})
+	cs.GetStateReturns(cfg, nil)
+	cs.GetFunctionAndParametersReturns("extConfig", []string{})
 
-	resp = cc.Invoke(mockStub)
+	resp = cc.Invoke(cs)
 	require.NotEmpty(t, resp.GetPayload())
 
 	var m ExtConfig

@@ -14,8 +14,6 @@ import (
 	pbfound "github.com/anoideaopen/foundation/proto"
 	"github.com/btcsuite/btcd/btcutil/base58"
 	"github.com/golang/protobuf/proto" //nolint:staticcheck
-	"github.com/google/uuid"
-	"github.com/hyperledger/fabric-chaincode-go/shim"
 	"github.com/hyperledger/fabric-protos-go/msp"
 	"github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/stretchr/testify/require"
@@ -56,32 +54,6 @@ func MarshalIdentity(creatorMSP string, creatorCert []byte) ([]byte, error) {
 		return nil, err
 	}
 	return marshaledIdentity, nil
-}
-
-// NewMockStub returns new mock stub
-func NewMockStub(t *testing.T) *ChaincodeStub {
-	mockStub := new(ChaincodeStub)
-	txID := [16]byte(uuid.New())
-	mockStub.GetTxIDReturns(hex.EncodeToString(txID[:]))
-	mockStub.GetSignedProposalReturns(&peer.SignedProposal{}, nil)
-
-	err := SetCreatorCert(mockStub, TestCreatorMSP, AdminCert)
-	require.NoError(t, err)
-
-	mockStub.CreateCompositeKeyCalls(shim.CreateCompositeKey)
-	mockStub.SplitCompositeKeyCalls(func(s string) (string, []string, error) {
-		componentIndex := 1
-		var components []string
-		for i := 1; i < len(s); i++ {
-			if s[i] == 0 {
-				components = append(components, s[componentIndex:i])
-				componentIndex = i + 1
-			}
-		}
-		return components[0], components[1:], nil
-	})
-
-	return mockStub
 }
 
 // GetNewStringNonce returns string value of nonce based on current time

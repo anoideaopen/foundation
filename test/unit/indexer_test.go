@@ -34,6 +34,7 @@ func TestCreateIndex(t *testing.T) {
 	require.NoError(t, err)
 
 	mockStub := mocks.NewMockStub(t)
+	cs := mockStub.GetStub()
 
 	config := makeBaseTokenConfig(
 		"Test Token",
@@ -51,20 +52,20 @@ func TestCreateIndex(t *testing.T) {
 
 	// Checking for index absence
 	var index bool
-	mockStub.GetStateReturnsOnCall(0, []byte(config), nil)
-	mockStub.GetStateReturnsOnCall(1, []byte{}, nil)
+	cs.GetStateReturnsOnCall(0, []byte(config), nil)
+	cs.GetStateReturnsOnCall(1, []byte{}, nil)
 	balanceTypeStr, err := balance.BalanceTypeToStringMapValue(balance.BalanceTypeToken)
 	require.NoError(t, err)
-	mockStub.GetFunctionAndParametersReturns("indexCreated", []string{balanceTypeStr})
+	cs.GetFunctionAndParametersReturns("indexCreated", []string{balanceTypeStr})
 
-	resp := cc.Invoke(mockStub)
+	resp := cc.Invoke(cs)
 	require.Nil(t, err)
 	require.NoError(t, json.Unmarshal(resp.Payload, &index))
 	require.False(t, index)
 
 	mockIterator := &mocks.StateIterator{}
 	mockIterator.HasNextReturnsOnCall(0, false)
-	mockStub.GetStateByPartialCompositeKeyReturns(mockIterator, nil)
+	cs.GetStateByPartialCompositeKeyReturns(mockIterator, nil)
 
 	// Creating index
 	key1, err := shim.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user1.AddressBase58Check, usdt})
@@ -101,13 +102,13 @@ func TestCreateIndex(t *testing.T) {
 		Value: []byte("1000"),
 	}, nil)
 
-	mockStub.GetStateReturns([]byte(config), nil)
-	mockStub.GetFunctionAndParametersReturns("createIndex", []string{balanceTypeStr})
-	resp = cc.Invoke(mockStub)
+	cs.GetStateReturns([]byte(config), nil)
+	cs.GetFunctionAndParametersReturns("createIndex", []string{balanceTypeStr})
+	resp = cc.Invoke(cs)
 	require.Equal(t, "", resp.Message)
 
 	// checking index created and owners appears
-	indexCreated, ownersAfterIndexing := checkIndexAndOwners(t, mockStub)
+	indexCreated, ownersAfterIndexing := checkIndexAndOwners(t, cs)
 	require.True(t, indexCreated)
 	require.Equal(t, 3, ownersAfterIndexing)
 }
@@ -119,6 +120,7 @@ func TestAutoBalanceIndexing(t *testing.T) {
 	require.NoError(t, err)
 
 	mockStub := mocks.NewMockStub(t)
+	cs := mockStub.GetStub()
 
 	config := makeBaseTokenConfig(
 		"Test Token",
@@ -135,7 +137,7 @@ func TestAutoBalanceIndexing(t *testing.T) {
 	require.NoError(t, err)
 
 	// checking there's no owners
-	index, ownersAutoIndexed := checkIndexAndOwners(t, mockStub)
+	index, ownersAutoIndexed := checkIndexAndOwners(t, cs)
 	require.False(t, index)
 	require.Equal(t, 0, ownersAutoIndexed)
 
@@ -163,19 +165,19 @@ func TestAutoBalanceIndexing(t *testing.T) {
 	dataIn, err := pb.Marshal(&pbfound.Batch{TxIDs: [][]byte{[]byte("testTxID")}})
 	require.NoError(t, err)
 
-	err = mocks.SetCreator(mockStub, BatchRobotCert)
+	err = mocks.SetCreator(cs, BatchRobotCert)
 	require.NoError(t, err)
 
-	mockStub.GetFunctionAndParametersReturns("batchExecute", []string{string(dataIn)})
+	cs.GetFunctionAndParametersReturns("batchExecute", []string{string(dataIn)})
 
-	mockStub.GetStateReturnsOnCall(0, []byte(config), nil)
-	mockStub.GetStateReturnsOnCall(1, pendingMarshalled, nil)
+	cs.GetStateReturnsOnCall(0, []byte(config), nil)
+	cs.GetStateReturnsOnCall(1, pendingMarshalled, nil)
 
-	resp := cc.Invoke(mockStub)
+	resp := cc.Invoke(cs)
 	require.Equal(t, "", resp.Message)
 
 	// checking inverse balance appears
-	_, ownersAutoIndexed = checkIndexAndOwners(t, mockStub)
+	_, ownersAutoIndexed = checkIndexAndOwners(t, cs)
 	require.Equal(t, 1, ownersAutoIndexed)
 }
 

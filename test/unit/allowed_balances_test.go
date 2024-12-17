@@ -225,6 +225,7 @@ func TestQuery(t *testing.T) {
 	for _, test := range testCollection {
 		t.Run(test.name, func(t *testing.T) {
 			mockStub := mocks.NewMockStub(t)
+			cs := mockStub.GetStub()
 
 			issuer, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
 			require.NoError(t, err)
@@ -242,26 +243,26 @@ func TestQuery(t *testing.T) {
 			require.NoError(t, err)
 
 			// preparing stub
-			mockStub.GetStateReturnsOnCall(0, []byte(config), nil)
+			cs.GetStateReturnsOnCall(0, []byte(config), nil)
 
 			if test.needACLAccess {
-				mocks.ACLGetAccountInfo(t, mockStub, 0)
+				mocks.ACLGetAccountInfo(t, cs, 0)
 			}
 
 			if test.prepareMockStubAdditional != nil {
-				test.prepareMockStubAdditional(t, mockStub, issuer, user1)
+				test.prepareMockStubAdditional(t, cs, issuer, user1)
 			}
 
-			mockStub.GetFunctionAndParametersReturns(test.functionName, test.prepareFunctionParameters(user1, user2))
+			cs.GetFunctionAndParametersReturns(test.functionName, test.prepareFunctionParameters(user1, user2))
 
 			// invoking chaincode
-			resp := cc.Invoke(mockStub)
+			resp := cc.Invoke(cs)
 			if test.resultMessage != "" {
 				require.Equal(t, test.resultMessage, resp.GetMessage())
 			} else {
 				require.Empty(t, resp.GetMessage())
 				require.Equal(t, test.preparePayloadEqual(t), resp.GetPayload())
-				require.Equal(t, 0, mockStub.PutStateCallCount())
+				require.Equal(t, 0, cs.PutStateCallCount())
 			}
 		})
 	}
@@ -520,6 +521,7 @@ func TestAllowedBalanceInvoke(t *testing.T) {
 	for _, test := range testCollection {
 		t.Run(test.name, func(t *testing.T) {
 			mockStub := mocks.NewMockStub(t)
+			cs := mockStub.GetStub()
 
 			issuer, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
 			require.NoError(t, err)
@@ -554,35 +556,35 @@ func TestAllowedBalanceInvoke(t *testing.T) {
 			pendingMarshalled, err := proto.Marshal(pending)
 			require.NoError(t, err)
 
-			err = mocks.SetCreator(mockStub, BatchRobotCert)
+			err = mocks.SetCreator(cs, BatchRobotCert)
 			require.NoError(t, err)
 
-			mockStub.GetStateReturnsOnCall(0, []byte(config), nil)
-			mockStub.GetStateReturnsOnCall(1, pendingMarshalled, nil)
+			cs.GetStateReturnsOnCall(0, []byte(config), nil)
+			cs.GetStateReturnsOnCall(1, pendingMarshalled, nil)
 
 			if test.needACLAccess {
-				mocks.ACLGetAccountInfo(t, mockStub, 0)
+				mocks.ACLGetAccountInfo(t, cs, 0)
 			}
 
 			if test.prepareMockStubAdditional != nil {
-				test.prepareMockStubAdditional(t, mockStub, issuer, user1)
+				test.prepareMockStubAdditional(t, cs, issuer, user1)
 			}
 
 			dataIn, err := pb.Marshal(&pbfound.Batch{TxIDs: [][]byte{[]byte("testTxID")}})
 			require.NoError(t, err)
 
-			err = mocks.SetCreator(mockStub, BatchRobotCert)
+			err = mocks.SetCreator(cs, BatchRobotCert)
 			require.NoError(t, err)
 
-			mockStub.GetFunctionAndParametersReturns("batchExecute", []string{string(dataIn)})
+			cs.GetFunctionAndParametersReturns("batchExecute", []string{string(dataIn)})
 
 			// invoking chaincode
-			resp := cc.Invoke(mockStub)
+			resp := cc.Invoke(cs)
 			if test.resultMessage != "" {
 				require.Equal(t, test.resultMessage, resp.GetMessage())
 			} else {
 				require.Empty(t, resp.GetMessage())
-				test.checkPutState(t, mockStub, user1, user2, resp.GetPayload())
+				test.checkPutState(t, cs, user1, user2, resp.GetPayload())
 			}
 		})
 	}
