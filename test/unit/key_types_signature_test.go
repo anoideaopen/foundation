@@ -9,6 +9,7 @@ import (
 	"github.com/anoideaopen/foundation/core/balance"
 	"github.com/anoideaopen/foundation/core/types/big"
 	"github.com/anoideaopen/foundation/mocks"
+	"github.com/anoideaopen/foundation/mocks/mockstub"
 	pbfound "github.com/anoideaopen/foundation/proto"
 	pb "github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/require"
@@ -38,7 +39,7 @@ func TestKeyTypesEmission(t *testing.T) {
 
 	for _, test := range testCollection {
 		t.Run(test.name, func(t *testing.T) {
-			mockStub := mocks.NewMockStub(t)
+			mockStub := mockstub.NewMockStub(t)
 			cs := mockStub.GetStub()
 
 			issuer, err := mocks.NewUserFoundation(test.keyType)

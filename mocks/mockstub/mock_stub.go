@@ -1,10 +1,11 @@
-package mocks
+package mockstub
 
 import (
 	"encoding/hex"
 	"testing"
 
 	"github.com/anoideaopen/foundation/core"
+	"github.com/anoideaopen/foundation/mocks"
 	pbfound "github.com/anoideaopen/foundation/proto"
 	"github.com/btcsuite/btcd/btcutil/base58"
 	"github.com/golang/protobuf/proto" //nolint:staticcheck
@@ -15,19 +16,19 @@ import (
 )
 
 type MockStub struct {
-	stub     *ChaincodeStub
+	stub     *mocks.ChaincodeStub
 	state    map[string][]byte
-	usersACL []*UserFoundation
+	usersACL []*mocks.UserFoundation
 }
 
 // NewMockStub returns new mock stub
 func NewMockStub(t *testing.T) *MockStub {
-	mockStub := new(ChaincodeStub)
+	mockStub := new(mocks.ChaincodeStub)
 	txID := [16]byte(uuid.New())
 	mockStub.GetTxIDReturns(hex.EncodeToString(txID[:]))
 	mockStub.GetSignedProposalReturns(&peer.SignedProposal{}, nil)
 
-	err := SetCreatorCert(mockStub, TestCreatorMSP, AdminCert)
+	err := mocks.SetCreatorCert(mockStub, mocks.TestCreatorMSP, mocks.AdminCert)
 	require.NoError(t, err)
 
 	mockStub.CreateCompositeKeyCalls(shim.CreateCompositeKey)
@@ -95,7 +96,7 @@ func NewMockStub(t *testing.T) *MockStub {
 	}
 }
 
-func (ms *MockStub) GetStub() *ChaincodeStub {
+func (ms *MockStub) GetStub() *mocks.ChaincodeStub {
 	return ms.stub
 }
 
@@ -142,14 +143,14 @@ func (ms *MockStub) TxInvokeChaincode(chaincode *core.Chaincode, functionName st
 			return "", shim.Error(err.Error())
 		}
 
-		err = SetCreator(ms.stub, BatchRobotCert)
+		err = mocks.SetCreator(ms.stub, mocks.BatchRobotCert)
 		if err != nil {
 			return "", shim.Error(err.Error())
 		}
 
 		resp = ms.invokeChaincode(chaincode, "batchExecute", []string{string(dataIn)}...)
 
-		err = SetCreatorCert(ms.stub, TestCreatorMSP, AdminCert)
+		err = mocks.SetCreatorCert(ms.stub, mocks.TestCreatorMSP, mocks.AdminCert)
 		if err != nil {
 			return "", shim.Error(err.Error())
 		}
@@ -161,13 +162,13 @@ func (ms *MockStub) TxInvokeChaincode(chaincode *core.Chaincode, functionName st
 func (ms *MockStub) TxInvokeChaincodeSigned(
 	chaincode *core.Chaincode,
 	functionName string,
-	user *UserFoundation,
+	user *mocks.UserFoundation,
 	requestID string,
 	chaincodeName string,
 	channelName string,
 	parameters ...string,
 ) (string, peer.Response) {
-	ctorArgs := append(append([]string{functionName, requestID, channelName, chaincodeName}, parameters...), GetNewStringNonce())
+	ctorArgs := append(append([]string{functionName, requestID, channelName, chaincodeName}, parameters...), mocks.GetNewStringNonce())
 
 	pubKey, sMsg, err := user.Sign(ctorArgs...)
 	if err != nil {

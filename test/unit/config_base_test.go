@@ -11,6 +11,7 @@ import (
 	"github.com/anoideaopen/foundation/core/config"
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/mocks"
+	"github.com/anoideaopen/foundation/mocks/mockstub"
 	pb "github.com/anoideaopen/foundation/proto"
 	"github.com/anoideaopen/foundation/test/unit/fixtures_test"
 	"github.com/anoideaopen/foundation/token"
@@ -139,7 +140,7 @@ func TestInitWithPositionedArgs(t *testing.T) {
 
 	for _, test := range testsCollection {
 		t.Run(test.channel, func(t *testing.T) {
-			mockStub := mocks.NewMockStub(t)
+			mockStub := mockstub.NewMockStub(t)
 			cs := mockStub.GetStub()
 
 			cc, err := core.NewCC(test.bci)
@@ -187,7 +188,7 @@ func TestInitWithCommonConfig(t *testing.T) {
 	issuer, err := mocks.NewUserFoundation(pb.KeyType_ed25519)
 	require.NoError(t, err)
 
-	mockStub := mocks.NewMockStub(t)
+	mockStub := mockstub.NewMockStub(t)
 	cs := mockStub.GetStub()
 
 	ttName, ttSymbol, ttDecimals := "test token", "TT", uint32(8)
@@ -243,7 +244,7 @@ func TestInitWithCommonConfig(t *testing.T) {
 func TestWithConfigMapperFunc(t *testing.T) {
 	t.Parallel()
 
-	mockStub := mocks.NewMockStub(t)
+	mockStub := mockstub.NewMockStub(t)
 	cs := mockStub.GetStub()
 
 	issuer, err := mocks.NewUserFoundation(pb.KeyType_ed25519)
@@ -286,7 +287,7 @@ func TestWithConfigMapperFunc(t *testing.T) {
 func TestWithConfigMapperFuncFromArgs(t *testing.T) {
 	t.Parallel()
 
-	mockStub := mocks.NewMockStub(t)
+	mockStub := mockstub.NewMockStub(t)
 	cs := mockStub.GetStub()
 
 	issuer, err := mocks.NewUserFoundation(pb.KeyType_ed25519)
@@ -331,7 +332,7 @@ func TestWithConfigMapperFuncFromArgs(t *testing.T) {
 func TestDisabledFunctions(t *testing.T) {
 	t.Parallel()
 
-	mockStub := mocks.NewMockStub(t)
+	mockStub := mockstub.NewMockStub(t)
 	cs := mockStub.GetStub()
 
 	user1, err := mocks.NewUserFoundation(pb.KeyType_ed25519)
@@ -385,7 +386,7 @@ func TestDisabledFunctions(t *testing.T) {
 func TestInitWithEmptyConfig(t *testing.T) {
 	t.Parallel()
 
-	mockStub := mocks.NewMockStub(t)
+	mockStub := mockstub.NewMockStub(t)
 	cs := mockStub.GetStub()
 
 	cfg := `{}`
@@ -557,7 +558,7 @@ func (tect *TestExtConfigToken) QueryExtConfig() (*ExtConfig, error) {
 func TestInitWithExtConfig(t *testing.T) {
 	t.Parallel()
 
-	mockStub := mocks.NewMockStub(t)
+	mockStub := mockstub.NewMockStub(t)
 	cs := mockStub.GetStub()
 
 	issuer, err := mocks.NewUserFoundation(pb.KeyType_ed25519)

@@ -10,6 +10,7 @@ import (
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/core/types/big"
 	"github.com/anoideaopen/foundation/mocks"
+	"github.com/anoideaopen/foundation/mocks/mockstub"
 	pbfound "github.com/anoideaopen/foundation/proto"
 	"github.com/anoideaopen/foundation/token"
 	"github.com/stretchr/testify/require"
@@ -217,7 +218,7 @@ func TestContractMethods(t *testing.T) {
 
 	for _, test := range testCollection {
 		t.Run(test.name, func(t *testing.T) {
-			mockStub := mocks.NewMockStub(t)
+			mockStub := mockstub.NewMockStub(t)
 			cs := mockStub.GetStub()
 
 			owner, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
@@ -260,7 +261,7 @@ func TestContractMethods(t *testing.T) {
 
 // TestInit - Checking that init with right mspId working
 func TestInit(t *testing.T) {
-	mockStub := mocks.NewMockStub(t)
+	mockStub := mockstub.NewMockStub(t)
 	cs := mockStub.GetStub()
 
 	owner, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)

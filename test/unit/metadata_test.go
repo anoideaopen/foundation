@@ -6,6 +6,7 @@ import (
 
 	"github.com/anoideaopen/foundation/core"
 	"github.com/anoideaopen/foundation/mocks"
+	"github.com/anoideaopen/foundation/mocks/mockstub"
 	pbfound "github.com/anoideaopen/foundation/proto"
 	"github.com/anoideaopen/foundation/token"
 	"github.com/stretchr/testify/require"
@@ -14,7 +15,7 @@ import (
 func TestMetadataMethods(t *testing.T) {
 	t.Parallel()
 
-	mockStub := mocks.NewMockStub(t)
+	mockStub := mockstub.NewMockStub(t)
 	cs := mockStub.GetStub()
 
 	issuer, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)

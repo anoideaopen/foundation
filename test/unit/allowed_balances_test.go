@@ -10,6 +10,7 @@ import (
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/core/types/big"
 	"github.com/anoideaopen/foundation/mocks"
+	"github.com/anoideaopen/foundation/mocks/mockstub"
 	pbfound "github.com/anoideaopen/foundation/proto"
 	"github.com/anoideaopen/foundation/token"
 	"github.com/golang/protobuf/proto"
@@ -224,7 +225,7 @@ func TestQuery(t *testing.T) {
 
 	for _, test := range testCollection {
 		t.Run(test.name, func(t *testing.T) {
-			mockStub := mocks.NewMockStub(t)
+			mockStub := mockstub.NewMockStub(t)
 			cs := mockStub.GetStub()
 
 			issuer, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
@@ -520,7 +521,7 @@ func TestAllowedBalanceInvoke(t *testing.T) {
 
 	for _, test := range testCollection {
 		t.Run(test.name, func(t *testing.T) {
-			mockStub := mocks.NewMockStub(t)
+			mockStub := mockstub.NewMockStub(t)
 			cs := mockStub.GetStub()
 
 			issuer, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)

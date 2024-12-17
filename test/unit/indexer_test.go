@@ -9,6 +9,7 @@ import (
 	"github.com/anoideaopen/foundation/core"
 	"github.com/anoideaopen/foundation/core/balance"
 	"github.com/anoideaopen/foundation/mocks"
+	"github.com/anoideaopen/foundation/mocks/mockstub"
 	pbfound "github.com/anoideaopen/foundation/proto"
 	"github.com/anoideaopen/foundation/token"
 	pb "github.com/golang/protobuf/proto"
@@ -33,7 +34,7 @@ func TestCreateIndex(t *testing.T) {
 	user3, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
 	require.NoError(t, err)
 
-	mockStub := mocks.NewMockStub(t)
+	mockStub := mockstub.NewMockStub(t)
 	cs := mockStub.GetStub()
 
 	config := makeBaseTokenConfig(
@@ -119,7 +120,7 @@ func TestAutoBalanceIndexing(t *testing.T) {
 	user, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
 	require.NoError(t, err)
 
-	mockStub := mocks.NewMockStub(t)
+	mockStub := mockstub.NewMockStub(t)
 	cs := mockStub.GetStub()
 
 	config := makeBaseTokenConfig(

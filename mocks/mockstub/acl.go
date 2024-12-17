@@ -1,4 +1,4 @@
-package mocks
+package mockstub
 
 import (
 	"bytes"
@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/anoideaopen/foundation/core/types"
+	"github.com/anoideaopen/foundation/mocks"
 	pbfound "github.com/anoideaopen/foundation/proto"
 	"github.com/btcsuite/btcd/btcutil/base58"
 	"github.com/golang/protobuf/proto" //nolint:staticcheck
@@ -34,7 +35,7 @@ const (
 	PrefixUncompressedSecp259k1Key
 )
 
-func (ms *MockStub) AddUserToACL(user *UserFoundation) {
+func (ms *MockStub) AddUserToACL(user *mocks.UserFoundation) {
 	ms.usersACL = append(ms.usersACL, user)
 }
 
@@ -112,7 +113,7 @@ func MockACLGetAccountsInfo(parameters ...string) peer.Response {
 	return shim.Success(b)
 }
 
-func MockGetACLResponse(user *UserFoundation) (peer.Response, error) {
+func MockGetACLResponse(user *mocks.UserFoundation) (peer.Response, error) {
 	ownerAddress := sha3.Sum256(user.PublicKeyBytes)
 	addressBytes := ownerAddress[:]
 

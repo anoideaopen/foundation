@@ -9,6 +9,7 @@ import (
 	"github.com/anoideaopen/foundation/core/balance"
 	"github.com/anoideaopen/foundation/core/types/big"
 	"github.com/anoideaopen/foundation/mocks"
+	"github.com/anoideaopen/foundation/mocks/mockstub"
 	"github.com/anoideaopen/foundation/proto"
 	pb "github.com/golang/protobuf/proto"
 	"github.com/hyperledger/fabric-protos-go/peer"
@@ -22,7 +23,7 @@ func TestExternalLocks(t *testing.T) {
 		name         string
 		functionName string
 		invokeFunc   func(
-			mockStub *mocks.MockStub,
+			mockStub *mockstub.MockStub,
 			cc *core.Chaincode,
 			functionName string,
 			params string,
@@ -32,20 +33,20 @@ func TestExternalLocks(t *testing.T) {
 		checkResponseFunc   func(t *testing.T, resp peer.Response)
 		prepareMockStubFunc func(
 			t *testing.T,
-			mockStub *mocks.MockStub,
+			mockStub *mockstub.MockStub,
 			cc *core.Chaincode,
 			issuer *mocks.UserFoundation,
 			user *mocks.UserFoundation,
 		) string
-		checkResultFunc func(t *testing.T, mockStub *mocks.MockStub, user *mocks.UserFoundation, txID string)
+		checkResultFunc func(t *testing.T, mockStub *mockstub.MockStub, user *mocks.UserFoundation, txID string)
 	}{
 		{
 			name:         "external token lock test",
 			functionName: "lockTokenBalance",
-			invokeFunc: func(mockStub *mocks.MockStub, cc *core.Chaincode, functionName string, params string, issuer *mocks.UserFoundation, user *mocks.UserFoundation) (string, peer.Response) {
+			invokeFunc: func(mockStub *mockstub.MockStub, cc *core.Chaincode, functionName string, params string, issuer *mocks.UserFoundation, user *mocks.UserFoundation) (string, peer.Response) {
 				return mockStub.TxInvokeChaincodeSigned(cc, functionName, issuer, "", "", "", params)
 			},
-			prepareMockStubFunc: func(t *testing.T, mockStub *mocks.MockStub, cc *core.Chaincode, issuer, user *mocks.UserFoundation) string {
+			prepareMockStubFunc: func(t *testing.T, mockStub *mockstub.MockStub, cc *core.Chaincode, issuer, user *mocks.UserFoundation) string {
 				err := mockStub.AddTokenBalance(user, big.NewInt(1000))
 				require.NoError(t, err)
 
@@ -63,7 +64,7 @@ func TestExternalLocks(t *testing.T) {
 
 				return string(data)
 			},
-			checkResultFunc: func(t *testing.T, mockStub *mocks.MockStub, user *mocks.UserFoundation, txID string) {
+			checkResultFunc: func(t *testing.T, mockStub *mockstub.MockStub, user *mocks.UserFoundation, txID string) {
 				bal, err := mockStub.GetTokenBalance(user)
 				require.NoError(t, err)
 				require.Equal(t, big.NewInt(400), bal)
@@ -80,10 +81,10 @@ func TestExternalLocks(t *testing.T) {
 		{
 			name:         "external allowed lock test",
 			functionName: "lockAllowedBalance",
-			invokeFunc: func(mockStub *mocks.MockStub, cc *core.Chaincode, functionName string, params string, issuer *mocks.UserFoundation, user *mocks.UserFoundation) (string, peer.Response) {
+			invokeFunc: func(mockStub *mockstub.MockStub, cc *core.Chaincode, functionName string, params string, issuer *mocks.UserFoundation, user *mocks.UserFoundation) (string, peer.Response) {
 				return mockStub.TxInvokeChaincodeSigned(cc, functionName, issuer, "", "", "", params)
 			},
-			prepareMockStubFunc: func(t *testing.T, mockStub *mocks.MockStub, cc *core.Chaincode, issuer, user *mocks.UserFoundation) string {
+			prepareMockStubFunc: func(t *testing.T, mockStub *mockstub.MockStub, cc *core.Chaincode, issuer, user *mocks.UserFoundation) string {
 				err := mockStub.AddAllowedBalance(user, "vk", big.NewInt(1000))
 				require.NoError(t, err)
 
@@ -101,7 +102,7 @@ func TestExternalLocks(t *testing.T) {
 
 				return string(data)
 			},
-			checkResultFunc: func(t *testing.T, mockStub *mocks.MockStub, user *mocks.UserFoundation, txID string) {
+			checkResultFunc: func(t *testing.T, mockStub *mockstub.MockStub, user *mocks.UserFoundation, txID string) {
 				bal, err := mockStub.GetAllowedBalance(user, "vk")
 				require.NoError(t, err)
 				require.Equal(t, big.NewInt(400), bal)
@@ -118,10 +119,10 @@ func TestExternalLocks(t *testing.T) {
 		{
 			name:         "[negative] wrong user token lock test",
 			functionName: "lockTokenBalance",
-			invokeFunc: func(mockStub *mocks.MockStub, cc *core.Chaincode, functionName string, params string, issuer *mocks.UserFoundation, user *mocks.UserFoundation) (string, peer.Response) {
+			invokeFunc: func(mockStub *mockstub.MockStub, cc *core.Chaincode, functionName string, params string, issuer *mocks.UserFoundation, user *mocks.UserFoundation) (string, peer.Response) {
 				return mockStub.TxInvokeChaincodeSigned(cc, functionName, user, "", "", "", params)
 			},
-			prepareMockStubFunc: func(t *testing.T, mockStub *mocks.MockStub, cc *core.Chaincode, issuer, user *mocks.UserFoundation) string {
+			prepareMockStubFunc: func(t *testing.T, mockStub *mockstub.MockStub, cc *core.Chaincode, issuer, user *mocks.UserFoundation) string {
 				err := mockStub.AddTokenBalance(user, big.NewInt(1000))
 				require.NoError(t, err)
 
@@ -150,10 +151,10 @@ func TestExternalLocks(t *testing.T) {
 		{
 			name:         "[negative] wrong user allowed lock test",
 			functionName: "lockAllowedBalance",
-			invokeFunc: func(mockStub *mocks.MockStub, cc *core.Chaincode, functionName string, params string, issuer *mocks.UserFoundation, user *mocks.UserFoundation) (string, peer.Response) {
+			invokeFunc: func(mockStub *mockstub.MockStub, cc *core.Chaincode, functionName string, params string, issuer *mocks.UserFoundation, user *mocks.UserFoundation) (string, peer.Response) {
 				return mockStub.TxInvokeChaincodeSigned(cc, functionName, user, "", "", "", params)
 			},
-			prepareMockStubFunc: func(t *testing.T, mockStub *mocks.MockStub, cc *core.Chaincode, issuer, user *mocks.UserFoundation) string {
+			prepareMockStubFunc: func(t *testing.T, mockStub *mockstub.MockStub, cc *core.Chaincode, issuer, user *mocks.UserFoundation) string {
 				err := mockStub.AddAllowedBalance(user, "vk", big.NewInt(1000))
 				require.NoError(t, err)
 
@@ -182,10 +183,10 @@ func TestExternalLocks(t *testing.T) {
 		{
 			name:         "[negative] token lock more than added test",
 			functionName: "lockTokenBalance",
-			invokeFunc: func(mockStub *mocks.MockStub, cc *core.Chaincode, functionName string, params string, issuer *mocks.UserFoundation, user *mocks.UserFoundation) (string, peer.Response) {
+			invokeFunc: func(mockStub *mockstub.MockStub, cc *core.Chaincode, functionName string, params string, issuer *mocks.UserFoundation, user *mocks.UserFoundation) (string, peer.Response) {
 				return mockStub.TxInvokeChaincodeSigned(cc, functionName, issuer, "", "", "", params)
 			},
-			prepareMockStubFunc: func(t *testing.T, mockStub *mocks.MockStub, cc *core.Chaincode, issuer, user *mocks.UserFoundation) string {
+			prepareMockStubFunc: func(t *testing.T, mockStub *mockstub.MockStub, cc *core.Chaincode, issuer, user *mocks.UserFoundation) string {
 				err := mockStub.AddTokenBalance(user, big.NewInt(1000))
 				require.NoError(t, err)
 
@@ -214,10 +215,10 @@ func TestExternalLocks(t *testing.T) {
 		{
 			name:         "[negative] allowed lock more than added test",
 			functionName: "lockAllowedBalance",
-			invokeFunc: func(mockStub *mocks.MockStub, cc *core.Chaincode, functionName string, params string, issuer *mocks.UserFoundation, user *mocks.UserFoundation) (string, peer.Response) {
+			invokeFunc: func(mockStub *mockstub.MockStub, cc *core.Chaincode, functionName string, params string, issuer *mocks.UserFoundation, user *mocks.UserFoundation) (string, peer.Response) {
 				return mockStub.TxInvokeChaincodeSigned(cc, functionName, issuer, "", "", "", params)
 			},
-			prepareMockStubFunc: func(t *testing.T, mockStub *mocks.MockStub, cc *core.Chaincode, issuer, user *mocks.UserFoundation) string {
+			prepareMockStubFunc: func(t *testing.T, mockStub *mockstub.MockStub, cc *core.Chaincode, issuer, user *mocks.UserFoundation) string {
 				err := mockStub.AddAllowedBalance(user, "vk", big.NewInt(1000))
 				require.NoError(t, err)
 
@@ -247,7 +248,7 @@ func TestExternalLocks(t *testing.T) {
 
 	for _, test := range testCollection {
 		t.Run(test.name, func(t *testing.T) {
-			mockStub := mocks.NewMockStub(t)
+			mockStub := mockstub.NewMockStub(t)
 
 			issuer, err := mocks.NewUserFoundation(proto.KeyType_ed25519)
 			require.NoError(t, err)
@@ -287,7 +288,7 @@ func TestExternalUnlocks(t *testing.T) {
 		name         string
 		functionName string
 		invokeFunc   func(
-			mockStub *mocks.MockStub,
+			mockStub *mockstub.MockStub,
 			cc *core.Chaincode,
 			functionName string,
 			params string,
@@ -296,7 +297,7 @@ func TestExternalUnlocks(t *testing.T) {
 		) (string, peer.Response)
 		lockBalanceFunc func(
 			t *testing.T,
-			mockStub *mocks.MockStub,
+			mockStub *mockstub.MockStub,
 			cc *core.Chaincode,
 			issuer *mocks.UserFoundation,
 			user *mocks.UserFoundation,
@@ -304,16 +305,16 @@ func TestExternalUnlocks(t *testing.T) {
 		checkResponseFunc   func(t *testing.T, resp peer.Response)
 		prepareMockStubFunc func(
 			t *testing.T,
-			mockStub *mocks.MockStub,
+			mockStub *mockstub.MockStub,
 			user *mocks.UserFoundation,
 			txID string,
 		) string
-		checkResultFunc func(t *testing.T, mockStub *mocks.MockStub, user *mocks.UserFoundation, txID string)
+		checkResultFunc func(t *testing.T, mockStub *mockstub.MockStub, user *mocks.UserFoundation, txID string)
 	}{
 		{
 			name:         "external token unlock test",
 			functionName: "unlockTokenBalance",
-			lockBalanceFunc: func(t *testing.T, mockStub *mocks.MockStub, cc *core.Chaincode, issuer, user *mocks.UserFoundation) string {
+			lockBalanceFunc: func(t *testing.T, mockStub *mockstub.MockStub, cc *core.Chaincode, issuer, user *mocks.UserFoundation) string {
 				err := mockStub.AddTokenBalance(user, big.NewInt(1000))
 				require.NoError(t, err)
 				request := &proto.BalanceLockRequest{
@@ -337,7 +338,7 @@ func TestExternalUnlocks(t *testing.T) {
 
 				return txID
 			},
-			prepareMockStubFunc: func(t *testing.T, mockStub *mocks.MockStub, user *mocks.UserFoundation, txID string) string {
+			prepareMockStubFunc: func(t *testing.T, mockStub *mockstub.MockStub, user *mocks.UserFoundation, txID string) string {
 				request := &proto.BalanceLockRequest{
 					Id:      txID,
 					Address: user.AddressBase58Check,
@@ -353,10 +354,10 @@ func TestExternalUnlocks(t *testing.T) {
 
 				return string(data)
 			},
-			invokeFunc: func(mockStub *mocks.MockStub, cc *core.Chaincode, functionName, params string, issuer, user *mocks.UserFoundation) (string, peer.Response) {
+			invokeFunc: func(mockStub *mockstub.MockStub, cc *core.Chaincode, functionName, params string, issuer, user *mocks.UserFoundation) (string, peer.Response) {
 				return mockStub.TxInvokeChaincodeSigned(cc, functionName, issuer, "", "", "", params)
 			},
-			checkResultFunc: func(t *testing.T, mockStub *mocks.MockStub, user *mocks.UserFoundation, txID string) {
+			checkResultFunc: func(t *testing.T, mockStub *mockstub.MockStub, user *mocks.UserFoundation, txID string) {
 				bal, err := mockStub.GetTokenBalance(user)
 				require.NoError(t, err)
 				require.Equal(t, big.NewInt(550), bal)
@@ -374,7 +375,7 @@ func TestExternalUnlocks(t *testing.T) {
 		{
 			name:         "external allowed lock unlock test",
 			functionName: "unlockAllowedBalance",
-			lockBalanceFunc: func(t *testing.T, mockStub *mocks.MockStub, cc *core.Chaincode, issuer *mocks.UserFoundation, user *mocks.UserFoundation) string {
+			lockBalanceFunc: func(t *testing.T, mockStub *mockstub.MockStub, cc *core.Chaincode, issuer *mocks.UserFoundation, user *mocks.UserFoundation) string {
 				err := mockStub.AddAllowedBalance(user, "vk", big.NewInt(1000))
 				require.NoError(t, err)
 
@@ -399,7 +400,7 @@ func TestExternalUnlocks(t *testing.T) {
 
 				return txID
 			},
-			prepareMockStubFunc: func(t *testing.T, mockStub *mocks.MockStub, user *mocks.UserFoundation, txID string) string {
+			prepareMockStubFunc: func(t *testing.T, mockStub *mockstub.MockStub, user *mocks.UserFoundation, txID string) string {
 				request := &proto.BalanceLockRequest{
 					Id:      txID,
 					Address: user.AddressBase58Check,
@@ -415,10 +416,10 @@ func TestExternalUnlocks(t *testing.T) {
 
 				return string(data)
 			},
-			invokeFunc: func(mockStub *mocks.MockStub, cc *core.Chaincode, functionName, params string, issuer, user *mocks.UserFoundation) (string, peer.Response) {
+			invokeFunc: func(mockStub *mockstub.MockStub, cc *core.Chaincode, functionName, params string, issuer, user *mocks.UserFoundation) (string, peer.Response) {
 				return mockStub.TxInvokeChaincodeSigned(cc, functionName, issuer, "", "", "", params)
 			},
-			checkResultFunc: func(t *testing.T, mockStub *mocks.MockStub, user *mocks.UserFoundation, txID string) {
+			checkResultFunc: func(t *testing.T, mockStub *mockstub.MockStub, user *mocks.UserFoundation, txID string) {
 				bal, err := mockStub.GetAllowedBalance(user, "vk")
 				require.NoError(t, err)
 				require.Equal(t, big.NewInt(550), bal)
@@ -436,7 +437,7 @@ func TestExternalUnlocks(t *testing.T) {
 		{
 			name:         "[negative] wrong user token unlock test",
 			functionName: "unlockTokenBalance",
-			lockBalanceFunc: func(t *testing.T, mockStub *mocks.MockStub, cc *core.Chaincode, issuer *mocks.UserFoundation, user *mocks.UserFoundation) string {
+			lockBalanceFunc: func(t *testing.T, mockStub *mockstub.MockStub, cc *core.Chaincode, issuer *mocks.UserFoundation, user *mocks.UserFoundation) string {
 				err := mockStub.AddTokenBalance(user, big.NewInt(1000))
 				require.NoError(t, err)
 				request := &proto.BalanceLockRequest{
@@ -460,7 +461,7 @@ func TestExternalUnlocks(t *testing.T) {
 
 				return txID
 			},
-			prepareMockStubFunc: func(t *testing.T, mockStub *mocks.MockStub, user *mocks.UserFoundation, txID string) string {
+			prepareMockStubFunc: func(t *testing.T, mockStub *mockstub.MockStub, user *mocks.UserFoundation, txID string) string {
 				request := &proto.BalanceLockRequest{
 					Id:      txID,
 					Address: user.AddressBase58Check,
@@ -476,7 +477,7 @@ func TestExternalUnlocks(t *testing.T) {
 
 				return string(data)
 			},
-			invokeFunc: func(mockStub *mocks.MockStub, cc *core.Chaincode, functionName, params string, issuer, user *mocks.UserFoundation) (string, peer.Response) {
+			invokeFunc: func(mockStub *mockstub.MockStub, cc *core.Chaincode, functionName, params string, issuer, user *mocks.UserFoundation) (string, peer.Response) {
 				return mockStub.TxInvokeChaincodeSigned(cc, functionName, user, "", "", "", params)
 			},
 			checkResponseFunc: func(t *testing.T, resp peer.Response) {
@@ -490,7 +491,7 @@ func TestExternalUnlocks(t *testing.T) {
 		{
 			name:         "[negative] wrong user allowed unlock test",
 			functionName: "unlockAllowedBalance",
-			lockBalanceFunc: func(t *testing.T, mockStub *mocks.MockStub, cc *core.Chaincode, issuer *mocks.UserFoundation, user *mocks.UserFoundation) string {
+			lockBalanceFunc: func(t *testing.T, mockStub *mockstub.MockStub, cc *core.Chaincode, issuer *mocks.UserFoundation, user *mocks.UserFoundation) string {
 				err := mockStub.AddAllowedBalance(user, "vk", big.NewInt(1000))
 				require.NoError(t, err)
 
@@ -515,7 +516,7 @@ func TestExternalUnlocks(t *testing.T) {
 
 				return txID
 			},
-			prepareMockStubFunc: func(t *testing.T, mockStub *mocks.MockStub, user *mocks.UserFoundation, txID string) string {
+			prepareMockStubFunc: func(t *testing.T, mockStub *mockstub.MockStub, user *mocks.UserFoundation, txID string) string {
 				request := &proto.BalanceLockRequest{
 					Id:      txID,
 					Address: user.AddressBase58Check,
@@ -531,7 +532,7 @@ func TestExternalUnlocks(t *testing.T) {
 
 				return string(data)
 			},
-			invokeFunc: func(mockStub *mocks.MockStub, cc *core.Chaincode, functionName, params string, issuer, user *mocks.UserFoundation) (string, peer.Response) {
+			invokeFunc: func(mockStub *mockstub.MockStub, cc *core.Chaincode, functionName, params string, issuer, user *mocks.UserFoundation) (string, peer.Response) {
 				return mockStub.TxInvokeChaincodeSigned(cc, functionName, user, "", "", "", params)
 			},
 			checkResponseFunc: func(t *testing.T, resp peer.Response) {
@@ -545,7 +546,7 @@ func TestExternalUnlocks(t *testing.T) {
 		{
 			name:         "[negative] token locking twice test",
 			functionName: "lockTokenBalance",
-			lockBalanceFunc: func(t *testing.T, mockStub *mocks.MockStub, cc *core.Chaincode, issuer *mocks.UserFoundation, user *mocks.UserFoundation) string {
+			lockBalanceFunc: func(t *testing.T, mockStub *mockstub.MockStub, cc *core.Chaincode, issuer *mocks.UserFoundation, user *mocks.UserFoundation) string {
 				err := mockStub.AddTokenBalance(user, big.NewInt(1000))
 				require.NoError(t, err)
 				request := &proto.BalanceLockRequest{
@@ -569,7 +570,7 @@ func TestExternalUnlocks(t *testing.T) {
 
 				return txID
 			},
-			prepareMockStubFunc: func(t *testing.T, mockStub *mocks.MockStub, user *mocks.UserFoundation, txID string) string {
+			prepareMockStubFunc: func(t *testing.T, mockStub *mockstub.MockStub, user *mocks.UserFoundation, txID string) string {
 				request := &proto.BalanceLockRequest{
 					Address: user.AddressBase58Check,
 					Token:   "cc",
@@ -584,7 +585,7 @@ func TestExternalUnlocks(t *testing.T) {
 
 				return string(data)
 			},
-			invokeFunc: func(mockStub *mocks.MockStub, cc *core.Chaincode, functionName, params string, issuer, user *mocks.UserFoundation) (string, peer.Response) {
+			invokeFunc: func(mockStub *mockstub.MockStub, cc *core.Chaincode, functionName, params string, issuer, user *mocks.UserFoundation) (string, peer.Response) {
 				return mockStub.TxInvokeChaincodeSigned(cc, functionName, issuer, "", "", "", params)
 			},
 			checkResponseFunc: func(t *testing.T, resp peer.Response) {
@@ -598,7 +599,7 @@ func TestExternalUnlocks(t *testing.T) {
 		{
 			name:         "[negative] allowed locking twice test",
 			functionName: "lockAllowedBalance",
-			lockBalanceFunc: func(t *testing.T, mockStub *mocks.MockStub, cc *core.Chaincode, issuer *mocks.UserFoundation, user *mocks.UserFoundation) string {
+			lockBalanceFunc: func(t *testing.T, mockStub *mockstub.MockStub, cc *core.Chaincode, issuer *mocks.UserFoundation, user *mocks.UserFoundation) string {
 				err := mockStub.AddAllowedBalance(user, "vk", big.NewInt(1000))
 				require.NoError(t, err)
 
@@ -623,7 +624,7 @@ func TestExternalUnlocks(t *testing.T) {
 
 				return txID
 			},
-			prepareMockStubFunc: func(t *testing.T, mockStub *mocks.MockStub, user *mocks.UserFoundation, txID string) string {
+			prepareMockStubFunc: func(t *testing.T, mockStub *mockstub.MockStub, user *mocks.UserFoundation, txID string) string {
 				request := &proto.BalanceLockRequest{
 					Address: user.AddressBase58Check,
 					Token:   "vk",
@@ -638,7 +639,7 @@ func TestExternalUnlocks(t *testing.T) {
 
 				return string(data)
 			},
-			invokeFunc: func(mockStub *mocks.MockStub, cc *core.Chaincode, functionName, params string, issuer, user *mocks.UserFoundation) (string, peer.Response) {
+			invokeFunc: func(mockStub *mockstub.MockStub, cc *core.Chaincode, functionName, params string, issuer, user *mocks.UserFoundation) (string, peer.Response) {
 				return mockStub.TxInvokeChaincodeSigned(cc, functionName, issuer, "", "", "", params)
 			},
 			checkResponseFunc: func(t *testing.T, resp peer.Response) {
@@ -652,7 +653,7 @@ func TestExternalUnlocks(t *testing.T) {
 		{
 			name:         "[negative] token unlock negative test",
 			functionName: "unlockTokenBalance",
-			lockBalanceFunc: func(t *testing.T, mockStub *mocks.MockStub, cc *core.Chaincode, issuer *mocks.UserFoundation, user *mocks.UserFoundation) string {
+			lockBalanceFunc: func(t *testing.T, mockStub *mockstub.MockStub, cc *core.Chaincode, issuer *mocks.UserFoundation, user *mocks.UserFoundation) string {
 				err := mockStub.AddTokenBalance(user, big.NewInt(1000))
 				require.NoError(t, err)
 				request := &proto.BalanceLockRequest{
@@ -676,7 +677,7 @@ func TestExternalUnlocks(t *testing.T) {
 
 				return txID
 			},
-			prepareMockStubFunc: func(t *testing.T, mockStub *mocks.MockStub, user *mocks.UserFoundation, txID string) string {
+			prepareMockStubFunc: func(t *testing.T, mockStub *mockstub.MockStub, user *mocks.UserFoundation, txID string) string {
 				request := &proto.BalanceLockRequest{
 					Id:      txID,
 					Address: user.AddressBase58Check,
@@ -692,7 +693,7 @@ func TestExternalUnlocks(t *testing.T) {
 
 				return string(data)
 			},
-			invokeFunc: func(mockStub *mocks.MockStub, cc *core.Chaincode, functionName, params string, issuer, user *mocks.UserFoundation) (string, peer.Response) {
+			invokeFunc: func(mockStub *mockstub.MockStub, cc *core.Chaincode, functionName, params string, issuer, user *mocks.UserFoundation) (string, peer.Response) {
 				return mockStub.TxInvokeChaincodeSigned(cc, functionName, issuer, "", "", "", params)
 			},
 			checkResponseFunc: func(t *testing.T, resp peer.Response) {
@@ -706,7 +707,7 @@ func TestExternalUnlocks(t *testing.T) {
 		{
 			name:         "[negative] allowed unlock negative test",
 			functionName: "unlockAllowedBalance",
-			lockBalanceFunc: func(t *testing.T, mockStub *mocks.MockStub, cc *core.Chaincode, issuer *mocks.UserFoundation, user *mocks.UserFoundation) string {
+			lockBalanceFunc: func(t *testing.T, mockStub *mockstub.MockStub, cc *core.Chaincode, issuer *mocks.UserFoundation, user *mocks.UserFoundation) string {
 				err := mockStub.AddAllowedBalance(user, "vk", big.NewInt(1000))
 				require.NoError(t, err)
 
@@ -731,7 +732,7 @@ func TestExternalUnlocks(t *testing.T) {
 
 				return txID
 			},
-			prepareMockStubFunc: func(t *testing.T, mockStub *mocks.MockStub, user *mocks.UserFoundation, txID string) string {
+			prepareMockStubFunc: func(t *testing.T, mockStub *mockstub.MockStub, user *mocks.UserFoundation, txID string) string {
 				request := &proto.BalanceLockRequest{
 					Id:      txID,
 					Address: user.AddressBase58Check,
@@ -747,7 +748,7 @@ func TestExternalUnlocks(t *testing.T) {
 
 				return string(data)
 			},
-			invokeFunc: func(mockStub *mocks.MockStub, cc *core.Chaincode, functionName, params string, issuer, user *mocks.UserFoundation) (string, peer.Response) {
+			invokeFunc: func(mockStub *mockstub.MockStub, cc *core.Chaincode, functionName, params string, issuer, user *mocks.UserFoundation) (string, peer.Response) {
 				return mockStub.TxInvokeChaincodeSigned(cc, functionName, issuer, "", "", "", params)
 			},
 			checkResponseFunc: func(t *testing.T, resp peer.Response) {
@@ -762,7 +763,7 @@ func TestExternalUnlocks(t *testing.T) {
 
 	for _, test := range testCollection {
 		t.Run(test.name, func(t *testing.T) {
-			mockStub := mocks.NewMockStub(t)
+			mockStub := mockstub.NewMockStub(t)
 
 			issuer, err := mocks.NewUserFoundation(proto.KeyType_ed25519)
 			require.NoError(t, err)
