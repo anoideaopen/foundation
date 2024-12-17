@@ -105,7 +105,7 @@ func MockACLGetAccountsInfo(parameters ...string) peer.Response {
 			return shim.Error(err.Error())
 		}
 
-		response := peer.Response{}
+		var response peer.Response
 		functionName := argsTmp[0]
 
 		switch functionName {
