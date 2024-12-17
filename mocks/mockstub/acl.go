@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/anoideaopen/foundation/core/types"
-	"github.com/anoideaopen/foundation/mocks"
 	pbfound "github.com/anoideaopen/foundation/proto"
 	"github.com/btcsuite/btcd/btcutil/base58"
 	"github.com/golang/protobuf/proto" //nolint:staticcheck
@@ -34,10 +33,6 @@ const (
 
 	PrefixUncompressedSecp259k1Key
 )
-
-func (ms *MockStub) AddUserToACL(user *mocks.UserFoundation) {
-	ms.usersACL = append(ms.usersACL, user)
-}
 
 func MockACLCheckAddress(address string) peer.Response {
 	addr, err := types.AddrFromBase58Check(address)
@@ -76,7 +71,7 @@ func MockACLCheckKeys(keysString string) peer.Response {
 		Address: &pbfound.SignedAddress{
 			Address: &pbfound.Address{Address: hashed[:]},
 			SignaturePolicy: &pbfound.SignaturePolicy{
-				N: 2, //nolint:gomnd
+				N: 2,
 			},
 		},
 		KeyTypes: []pbfound.KeyType{
@@ -103,70 +98,34 @@ func MockACLGetAccountInfo() peer.Response {
 
 func MockACLGetAccountsInfo(parameters ...string) peer.Response {
 	responses := make([]peer.Response, 0)
-	for i := 0; i < len(parameters); i++ {
-		responses = append(responses, MockACLGetAccountInfo())
+	for _, parameter := range parameters {
+		var argsTmp []string
+		err := json.Unmarshal([]byte(parameter), &argsTmp)
+		if err != nil {
+			return shim.Error(err.Error())
+		}
+
+		response := peer.Response{}
+		functionName := argsTmp[0]
+
+		switch functionName {
+		case FnCheckAddress:
+			response = MockACLCheckAddress(argsTmp[1])
+		case FnCheckKeys:
+			response = MockACLCheckKeys(argsTmp[1])
+		case FnGetAccountInfo:
+			response = MockACLGetAccountInfo()
+		default:
+			return shim.Error("mock stub does not support " + functionName + "function")
+		}
+
+		responses = append(responses, response)
 	}
 	b, err := json.Marshal(responses)
 	if err != nil {
 		return shim.Error(fmt.Sprintf("failed get accounts info: marshal GetAccountsInfoResponse: %s", err))
 	}
 	return shim.Success(b)
-}
-
-func MockGetACLResponse(user *mocks.UserFoundation) (peer.Response, error) {
-	ownerAddress := sha3.Sum256(user.PublicKeyBytes)
-	addressBytes := ownerAddress[:]
-
-	accountInfo := getAccountInfo()
-
-	aclResp, err := proto.Marshal(&pbfound.AclResponse{
-		Account: &accountInfo,
-		Address: &pbfound.SignedAddress{
-			Address: &pbfound.Address{
-				UserID:       user.UserID,
-				Address:      addressBytes,
-				IsIndustrial: false,
-				IsMultisig:   false,
-			},
-			SignedTx:        nil,
-			SignaturePolicy: nil,
-			Reason:          "",
-			ReasonId:        0,
-			AdditionalKeys:  nil,
-		},
-		KeyTypes: []pbfound.KeyType{user.KeyType},
-	})
-	if err != nil {
-		return peer.Response{}, err
-	}
-
-	return peer.Response{
-		Status:  shim.OK,
-		Message: "",
-		Payload: aclResp,
-	}, nil
-}
-
-func MockGetAccountInfo() (peer.Response, error) {
-	accountInfo := getAccountInfo()
-	aclResp, err := json.Marshal(&accountInfo)
-	if err != nil {
-		return peer.Response{}, err
-	}
-
-	return peer.Response{
-		Status:  shim.OK,
-		Message: "",
-		Payload: aclResp,
-	}, nil
-}
-
-func getAccountInfo() pbfound.AccountInfo {
-	return pbfound.AccountInfo{
-		KycHash:     "",
-		GrayListed:  false,
-		BlackListed: false,
-	}
 }
 
 func identifyKeyTypeByLength(key []byte) (pbfound.KeyType, error) {

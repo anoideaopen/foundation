@@ -9,7 +9,7 @@ import (
 	"github.com/anoideaopen/foundation/mocks"
 	pbfound "github.com/anoideaopen/foundation/proto"
 	"github.com/btcsuite/btcd/btcutil/base58"
-	"github.com/golang/protobuf/proto" //nolint:staticcheck
+	"github.com/golang/protobuf/proto" //nolint: staticcheck
 	"github.com/google/uuid"
 	"github.com/hyperledger/fabric-chaincode-go/shim"
 	"github.com/hyperledger/fabric-protos-go/peer"
@@ -17,9 +17,8 @@ import (
 )
 
 type MockStub struct {
-	stub     *mocks.ChaincodeStub
-	state    map[string][]byte
-	usersACL []*mocks.UserFoundation
+	stub             *mocks.ChaincodeStub
+	getStateCallsMap map[string][]byte
 }
 
 // NewMockStub returns new mock stub
@@ -45,25 +44,15 @@ func NewMockStub(t *testing.T) *MockStub {
 		return components[0], components[1:], nil
 	})
 
-	state := make(map[string][]byte)
+	getStateCallsMap := make(map[string][]byte)
 
 	mockStub.GetStateCalls(func(key string) ([]byte, error) {
-		value, ok := state[key]
+		value, ok := getStateCallsMap[key]
 		if ok {
 			return value, nil
 		}
 
 		return nil, nil
-	})
-
-	mockStub.PutStateCalls(func(key string, value []byte) error {
-		state[key] = value
-		return nil
-	})
-
-	mockStub.DelStateCalls(func(key string) error {
-		delete(state, key)
-		return nil
 	})
 
 	mockStub.InvokeChaincodeCalls(func(chaincodeName string, args [][]byte, channelName string) peer.Response {
@@ -92,8 +81,8 @@ func NewMockStub(t *testing.T) *MockStub {
 	})
 
 	return &MockStub{
-		stub:  mockStub,
-		state: state,
+		stub:             mockStub,
+		getStateCallsMap: getStateCallsMap,
 	}
 }
 
@@ -102,11 +91,11 @@ func (ms *MockStub) GetStub() *mocks.ChaincodeStub {
 }
 
 func (ms *MockStub) GetState() map[string][]byte {
-	return ms.state
+	return ms.getStateCallsMap
 }
 
 func (ms *MockStub) SetConfig(config string) {
-	ms.state["__config"] = []byte(config)
+	ms.getStateCallsMap["__config"] = []byte(config)
 }
 
 func (ms *MockStub) invokeChaincode(chaincode *core.Chaincode, functionName string, parameters ...string) peer.Response {
@@ -134,26 +123,42 @@ func (ms *MockStub) TxInvokeChaincode(chaincode *core.Chaincode, functionName st
 		return "", shim.Error(err.Error())
 	}
 
-	if _, ok := ms.state[key]; ok {
-		hexTxID, err := hex.DecodeString(txID)
-		if err != nil {
-			return "", shim.Error(err.Error())
-		}
-		dataIn, err := proto.Marshal(&pbfound.Batch{TxIDs: [][]byte{hexTxID}})
-		if err != nil {
-			return "", shim.Error(err.Error())
-		}
+	for i := 0; i < ms.stub.PutStateCallCount(); i++ {
+		putStateKey, rawValue := ms.stub.PutStateArgsForCall(i)
+		if putStateKey == key {
+			pending := &pbfound.PendingTx{}
+			if err := proto.Unmarshal(rawValue, pending); err != nil {
+				return "", shim.Error(err.Error())
+			}
 
-		err = mocks.SetCreator(ms.stub, mocks.BatchRobotCert)
-		if err != nil {
-			return "", shim.Error(err.Error())
-		}
+			if pending.GetMethod() == functionName {
+				ms.getStateCallsMap[key] = rawValue
 
-		resp = ms.invokeChaincode(chaincode, "batchExecute", []string{string(dataIn)}...)
+				hexTxID, err := hex.DecodeString(txID)
+				if err != nil {
+					return "", shim.Error(err.Error())
+				}
+				dataIn, err := proto.Marshal(&pbfound.Batch{TxIDs: [][]byte{hexTxID}})
+				if err != nil {
+					return "", shim.Error(err.Error())
+				}
 
-		err = mocks.SetCreatorCert(ms.stub, mocks.TestCreatorMSP, mocks.AdminCert)
-		if err != nil {
-			return "", shim.Error(err.Error())
+				err = mocks.SetCreator(ms.stub, mocks.BatchRobotCert)
+				if err != nil {
+					return "", shim.Error(err.Error())
+				}
+
+				resp = ms.invokeChaincode(chaincode, "batchExecute", []string{string(dataIn)}...)
+
+				err = mocks.SetCreatorCert(ms.stub, mocks.TestCreatorMSP, mocks.AdminCert)
+				if err != nil {
+					return "", shim.Error(err.Error())
+				}
+
+				delete(ms.getStateCallsMap, key)
+
+				break
+			}
 		}
 	}
 
@@ -169,7 +174,7 @@ func (ms *MockStub) TxInvokeChaincodeSigned(
 	channelName string,
 	parameters ...string,
 ) (string, peer.Response) {
-	// Artificial delay to update the nonce value.
+	// Artificial delay to update the nonce value
 	time.Sleep(time.Millisecond * 5)
 
 	ctorArgs := append(append([]string{functionName, requestID, channelName, chaincodeName}, parameters...), mocks.GetNewStringNonce())
