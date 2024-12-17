@@ -125,7 +125,7 @@ func (ms *MockStub) TxInvokeChaincode(chaincode *core.Chaincode, functionName st
 
 	for i := 0; i < ms.stub.PutStateCallCount(); i++ {
 		putStateKey, rawValue := ms.stub.PutStateArgsForCall(i)
-		if putStateKey == key {
+		if putStateKey == key { //nolint:nestif
 			pending := &pbfound.PendingTx{}
 			if err := proto.Unmarshal(rawValue, pending); err != nil {
 				return "", shim.Error(err.Error())
