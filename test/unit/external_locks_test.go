@@ -17,8 +17,6 @@ import (
 )
 
 func TestExternalLocks(t *testing.T) {
-	t.Parallel()
-
 	testCollection := []struct {
 		name         string
 		functionName string
