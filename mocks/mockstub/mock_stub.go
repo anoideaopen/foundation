@@ -3,6 +3,7 @@ package mockstub
 import (
 	"encoding/hex"
 	"testing"
+	"time"
 
 	"github.com/anoideaopen/foundation/core"
 	"github.com/anoideaopen/foundation/mocks"
@@ -168,6 +169,9 @@ func (ms *MockStub) TxInvokeChaincodeSigned(
 	channelName string,
 	parameters ...string,
 ) (string, peer.Response) {
+	// Artificial delay to update the nonce value.
+	time.Sleep(time.Millisecond * 5)
+
 	ctorArgs := append(append([]string{functionName, requestID, channelName, chaincodeName}, parameters...), mocks.GetNewStringNonce())
 
 	pubKey, sMsg, err := user.Sign(ctorArgs...)
