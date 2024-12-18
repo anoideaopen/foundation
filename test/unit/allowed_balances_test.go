@@ -2,9 +2,6 @@ package unit
 
 import (
 	"encoding/json"
-	"testing"
-	"time"
-
 	"github.com/anoideaopen/foundation/core"
 	"github.com/anoideaopen/foundation/core/balance"
 	"github.com/anoideaopen/foundation/core/types"
@@ -13,12 +10,10 @@ import (
 	"github.com/anoideaopen/foundation/mocks/mockstub"
 	pbfound "github.com/anoideaopen/foundation/proto"
 	"github.com/anoideaopen/foundation/token"
-	"github.com/golang/protobuf/proto"
 	"github.com/hyperledger/fabric-chaincode-go/shim"
 	"github.com/hyperledger/fabric-protos-go/ledger/queryresult"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/crypto/sha3"
-	pb "google.golang.org/protobuf/proto"
+	"testing"
 )
 
 type QueryTestToken struct {
@@ -87,105 +82,99 @@ func TestQuery(t *testing.T) {
 
 	testCollection := []struct {
 		name                      string
-		needACLAccess             bool
 		functionName              string
-		resultMessage             string
 		preparePayloadEqual       func(t *testing.T) []byte
 		prepareFunctionParameters func(user1, user2 *mocks.UserFoundation) []string
-		prepareMockStubAdditional func(t *testing.T, mockStub *mocks.ChaincodeStub, owner, user *mocks.UserFoundation)
+		prepareMockStubAdditional func(t *testing.T, mockStub *mockstub.MockStub, owner, user *mocks.UserFoundation)
 	}{
 		{
-			name:          "Query allowed balance add",
-			needACLAccess: true,
-			functionName:  "allowedBalanceAdd",
+			name:         "Query allowed balance add",
+			functionName: "allowedBalanceAdd",
 			prepareFunctionParameters: func(user1, user2 *mocks.UserFoundation) []string {
 				return []string{"VT", user1.AddressBase58Check, "100", "reason"}
 			},
-			resultMessage: "",
 			preparePayloadEqual: func(t *testing.T) []byte {
 				return []byte("null")
 			},
 		},
 		{
-			name:          "Query allowed balance sub",
-			needACLAccess: true,
-			functionName:  "allowedBalanceSub",
+			name:         "Query allowed balance sub",
+			functionName: "allowedBalanceSub",
 			prepareFunctionParameters: func(user1, user2 *mocks.UserFoundation) []string {
 				return []string{"VT", user1.AddressBase58Check, "100", "reason"}
 			},
-			resultMessage: "",
 			preparePayloadEqual: func(t *testing.T) []byte {
 				return []byte("null")
 			},
-			prepareMockStubAdditional: func(t *testing.T, mockStub *mocks.ChaincodeStub, owner, user *mocks.UserFoundation) {
-				mockStub.GetStateReturnsOnCall(1, []byte("1000"), nil)
+			prepareMockStubAdditional: func(t *testing.T, mockStub *mockstub.MockStub, owner, user *mocks.UserFoundation) {
+				key, err := mockStub.CreateCompositeKey(balance.BalanceTypeAllowed.String(), []string{user.AddressBase58Check, "VT"})
+				require.NoError(t, err)
+				mockStub.GetStateCallsMap[key] = big.NewInt(1000).Bytes()
 			},
 		},
 		{
-			name:          "Query allowed balance lock",
-			needACLAccess: true,
-			functionName:  "allowedBalanceLock",
+			name:         "Query allowed balance lock",
+			functionName: "allowedBalanceLock",
 			prepareFunctionParameters: func(user1, user2 *mocks.UserFoundation) []string {
 				return []string{"VT", user1.AddressBase58Check, "100"}
 			},
-			resultMessage: "",
 			preparePayloadEqual: func(t *testing.T) []byte {
 				return []byte("null")
 			},
-			prepareMockStubAdditional: func(t *testing.T, mockStub *mocks.ChaincodeStub, owner, user *mocks.UserFoundation) {
-				mockStub.GetStateReturnsOnCall(1, []byte("1000"), nil)
+			prepareMockStubAdditional: func(t *testing.T, mockStub *mockstub.MockStub, owner, user *mocks.UserFoundation) {
+				key, err := mockStub.CreateCompositeKey(balance.BalanceTypeAllowed.String(), []string{user.AddressBase58Check, "VT"})
+				require.NoError(t, err)
+				mockStub.GetStateCallsMap[key] = big.NewInt(1000).Bytes()
 			},
 		},
 		{
-			name:          "Query allowed balance unlock",
-			needACLAccess: true,
-			functionName:  "allowedBalanceUnLock",
+			name:         "Query allowed balance unlock",
+			functionName: "allowedBalanceUnLock",
 			prepareFunctionParameters: func(user1, user2 *mocks.UserFoundation) []string {
 				return []string{"VT", user1.AddressBase58Check, "100"}
 			},
-			resultMessage: "",
 			preparePayloadEqual: func(t *testing.T) []byte {
 				return []byte("null")
 			},
-			prepareMockStubAdditional: func(t *testing.T, mockStub *mocks.ChaincodeStub, owner, user *mocks.UserFoundation) {
-				mockStub.GetStateReturnsOnCall(1, []byte("1000"), nil)
+			prepareMockStubAdditional: func(t *testing.T, mockStub *mockstub.MockStub, owner, user *mocks.UserFoundation) {
+				key, err := mockStub.CreateCompositeKey(balance.BalanceTypeAllowedLocked.String(), []string{user.AddressBase58Check, "VT"})
+				require.NoError(t, err)
+				mockStub.GetStateCallsMap[key] = big.NewInt(1000).Bytes()
 			},
 		},
 		{
-			name:          "Query allowed transfer locked",
-			needACLAccess: true,
-			functionName:  "allowedBalanceTransferLocked",
+			name:         "Query allowed transfer locked",
+			functionName: "allowedBalanceTransferLocked",
 			prepareFunctionParameters: func(user1, user2 *mocks.UserFoundation) []string {
 				return []string{"VT", user1.AddressBase58Check, user2.AddressBase58Check, "100", "reason"}
 			},
-			resultMessage: "",
 			preparePayloadEqual: func(t *testing.T) []byte {
 				return []byte("null")
 			},
-			prepareMockStubAdditional: func(t *testing.T, mockStub *mocks.ChaincodeStub, owner, user *mocks.UserFoundation) {
-				mocks.ACLGetAccountInfo(t, mockStub, 1)
-				mockStub.GetStateReturnsOnCall(1, []byte("1000"), nil)
+			prepareMockStubAdditional: func(t *testing.T, mockStub *mockstub.MockStub, owner, user *mocks.UserFoundation) {
+				key, err := mockStub.CreateCompositeKey(balance.BalanceTypeAllowedLocked.String(), []string{user.AddressBase58Check, "VT"})
+				require.NoError(t, err)
+				mockStub.GetStateCallsMap[key] = big.NewInt(1000).Bytes()
 			},
 		},
 		{
-			name:          "Query allowed balance burn locked",
-			needACLAccess: true,
-			functionName:  "allowedBalanceBurnLocked",
+			name:         "Query allowed balance burn locked",
+			functionName: "allowedBalanceBurnLocked",
 			prepareFunctionParameters: func(user1, user2 *mocks.UserFoundation) []string {
 				return []string{"VT", user1.AddressBase58Check, "100", "reason"}
 			},
-			resultMessage: "",
 			preparePayloadEqual: func(t *testing.T) []byte {
 				return []byte("null")
 			},
-			prepareMockStubAdditional: func(t *testing.T, mockStub *mocks.ChaincodeStub, owner, user *mocks.UserFoundation) {
-				mockStub.GetStateReturnsOnCall(1, []byte("1000"), nil)
+			prepareMockStubAdditional: func(t *testing.T, mockStub *mockstub.MockStub, owner, user *mocks.UserFoundation) {
+				key, err := mockStub.CreateCompositeKey(balance.BalanceTypeAllowedLocked.String(), []string{user.AddressBase58Check, "VT"})
+				require.NoError(t, err)
+				mockStub.GetStateCallsMap[key] = big.NewInt(1000).Bytes()
 			},
 		},
 		{
-			name:          "Query allowed balances get all",
-			functionName:  "allowedBalanceGetAll",
-			needACLAccess: true,
+			name:         "Query allowed balances get all",
+			functionName: "allowedBalanceGetAll",
 			prepareFunctionParameters: func(user1, user2 *mocks.UserFoundation) []string {
 				return []string{user1.AddressBase58Check}
 			},
@@ -196,7 +185,7 @@ func TestQuery(t *testing.T) {
 
 				return rawBalances
 			},
-			prepareMockStubAdditional: func(t *testing.T, mockStub *mocks.ChaincodeStub, owner, user *mocks.UserFoundation) {
+			prepareMockStubAdditional: func(t *testing.T, mockStub *mockstub.MockStub, owner, user *mocks.UserFoundation) {
 				mockIterator := &mocks.StateIterator{}
 				mockIterator.HasNextReturnsOnCall(0, false)
 				mockStub.GetStateByPartialCompositeKeyReturns(mockIterator, nil)
@@ -243,27 +232,17 @@ func TestQuery(t *testing.T) {
 			require.NoError(t, err)
 
 			// preparing stub
-			mockStub.GetStateReturnsOnCall(0, []byte(config), nil)
-
-			if test.needACLAccess {
-				mocks.ACLGetAccountInfo(t, mockStub.ChaincodeStub, 0)
-			}
+			mockStub.SetConfig(config)
 
 			if test.prepareMockStubAdditional != nil {
-				test.prepareMockStubAdditional(t, mockStub.ChaincodeStub, issuer, user1)
+				test.prepareMockStubAdditional(t, mockStub, issuer, user1)
 			}
-
-			mockStub.GetFunctionAndParametersReturns(test.functionName, test.prepareFunctionParameters(user1, user2))
 
 			// invoking chaincode
-			resp := cc.Invoke(mockStub)
-			if test.resultMessage != "" {
-				require.Equal(t, test.resultMessage, resp.GetMessage())
-			} else {
-				require.Empty(t, resp.GetMessage())
-				require.Equal(t, test.preparePayloadEqual(t), resp.GetPayload())
-				require.Equal(t, 0, mockStub.PutStateCallCount())
-			}
+			resp := mockStub.QueryChaincode(cc, test.functionName, test.prepareFunctionParameters(user1, user2)...)
+			require.Empty(t, resp.GetMessage())
+			require.Equal(t, test.preparePayloadEqual(t), resp.GetPayload())
+			require.Equal(t, 0, mockStub.PutStateCallCount())
 		})
 	}
 }
@@ -273,23 +252,19 @@ func TestAllowedBalanceInvoke(t *testing.T) {
 
 	testCollection := []struct {
 		name                      string
-		needACLAccess             bool
 		functionName              string
-		resultMessage             string
-		checkPutState             func(t *testing.T, mockStub *mocks.ChaincodeStub, user1, user2 *mocks.UserFoundation, payload []byte)
+		checkPutState             func(t *testing.T, mockStub *mockstub.MockStub, user1, user2 *mocks.UserFoundation, payload []byte)
 		prepareFunctionParameters func(user1, user2 *mocks.UserFoundation) []string
-		prepareMockStubAdditional func(t *testing.T, mockStub *mocks.ChaincodeStub, owner, user *mocks.UserFoundation)
+		prepareMockStubAdditional func(t *testing.T, mockStub *mockstub.MockStub, owner, user *mocks.UserFoundation)
 	}{
 		{
-			name:          "Allowed balance add",
-			needACLAccess: true,
-			functionName:  "allowedBalanceAdd",
+			name:         "Allowed balance add",
+			functionName: "allowedBalanceAdd",
 			prepareFunctionParameters: func(user1, user2 *mocks.UserFoundation) []string {
 				return []string{"VT", user1.AddressBase58Check, big.NewInt(100).String(), "reason"}
 			},
-			resultMessage: "",
-			checkPutState: func(t *testing.T, mockStub *mocks.ChaincodeStub, user1, user2 *mocks.UserFoundation, payload []byte) {
-				require.Equal(t, 2, mockStub.PutStateCallCount())
+			checkPutState: func(t *testing.T, mockStub *mockstub.MockStub, user1, user2 *mocks.UserFoundation, payload []byte) {
+				require.Equal(t, 3, mockStub.PutStateCallCount())
 				var i int
 				for i = 0; i < mockStub.PutStateCallCount(); i++ {
 					key, value := mockStub.PutStateArgsForCall(i)
@@ -312,15 +287,18 @@ func TestAllowedBalanceInvoke(t *testing.T) {
 			},
 		},
 		{
-			name:          "Allowed balance sub",
-			needACLAccess: true,
-			functionName:  "allowedBalanceSub",
+			name:         "Allowed balance sub",
+			functionName: "allowedBalanceSub",
 			prepareFunctionParameters: func(user1, user2 *mocks.UserFoundation) []string {
 				return []string{"VT", user1.AddressBase58Check, big.NewInt(100).String(), "reason"}
 			},
-			resultMessage: "",
-			checkPutState: func(t *testing.T, mockStub *mocks.ChaincodeStub, user1, user2 *mocks.UserFoundation, payload []byte) {
-				require.Equal(t, 2, mockStub.PutStateCallCount())
+			prepareMockStubAdditional: func(t *testing.T, mockStub *mockstub.MockStub, owner, user *mocks.UserFoundation) {
+				key, err := mockStub.CreateCompositeKey(balance.BalanceTypeAllowed.String(), []string{user.AddressBase58Check, "VT"})
+				require.NoError(t, err)
+				mockStub.GetStateCallsMap[key] = big.NewInt(1000).Bytes()
+			},
+			checkPutState: func(t *testing.T, mockStub *mockstub.MockStub, user1, user2 *mocks.UserFoundation, payload []byte) {
+				require.Equal(t, 3, mockStub.PutStateCallCount())
 				var i int
 				for i = 0; i < mockStub.PutStateCallCount(); i++ {
 					key, value := mockStub.PutStateArgsForCall(i)
@@ -341,20 +319,20 @@ func TestAllowedBalanceInvoke(t *testing.T) {
 					}
 				}
 			},
-			prepareMockStubAdditional: func(t *testing.T, mockStub *mocks.ChaincodeStub, owner, user *mocks.UserFoundation) {
-				mockStub.GetStateReturnsOnCall(2, big.NewInt(1000).Bytes(), nil)
-			},
 		},
 		{
-			name:          "Allowed balance lock",
-			needACLAccess: true,
-			functionName:  "allowedBalanceLock",
+			name:         "Allowed balance lock",
+			functionName: "allowedBalanceLock",
 			prepareFunctionParameters: func(user1, user2 *mocks.UserFoundation) []string {
 				return []string{"VT", user1.AddressBase58Check, big.NewInt(100).String()}
 			},
-			resultMessage: "",
-			checkPutState: func(t *testing.T, mockStub *mocks.ChaincodeStub, user1, user2 *mocks.UserFoundation, payload []byte) {
-				require.Equal(t, 4, mockStub.PutStateCallCount())
+			prepareMockStubAdditional: func(t *testing.T, mockStub *mockstub.MockStub, owner, user *mocks.UserFoundation) {
+				key, err := mockStub.CreateCompositeKey(balance.BalanceTypeAllowed.String(), []string{user.AddressBase58Check, "VT"})
+				require.NoError(t, err)
+				mockStub.GetStateCallsMap[key] = big.NewInt(1000).Bytes()
+			},
+			checkPutState: func(t *testing.T, mockStub *mockstub.MockStub, user1, user2 *mocks.UserFoundation, payload []byte) {
+				require.Equal(t, 5, mockStub.PutStateCallCount())
 				var i int
 				for i = 0; i < mockStub.PutStateCallCount(); i++ {
 					key, value := mockStub.PutStateArgsForCall(i)
@@ -386,20 +364,20 @@ func TestAllowedBalanceInvoke(t *testing.T) {
 					}
 				}
 			},
-			prepareMockStubAdditional: func(t *testing.T, mockStub *mocks.ChaincodeStub, owner, user *mocks.UserFoundation) {
-				mockStub.GetStateReturnsOnCall(2, big.NewInt(1000).Bytes(), nil)
-			},
 		},
 		{
-			name:          "Allowed balance unlock",
-			needACLAccess: true,
-			functionName:  "allowedBalanceUnLock",
+			name:         "Allowed balance unlock",
+			functionName: "allowedBalanceUnLock",
 			prepareFunctionParameters: func(user1, user2 *mocks.UserFoundation) []string {
 				return []string{"VT", user1.AddressBase58Check, big.NewInt(100).String()}
 			},
-			resultMessage: "",
-			checkPutState: func(t *testing.T, mockStub *mocks.ChaincodeStub, user1, user2 *mocks.UserFoundation, payload []byte) {
-				require.Equal(t, 4, mockStub.PutStateCallCount())
+			prepareMockStubAdditional: func(t *testing.T, mockStub *mockstub.MockStub, owner, user *mocks.UserFoundation) {
+				key, err := mockStub.CreateCompositeKey(balance.BalanceTypeAllowedLocked.String(), []string{user.AddressBase58Check, "VT"})
+				require.NoError(t, err)
+				mockStub.GetStateCallsMap[key] = big.NewInt(1000).Bytes()
+			},
+			checkPutState: func(t *testing.T, mockStub *mockstub.MockStub, user1, user2 *mocks.UserFoundation, payload []byte) {
+				require.Equal(t, 5, mockStub.PutStateCallCount())
 				var i int
 				for i = 0; i < mockStub.PutStateCallCount(); i++ {
 					key, value := mockStub.PutStateArgsForCall(i)
@@ -431,20 +409,20 @@ func TestAllowedBalanceInvoke(t *testing.T) {
 					}
 				}
 			},
-			prepareMockStubAdditional: func(t *testing.T, mockStub *mocks.ChaincodeStub, owner, user *mocks.UserFoundation) {
-				mockStub.GetStateReturnsOnCall(2, big.NewInt(1000).Bytes(), nil)
-			},
 		},
 		{
-			name:          "Allowed balance transfer locked",
-			needACLAccess: true,
-			functionName:  "allowedBalanceTransferLocked",
+			name:         "Allowed balance transfer locked",
+			functionName: "allowedBalanceTransferLocked",
 			prepareFunctionParameters: func(user1, user2 *mocks.UserFoundation) []string {
 				return []string{"VT", user1.AddressBase58Check, user2.AddressBase58Check, big.NewInt(100).String(), "reason"}
 			},
-			resultMessage: "",
-			checkPutState: func(t *testing.T, mockStub *mocks.ChaincodeStub, user1, user2 *mocks.UserFoundation, payload []byte) {
-				require.Equal(t, 4, mockStub.PutStateCallCount())
+			prepareMockStubAdditional: func(t *testing.T, mockStub *mockstub.MockStub, owner, user *mocks.UserFoundation) {
+				key, err := mockStub.CreateCompositeKey(balance.BalanceTypeAllowedLocked.String(), []string{user.AddressBase58Check, "VT"})
+				require.NoError(t, err)
+				mockStub.GetStateCallsMap[key] = big.NewInt(1000).Bytes()
+			},
+			checkPutState: func(t *testing.T, mockStub *mockstub.MockStub, user1, user2 *mocks.UserFoundation, payload []byte) {
+				require.Equal(t, 5, mockStub.PutStateCallCount())
 				var i int
 				for i = 0; i < mockStub.PutStateCallCount(); i++ {
 					key, value := mockStub.PutStateArgsForCall(i)
@@ -477,21 +455,20 @@ func TestAllowedBalanceInvoke(t *testing.T) {
 					}
 				}
 			},
-			prepareMockStubAdditional: func(t *testing.T, mockStub *mocks.ChaincodeStub, owner, user *mocks.UserFoundation) {
-				mocks.ACLGetAccountInfo(t, mockStub, 1)
-				mockStub.GetStateReturnsOnCall(2, big.NewInt(1000).Bytes(), nil)
-			},
 		},
 		{
-			name:          "Allowed balance burn locked",
-			needACLAccess: true,
-			functionName:  "allowedBalanceBurnLocked",
+			name:         "Allowed balance burn locked",
+			functionName: "allowedBalanceBurnLocked",
 			prepareFunctionParameters: func(user1, user2 *mocks.UserFoundation) []string {
 				return []string{"VT", user1.AddressBase58Check, big.NewInt(100).String(), "reason"}
 			},
-			resultMessage: "",
-			checkPutState: func(t *testing.T, mockStub *mocks.ChaincodeStub, user1, user2 *mocks.UserFoundation, payload []byte) {
-				require.Equal(t, 2, mockStub.PutStateCallCount())
+			prepareMockStubAdditional: func(t *testing.T, mockStub *mockstub.MockStub, owner, user *mocks.UserFoundation) {
+				key, err := mockStub.CreateCompositeKey(balance.BalanceTypeAllowedLocked.String(), []string{user.AddressBase58Check, "VT"})
+				require.NoError(t, err)
+				mockStub.GetStateCallsMap[key] = big.NewInt(1000).Bytes()
+			},
+			checkPutState: func(t *testing.T, mockStub *mockstub.MockStub, user1, user2 *mocks.UserFoundation, payload []byte) {
+				require.Equal(t, 3, mockStub.PutStateCallCount())
 				var i int
 				for i = 0; i < mockStub.PutStateCallCount(); i++ {
 					key, value := mockStub.PutStateArgsForCall(i)
@@ -512,9 +489,6 @@ func TestAllowedBalanceInvoke(t *testing.T) {
 					}
 				}
 			},
-			prepareMockStubAdditional: func(t *testing.T, mockStub *mocks.ChaincodeStub, owner, user *mocks.UserFoundation) {
-				mockStub.GetStateReturnsOnCall(2, big.NewInt(1000).Bytes(), nil)
-			},
 		},
 	}
 
@@ -534,57 +508,23 @@ func TestAllowedBalanceInvoke(t *testing.T) {
 			config := makeBaseTokenConfig("CC Token", "CC", 8,
 				issuer.AddressBase58Check, "", "", "", nil)
 
+			mockStub.SetConfig(config)
+
 			cc, err := core.NewCC(&InvokeTestToken{})
 			require.NoError(t, err)
 
 			// preparing stub
-			// emulating batch execute for emitting tokens to user
-			issuerAddress := sha3.Sum256(issuer.PublicKeyBytes)
-
-			pending := &pbfound.PendingTx{
-				Method: test.functionName,
-				Sender: &pbfound.Address{
-					UserID:       issuer.UserID,
-					Address:      issuerAddress[:],
-					IsIndustrial: false,
-					IsMultisig:   false,
-				},
-				Args:  test.prepareFunctionParameters(user1, user2),
-				Nonce: uint64(time.Now().UnixNano() / 1000000),
-			}
-			pendingMarshalled, err := proto.Marshal(pending)
-			require.NoError(t, err)
-
-			err = mocks.SetCreator(mockStub.ChaincodeStub, BatchRobotCert)
-			require.NoError(t, err)
-
-			mockStub.GetStateReturnsOnCall(0, []byte(config), nil)
-			mockStub.GetStateReturnsOnCall(1, pendingMarshalled, nil)
-
-			if test.needACLAccess {
-				mocks.ACLGetAccountInfo(t, mockStub.ChaincodeStub, 0)
-			}
-
 			if test.prepareMockStubAdditional != nil {
-				test.prepareMockStubAdditional(t, mockStub.ChaincodeStub, issuer, user1)
+				test.prepareMockStubAdditional(t, mockStub, issuer, user1)
 			}
-
-			dataIn, err := pb.Marshal(&pbfound.Batch{TxIDs: [][]byte{[]byte("testTxID")}})
-			require.NoError(t, err)
-
-			err = mocks.SetCreator(mockStub.ChaincodeStub, BatchRobotCert)
-			require.NoError(t, err)
-
-			mockStub.GetFunctionAndParametersReturns("batchExecute", []string{string(dataIn)})
 
 			// invoking chaincode
-			resp := cc.Invoke(mockStub)
-			if test.resultMessage != "" {
-				require.Equal(t, test.resultMessage, resp.GetMessage())
-			} else {
-				require.Empty(t, resp.GetMessage())
-				test.checkPutState(t, mockStub.ChaincodeStub, user1, user2, resp.GetPayload())
-			}
+			_, resp := mockStub.TxInvokeChaincode(
+				cc,
+				test.functionName,
+				test.prepareFunctionParameters(user1, user2)...)
+			require.Empty(t, resp.GetMessage())
+			test.checkPutState(t, mockStub, user1, user2, resp.GetPayload())
 		})
 	}
 }
