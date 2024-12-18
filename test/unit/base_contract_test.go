@@ -3,7 +3,6 @@ package unit
 import (
 	"encoding/hex"
 	"errors"
-	"github.com/hyperledger/fabric-protos-go/peer"
 	"strconv"
 	"testing"
 	"time"
@@ -15,6 +14,7 @@ import (
 	"github.com/anoideaopen/foundation/mocks/mockstub"
 	pbfound "github.com/anoideaopen/foundation/proto"
 	"github.com/anoideaopen/foundation/token"
+	"github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/stretchr/testify/require"
 )
 
