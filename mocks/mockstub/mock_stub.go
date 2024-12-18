@@ -24,8 +24,9 @@ type MockStub struct {
 
 // NewMockStub returns new mock stub
 func NewMockStub(t *testing.T) *MockStub {
-	mockStub := &MockStub{}
-	mockStub.ChaincodeStub = new(mocks.ChaincodeStub)
+	mockStub := &MockStub{
+		ChaincodeStub: new(mocks.ChaincodeStub),
+	}
 
 	// Important! Returns constant txID. Maybe needed to define another GetTxIDReturns for more than one transaction
 	txID := [16]byte(uuid.New())
