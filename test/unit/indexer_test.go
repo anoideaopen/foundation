@@ -2,6 +2,9 @@ package unit
 
 import (
 	"encoding/json"
+	"strconv"
+	"testing"
+
 	"github.com/anoideaopen/foundation/core"
 	"github.com/anoideaopen/foundation/core/balance"
 	"github.com/anoideaopen/foundation/mocks"
@@ -11,8 +14,6 @@ import (
 	"github.com/hyperledger/fabric-chaincode-go/shim"
 	"github.com/hyperledger/fabric-protos-go/ledger/queryresult"
 	"github.com/stretchr/testify/require"
-	"strconv"
-	"testing"
 )
 
 var (
