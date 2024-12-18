@@ -1,7 +1,9 @@
 package unit
 
 import (
+	"encoding/hex"
 	"errors"
+	"github.com/hyperledger/fabric-protos-go/peer"
 	"strconv"
 	"testing"
 	"time"
@@ -14,8 +16,6 @@ import (
 	pbfound "github.com/anoideaopen/foundation/proto"
 	"github.com/anoideaopen/foundation/token"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/crypto/sha3"
-	pb "google.golang.org/protobuf/proto"
 )
 
 const (
@@ -31,7 +31,6 @@ const (
 	testFnGetNonce      = "getNonce"
 	testFnHelloWorld    = "helloWorld"
 	testFnHelloWorldSet = "helloWorldSet"
-	testFnBatchExecute  = "batchExecute"
 	testFnHealthCheck   = "healthCheck"
 )
 
@@ -64,7 +63,7 @@ func (tt *TestToken) QueryHelloWorld() (*TestStruct, error) {
 	return &TestStruct{}, nil
 }
 
-func (tt *TestToken) TxHelloWorldSet(in *TestStruct) error {
+func (tt *TestToken) TxHelloWorldSet(_ *TestStruct) error {
 	return nil
 }
 
@@ -101,23 +100,27 @@ func (tt *TestToken) TxEmissionAdd(sender *types.Sender, address *types.Address,
 func TestContractMethods(t *testing.T) {
 	t.Parallel()
 
+	existedNonce := []byte(strconv.FormatInt(time.Now().UnixNano()/1000000, 10))
+
 	testCollection := []struct {
 		name                      string
 		owner                     *mocks.UserFoundation
-		needACLAccess             bool
 		functionName              string
+		invokeFunction            func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, issuer *mocks.UserFoundation, parameters ...string) peer.Response
 		resultMessage             string
 		preparePayloadEqual       func() []byte
 		preparePayloadNotEqual    func() []byte
 		prepareFunctionParameters func(owner *mocks.UserFoundation) []string
-		prepareMockStubAdditional func(t *testing.T, mockStub *mocks.ChaincodeStub, owner *mocks.UserFoundation)
+		prepareMockStubAdditional func(t *testing.T, mockStub *mockstub.MockStub, owner *mocks.UserFoundation)
 	}{
 		{
-			name:          "bytes encoder test",
-			needACLAccess: false,
-			functionName:  testFnHelloWorld,
+			name:         "bytes encoder test",
+			functionName: testFnHelloWorld,
 			prepareFunctionParameters: func(owner *mocks.UserFoundation) []string {
 				return []string{}
+			},
+			invokeFunction: func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, issuer *mocks.UserFoundation, parameters ...string) peer.Response {
+				return mockStub.NbTxInvokeChaincode(cc, functionName, parameters...)
 			},
 			resultMessage: "",
 			preparePayloadEqual: func() []byte {
@@ -125,11 +128,13 @@ func TestContractMethods(t *testing.T) {
 			},
 		},
 		{
-			name:          "bytes decoder test",
-			needACLAccess: false,
-			functionName:  testFnHelloWorldSet,
+			name:         "bytes decoder test",
+			functionName: testFnHelloWorldSet,
 			prepareFunctionParameters: func(owner *mocks.UserFoundation) []string {
 				return []string{"Hi!"}
+			},
+			invokeFunction: func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, issuer *mocks.UserFoundation, parameters ...string) peer.Response {
+				return mockStub.NbTxInvokeChaincode(cc, functionName, parameters...)
 			},
 			resultMessage: "",
 			preparePayloadEqual: func() []byte {
@@ -137,11 +142,13 @@ func TestContractMethods(t *testing.T) {
 			},
 		},
 		{
-			name:          "[negative] bytes decoder test",
-			needACLAccess: false,
-			functionName:  testFnHelloWorldSet,
+			name:         "[negative] bytes decoder test",
+			functionName: testFnHelloWorldSet,
 			prepareFunctionParameters: func(owner *mocks.UserFoundation) []string {
 				return []string{""}
+			},
+			invokeFunction: func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, issuer *mocks.UserFoundation, parameters ...string) peer.Response {
+				return mockStub.NbTxInvokeChaincode(cc, functionName, parameters...)
 			},
 			resultMessage: testMessageDecodeWrongParameter,
 			preparePayloadEqual: func() []byte {
@@ -149,69 +156,52 @@ func TestContractMethods(t *testing.T) {
 			},
 		},
 		{
-			name:          "empty nonce in state",
-			needACLAccess: true,
-			functionName:  testFnGetNonce,
+			name:         "empty nonce in state",
+			functionName: testFnGetNonce,
 			prepareFunctionParameters: func(owner *mocks.UserFoundation) []string {
 				return []string{owner.AddressBase58Check}
+			},
+			invokeFunction: func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, issuer *mocks.UserFoundation, parameters ...string) peer.Response {
+				return mockStub.NbTxInvokeChaincode(cc, functionName, parameters...)
 			},
 			resultMessage: "",
 			preparePayloadEqual: func() []byte {
 				return []byte(testMessageEmptyNonce)
 			},
-			prepareMockStubAdditional: func(t *testing.T, mockStub *mocks.ChaincodeStub, owner *mocks.UserFoundation) {
-				mockStub.GetStateReturnsOnCall(1, nil, nil)
-			},
 		},
 		{
-			name:          "existed nonce in state",
-			needACLAccess: true,
-			functionName:  testFnGetNonce,
+			name:         "existed nonce in state",
+			functionName: testFnGetNonce,
 			prepareFunctionParameters: func(owner *mocks.UserFoundation) []string {
 				return []string{owner.AddressBase58Check}
+			},
+			invokeFunction: func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, issuer *mocks.UserFoundation, parameters ...string) peer.Response {
+				return mockStub.NbTxInvokeChaincode(cc, functionName, parameters...)
+			},
+			prepareMockStubAdditional: func(t *testing.T, mockStub *mockstub.MockStub, owner *mocks.UserFoundation) {
+				prefix := hex.EncodeToString([]byte{core.StateKeyNonce})
+				key, err := mockStub.CreateCompositeKey(prefix, []string{owner.AddressBase58Check})
+				require.NoError(t, err)
+				mockStub.GetStateCallsMap[key] = existedNonce
 			},
 			resultMessage: "",
 			preparePayloadNotEqual: func() []byte {
 				return []byte(testMessageEmptyNonce)
 			},
-			prepareMockStubAdditional: func(t *testing.T, mockStub *mocks.ChaincodeStub, owner *mocks.UserFoundation) {
-				mockStub.GetStateReturnsOnCall(1, []byte(strconv.FormatInt(time.Now().UnixNano()/1000000, 10)), nil)
-			},
 		},
 		{
 			name:         "health check",
-			functionName: testFnBatchExecute,
+			functionName: testFnHealthCheck,
 			prepareFunctionParameters: func(owner *mocks.UserFoundation) []string {
-				dataIn, err := pb.Marshal(&pbfound.Batch{TxIDs: [][]byte{[]byte("testTxID")}})
-				require.NoError(t, err)
-
-				return []string{string(dataIn)}
+				return []string{}
+			},
+			invokeFunction: func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, issuer *mocks.UserFoundation, parameters ...string) peer.Response {
+				_, resp := mockStub.TxInvokeChaincodeSigned(cc, functionName, issuer, "", "", "", parameters...)
+				return resp
 			},
 			resultMessage: "",
 			preparePayloadNotEqual: func() []byte {
 				return nil
-			},
-			prepareMockStubAdditional: func(t *testing.T, mockStub *mocks.ChaincodeStub, owner *mocks.UserFoundation) {
-				ownerAddress := sha3.Sum256(owner.PublicKeyBytes)
-
-				pending := &pbfound.PendingTx{
-					Method: testFnHealthCheck,
-					Sender: &pbfound.Address{
-						UserID:       owner.UserID,
-						Address:      ownerAddress[:],
-						IsIndustrial: false,
-						IsMultisig:   false,
-					},
-					Args:  []string{},
-					Nonce: uint64(time.Now().UnixNano() / 1000000),
-				}
-				pendingMarshalled, err := pb.Marshal(pending)
-				require.NoError(t, err)
-
-				err = mocks.SetCreator(mockStub, BatchRobotCert)
-				require.NoError(t, err)
-
-				mockStub.GetStateReturnsOnCall(1, pendingMarshalled, nil)
 			},
 		},
 	}
@@ -231,18 +221,13 @@ func TestContractMethods(t *testing.T) {
 			require.NoError(t, err)
 
 			// preparing mockStub
-			if test.needACLAccess {
-				mocks.ACLGetAccountInfo(t, mockStub.ChaincodeStub, 0)
-			}
-
-			mockStub.GetStateReturnsOnCall(0, []byte(config), nil)
+			mockStub.SetConfig(config)
 
 			if test.prepareMockStubAdditional != nil {
-				test.prepareMockStubAdditional(t, mockStub.ChaincodeStub, owner)
+				test.prepareMockStubAdditional(t, mockStub, owner)
 			}
 
-			mockStub.GetFunctionAndParametersReturns(test.functionName, test.prepareFunctionParameters(owner))
-			resp := cc.Invoke(mockStub)
+			resp := test.invokeFunction(cc, mockStub, test.functionName, owner, test.prepareFunctionParameters(owner)...)
 			if test.resultMessage != "" {
 				require.Equal(t, test.resultMessage, resp.GetMessage())
 			} else {
@@ -284,7 +269,7 @@ func TestInit(t *testing.T) {
 	t.Run("Init with correct cert", func(t *testing.T) {
 		mockStub.GetStringArgsReturns([]string{config})
 
-		err = mocks.SetCreatorCert(mockStub.ChaincodeStub, mocks.TestCreatorMSP, mocks.AdminCert)
+		err = mocks.SetCreator(mockStub.ChaincodeStub, mocks.AdminHexCert)
 		require.NoError(t, err)
 
 		resp := cc.Init(mockStub)
