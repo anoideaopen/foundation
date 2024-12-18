@@ -3,7 +3,6 @@ package unit
 import (
 	"net/http"
 	"testing"
-	"time"
 
 	"github.com/anoideaopen/foundation/core"
 	"github.com/anoideaopen/foundation/core/balance"
@@ -11,9 +10,7 @@ import (
 	"github.com/anoideaopen/foundation/mocks"
 	"github.com/anoideaopen/foundation/mocks/mockstub"
 	pbfound "github.com/anoideaopen/foundation/proto"
-	pb "github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/crypto/sha3"
 )
 
 func TestKeyTypesEmission(t *testing.T) {
@@ -53,42 +50,21 @@ func TestKeyTypesEmission(t *testing.T) {
 			cc, err := core.NewCC(&FiatTestToken{})
 			require.NoError(t, err)
 
-			issuerAddress := sha3.Sum256(issuer.PublicKeyBytes)
+			mockStub.SetConfig(config)
+			_, resp := mockStub.TxInvokeChaincodeSigned(
+				cc,
+				"emit",
+				issuer,
+				"",
+				"",
+				"",
+				[]string{user.AddressBase58Check, "1000"}...)
 
-			pending := &pbfound.PendingTx{
-				Method: "emit",
-				Sender: &pbfound.Address{
-					UserID:       issuer.UserID,
-					Address:      issuerAddress[:],
-					IsIndustrial: false,
-					IsMultisig:   false,
-				},
-				Args:  []string{user.AddressBase58Check, "1000"},
-				Nonce: uint64(time.Now().UnixNano() / 1000000),
-			}
-			pendingMarshalled, err := pb.Marshal(pending)
-			require.NoError(t, err)
-
-			mocks.ACLGetAccountInfo(t, mockStub.ChaincodeStub, 0)
-			mockStub.GetStateReturnsOnCall(0, []byte(config), nil)
-			mockStub.GetStateReturnsOnCall(1, pendingMarshalled, nil)
-			mockStub.GetStateReturnsOnCall(2, big.NewInt(1000).Bytes(), nil)
-
-			dataIn, err := pb.Marshal(&pbfound.Batch{TxIDs: [][]byte{[]byte("testTxID")}})
-			require.NoError(t, err)
-
-			err = mocks.SetCreator(mockStub.ChaincodeStub, BatchRobotCert)
-			require.NoError(t, err)
-
-			mockStub.GetFunctionAndParametersReturns("batchExecute", []string{string(dataIn)})
-
-			// invoking chaincode
-			resp := cc.Invoke(mockStub)
 			require.Equal(t, int32(http.StatusOK), resp.GetStatus())
 			require.Empty(t, resp.GetMessage())
 
 			// checking put state
-			require.Equal(t, 3, mockStub.PutStateCallCount())
+			require.Equal(t, 4, mockStub.PutStateCallCount())
 			var i int
 			for i = 0; i < mockStub.PutStateCallCount(); i++ {
 				key, value := mockStub.PutStateArgsForCall(i)

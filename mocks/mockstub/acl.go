@@ -31,7 +31,7 @@ const (
 	KeyLengthSecp256k1 = 65
 	KeyLengthGOST      = 64
 
-	PrefixUncompressedSecp259k1Key
+	PrefixUncompressedSecp259k1Key = 0x04
 )
 
 func MockACLCheckAddress(_ *MockStub, parameters ...string) peer.Response {
@@ -137,7 +137,7 @@ func identifyKeyTypeByLength(key []byte) (pbfound.KeyType, error) {
 		}
 		return pbfound.KeyType_ed25519, errors.New("invalid key length")
 	case KeyLengthGOST:
-		return pbfound.KeyType_secp256k1, nil
+		return pbfound.KeyType_gost, nil
 	default:
 		return pbfound.KeyType_ed25519, errors.New("invalid key length")
 	}
