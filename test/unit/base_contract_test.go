@@ -219,7 +219,6 @@ func TestContractMethods(t *testing.T) {
 	for _, test := range testCollection {
 		t.Run(test.name, func(t *testing.T) {
 			mockStub := mockstub.NewMockStub(t)
-			cs := mockStub.GetStub()
 
 			owner, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
 			require.NoError(t, err)
@@ -233,17 +232,17 @@ func TestContractMethods(t *testing.T) {
 
 			// preparing mockStub
 			if test.needACLAccess {
-				mocks.ACLGetAccountInfo(t, cs, 0)
+				mocks.ACLGetAccountInfo(t, mockStub.ChaincodeStub, 0)
 			}
 
-			cs.GetStateReturnsOnCall(0, []byte(config), nil)
+			mockStub.GetStateReturnsOnCall(0, []byte(config), nil)
 
 			if test.prepareMockStubAdditional != nil {
-				test.prepareMockStubAdditional(t, cs, owner)
+				test.prepareMockStubAdditional(t, mockStub.ChaincodeStub, owner)
 			}
 
-			cs.GetFunctionAndParametersReturns(test.functionName, test.prepareFunctionParameters(owner))
-			resp := cc.Invoke(cs)
+			mockStub.GetFunctionAndParametersReturns(test.functionName, test.prepareFunctionParameters(owner))
+			resp := cc.Invoke(mockStub)
 			if test.resultMessage != "" {
 				require.Equal(t, test.resultMessage, resp.GetMessage())
 			} else {
@@ -262,7 +261,6 @@ func TestContractMethods(t *testing.T) {
 // TestInit - Checking that init with right mspId working
 func TestInit(t *testing.T) {
 	mockStub := mockstub.NewMockStub(t)
-	cs := mockStub.GetStub()
 
 	owner, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
 	require.NoError(t, err)
@@ -275,25 +273,25 @@ func TestInit(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("[negative] Init with wrong cert", func(t *testing.T) {
-		cs.GetStringArgsReturns([]string{config})
-		err = mocks.SetCreator(cs, BatchRobotCert)
+		mockStub.GetStringArgsReturns([]string{config})
+		err = mocks.SetCreator(mockStub.ChaincodeStub, BatchRobotCert)
 		require.NoError(t, err)
 
-		resp := cc.Init(cs)
+		resp := cc.Init(mockStub)
 		require.Equal(t, "init: validating admin creator: incorrect sender's OU, expected 'admin' but found 'client'", resp.GetMessage())
 	})
 
 	t.Run("Init with correct cert", func(t *testing.T) {
-		cs.GetStringArgsReturns([]string{config})
+		mockStub.GetStringArgsReturns([]string{config})
 
-		err = mocks.SetCreatorCert(cs, mocks.TestCreatorMSP, mocks.AdminCert)
+		err = mocks.SetCreatorCert(mockStub.ChaincodeStub, mocks.TestCreatorMSP, mocks.AdminCert)
 		require.NoError(t, err)
 
-		resp := cc.Init(cs)
+		resp := cc.Init(mockStub)
 		require.Empty(t, resp.GetMessage())
 
-		require.Equal(t, 1, cs.PutStateCallCount())
-		key, value := cs.PutStateArgsForCall(0)
+		require.Equal(t, 1, mockStub.PutStateCallCount())
+		key, value := mockStub.PutStateArgsForCall(0)
 		require.Equal(t, configKey, key)
 		require.Equal(t, config, string(value))
 	})

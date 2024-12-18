@@ -23,7 +23,6 @@ func TestEmbedSrcFiles(t *testing.T) {
 	t.Parallel()
 
 	mockStub := mockstub.NewMockStub(t)
-	cs := mockStub.GetStub()
 
 	tt := &token.BaseToken{}
 	config := makeBaseTokenConfig(
@@ -40,18 +39,18 @@ func TestEmbedSrcFiles(t *testing.T) {
 	cc, err := core.NewCC(tt, core.WithSrcFS(&f))
 	require.NoError(t, err)
 
-	cs.GetChannelIDReturns(testTokenCCName)
+	mockStub.GetChannelIDReturns(testTokenCCName)
 
-	cs.GetFunctionAndParametersReturns("nameOfFiles", []string{})
-	cs.GetStateReturns([]byte(config), nil)
+	mockStub.GetFunctionAndParametersReturns("nameOfFiles", []string{})
+	mockStub.GetStateReturns([]byte(config), nil)
 
-	resp := cc.Invoke(cs)
+	resp := cc.Invoke(mockStub)
 	var files []string
 	require.NoError(t, json.Unmarshal(resp.GetPayload(), &files))
 
-	cs.GetFunctionAndParametersReturns("srcFile", []string{"version_test.go"})
+	mockStub.GetFunctionAndParametersReturns("srcFile", []string{"version_test.go"})
 
-	resp = cc.Invoke(cs)
+	resp = cc.Invoke(mockStub)
 	var file string
 	require.NoError(t, json.Unmarshal(resp.GetPayload(), &file))
 	require.Equal(t, "unit", file[8:12])
@@ -59,26 +58,26 @@ func TestEmbedSrcFiles(t *testing.T) {
 	l += 10
 	lStr := strconv.Itoa(l)
 
-	cs.GetFunctionAndParametersReturns("srcPartFile", []string{"version_test.go", "8", "12"})
+	mockStub.GetFunctionAndParametersReturns("srcPartFile", []string{"version_test.go", "8", "12"})
 
-	resp = cc.Invoke(cs)
+	resp = cc.Invoke(mockStub)
 	var partFile string
 	require.NoError(t, json.Unmarshal(resp.GetPayload(), &partFile))
 	require.Equal(t, "unit", partFile)
 
 	time.Sleep(10 * time.Second)
 
-	cs.GetFunctionAndParametersReturns("srcPartFile", []string{"version_test.go", "-1", "12"})
+	mockStub.GetFunctionAndParametersReturns("srcPartFile", []string{"version_test.go", "-1", "12"})
 
-	resp = cc.Invoke(cs)
+	resp = cc.Invoke(mockStub)
 	require.NoError(t, json.Unmarshal(resp.GetPayload(), &partFile))
 	require.Equal(t, "unit", partFile[8:12])
 
 	time.Sleep(10 * time.Second)
 
-	cs.GetFunctionAndParametersReturns("srcPartFile", []string{"version_test.go", "-1", lStr})
+	mockStub.GetFunctionAndParametersReturns("srcPartFile", []string{"version_test.go", "-1", lStr})
 
-	resp = cc.Invoke(cs)
+	resp = cc.Invoke(mockStub)
 	require.NoError(t, json.Unmarshal(resp.GetPayload(), &partFile))
 	require.Equal(t, "unit", partFile[8:12])
 }
@@ -89,7 +88,6 @@ func TestEmbedSrcFilesWithoutFS(t *testing.T) {
 	t.Parallel()
 
 	mockStub := mockstub.NewMockStub(t)
-	cs := mockStub.GetStub()
 
 	tt := &token.BaseToken{}
 	config := makeBaseTokenConfig(
@@ -105,24 +103,24 @@ func TestEmbedSrcFilesWithoutFS(t *testing.T) {
 	cc, err := core.NewCC(tt)
 	require.NoError(t, err)
 
-	cs.GetChannelIDReturns(testTokenCCName)
+	mockStub.GetChannelIDReturns(testTokenCCName)
 
-	cs.GetStateReturns([]byte(config), nil)
-	cs.GetFunctionAndParametersReturns("nameOfFiles", []string{})
+	mockStub.GetStateReturns([]byte(config), nil)
+	mockStub.GetFunctionAndParametersReturns("nameOfFiles", []string{})
 
-	resp := cc.Invoke(cs)
+	resp := cc.Invoke(mockStub)
 	msg := resp.GetMessage()
 	require.Equal(t, msg, errMsg)
 
-	cs.GetFunctionAndParametersReturns("srcFile", []string{"embed_test.go"})
+	mockStub.GetFunctionAndParametersReturns("srcFile", []string{"embed_test.go"})
 
-	resp = cc.Invoke(cs)
+	resp = cc.Invoke(mockStub)
 	msg = resp.GetMessage()
 	require.Equal(t, msg, errMsg)
 
-	cs.GetFunctionAndParametersReturns("srcPartFile", []string{"embed_test.go", "8", "13"})
+	mockStub.GetFunctionAndParametersReturns("srcPartFile", []string{"embed_test.go", "8", "13"})
 
-	resp = cc.Invoke(cs)
+	resp = cc.Invoke(mockStub)
 	msg = resp.GetMessage()
 	require.Equal(t, msg, errMsg)
 }
@@ -131,7 +129,6 @@ func TestBuildInfo(t *testing.T) {
 	t.Parallel()
 
 	mockStub := mockstub.NewMockStub(t)
-	cs := mockStub.GetStub()
 
 	tt := &token.BaseToken{}
 	config := makeBaseTokenConfig(
@@ -147,12 +144,12 @@ func TestBuildInfo(t *testing.T) {
 	cc, err := core.NewCC(tt)
 	require.NoError(t, err)
 
-	cs.GetChannelIDReturns(testTokenCCName)
+	mockStub.GetChannelIDReturns(testTokenCCName)
 
-	cs.GetStateReturns([]byte(config), nil)
-	cs.GetFunctionAndParametersReturns("buildInfo", []string{})
+	mockStub.GetStateReturns([]byte(config), nil)
+	mockStub.GetFunctionAndParametersReturns("buildInfo", []string{})
 
-	resp := cc.Invoke(cs)
+	resp := cc.Invoke(mockStub)
 	biData := resp.GetPayload()
 	require.NotEmpty(t, biData)
 
@@ -166,7 +163,6 @@ func TestSysEnv(t *testing.T) {
 	t.Parallel()
 
 	mockStub := mockstub.NewMockStub(t)
-	cs := mockStub.GetStub()
 
 	tt := &token.BaseToken{}
 	config := makeBaseTokenConfig(
@@ -183,12 +179,12 @@ func TestSysEnv(t *testing.T) {
 	cc, err := core.NewCC(tt)
 	require.NoError(t, err)
 
-	cs.GetChannelIDReturns(testTokenCCName)
+	mockStub.GetChannelIDReturns(testTokenCCName)
 
-	cs.GetStateReturns([]byte(config), nil)
-	cs.GetFunctionAndParametersReturns("systemEnv", []string{})
+	mockStub.GetStateReturns([]byte(config), nil)
+	mockStub.GetFunctionAndParametersReturns("systemEnv", []string{})
 
-	resp := cc.Invoke(cs)
+	resp := cc.Invoke(mockStub)
 	sysEnv := resp.GetPayload()
 	require.NotEmpty(t, sysEnv)
 
@@ -203,7 +199,6 @@ func TestCoreChaincodeIdName(t *testing.T) {
 	t.Parallel()
 
 	mockStub := mockstub.NewMockStub(t)
-	cs := mockStub.GetStub()
 
 	tt := &token.BaseToken{}
 	config := makeBaseTokenConfig(
@@ -219,12 +214,12 @@ func TestCoreChaincodeIdName(t *testing.T) {
 	cc, err := core.NewCC(tt)
 	require.NoError(t, err)
 
-	cs.GetChannelIDReturns(testTokenCCName)
+	mockStub.GetChannelIDReturns(testTokenCCName)
 
-	cs.GetStateReturns([]byte(config), nil)
-	cs.GetFunctionAndParametersReturns("coreChaincodeIDName", []string{})
+	mockStub.GetStateReturns([]byte(config), nil)
+	mockStub.GetFunctionAndParametersReturns("coreChaincodeIDName", []string{})
 
-	resp := cc.Invoke(cs)
+	resp := cc.Invoke(mockStub)
 	ChNameData := resp.GetPayload()
 	require.NotEmpty(t, ChNameData)
 

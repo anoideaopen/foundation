@@ -17,18 +17,23 @@ import (
 )
 
 type MockStub struct {
-	stub             *mocks.ChaincodeStub
-	getStateCallsMap map[string][]byte
+	*mocks.ChaincodeStub
+	GetStateCallsMap map[string][]byte
+	InvokeACLMap     map[string]func(mockStub *MockStub, parameters ...string) peer.Response
 }
 
 // NewMockStub returns new mock stub
 func NewMockStub(t *testing.T) *MockStub {
-	mockStub := new(mocks.ChaincodeStub)
+	mockStub := &MockStub{}
+	mockStub.ChaincodeStub = new(mocks.ChaincodeStub)
+
+	// Important! Returns constant txID. Maybe needed to define another GetTxIDReturns for more than one transaction
 	txID := [16]byte(uuid.New())
 	mockStub.GetTxIDReturns(hex.EncodeToString(txID[:]))
+
 	mockStub.GetSignedProposalReturns(&peer.SignedProposal{}, nil)
 
-	err := mocks.SetCreatorCert(mockStub, mocks.TestCreatorMSP, mocks.AdminCert)
+	err := mocks.SetCreator(mockStub.ChaincodeStub, mocks.AdminHexCert)
 	require.NoError(t, err)
 
 	mockStub.CreateCompositeKeyCalls(shim.CreateCompositeKey)
@@ -44,16 +49,23 @@ func NewMockStub(t *testing.T) *MockStub {
 		return components[0], components[1:], nil
 	})
 
-	getStateCallsMap := make(map[string][]byte)
+	mockStub.GetStateCallsMap = make(map[string][]byte)
 
 	mockStub.GetStateCalls(func(key string) ([]byte, error) {
-		value, ok := getStateCallsMap[key]
+		value, ok := mockStub.GetStateCallsMap[key]
 		if ok {
 			return value, nil
 		}
 
 		return nil, nil
 	})
+
+	mockStub.InvokeACLMap = map[string]func(mockStub *MockStub, parameters ...string) peer.Response{
+		FnCheckAddress:    MockACLCheckAddress,
+		FnCheckKeys:       MockACLCheckKeys,
+		FnGetAccountInfo:  MockACLGetAccountInfo,
+		FnGetAccountsInfo: MockACLGetAccountsInfo,
+	}
 
 	mockStub.InvokeChaincodeCalls(func(chaincodeName string, args [][]byte, channelName string) peer.Response {
 		if chaincodeName != "acl" && channelName != "acl" {
@@ -66,41 +78,23 @@ func NewMockStub(t *testing.T) *MockStub {
 			parameters = append(parameters, string(arg))
 		}
 
-		switch functionName {
-		case FnCheckAddress:
-			return MockACLCheckAddress(parameters[0])
-		case FnCheckKeys:
-			return MockACLCheckKeys(parameters[0])
-		case FnGetAccountInfo:
-			return MockACLGetAccountInfo()
-		case FnGetAccountsInfo:
-			return MockACLGetAccountsInfo()
+		if function, ok := mockStub.InvokeACLMap[functionName]; ok {
+			return function(mockStub, parameters...)
 		}
 
 		return shim.Error("mock stub does not support " + functionName + "function")
 	})
 
-	return &MockStub{
-		stub:             mockStub,
-		getStateCallsMap: getStateCallsMap,
-	}
-}
-
-func (ms *MockStub) GetStub() *mocks.ChaincodeStub {
-	return ms.stub
-}
-
-func (ms *MockStub) GetState() map[string][]byte {
-	return ms.getStateCallsMap
+	return mockStub
 }
 
 func (ms *MockStub) SetConfig(config string) {
-	ms.getStateCallsMap["__config"] = []byte(config)
+	ms.GetStateCallsMap["__config"] = []byte(config)
 }
 
 func (ms *MockStub) invokeChaincode(chaincode *core.Chaincode, functionName string, parameters ...string) peer.Response {
-	ms.stub.GetFunctionAndParametersReturns(functionName, parameters)
-	return chaincode.Invoke(ms.stub)
+	ms.GetFunctionAndParametersReturns(functionName, parameters)
+	return chaincode.Invoke(ms)
 }
 
 func (ms *MockStub) QueryChaincode(chaincode *core.Chaincode, functionName string, parameters ...string) peer.Response {
@@ -116,15 +110,15 @@ func (ms *MockStub) TxInvokeChaincode(chaincode *core.Chaincode, functionName st
 	if resp.GetStatus() != int32(shim.OK) || resp.GetMessage() != "" {
 		return "", resp
 	}
-	txID := ms.stub.GetTxID()
+	txID := ms.GetTxID()
 
-	key, err := ms.stub.CreateCompositeKey("batchTransactions", []string{txID})
+	key, err := ms.CreateCompositeKey("batchTransactions", []string{txID})
 	if err != nil {
 		return "", shim.Error(err.Error())
 	}
 
-	for i := 0; i < ms.stub.PutStateCallCount(); i++ {
-		putStateKey, rawValue := ms.stub.PutStateArgsForCall(i)
+	for i := 0; i < ms.PutStateCallCount(); i++ {
+		putStateKey, rawValue := ms.PutStateArgsForCall(i)
 		if putStateKey == key { //nolint:nestif
 			pending := &pbfound.PendingTx{}
 			if err := proto.Unmarshal(rawValue, pending); err != nil {
@@ -132,7 +126,7 @@ func (ms *MockStub) TxInvokeChaincode(chaincode *core.Chaincode, functionName st
 			}
 
 			if pending.GetMethod() == functionName {
-				ms.getStateCallsMap[key] = rawValue
+				ms.GetStateCallsMap[key] = rawValue
 
 				hexTxID, err := hex.DecodeString(txID)
 				if err != nil {
@@ -143,19 +137,19 @@ func (ms *MockStub) TxInvokeChaincode(chaincode *core.Chaincode, functionName st
 					return "", shim.Error(err.Error())
 				}
 
-				err = mocks.SetCreator(ms.stub, mocks.BatchRobotCert)
+				err = mocks.SetCreator(ms.ChaincodeStub, mocks.BatchRobotCert)
 				if err != nil {
 					return "", shim.Error(err.Error())
 				}
 
 				resp = ms.invokeChaincode(chaincode, "batchExecute", []string{string(dataIn)}...)
 
-				err = mocks.SetCreatorCert(ms.stub, mocks.TestCreatorMSP, mocks.AdminCert)
+				err = mocks.SetCreator(ms.ChaincodeStub, mocks.AdminHexCert)
 				if err != nil {
 					return "", shim.Error(err.Error())
 				}
 
-				delete(ms.getStateCallsMap, key)
+				delete(ms.GetStateCallsMap, key)
 
 				break
 			}

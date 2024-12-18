@@ -34,7 +34,9 @@ const (
 	PrefixUncompressedSecp259k1Key
 )
 
-func MockACLCheckAddress(address string) peer.Response {
+func MockACLCheckAddress(_ *MockStub, parameters ...string) peer.Response {
+	address := parameters[0]
+
 	addr, err := types.AddrFromBase58Check(address)
 	if err != nil {
 		return shim.Error(err.Error())
@@ -47,7 +49,9 @@ func MockACLCheckAddress(address string) peer.Response {
 	return shim.Success(data)
 }
 
-func MockACLCheckKeys(keysString string) peer.Response {
+func MockACLCheckKeys(_ *MockStub, parameters ...string) peer.Response {
+	keysString := parameters[0]
+
 	keys := strings.Split(keysString, "/")
 	binPubKeys := make([][]byte, len(keys))
 	for i, k := range keys {
@@ -84,7 +88,7 @@ func MockACLCheckKeys(keysString string) peer.Response {
 	return shim.Success(data)
 }
 
-func MockACLGetAccountInfo() peer.Response {
+func MockACLGetAccountInfo(_ *MockStub, _ ...string) peer.Response {
 	data, err := json.Marshal(&pbfound.AccountInfo{
 		KycHash:     "123",
 		GrayListed:  false,
@@ -96,7 +100,7 @@ func MockACLGetAccountInfo() peer.Response {
 	return shim.Success(data)
 }
 
-func MockACLGetAccountsInfo(parameters ...string) peer.Response {
+func MockACLGetAccountsInfo(mockStub *MockStub, parameters ...string) peer.Response {
 	responses := make([]peer.Response, 0)
 	for _, parameter := range parameters {
 		var argsTmp []string
@@ -108,14 +112,9 @@ func MockACLGetAccountsInfo(parameters ...string) peer.Response {
 		var response peer.Response
 		functionName := argsTmp[0]
 
-		switch functionName {
-		case FnCheckAddress:
-			response = MockACLCheckAddress(argsTmp[1])
-		case FnCheckKeys:
-			response = MockACLCheckKeys(argsTmp[1])
-		case FnGetAccountInfo:
-			response = MockACLGetAccountInfo()
-		default:
+		if function, ok := mockStub.InvokeACLMap[functionName]; ok {
+			response = function(mockStub, argsTmp[1:]...)
+		} else {
 			return shim.Error("mock stub does not support " + functionName + "function")
 		}
 

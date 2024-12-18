@@ -45,10 +45,10 @@ func TestExternalLocks(t *testing.T) {
 				return mockStub.TxInvokeChaincodeSigned(cc, functionName, issuer, "", "", "", params)
 			},
 			prepareMockStubFunc: func(t *testing.T, mockStub *mockstub.MockStub, cc *core.Chaincode, issuer, user *mocks.UserFoundation) string {
-				key, err := mockStub.GetStub().CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user.AddressBase58Check})
+				key, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user.AddressBase58Check})
 				require.NoError(t, err)
 
-				mockStub.GetState()[key] = big.NewInt(1000).Bytes()
+				mockStub.GetStateCallsMap[key] = big.NewInt(1000).Bytes()
 
 				request := &proto.BalanceLockRequest{
 					Address: user.AddressBase58Check,
@@ -65,17 +65,17 @@ func TestExternalLocks(t *testing.T) {
 				return string(data)
 			},
 			checkResultFunc: func(t *testing.T, mockStub *mockstub.MockStub, user *mocks.UserFoundation, txID string) {
-				tokenBalanceKey, err := mockStub.GetStub().CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user.AddressBase58Check})
+				tokenBalanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user.AddressBase58Check})
 				require.NoError(t, err)
 
-				tokenBalanceLockedKey, err := mockStub.GetStub().CreateCompositeKey(balance.BalanceTypeTokenLocked.String(), []string{user.AddressBase58Check})
+				tokenBalanceLockedKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeTokenLocked.String(), []string{user.AddressBase58Check})
 				require.NoError(t, err)
 
-				tokenBalanceLockedInfoKey, err := mockStub.GetStub().CreateCompositeKey(balance.BalanceTypeTokenExternalLocked.String(), []string{txID})
+				tokenBalanceLockedInfoKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeTokenExternalLocked.String(), []string{txID})
 				require.NoError(t, err)
 
-				for i := 0; i < mockStub.GetStub().PutStateCallCount(); i++ {
-					putStateKey, value := mockStub.GetStub().PutStateArgsForCall(i)
+				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+					putStateKey, value := mockStub.PutStateArgsForCall(i)
 					if putStateKey == tokenBalanceKey {
 						bal := new(big.Int).SetBytes(value)
 						require.Equal(t, big.NewInt(400), bal)
@@ -103,10 +103,10 @@ func TestExternalLocks(t *testing.T) {
 				return mockStub.TxInvokeChaincodeSigned(cc, functionName, issuer, "", "", "", params)
 			},
 			prepareMockStubFunc: func(t *testing.T, mockStub *mockstub.MockStub, cc *core.Chaincode, issuer, user *mocks.UserFoundation) string {
-				key, err := mockStub.GetStub().CreateCompositeKey(balance.BalanceTypeAllowed.String(), []string{user.AddressBase58Check})
+				key, err := mockStub.CreateCompositeKey(balance.BalanceTypeAllowed.String(), []string{user.AddressBase58Check})
 				require.NoError(t, err)
 
-				mockStub.GetState()[key] = big.NewInt(1000).Bytes()
+				mockStub.GetStateCallsMap[key] = big.NewInt(1000).Bytes()
 
 				request := &proto.BalanceLockRequest{
 					Address: user.AddressBase58Check,
@@ -123,17 +123,17 @@ func TestExternalLocks(t *testing.T) {
 				return string(data)
 			},
 			checkResultFunc: func(t *testing.T, mockStub *mockstub.MockStub, user *mocks.UserFoundation, txID string) {
-				allowedBalanceKey, err := mockStub.GetStub().CreateCompositeKey(balance.BalanceTypeAllowed.String(), []string{user.AddressBase58Check, "vk"})
+				allowedBalanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeAllowed.String(), []string{user.AddressBase58Check, "vk"})
 				require.NoError(t, err)
 
-				allowedBalanceLockedKey, err := mockStub.GetStub().CreateCompositeKey(balance.BalanceTypeAllowedLocked.String(), []string{user.AddressBase58Check, "vk"})
+				allowedBalanceLockedKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeAllowedLocked.String(), []string{user.AddressBase58Check, "vk"})
 				require.NoError(t, err)
 
-				allowedBalanceLockedInfoKey, err := mockStub.GetStub().CreateCompositeKey(balance.BalanceTypeAllowedExternalLocked.String(), []string{txID})
+				allowedBalanceLockedInfoKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeAllowedExternalLocked.String(), []string{txID})
 				require.NoError(t, err)
 
-				for i := 0; i < mockStub.GetStub().PutStateCallCount(); i++ {
-					putStateKey, value := mockStub.GetStub().PutStateArgsForCall(i)
+				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+					putStateKey, value := mockStub.PutStateArgsForCall(i)
 
 					if putStateKey == allowedBalanceKey {
 						bal := new(big.Int).SetBytes(value)
@@ -162,10 +162,10 @@ func TestExternalLocks(t *testing.T) {
 				return mockStub.TxInvokeChaincodeSigned(cc, functionName, user, "", "", "", params)
 			},
 			prepareMockStubFunc: func(t *testing.T, mockStub *mockstub.MockStub, cc *core.Chaincode, issuer, user *mocks.UserFoundation) string {
-				key, err := mockStub.GetStub().CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user.AddressBase58Check})
+				key, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user.AddressBase58Check})
 				require.NoError(t, err)
 
-				mockStub.GetState()[key] = big.NewInt(1000).Bytes()
+				mockStub.GetStateCallsMap[key] = big.NewInt(1000).Bytes()
 
 				request := &proto.BalanceLockRequest{
 					Address: user.AddressBase58Check,
@@ -196,10 +196,10 @@ func TestExternalLocks(t *testing.T) {
 				return mockStub.TxInvokeChaincodeSigned(cc, functionName, user, "", "", "", params)
 			},
 			prepareMockStubFunc: func(t *testing.T, mockStub *mockstub.MockStub, cc *core.Chaincode, issuer, user *mocks.UserFoundation) string {
-				key, err := mockStub.GetStub().CreateCompositeKey(balance.BalanceTypeAllowed.String(), []string{user.AddressBase58Check})
+				key, err := mockStub.CreateCompositeKey(balance.BalanceTypeAllowed.String(), []string{user.AddressBase58Check})
 				require.NoError(t, err)
 
-				mockStub.GetState()[key] = big.NewInt(1000).Bytes()
+				mockStub.GetStateCallsMap[key] = big.NewInt(1000).Bytes()
 
 				request := &proto.BalanceLockRequest{
 					Address: user.AddressBase58Check,
@@ -230,10 +230,10 @@ func TestExternalLocks(t *testing.T) {
 				return mockStub.TxInvokeChaincodeSigned(cc, functionName, issuer, "", "", "", params)
 			},
 			prepareMockStubFunc: func(t *testing.T, mockStub *mockstub.MockStub, cc *core.Chaincode, issuer, user *mocks.UserFoundation) string {
-				key, err := mockStub.GetStub().CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user.AddressBase58Check})
+				key, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user.AddressBase58Check})
 				require.NoError(t, err)
 
-				mockStub.GetState()[key] = big.NewInt(1000).Bytes()
+				mockStub.GetStateCallsMap[key] = big.NewInt(1000).Bytes()
 
 				request := &proto.BalanceLockRequest{
 					Address: user.AddressBase58Check,
@@ -264,10 +264,10 @@ func TestExternalLocks(t *testing.T) {
 				return mockStub.TxInvokeChaincodeSigned(cc, functionName, issuer, "", "", "", params)
 			},
 			prepareMockStubFunc: func(t *testing.T, mockStub *mockstub.MockStub, cc *core.Chaincode, issuer, user *mocks.UserFoundation) string {
-				key, err := mockStub.GetStub().CreateCompositeKey(balance.BalanceTypeAllowed.String(), []string{user.AddressBase58Check})
+				key, err := mockStub.CreateCompositeKey(balance.BalanceTypeAllowed.String(), []string{user.AddressBase58Check})
 				require.NoError(t, err)
 
-				mockStub.GetState()[key] = big.NewInt(1000).Bytes()
+				mockStub.GetStateCallsMap[key] = big.NewInt(1000).Bytes()
 
 				request := &proto.BalanceLockRequest{
 					Address: user.AddressBase58Check,
@@ -362,19 +362,19 @@ func TestExternalUnlocks(t *testing.T) {
 			name:         "external token unlock test",
 			functionName: "unlockTokenBalance",
 			lockBalanceFunc: func(t *testing.T, mockStub *mockstub.MockStub, cc *core.Chaincode, issuer, user *mocks.UserFoundation) string {
-				txID := mockStub.GetStub().GetTxID()
+				txID := mockStub.GetTxID()
 
-				tokenBalanceKey, err := mockStub.GetStub().CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user.AddressBase58Check})
+				tokenBalanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user.AddressBase58Check})
 				require.NoError(t, err)
 
-				tokenBalanceLockedKey, err := mockStub.GetStub().CreateCompositeKey(balance.BalanceTypeTokenLocked.String(), []string{user.AddressBase58Check})
+				tokenBalanceLockedKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeTokenLocked.String(), []string{user.AddressBase58Check})
 				require.NoError(t, err)
 
-				tokenBalanceLockedInfoKey, err := mockStub.GetStub().CreateCompositeKey(balance.BalanceTypeTokenExternalLocked.String(), []string{txID})
+				tokenBalanceLockedInfoKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeTokenExternalLocked.String(), []string{txID})
 				require.NoError(t, err)
 
-				mockStub.GetState()[tokenBalanceKey] = big.NewInt(400).Bytes()
-				mockStub.GetState()[tokenBalanceLockedKey] = big.NewInt(600).Bytes()
+				mockStub.GetStateCallsMap[tokenBalanceKey] = big.NewInt(400).Bytes()
+				mockStub.GetStateCallsMap[tokenBalanceLockedKey] = big.NewInt(600).Bytes()
 
 				info := &proto.TokenBalanceLock{
 					Id:            txID,
@@ -388,7 +388,7 @@ func TestExternalUnlocks(t *testing.T) {
 				rawInfo, err := json.Marshal(info)
 				require.NoError(t, err)
 
-				mockStub.GetState()[tokenBalanceLockedInfoKey] = rawInfo
+				mockStub.GetStateCallsMap[tokenBalanceLockedInfoKey] = rawInfo
 
 				return txID
 			},
@@ -412,17 +412,17 @@ func TestExternalUnlocks(t *testing.T) {
 				return mockStub.TxInvokeChaincodeSigned(cc, functionName, issuer, "", "", "", params)
 			},
 			checkResultFunc: func(t *testing.T, mockStub *mockstub.MockStub, user *mocks.UserFoundation, txID string) {
-				tokenBalanceKey, err := mockStub.GetStub().CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user.AddressBase58Check})
+				tokenBalanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user.AddressBase58Check})
 				require.NoError(t, err)
 
-				tokenBalanceLockedKey, err := mockStub.GetStub().CreateCompositeKey(balance.BalanceTypeTokenLocked.String(), []string{user.AddressBase58Check})
+				tokenBalanceLockedKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeTokenLocked.String(), []string{user.AddressBase58Check})
 				require.NoError(t, err)
 
-				tokenBalanceLockedInfoKey, err := mockStub.GetStub().CreateCompositeKey(balance.BalanceTypeTokenExternalLocked.String(), []string{txID})
+				tokenBalanceLockedInfoKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeTokenExternalLocked.String(), []string{txID})
 				require.NoError(t, err)
 
-				for i := 0; i < mockStub.GetStub().PutStateCallCount(); i++ {
-					putStateKey, value := mockStub.GetStub().PutStateArgsForCall(i)
+				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+					putStateKey, value := mockStub.PutStateArgsForCall(i)
 
 					if putStateKey == tokenBalanceKey {
 						bal := new(big.Int).SetBytes(value)
@@ -449,19 +449,19 @@ func TestExternalUnlocks(t *testing.T) {
 			name:         "external allowed lock unlock test",
 			functionName: "unlockAllowedBalance",
 			lockBalanceFunc: func(t *testing.T, mockStub *mockstub.MockStub, cc *core.Chaincode, issuer *mocks.UserFoundation, user *mocks.UserFoundation) string {
-				txID := mockStub.GetStub().GetTxID()
+				txID := mockStub.GetTxID()
 
-				allowedBalanceKey, err := mockStub.GetStub().CreateCompositeKey(balance.BalanceTypeAllowed.String(), []string{user.AddressBase58Check, "vk"})
+				allowedBalanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeAllowed.String(), []string{user.AddressBase58Check, "vk"})
 				require.NoError(t, err)
 
-				allowedBalanceLockedKey, err := mockStub.GetStub().CreateCompositeKey(balance.BalanceTypeAllowedLocked.String(), []string{user.AddressBase58Check, "vk"})
+				allowedBalanceLockedKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeAllowedLocked.String(), []string{user.AddressBase58Check, "vk"})
 				require.NoError(t, err)
 
-				allowedBalanceLockedInfoKey, err := mockStub.GetStub().CreateCompositeKey(balance.BalanceTypeAllowedExternalLocked.String(), []string{txID})
+				allowedBalanceLockedInfoKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeAllowedExternalLocked.String(), []string{txID})
 				require.NoError(t, err)
 
-				mockStub.GetState()[allowedBalanceKey] = big.NewInt(400).Bytes()
-				mockStub.GetState()[allowedBalanceLockedKey] = big.NewInt(600).Bytes()
+				mockStub.GetStateCallsMap[allowedBalanceKey] = big.NewInt(400).Bytes()
+				mockStub.GetStateCallsMap[allowedBalanceLockedKey] = big.NewInt(600).Bytes()
 
 				info := &proto.AllowedBalanceLock{
 					Id:            txID,
@@ -473,7 +473,7 @@ func TestExternalUnlocks(t *testing.T) {
 				}
 				rawInfo, err := json.Marshal(info)
 
-				mockStub.GetState()[allowedBalanceLockedInfoKey] = rawInfo
+				mockStub.GetStateCallsMap[allowedBalanceLockedInfoKey] = rawInfo
 
 				return txID
 			},
@@ -497,17 +497,17 @@ func TestExternalUnlocks(t *testing.T) {
 				return mockStub.TxInvokeChaincodeSigned(cc, functionName, issuer, "", "", "", params)
 			},
 			checkResultFunc: func(t *testing.T, mockStub *mockstub.MockStub, user *mocks.UserFoundation, txID string) {
-				allowedBalanceKey, err := mockStub.GetStub().CreateCompositeKey(balance.BalanceTypeAllowed.String(), []string{user.AddressBase58Check, "vk"})
+				allowedBalanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeAllowed.String(), []string{user.AddressBase58Check, "vk"})
 				require.NoError(t, err)
 
-				allowedBalanceLockedKey, err := mockStub.GetStub().CreateCompositeKey(balance.BalanceTypeAllowedLocked.String(), []string{user.AddressBase58Check, "vk"})
+				allowedBalanceLockedKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeAllowedLocked.String(), []string{user.AddressBase58Check, "vk"})
 				require.NoError(t, err)
 
-				allowedBalanceLockedInfoKey, err := mockStub.GetStub().CreateCompositeKey(balance.BalanceTypeAllowedExternalLocked.String(), []string{txID})
+				allowedBalanceLockedInfoKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeAllowedExternalLocked.String(), []string{txID})
 				require.NoError(t, err)
 
-				for i := 0; i < mockStub.GetStub().PutStateCallCount(); i++ {
-					putStateKey, value := mockStub.GetStub().PutStateArgsForCall(i)
+				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+					putStateKey, value := mockStub.PutStateArgsForCall(i)
 					if putStateKey == allowedBalanceKey {
 						bal := new(big.Int).SetBytes(value)
 						require.Equal(t, big.NewInt(550), bal)
@@ -533,19 +533,19 @@ func TestExternalUnlocks(t *testing.T) {
 			name:         "[negative] wrong user token unlock test",
 			functionName: "unlockTokenBalance",
 			lockBalanceFunc: func(t *testing.T, mockStub *mockstub.MockStub, cc *core.Chaincode, issuer *mocks.UserFoundation, user *mocks.UserFoundation) string {
-				txID := mockStub.GetStub().GetTxID()
+				txID := mockStub.GetTxID()
 
-				tokenBalanceKey, err := mockStub.GetStub().CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user.AddressBase58Check})
+				tokenBalanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user.AddressBase58Check})
 				require.NoError(t, err)
 
-				tokenBalanceLockedKey, err := mockStub.GetStub().CreateCompositeKey(balance.BalanceTypeTokenLocked.String(), []string{user.AddressBase58Check})
+				tokenBalanceLockedKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeTokenLocked.String(), []string{user.AddressBase58Check})
 				require.NoError(t, err)
 
-				tokenBalanceLockedInfoKey, err := mockStub.GetStub().CreateCompositeKey(balance.BalanceTypeTokenExternalLocked.String(), []string{txID})
+				tokenBalanceLockedInfoKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeTokenExternalLocked.String(), []string{txID})
 				require.NoError(t, err)
 
-				mockStub.GetState()[tokenBalanceKey] = big.NewInt(400).Bytes()
-				mockStub.GetState()[tokenBalanceLockedKey] = big.NewInt(600).Bytes()
+				mockStub.GetStateCallsMap[tokenBalanceKey] = big.NewInt(400).Bytes()
+				mockStub.GetStateCallsMap[tokenBalanceLockedKey] = big.NewInt(600).Bytes()
 
 				info := &proto.TokenBalanceLock{
 					Id:            txID,
@@ -559,7 +559,7 @@ func TestExternalUnlocks(t *testing.T) {
 				rawInfo, err := json.Marshal(info)
 				require.NoError(t, err)
 
-				mockStub.GetState()[tokenBalanceLockedInfoKey] = rawInfo
+				mockStub.GetStateCallsMap[tokenBalanceLockedInfoKey] = rawInfo
 
 				return txID
 			},
@@ -594,19 +594,19 @@ func TestExternalUnlocks(t *testing.T) {
 			name:         "[negative] wrong user allowed unlock test",
 			functionName: "unlockAllowedBalance",
 			lockBalanceFunc: func(t *testing.T, mockStub *mockstub.MockStub, cc *core.Chaincode, issuer *mocks.UserFoundation, user *mocks.UserFoundation) string {
-				txID := mockStub.GetStub().GetTxID()
+				txID := mockStub.GetTxID()
 
-				allowedBalanceKey, err := mockStub.GetStub().CreateCompositeKey(balance.BalanceTypeAllowed.String(), []string{user.AddressBase58Check, "vk"})
+				allowedBalanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeAllowed.String(), []string{user.AddressBase58Check, "vk"})
 				require.NoError(t, err)
 
-				allowedBalanceLockedKey, err := mockStub.GetStub().CreateCompositeKey(balance.BalanceTypeAllowedLocked.String(), []string{user.AddressBase58Check, "vk"})
+				allowedBalanceLockedKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeAllowedLocked.String(), []string{user.AddressBase58Check, "vk"})
 				require.NoError(t, err)
 
-				allowedBalanceLockedInfoKey, err := mockStub.GetStub().CreateCompositeKey(balance.BalanceTypeAllowedExternalLocked.String(), []string{txID})
+				allowedBalanceLockedInfoKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeAllowedExternalLocked.String(), []string{txID})
 				require.NoError(t, err)
 
-				mockStub.GetState()[allowedBalanceKey] = big.NewInt(400).Bytes()
-				mockStub.GetState()[allowedBalanceLockedKey] = big.NewInt(600).Bytes()
+				mockStub.GetStateCallsMap[allowedBalanceKey] = big.NewInt(400).Bytes()
+				mockStub.GetStateCallsMap[allowedBalanceLockedKey] = big.NewInt(600).Bytes()
 
 				info := &proto.AllowedBalanceLock{
 					Id:            txID,
@@ -618,7 +618,7 @@ func TestExternalUnlocks(t *testing.T) {
 				}
 				rawInfo, err := json.Marshal(info)
 
-				mockStub.GetState()[allowedBalanceLockedInfoKey] = rawInfo
+				mockStub.GetStateCallsMap[allowedBalanceLockedInfoKey] = rawInfo
 
 				return txID
 			},
@@ -653,19 +653,19 @@ func TestExternalUnlocks(t *testing.T) {
 			name:         "[negative] token locking twice test",
 			functionName: "lockTokenBalance",
 			lockBalanceFunc: func(t *testing.T, mockStub *mockstub.MockStub, cc *core.Chaincode, issuer *mocks.UserFoundation, user *mocks.UserFoundation) string {
-				txID := mockStub.GetStub().GetTxID()
+				txID := mockStub.GetTxID()
 
-				tokenBalanceKey, err := mockStub.GetStub().CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user.AddressBase58Check})
+				tokenBalanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user.AddressBase58Check})
 				require.NoError(t, err)
 
-				tokenBalanceLockedKey, err := mockStub.GetStub().CreateCompositeKey(balance.BalanceTypeTokenLocked.String(), []string{user.AddressBase58Check})
+				tokenBalanceLockedKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeTokenLocked.String(), []string{user.AddressBase58Check})
 				require.NoError(t, err)
 
-				tokenBalanceLockedInfoKey, err := mockStub.GetStub().CreateCompositeKey(balance.BalanceTypeTokenExternalLocked.String(), []string{txID})
+				tokenBalanceLockedInfoKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeTokenExternalLocked.String(), []string{txID})
 				require.NoError(t, err)
 
-				mockStub.GetState()[tokenBalanceKey] = big.NewInt(400).Bytes()
-				mockStub.GetState()[tokenBalanceLockedKey] = big.NewInt(600).Bytes()
+				mockStub.GetStateCallsMap[tokenBalanceKey] = big.NewInt(400).Bytes()
+				mockStub.GetStateCallsMap[tokenBalanceLockedKey] = big.NewInt(600).Bytes()
 
 				info := &proto.TokenBalanceLock{
 					Id:            txID,
@@ -679,7 +679,7 @@ func TestExternalUnlocks(t *testing.T) {
 				rawInfo, err := json.Marshal(info)
 				require.NoError(t, err)
 
-				mockStub.GetState()[tokenBalanceLockedInfoKey] = rawInfo
+				mockStub.GetStateCallsMap[tokenBalanceLockedInfoKey] = rawInfo
 
 				return txID
 			},
@@ -713,19 +713,19 @@ func TestExternalUnlocks(t *testing.T) {
 			name:         "[negative] allowed locking twice test",
 			functionName: "lockAllowedBalance",
 			lockBalanceFunc: func(t *testing.T, mockStub *mockstub.MockStub, cc *core.Chaincode, issuer *mocks.UserFoundation, user *mocks.UserFoundation) string {
-				txID := mockStub.GetStub().GetTxID()
+				txID := mockStub.GetTxID()
 
-				allowedBalanceKey, err := mockStub.GetStub().CreateCompositeKey(balance.BalanceTypeAllowed.String(), []string{user.AddressBase58Check, "vk"})
+				allowedBalanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeAllowed.String(), []string{user.AddressBase58Check, "vk"})
 				require.NoError(t, err)
 
-				allowedBalanceLockedKey, err := mockStub.GetStub().CreateCompositeKey(balance.BalanceTypeAllowedLocked.String(), []string{user.AddressBase58Check, "vk"})
+				allowedBalanceLockedKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeAllowedLocked.String(), []string{user.AddressBase58Check, "vk"})
 				require.NoError(t, err)
 
-				allowedBalanceLockedInfoKey, err := mockStub.GetStub().CreateCompositeKey(balance.BalanceTypeAllowedExternalLocked.String(), []string{txID})
+				allowedBalanceLockedInfoKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeAllowedExternalLocked.String(), []string{txID})
 				require.NoError(t, err)
 
-				mockStub.GetState()[allowedBalanceKey] = big.NewInt(400).Bytes()
-				mockStub.GetState()[allowedBalanceLockedKey] = big.NewInt(600).Bytes()
+				mockStub.GetStateCallsMap[allowedBalanceKey] = big.NewInt(400).Bytes()
+				mockStub.GetStateCallsMap[allowedBalanceLockedKey] = big.NewInt(600).Bytes()
 
 				info := &proto.AllowedBalanceLock{
 					Id:            txID,
@@ -737,7 +737,7 @@ func TestExternalUnlocks(t *testing.T) {
 				}
 				rawInfo, err := json.Marshal(info)
 
-				mockStub.GetState()[allowedBalanceLockedInfoKey] = rawInfo
+				mockStub.GetStateCallsMap[allowedBalanceLockedInfoKey] = rawInfo
 
 				return txID
 			},
@@ -771,19 +771,19 @@ func TestExternalUnlocks(t *testing.T) {
 			name:         "[negative] token unlock negative test",
 			functionName: "unlockTokenBalance",
 			lockBalanceFunc: func(t *testing.T, mockStub *mockstub.MockStub, cc *core.Chaincode, issuer *mocks.UserFoundation, user *mocks.UserFoundation) string {
-				txID := mockStub.GetStub().GetTxID()
+				txID := mockStub.GetTxID()
 
-				tokenBalanceKey, err := mockStub.GetStub().CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user.AddressBase58Check})
+				tokenBalanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user.AddressBase58Check})
 				require.NoError(t, err)
 
-				tokenBalanceLockedKey, err := mockStub.GetStub().CreateCompositeKey(balance.BalanceTypeTokenLocked.String(), []string{user.AddressBase58Check})
+				tokenBalanceLockedKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeTokenLocked.String(), []string{user.AddressBase58Check})
 				require.NoError(t, err)
 
-				tokenBalanceLockedInfoKey, err := mockStub.GetStub().CreateCompositeKey(balance.BalanceTypeTokenExternalLocked.String(), []string{txID})
+				tokenBalanceLockedInfoKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeTokenExternalLocked.String(), []string{txID})
 				require.NoError(t, err)
 
-				mockStub.GetState()[tokenBalanceKey] = big.NewInt(400).Bytes()
-				mockStub.GetState()[tokenBalanceLockedKey] = big.NewInt(600).Bytes()
+				mockStub.GetStateCallsMap[tokenBalanceKey] = big.NewInt(400).Bytes()
+				mockStub.GetStateCallsMap[tokenBalanceLockedKey] = big.NewInt(600).Bytes()
 
 				info := &proto.TokenBalanceLock{
 					Id:            txID,
@@ -797,7 +797,7 @@ func TestExternalUnlocks(t *testing.T) {
 				rawInfo, err := json.Marshal(info)
 				require.NoError(t, err)
 
-				mockStub.GetState()[tokenBalanceLockedInfoKey] = rawInfo
+				mockStub.GetStateCallsMap[tokenBalanceLockedInfoKey] = rawInfo
 
 				return txID
 			},
@@ -832,19 +832,19 @@ func TestExternalUnlocks(t *testing.T) {
 			name:         "[negative] allowed unlock negative test",
 			functionName: "unlockAllowedBalance",
 			lockBalanceFunc: func(t *testing.T, mockStub *mockstub.MockStub, cc *core.Chaincode, issuer *mocks.UserFoundation, user *mocks.UserFoundation) string {
-				txID := mockStub.GetStub().GetTxID()
+				txID := mockStub.GetTxID()
 
-				allowedBalanceKey, err := mockStub.GetStub().CreateCompositeKey(balance.BalanceTypeAllowed.String(), []string{user.AddressBase58Check, "vk"})
+				allowedBalanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeAllowed.String(), []string{user.AddressBase58Check, "vk"})
 				require.NoError(t, err)
 
-				allowedBalanceLockedKey, err := mockStub.GetStub().CreateCompositeKey(balance.BalanceTypeAllowedLocked.String(), []string{user.AddressBase58Check, "vk"})
+				allowedBalanceLockedKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeAllowedLocked.String(), []string{user.AddressBase58Check, "vk"})
 				require.NoError(t, err)
 
-				allowedBalanceLockedInfoKey, err := mockStub.GetStub().CreateCompositeKey(balance.BalanceTypeAllowedExternalLocked.String(), []string{txID})
+				allowedBalanceLockedInfoKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeAllowedExternalLocked.String(), []string{txID})
 				require.NoError(t, err)
 
-				mockStub.GetState()[allowedBalanceKey] = big.NewInt(400).Bytes()
-				mockStub.GetState()[allowedBalanceLockedKey] = big.NewInt(600).Bytes()
+				mockStub.GetStateCallsMap[allowedBalanceKey] = big.NewInt(400).Bytes()
+				mockStub.GetStateCallsMap[allowedBalanceLockedKey] = big.NewInt(600).Bytes()
 
 				info := &proto.AllowedBalanceLock{
 					Id:            txID,
@@ -856,7 +856,7 @@ func TestExternalUnlocks(t *testing.T) {
 				}
 				rawInfo, err := json.Marshal(info)
 
-				mockStub.GetState()[allowedBalanceLockedInfoKey] = rawInfo
+				mockStub.GetStateCallsMap[allowedBalanceLockedInfoKey] = rawInfo
 
 				return txID
 			},
