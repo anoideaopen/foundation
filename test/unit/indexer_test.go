@@ -2,21 +2,17 @@ package unit
 
 import (
 	"encoding/json"
-	"strconv"
-	"testing"
-	"time"
-
 	"github.com/anoideaopen/foundation/core"
 	"github.com/anoideaopen/foundation/core/balance"
 	"github.com/anoideaopen/foundation/mocks"
 	"github.com/anoideaopen/foundation/mocks/mockstub"
 	pbfound "github.com/anoideaopen/foundation/proto"
 	"github.com/anoideaopen/foundation/token"
-	pb "github.com/golang/protobuf/proto"
 	"github.com/hyperledger/fabric-chaincode-go/shim"
 	"github.com/hyperledger/fabric-protos-go/ledger/queryresult"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/crypto/sha3"
+	"strconv"
+	"testing"
 )
 
 var (
@@ -141,38 +137,9 @@ func TestAutoBalanceIndexing(t *testing.T) {
 	require.Equal(t, 0, ownersAutoIndexed)
 
 	// emulating batch execute for emitting tokens to user
-	ownerAddress := sha3.Sum256(owner.PublicKeyBytes)
+	mockStub.SetConfig(config)
 
-	pending := &pbfound.PendingTx{
-		Method: "emitIndustrial",
-		Sender: &pbfound.Address{
-			UserID:       owner.UserID,
-			Address:      ownerAddress[:],
-			IsIndustrial: false,
-			IsMultisig:   false,
-		},
-		Args: []string{
-			user.AddressBase58Check,
-			"1000",
-			usdt,
-		},
-		Nonce: uint64(time.Now().UnixNano() / 1000000),
-	}
-	pendingMarshalled, err := pb.Marshal(pending)
-	require.NoError(t, err)
-
-	dataIn, err := pb.Marshal(&pbfound.Batch{TxIDs: [][]byte{[]byte("testTxID")}})
-	require.NoError(t, err)
-
-	err = mocks.SetCreator(mockStub.ChaincodeStub, BatchRobotCert)
-	require.NoError(t, err)
-
-	mockStub.GetFunctionAndParametersReturns("batchExecute", []string{string(dataIn)})
-
-	mockStub.GetStateReturnsOnCall(0, []byte(config), nil)
-	mockStub.GetStateReturnsOnCall(1, pendingMarshalled, nil)
-
-	resp := cc.Invoke(mockStub)
+	_, resp := mockStub.TxInvokeChaincodeSigned(cc, "emitIndustrial", owner, "", "", "", []string{user.AddressBase58Check, "1000", "usdt"}...)
 	require.Equal(t, "", resp.Message)
 
 	// checking inverse balance appears
