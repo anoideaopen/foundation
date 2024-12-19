@@ -36,3 +36,5 @@ AwOtbOjaLd68woAqAklfKKhfu10K+DAKBggqhkjOPQQDAgNIADBFAiEAoKRQLe4U
 FfAAwQs3RCWpevOPq+J8T4KEsYvswKjzfJYCIAs2kOmN/AsVUF63unXJY0k9ktfD
 fAaqNRaboY1Yg1iQ`
 )
+
+const TestCreatorMSP = "platformMSP"

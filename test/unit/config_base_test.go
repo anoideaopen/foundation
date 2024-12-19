@@ -3,6 +3,7 @@ package unit
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"strconv"
 	"strings"
 	"testing"
@@ -342,19 +343,17 @@ func TestDisabledFunctions(t *testing.T) {
 		},
 	}
 
-	config1, err := protojson.Marshal(cfgEtl)
+	rawCfg, err := protojson.Marshal(cfgEtl)
 	require.NoError(t, err)
 
 	cc, err := core.NewCC(tt)
 	require.NoError(t, err)
 
+	mockStub.SetConfig(string(rawCfg))
+
 	// Calling TxTestFunction while it's not disabled
-	mockStub.GetStateReturns(config1, nil)
-
-	err = mocks.SetFunctionAndParametersWithSign(mockStub.ChaincodeStub, user1, testFunctionName, "", "", "")
-	require.NoError(t, err)
-
-	resp := cc.Invoke(mockStub)
+	resp := mockStub.NbTxInvokeChaincodeSigned(cc, testFunctionName, user1, "", "", "")
+	require.Equal(t, int32(http.StatusOK), resp.GetStatus())
 	require.Empty(t, resp.GetMessage())
 
 	cfgEtl = &pb.Config{
@@ -367,14 +366,13 @@ func TestDisabledFunctions(t *testing.T) {
 			Admin:    &pb.Wallet{Address: fixtures_test.AdminAddr},
 		},
 	}
-	config2, _ := protojson.Marshal(cfgEtl)
-
-	//Calling TxTestFunction while it's disabled
-	mockStub.GetStateReturns(config2, nil)
-	err = mocks.SetFunctionAndParametersWithSign(mockStub.ChaincodeStub, user1, testFunctionName, "", "", "")
+	rawCfg, err = protojson.Marshal(cfgEtl)
 	require.NoError(t, err)
 
-	resp = cc.Invoke(mockStub)
+	mockStub.SetConfig(string(rawCfg))
+
+	//Calling TxTestFunction while it's disabled
+	resp = mockStub.NbTxInvokeChaincodeSigned(cc, testFunctionName, user1, "", "", "")
 	require.Equal(t, "invoke: finding method: method 'testFunction' not found", resp.GetMessage())
 }
 

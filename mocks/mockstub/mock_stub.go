@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// MockStub represents mock stub structure
 type MockStub struct {
 	*mocks.ChaincodeStub
 	GetStateCallsMap map[string][]byte
@@ -89,24 +90,59 @@ func NewMockStub(t *testing.T) *MockStub {
 	return mockStub
 }
 
+// SetConfig sets config to MockStub state
 func (ms *MockStub) SetConfig(config string) {
 	ms.GetStateCallsMap["__config"] = []byte(config)
 }
 
+// invokeChaincode invokes chaincode
 func (ms *MockStub) invokeChaincode(chaincode *core.Chaincode, functionName string, parameters ...string) peer.Response {
 	ms.GetFunctionAndParametersReturns(functionName, parameters)
+
+	// Artificial delay to update the nonce value
+	time.Sleep(time.Millisecond * 5)
+
 	return chaincode.Invoke(ms)
 }
 
+// QueryChaincode returns query result
 func (ms *MockStub) QueryChaincode(chaincode *core.Chaincode, functionName string, parameters ...string) peer.Response {
 	return ms.invokeChaincode(chaincode, functionName, parameters...)
 }
 
-func (ms *MockStub) NbTxInvokeChaincode(chaincode *core.Chaincode, functionName string, parameters ...string) peer.Response {
+// NbTxInvokeChaincode returns non batched transaction result
+func (ms *MockStub) NbTxInvokeChaincode(
+	chaincode *core.Chaincode,
+	functionName string,
+	parameters ...string,
+) peer.Response {
 	return ms.invokeChaincode(chaincode, functionName, parameters...)
 }
 
-func (ms *MockStub) TxInvokeChaincode(chaincode *core.Chaincode, functionName string, parameters ...string) (string, peer.Response) {
+// NbTxInvokeChaincodeSigned returns non-batched transaction result with signed arguments
+func (ms *MockStub) NbTxInvokeChaincodeSigned(
+	chaincode *core.Chaincode,
+	functionName string,
+	user *mocks.UserFoundation,
+	requestID string,
+	chaincodeName string,
+	channelName string,
+	parameters ...string,
+) peer.Response {
+	params, err := getParametersSigned(functionName, user, requestID, chaincodeName, channelName, parameters...)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	return ms.invokeChaincode(chaincode, functionName, params...)
+}
+
+// TxInvokeChaincode returns result of batchExecute transaction
+func (ms *MockStub) TxInvokeChaincode(
+	chaincode *core.Chaincode,
+	functionName string,
+	parameters ...string,
+) (string, peer.Response) {
 	resp := ms.invokeChaincode(chaincode, functionName, parameters...)
 	if resp.GetStatus() != int32(shim.OK) || resp.GetMessage() != "" {
 		return "", resp
@@ -160,6 +196,7 @@ func (ms *MockStub) TxInvokeChaincode(chaincode *core.Chaincode, functionName st
 	return txID, resp
 }
 
+// TxInvokeChaincodeSigned returns result of batchExecute transaction with signed arguments
 func (ms *MockStub) TxInvokeChaincodeSigned(
 	chaincode *core.Chaincode,
 	functionName string,
@@ -169,15 +206,29 @@ func (ms *MockStub) TxInvokeChaincodeSigned(
 	channelName string,
 	parameters ...string,
 ) (string, peer.Response) {
-	// Artificial delay to update the nonce value
-	time.Sleep(time.Millisecond * 5)
-
-	ctorArgs := append(append([]string{functionName, requestID, channelName, chaincodeName}, parameters...), mocks.GetNewStringNonce())
-
-	pubKey, sMsg, err := user.Sign(ctorArgs...)
+	params, err := getParametersSigned(functionName, user, requestID, chaincodeName, channelName, parameters...)
 	if err != nil {
 		return "", shim.Error(err.Error())
 	}
 
-	return ms.TxInvokeChaincode(chaincode, functionName, append(ctorArgs[1:], pubKey, base58.Encode(sMsg))...)
+	return ms.TxInvokeChaincode(chaincode, functionName, params...)
+}
+
+// getParametersSigned returns parameters string with specified user's signification
+func getParametersSigned(
+	functionName string,
+	user *mocks.UserFoundation,
+	requestID string,
+	chaincodeName string,
+	channelName string,
+	parameters ...string,
+) ([]string, error) {
+	ctorArgs := append(append([]string{functionName, requestID, channelName, chaincodeName}, parameters...), mocks.GetNewStringNonce())
+
+	pubKey, sMsg, err := user.Sign(ctorArgs...)
+	if err != nil {
+		return []string{}, err
+	}
+
+	return append(ctorArgs[1:], pubKey, base58.Encode(sMsg)), nil
 }
