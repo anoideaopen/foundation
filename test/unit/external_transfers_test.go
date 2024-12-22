@@ -2,18 +2,18 @@ package unit
 
 import (
 	"encoding/json"
-	"github.com/anoideaopen/foundation/core/types/big"
-	"github.com/anoideaopen/foundation/mocks"
-	"github.com/anoideaopen/foundation/mocks/mockstub"
-	pb "github.com/golang/protobuf/proto"
-	"github.com/hyperledger/fabric-protos-go/peer"
 	"net/http"
 	"testing"
 	"time"
 
 	"github.com/anoideaopen/foundation/core"
 	"github.com/anoideaopen/foundation/core/balance"
+	"github.com/anoideaopen/foundation/core/types/big"
+	"github.com/anoideaopen/foundation/mocks"
+	"github.com/anoideaopen/foundation/mocks/mockstub"
 	"github.com/anoideaopen/foundation/proto"
+	pb "github.com/golang/protobuf/proto"
+	"github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -33,19 +33,24 @@ func TestExternalTransfers(t *testing.T) {
 				return resp
 			},
 			checkResultFunc: func(t *testing.T, mockStub *mockstub.MockStub, resp peer.Response, user1BalanceKey, user2BalanceKey string) {
+				balance1Checked := false
+				balance2Checked := false
 				for i := 0; i < mockStub.PutStateCallCount(); i++ {
 					putStateKey, value := mockStub.PutStateArgsForCall(i)
 
 					if putStateKey == user1BalanceKey {
 						bal := new(big.Int).SetBytes(value)
 						require.Equal(t, 0, bal.Cmp(big.NewInt(400)))
+						balance1Checked = true
 					}
 
 					if putStateKey == user2BalanceKey {
 						bal := new(big.Int).SetBytes(value)
 						require.Equal(t, 0, bal.Cmp(big.NewInt(1100)))
+						balance2Checked = true
 					}
 				}
+				require.True(t, balance1Checked && balance2Checked)
 			},
 		},
 		{
