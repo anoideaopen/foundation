@@ -2,6 +2,7 @@ package unit
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -1706,4 +1707,17 @@ func TestMultiTransferFailForwardByAdmin(t *testing.T) {
 	err = owner.RawSignedInvokeWithErrorReturned("it1", "channelMultiTransferByAdmin", id, "IT2",
 		fixtures_test.AdminAddr, string(itemsJSON))
 	require.EqualError(t, err, cctransfer.ErrAdminNotSet.Error())
+}
+
+func GetIndustrialBalanceFromResponseByGroup(response string, group string) (string, error) {
+	var balanceMap map[string]string
+	err := json.Unmarshal([]byte(response), &balanceMap)
+	if err != nil {
+		return "", err
+	}
+	bl := balanceMap[group]
+	if bl == "" {
+		return "", errors.New("cant find balance for group: " + group)
+	}
+	return bl, nil
 }
