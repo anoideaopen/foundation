@@ -2,12 +2,18 @@ package unit
 
 import (
 	"encoding/json"
-	"errors"
+	"net/http"
 	"testing"
 
+	"github.com/anoideaopen/foundation/core"
+	"github.com/anoideaopen/foundation/core/balance"
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/core/types/big"
-	"github.com/anoideaopen/foundation/mock"
+	"github.com/anoideaopen/foundation/mocks"
+	"github.com/anoideaopen/foundation/mocks/mockstub"
+	pbfound "github.com/anoideaopen/foundation/proto"
+	"github.com/hyperledger/fabric-protos-go/ledger/queryresult"
+	"github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/stretchr/testify/require"
 )
 
@@ -47,358 +53,364 @@ func (tt *TestToken) TxIndustrialBalanceBurnLocked(_ *types.Sender, token string
 	return tt.IndustrialBalanceBurnLocked(token, address, amount, reason)
 }
 
-// TestIndustrialBalanceAdd - Checking that industrial balance can be added
-func TestIndustrialBalanceAdd(t *testing.T) {
+// TestIndustrialBalances - industrial balances test
+func TestIndustrialBalances(t *testing.T) {
 	t.Parallel()
 
-	ledgerMock := mock.NewLedger(t)
-	owner := ledgerMock.NewWallet()
+	testCollection := []struct {
+		name                string
+		functionName        string
+		funcPrepareMockStub func(t *testing.T, mockStub *mockstub.MockStub, user1, user2 *mocks.UserFoundation) []string
+		funcInvoke          func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, signer *mocks.UserFoundation, parameters ...string) peer.Response
+		funcCheckResult     func(t *testing.T, mockStub *mockstub.MockStub, user1, user2 *mocks.UserFoundation, resp peer.Response)
+	}{
+		{
+			name:         "industrial balances get",
+			functionName: "industrialBalanceGet",
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub, user1, user2 *mocks.UserFoundation) []string {
+				key, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user1.AddressBase58Check, testGroup})
+				require.NoError(t, err)
 
-	balanceAddAmount := "123"
+				mockStub.GetStateCallsMap[key] = big.NewInt(1000).Bytes()
 
-	tt := &TestToken{}
-	ttConfig := makeBaseTokenConfig(testTokenWithGroup, testTokenSymbol, 8,
-		owner.Address(), "", "", "", nil)
-	ledgerMock.NewCC(testTokenWithGroup, tt, ttConfig)
+				mockIterator := &mocks.StateIterator{}
+				mockStub.GetStateByPartialCompositeKeyReturns(mockIterator, nil)
 
-	user := ledgerMock.NewWallet()
+				mockIterator.HasNextReturnsOnCall(0, true)
+				mockIterator.HasNextReturnsOnCall(1, false)
 
-	t.Run("Industrial balance add", func(t *testing.T) {
-		owner.SignedInvoke(testTokenWithGroup, "industrialBalanceAdd", testTokenWithGroup, user.Address(), balanceAddAmount, "add balance")
+				mockIterator.NextReturnsOnCall(0, &queryresult.KV{
+					Key:   key,
+					Value: big.NewInt(1000).Bytes(),
+				}, nil)
 
-		balanceResponse := owner.Invoke(testTokenWithGroup, "industrialBalanceGet", user.Address())
-		balance, err := GetIndustrialBalanceFromResponseByGroup(balanceResponse, testGroup)
-		if err != nil {
-			require.FailNow(t, err.Error())
-		}
-		require.Equal(t, balanceAddAmount, balance, "require that balance equals "+balanceAddAmount)
-	})
-}
+				return []string{user1.AddressBase58Check}
+			},
+			funcInvoke: func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, signer *mocks.UserFoundation, parameters ...string) peer.Response {
+				return mockStub.QueryChaincode(cc, functionName, parameters...)
+			},
+			funcCheckResult: func(t *testing.T, mockStub *mockstub.MockStub, user1, user2 *mocks.UserFoundation, resp peer.Response) {
+				payload := map[string]string{}
 
-// TestIndustrialBalanceSub - Checking that industrial balance sub is working
-func TestIndustrialBalanceSub(t *testing.T) {
-	t.Parallel()
+				err := json.Unmarshal(resp.Payload, &payload)
+				require.NoError(t, err)
 
-	ledgerMock := mock.NewLedger(t)
-	owner := ledgerMock.NewWallet()
-	user := ledgerMock.NewWallet()
+				value, ok := payload[testGroup]
+				require.True(t, ok)
 
-	balanceAddAmount := "123"
-	subAmount := "23"
-	balanceAfterSubExpected := "100"
+				require.Equal(t, "1000", value)
+			},
+		},
+		{
+			name:         "industrial balances add",
+			functionName: "industrialBalanceAdd",
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub, user1, user2 *mocks.UserFoundation) []string {
+				key, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user1.AddressBase58Check, testGroup})
+				require.NoError(t, err)
 
-	tt := &TestToken{}
-	ttConfig := makeBaseTokenConfig(testTokenWithGroup, testTokenSymbol, 8,
-		owner.Address(), "", "", "", nil)
-	ledgerMock.NewCC(testTokenWithGroup, tt, ttConfig)
+				mockStub.GetStateCallsMap[key] = big.NewInt(1000).Bytes()
 
-	owner.SignedInvoke(
-		testTokenWithGroup,
-		"industrialBalanceAdd",
-		testTokenWithGroup,
-		user.Address(),
-		balanceAddAmount,
-		"add balance for "+balanceAddAmount,
-	)
-	owner.Invoke(testTokenWithGroup, "industrialBalanceGet", user.Address())
+				return []string{testTokenWithGroup, user1.AddressBase58Check, "100", "add balance"}
+			},
+			funcInvoke: func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, signer *mocks.UserFoundation, parameters ...string) peer.Response {
+				_, resp := mockStub.TxInvokeChaincodeSigned(cc, functionName, signer, "", "", "", parameters...)
+				return resp
+			},
+			funcCheckResult: func(t *testing.T, mockStub *mockstub.MockStub, user1, user2 *mocks.UserFoundation, resp peer.Response) {
+				key, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user1.AddressBase58Check, testGroup})
+				require.NoError(t, err)
 
-	t.Run("Industrial balance sub", func(t *testing.T) {
-		owner.SignedInvoke(testTokenWithGroup, "industrialBalanceSub", testTokenWithGroup, user.Address(), subAmount, "sub balance for "+subAmount)
-		balanceAfterSubResponse := owner.Invoke(testTokenWithGroup, "industrialBalanceGet", user.Address())
-		balanceAfterSub, err := GetIndustrialBalanceFromResponseByGroup(balanceAfterSubResponse, testGroup)
-		if err != nil {
-			require.FailNow(t, err.Error())
-		}
-		require.Equal(t, balanceAfterSubExpected, balanceAfterSub, "require that balance equals "+balanceAfterSubExpected)
-	})
-}
+				checked := false
+				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+					putStateKey, value := mockStub.PutStateArgsForCall(i)
+					if putStateKey == key {
+						require.Equal(t, big.NewInt(1100), new(big.Int).SetBytes(value))
+						checked = true
+					}
+				}
+				require.True(t, checked)
+			},
+		},
+		{
+			name:         "industrial balances sub",
+			functionName: "industrialBalanceSub",
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub, user1, user2 *mocks.UserFoundation) []string {
+				key, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user1.AddressBase58Check, testGroup})
+				require.NoError(t, err)
 
-// TestIndustrialBalanceTransfer - Checking that industrial balance transfer is working
-func TestIndustrialBalanceTransfer(t *testing.T) {
-	t.Parallel()
+				mockStub.GetStateCallsMap[key] = big.NewInt(1000).Bytes()
 
-	ledgerMock := mock.NewLedger(t)
-	owner := ledgerMock.NewWallet()
+				return []string{testTokenWithGroup, user1.AddressBase58Check, "100", "sub balance"}
+			},
+			funcInvoke: func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, signer *mocks.UserFoundation, parameters ...string) peer.Response {
+				_, resp := mockStub.TxInvokeChaincodeSigned(cc, functionName, signer, "", "", "", parameters...)
+				return resp
+			},
+			funcCheckResult: func(t *testing.T, mockStub *mockstub.MockStub, user1, user2 *mocks.UserFoundation, resp peer.Response) {
+				key, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user1.AddressBase58Check, testGroup})
+				require.NoError(t, err)
 
-	balanceAddAmount := "123"
-	transferAmount := "122"
-	balanceAfterTransferUser1Expected := "1"
-	balanceAfterTransferUser2Expected := "122"
+				checked := false
+				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+					putStateKey, value := mockStub.PutStateArgsForCall(i)
+					if putStateKey == key {
+						require.Equal(t, big.NewInt(900), new(big.Int).SetBytes(value))
+						checked = true
+					}
+				}
+				require.True(t, checked)
+			},
+		},
+		{
+			name:         "industrial balances lock",
+			functionName: "industrialBalanceLock",
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub, user1, user2 *mocks.UserFoundation) []string {
+				key, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user1.AddressBase58Check, testGroup})
+				require.NoError(t, err)
 
-	tt := &TestToken{}
-	ttConfig := makeBaseTokenConfig(testTokenWithGroup, testTokenSymbol, 8,
-		owner.Address(), "", "", "", nil)
-	ledgerMock.NewCC(testTokenWithGroup, tt, ttConfig)
+				mockStub.GetStateCallsMap[key] = big.NewInt(1000).Bytes()
 
-	user1 := ledgerMock.NewWallet()
-	user2 := ledgerMock.NewWallet()
+				return []string{testTokenWithGroup, user1.AddressBase58Check, "100"}
+			},
+			funcInvoke: func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, signer *mocks.UserFoundation, parameters ...string) peer.Response {
+				_, resp := mockStub.TxInvokeChaincodeSigned(cc, functionName, signer, "", "", "", parameters...)
+				return resp
+			},
+			funcCheckResult: func(t *testing.T, mockStub *mockstub.MockStub, user1, user2 *mocks.UserFoundation, resp peer.Response) {
+				keyLocked, err := mockStub.CreateCompositeKey(balance.BalanceTypeTokenLocked.String(), []string{user1.AddressBase58Check, testGroup})
+				require.NoError(t, err)
 
-	owner.SignedInvoke(testTokenWithGroup, "industrialBalanceAdd", testTokenWithGroup, user1.Address(), balanceAddAmount, "add balance for "+balanceAddAmount)
-	owner.Invoke(testTokenWithGroup, "industrialBalanceGet", user1.Address())
+				keyUnlocked, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user1.AddressBase58Check, testGroup})
+				require.NoError(t, err)
 
-	t.Run("Industrial balance transfer", func(t *testing.T) {
-		user1.SignedInvoke(testTokenWithGroup, "industrialBalanceTransfer", testGroup, user1.Address(), user2.Address(), transferAmount, "transfer balance for "+transferAmount)
+				checkedLocked := false
+				checkedUnlocked := false
+				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+					putStateKey, value := mockStub.PutStateArgsForCall(i)
+					if putStateKey == keyLocked {
+						require.Equal(t, big.NewInt(100), new(big.Int).SetBytes(value))
+						checkedLocked = true
+					}
+					if putStateKey == keyUnlocked {
+						require.Equal(t, big.NewInt(900), new(big.Int).SetBytes(value))
+						checkedUnlocked = true
+					}
+				}
+				require.True(t, checkedLocked && checkedUnlocked)
+			},
+		},
+		{
+			name:         "industrial balance get locked",
+			functionName: "industrialBalanceGetLocked",
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub, user1, user2 *mocks.UserFoundation) []string {
+				key, err := mockStub.CreateCompositeKey(balance.BalanceTypeTokenLocked.String(), []string{user1.AddressBase58Check, testGroup})
+				require.NoError(t, err)
 
-		balanceAfterSubUser2Response := owner.Invoke(testTokenWithGroup, "industrialBalanceGet", user2.Address())
-		balanceAfterSubUser2, err := GetIndustrialBalanceFromResponseByGroup(balanceAfterSubUser2Response, testGroup)
-		if err != nil {
-			require.FailNow(t, err.Error())
-		}
-		require.Equal(t, balanceAfterTransferUser2Expected, balanceAfterSubUser2, "require that balance equals "+balanceAfterTransferUser2Expected)
+				mockStub.GetStateCallsMap[key] = big.NewInt(1000).Bytes()
 
-		balanceAfterSubUser1Response := owner.Invoke(testTokenWithGroup, "industrialBalanceGet", user1.Address())
-		balanceAfterSubUser1, err := GetIndustrialBalanceFromResponseByGroup(balanceAfterSubUser1Response, testGroup)
-		if err != nil {
-			require.FailNow(t, err.Error())
-		}
-		require.Equal(t, balanceAfterTransferUser1Expected, balanceAfterSubUser1, "require that balance equals "+balanceAfterTransferUser1Expected)
-	})
-}
+				mockIterator := &mocks.StateIterator{}
+				mockStub.GetStateByPartialCompositeKeyReturns(mockIterator, nil)
 
-// TestIndustrialBalanceLockAndGetLocked - Checking that industrial balance can be locked
-func TestIndustrialBalanceLockAndGetLocked(t *testing.T) {
-	t.Parallel()
+				mockIterator.HasNextReturnsOnCall(0, true)
+				mockIterator.HasNextReturnsOnCall(1, false)
 
-	ledgerMock := mock.NewLedger(t)
-	owner := ledgerMock.NewWallet()
+				mockIterator.NextReturnsOnCall(0, &queryresult.KV{
+					Key:   key,
+					Value: big.NewInt(1000).Bytes(),
+				}, nil)
 
-	balanceAddAmount := "1000"
-	lockAmount := "500"
+				return []string{user1.AddressBase58Check}
+			},
+			funcInvoke: func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, signer *mocks.UserFoundation, parameters ...string) peer.Response {
+				return mockStub.QueryChaincode(cc, functionName, parameters...)
+			},
+			funcCheckResult: func(t *testing.T, mockStub *mockstub.MockStub, user1, user2 *mocks.UserFoundation, resp peer.Response) {
+				payload := map[string]string{}
 
-	tt := &TestToken{}
-	ttConfig := makeBaseTokenConfig(testTokenWithGroup, testTokenSymbol, 8,
-		owner.Address(), "", "", "", nil)
-	ledgerMock.NewCC(testTokenWithGroup, tt, ttConfig)
+				err := json.Unmarshal(resp.Payload, &payload)
+				require.NoError(t, err)
 
-	user1 := ledgerMock.NewWallet()
+				value, ok := payload[testGroup]
+				require.True(t, ok)
 
-	owner.SignedInvoke(
-		testTokenWithGroup,
-		"industrialBalanceAdd",
-		testTokenWithGroup,
-		user1.Address(),
-		balanceAddAmount,
-		"add industrial balance for "+balanceAddAmount,
-	)
+				require.Equal(t, "1000", value)
+			},
+		},
+		{
+			name:         "industrial balances unlock",
+			functionName: "industrialBalanceUnLock",
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub, user1, user2 *mocks.UserFoundation) []string {
+				key, err := mockStub.CreateCompositeKey(balance.BalanceTypeTokenLocked.String(), []string{user1.AddressBase58Check, testGroup})
+				require.NoError(t, err)
 
-	balanceResponse := owner.Invoke(testTokenWithGroup, "industrialBalanceGet", user1.Address())
-	balance, err := GetIndustrialBalanceFromResponseByGroup(balanceResponse, testGroup)
-	if err != nil {
-		require.FailNow(t, err.Error())
+				mockStub.GetStateCallsMap[key] = big.NewInt(1000).Bytes()
+
+				return []string{testTokenWithGroup, user1.AddressBase58Check, "100"}
+			},
+			funcInvoke: func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, signer *mocks.UserFoundation, parameters ...string) peer.Response {
+				_, resp := mockStub.TxInvokeChaincodeSigned(cc, functionName, signer, "", "", "", parameters...)
+				return resp
+			},
+			funcCheckResult: func(t *testing.T, mockStub *mockstub.MockStub, user1, user2 *mocks.UserFoundation, resp peer.Response) {
+				keyLocked, err := mockStub.CreateCompositeKey(balance.BalanceTypeTokenLocked.String(), []string{user1.AddressBase58Check, testGroup})
+				require.NoError(t, err)
+
+				keyUnlocked, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user1.AddressBase58Check, testGroup})
+				require.NoError(t, err)
+
+				checkedLocked := false
+				checkedUnlocked := false
+				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+					putStateKey, value := mockStub.PutStateArgsForCall(i)
+					if putStateKey == keyLocked {
+						require.Equal(t, big.NewInt(900), new(big.Int).SetBytes(value))
+						checkedLocked = true
+					}
+					if putStateKey == keyUnlocked {
+						require.Equal(t, big.NewInt(100), new(big.Int).SetBytes(value))
+						checkedUnlocked = true
+					}
+				}
+				require.True(t, checkedLocked && checkedUnlocked)
+			},
+		},
+		{
+			name:         "industrial balances transfer",
+			functionName: "industrialBalanceTransfer",
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub, user1, user2 *mocks.UserFoundation) []string {
+				key, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user1.AddressBase58Check, testGroup})
+				require.NoError(t, err)
+
+				mockStub.GetStateCallsMap[key] = big.NewInt(1000).Bytes()
+
+				return []string{testTokenWithGroup, user1.AddressBase58Check, user2.AddressBase58Check, "100", "transfer balance"}
+			},
+			funcInvoke: func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, signer *mocks.UserFoundation, parameters ...string) peer.Response {
+				_, resp := mockStub.TxInvokeChaincodeSigned(cc, functionName, signer, "", "", "", parameters...)
+				return resp
+			},
+			funcCheckResult: func(t *testing.T, mockStub *mockstub.MockStub, user1, user2 *mocks.UserFoundation, resp peer.Response) {
+				keyBalanceUser1, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user1.AddressBase58Check, testGroup})
+				require.NoError(t, err)
+
+				keyBalanceUser2, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user2.AddressBase58Check, testGroup})
+				require.NoError(t, err)
+
+				checkedUser1 := false
+				checkedUser2 := false
+				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+					putStateKey, value := mockStub.PutStateArgsForCall(i)
+					if putStateKey == keyBalanceUser1 {
+						require.Equal(t, big.NewInt(900), new(big.Int).SetBytes(value))
+						checkedUser1 = true
+					}
+					if putStateKey == keyBalanceUser2 {
+						require.Equal(t, big.NewInt(100), new(big.Int).SetBytes(value))
+						checkedUser2 = true
+					}
+				}
+				require.True(t, checkedUser1 && checkedUser2)
+			},
+		},
+		{
+			name:         "industrial balances transfer locked",
+			functionName: "industrialBalanceTransferLocked",
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub, user1, user2 *mocks.UserFoundation) []string {
+				key, err := mockStub.CreateCompositeKey(balance.BalanceTypeTokenLocked.String(), []string{user1.AddressBase58Check, testGroup})
+				require.NoError(t, err)
+
+				mockStub.GetStateCallsMap[key] = big.NewInt(1000).Bytes()
+
+				return []string{testTokenWithGroup, user1.AddressBase58Check, user2.AddressBase58Check, "100", "transfer balance"}
+			},
+			funcInvoke: func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, signer *mocks.UserFoundation, parameters ...string) peer.Response {
+				_, resp := mockStub.TxInvokeChaincodeSigned(cc, functionName, signer, "", "", "", parameters...)
+				return resp
+			},
+			funcCheckResult: func(t *testing.T, mockStub *mockstub.MockStub, user1, user2 *mocks.UserFoundation, resp peer.Response) {
+				keyBalanceUser1, err := mockStub.CreateCompositeKey(balance.BalanceTypeTokenLocked.String(), []string{user1.AddressBase58Check, testGroup})
+				require.NoError(t, err)
+
+				keyBalanceUser2, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user2.AddressBase58Check, testGroup})
+				require.NoError(t, err)
+
+				checkedUser1 := false
+				checkedUser2 := false
+				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+					putStateKey, value := mockStub.PutStateArgsForCall(i)
+					if putStateKey == keyBalanceUser1 {
+						require.Equal(t, big.NewInt(900), new(big.Int).SetBytes(value))
+						checkedUser1 = true
+					}
+					if putStateKey == keyBalanceUser2 {
+						require.Equal(t, big.NewInt(100), new(big.Int).SetBytes(value))
+						checkedUser2 = true
+					}
+				}
+				require.True(t, checkedUser1 && checkedUser2)
+			},
+		},
+		{
+			name:         "industrial balances burn locked",
+			functionName: "industrialBalanceBurnLocked",
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub, user1, user2 *mocks.UserFoundation) []string {
+				key, err := mockStub.CreateCompositeKey(balance.BalanceTypeTokenLocked.String(), []string{user1.AddressBase58Check, testGroup})
+				require.NoError(t, err)
+
+				mockStub.GetStateCallsMap[key] = big.NewInt(1000).Bytes()
+
+				return []string{testTokenWithGroup, user1.AddressBase58Check, "100", "transfer balance"}
+			},
+			funcInvoke: func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, signer *mocks.UserFoundation, parameters ...string) peer.Response {
+				_, resp := mockStub.TxInvokeChaincodeSigned(cc, functionName, signer, "", "", "", parameters...)
+				return resp
+			},
+			funcCheckResult: func(t *testing.T, mockStub *mockstub.MockStub, user1, user2 *mocks.UserFoundation, resp peer.Response) {
+				keyBalance, err := mockStub.CreateCompositeKey(balance.BalanceTypeTokenLocked.String(), []string{user1.AddressBase58Check, testGroup})
+				require.NoError(t, err)
+
+				checked := false
+				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+					putStateKey, value := mockStub.PutStateArgsForCall(i)
+					if putStateKey == keyBalance {
+						require.Equal(t, big.NewInt(900), new(big.Int).SetBytes(value))
+						checked = true
+					}
+				}
+				require.True(t, checked)
+			},
+		},
 	}
-	require.Equal(t, balanceAddAmount, balance, "require that balance equals "+balanceAddAmount)
 
-	t.Run("Industrial balance lock and get test", func(t *testing.T) {
-		owner.SignedInvoke(testTokenWithGroup, "industrialBalanceLock", testTokenWithGroup, user1.Address(), lockAmount)
+	for _, test := range testCollection {
+		t.Run(test.name, func(t *testing.T) {
+			mockStub := mockstub.NewMockStub(t)
 
-		balanceAfterLockResponse := owner.Invoke(testTokenWithGroup, "industrialBalanceGet", user1.Address())
-		balanceAfterLock, err := GetIndustrialBalanceFromResponseByGroup(balanceAfterLockResponse, testGroup)
-		if err != nil {
-			require.FailNow(t, err.Error())
-		}
-		require.Equal(t, lockAmount, balanceAfterLock, "require that balance equals "+balanceAfterLock)
+			owner, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
+			require.NoError(t, err)
 
-		lockedBalanceResponse := owner.Invoke(testTokenWithGroup, "industrialBalanceGetLocked", user1.Address())
-		lockedBalance, err := GetIndustrialBalanceFromResponseByGroup(lockedBalanceResponse, testGroup)
-		if err != nil {
-			require.FailNow(t, err.Error())
-		}
-		require.Equal(t, lockAmount, lockedBalance, "require that locked balance equals "+lockedBalance)
-	})
-}
+			user1, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
+			require.NoError(t, err)
 
-// TestIndustrialBalanceUnLock - Checking that industrial balance can be unlocked
-func TestIndustrialBalanceUnLock(t *testing.T) {
-	t.Parallel()
+			user2, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
+			require.NoError(t, err)
 
-	ledgerMock := mock.NewLedger(t)
-	owner := ledgerMock.NewWallet()
+			tt := &TestToken{}
+			ttConfig := makeBaseTokenConfig(testTokenWithGroup, testTokenSymbol, 8,
+				owner.AddressBase58Check, "", "", "", nil)
 
-	balanceAddAmount := "1000"
-	lockAmount := "500"
+			cc, err := core.NewCC(tt)
+			require.NoError(t, err)
 
-	tt := &TestToken{}
-	ttConfig := makeBaseTokenConfig(testTokenWithGroup, testTokenSymbol, 8,
-		owner.Address(), "", "", "", nil)
-	ledgerMock.NewCC(testTokenWithGroup, tt, ttConfig)
+			mockStub.SetConfig(ttConfig)
 
-	user1 := ledgerMock.NewWallet()
+			parameters := test.funcPrepareMockStub(t, mockStub, user1, user2)
 
-	owner.SignedInvoke(
-		testTokenWithGroup,
-		"industrialBalanceAdd",
-		testTokenWithGroup,
-		user1.Address(),
-		balanceAddAmount,
-		"add industrial balance for "+balanceAddAmount,
-	)
+			resp := test.funcInvoke(cc, mockStub, test.functionName, owner, parameters...)
+			require.Equal(t, int32(http.StatusOK), resp.GetStatus())
+			require.Empty(t, resp.GetMessage())
 
-	balanceResponse := owner.Invoke(testTokenWithGroup, "industrialBalanceGet", user1.Address())
-	balance, err := GetIndustrialBalanceFromResponseByGroup(balanceResponse, testGroup)
-	if err != nil {
-		require.FailNow(t, err.Error())
+			test.funcCheckResult(t, mockStub, user1, user2, resp)
+		})
 	}
-	require.Equal(t, balanceAddAmount, balance, "require that balance equals "+balanceAddAmount)
-
-	owner.SignedInvoke(testTokenWithGroup, "industrialBalanceLock", testTokenWithGroup, user1.Address(), lockAmount)
-
-	balanceAfterLockResponse := owner.Invoke(testTokenWithGroup, "industrialBalanceGet", user1.Address())
-	balanceAfterLock, err := GetIndustrialBalanceFromResponseByGroup(balanceAfterLockResponse, testGroup)
-	if err != nil {
-		require.FailNow(t, err.Error())
-	}
-	require.Equal(t, lockAmount, balanceAfterLock, "require that balance equals "+balanceAfterLock)
-
-	lockedBalanceResponse := owner.Invoke(testTokenWithGroup, "industrialBalanceGetLocked", user1.Address())
-	lockedBalance, err := GetIndustrialBalanceFromResponseByGroup(lockedBalanceResponse, testGroup)
-	if err != nil {
-		require.FailNow(t, err.Error())
-	}
-	require.Equal(t, lockAmount, lockedBalance, "require that locked balance equals "+lockedBalance)
-
-	t.Run("Industrial balance unlock test", func(t *testing.T) {
-		owner.SignedInvoke(testTokenWithGroup, "industrialBalanceUnLock", testTokenWithGroup, user1.Address(), "300")
-		lockedBalanceAfterUnlockResponse := owner.Invoke(testTokenWithGroup, "industrialBalanceGetLocked", user1.Address())
-		lockedBalanceAfterUnlock, err := GetIndustrialBalanceFromResponseByGroup(lockedBalanceAfterUnlockResponse, testGroup)
-		if err != nil {
-			require.FailNow(t, err.Error())
-		}
-		require.Equal(t, "200", lockedBalanceAfterUnlock, "require that locked balance equals "+lockedBalance)
-	})
-}
-
-// TestIndustrialBalanceTransferLocked - Checking that locked industrial balance can be transferred
-func TestIndustrialBalanceTransferLocked(t *testing.T) {
-	t.Parallel()
-
-	ledgerMock := mock.NewLedger(t)
-	owner := ledgerMock.NewWallet()
-
-	balanceAddAmount := "1000"
-	lockAmount := "500"
-	transferAmount := "300"
-
-	tt := &TestToken{}
-	ttConfig := makeBaseTokenConfig(testTokenWithGroup, testTokenSymbol, 8,
-		owner.Address(), "", "", "", nil)
-	ledgerMock.NewCC(testTokenWithGroup, tt, ttConfig)
-
-	user1 := ledgerMock.NewWallet()
-	user2 := ledgerMock.NewWallet()
-
-	owner.SignedInvoke(
-		testTokenWithGroup,
-		"industrialBalanceAdd",
-		testTokenWithGroup,
-		user1.Address(),
-		balanceAddAmount,
-		"add industrial balance for "+balanceAddAmount,
-	)
-
-	balanceResponse := owner.Invoke(testTokenWithGroup, "industrialBalanceGet", user1.Address())
-	balance, err := GetIndustrialBalanceFromResponseByGroup(balanceResponse, testGroup)
-	if err != nil {
-		require.FailNow(t, err.Error())
-	}
-	require.Equal(t, balanceAddAmount, balance, "require that balance equals "+balanceAddAmount)
-	owner.SignedInvoke(testTokenWithGroup, "industrialBalanceLock", testTokenWithGroup, user1.Address(), lockAmount)
-
-	balanceAfterLockResponse := owner.Invoke(testTokenWithGroup, "industrialBalanceGet", user1.Address())
-	balanceAfterLock, err := GetIndustrialBalanceFromResponseByGroup(balanceAfterLockResponse, testGroup)
-	if err != nil {
-		require.FailNow(t, err.Error())
-	}
-	require.Equal(t, lockAmount, balanceAfterLock, "require that balance equals "+balanceAfterLock)
-
-	lockedBalanceResponse := owner.Invoke(testTokenWithGroup, "industrialBalanceGetLocked", user1.Address())
-	lockedBalance, err := GetIndustrialBalanceFromResponseByGroup(lockedBalanceResponse, testGroup)
-	if err != nil {
-		require.FailNow(t, err.Error())
-	}
-	require.Equal(t, lockAmount, lockedBalance, "require that locked balance equals "+lockedBalance)
-
-	t.Run("Industrial balance transfer locked", func(t *testing.T) {
-		owner.SignedInvoke(testTokenWithGroup, "industrialBalanceTransferLocked", testTokenWithGroup, user1.Address(), user2.Address(), transferAmount, "transfer locked")
-
-		balanceAfterTransferUser1Response := owner.Invoke(testTokenWithGroup, "industrialBalanceGetLocked", user1.Address())
-		balanceAfterTransferUser1, err := GetIndustrialBalanceFromResponseByGroup(balanceAfterTransferUser1Response, testGroup)
-		if err != nil {
-			require.FailNow(t, err.Error())
-		}
-		require.Equal(t, "200", balanceAfterTransferUser1, "require that locked balance equals "+lockedBalance)
-
-		balanceAfterTransferUser2Response := owner.Invoke(testTokenWithGroup, "industrialBalanceGet", user2.Address())
-		balanceAfterTransferUser2, err := GetIndustrialBalanceFromResponseByGroup(balanceAfterTransferUser2Response, testGroup)
-		if err != nil {
-			require.FailNow(t, err.Error())
-		}
-		require.Equal(t, transferAmount, balanceAfterTransferUser2, "require that locked balance equals "+lockedBalance)
-	})
-}
-
-// TestIndustrialBalanceBurnLocked - Checking that locked industrial balance can be burned
-func TestIndustrialBalanceBurnLocked(t *testing.T) {
-	t.Parallel()
-
-	ledgerMock := mock.NewLedger(t)
-	owner := ledgerMock.NewWallet()
-
-	balanceAddAmount := "1000"
-	lockAmount := "500"
-
-	tt := &TestToken{}
-	ttConfig := makeBaseTokenConfig(testTokenWithGroup, testTokenSymbol, 8,
-		owner.Address(), "", "", "", nil)
-	ledgerMock.NewCC(testTokenWithGroup, tt, ttConfig)
-
-	user1 := ledgerMock.NewWallet()
-
-	owner.SignedInvoke(testTokenWithGroup, "industrialBalanceAdd", testTokenWithGroup, user1.Address(), balanceAddAmount, "add industrial balance for "+balanceAddAmount)
-
-	balanceResponse := owner.Invoke(testTokenWithGroup, "industrialBalanceGet", user1.Address())
-	balance, err := GetIndustrialBalanceFromResponseByGroup(balanceResponse, testGroup)
-	if err != nil {
-		require.FailNow(t, err.Error())
-	}
-	require.Equal(t, balanceAddAmount, balance, "require that balance equals "+balanceAddAmount)
-
-	owner.SignedInvoke(testTokenWithGroup, "industrialBalanceLock", testTokenWithGroup, user1.Address(), lockAmount)
-
-	balanceAfterLockResponse := owner.Invoke(testTokenWithGroup, "industrialBalanceGet", user1.Address())
-	balanceAfterLock, err := GetIndustrialBalanceFromResponseByGroup(balanceAfterLockResponse, testGroup)
-	if err != nil {
-		require.FailNow(t, err.Error())
-	}
-	require.Equal(t, lockAmount, balanceAfterLock, "require that balance equals "+balanceAfterLock)
-
-	lockedBalanceResponse := owner.Invoke(testTokenWithGroup, "industrialBalanceGetLocked", user1.Address())
-	lockedBalance, err := GetIndustrialBalanceFromResponseByGroup(lockedBalanceResponse, testGroup)
-	if err != nil {
-		require.FailNow(t, err.Error())
-	}
-	require.Equal(t, lockAmount, lockedBalance, "require that locked balance equals "+lockedBalance)
-
-	t.Run("Industrial balance burn locked", func(t *testing.T) {
-		owner.SignedInvoke(testTokenWithGroup, "industrialBalanceBurnLocked", testTokenWithGroup, user1.Address(), "300", "burn locked")
-
-		lockedBalanceAfterBurnResponse := owner.Invoke(testTokenWithGroup, "industrialBalanceGetLocked", user1.Address())
-		lockedBalanceAfterBurn, err := GetIndustrialBalanceFromResponseByGroup(lockedBalanceAfterBurnResponse, testGroup)
-		if err != nil {
-			require.FailNow(t, err.Error())
-		}
-		require.Equal(t, "200", lockedBalanceAfterBurn, "require that locked balance equals "+lockedBalance)
-	})
-}
-
-func GetIndustrialBalanceFromResponseByGroup(response string, group string) (string, error) {
-	var balanceMap map[string]string
-	err := json.Unmarshal([]byte(response), &balanceMap)
-	if err != nil {
-		return "", err
-	}
-	bl := balanceMap[group]
-	if bl == "" {
-		return "", errors.New("cant find balance for group: " + group)
-	}
-	return bl, nil
 }
