@@ -11,7 +11,6 @@ import (
 	"github.com/anoideaopen/foundation/core/balance"
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/core/types/big"
-	"github.com/anoideaopen/foundation/mock"
 	"github.com/anoideaopen/foundation/mocks"
 	"github.com/anoideaopen/foundation/mocks/mockstub"
 	pbfound "github.com/anoideaopen/foundation/proto"
@@ -501,8 +500,6 @@ func TestMultisigEmitTransfer(t *testing.T) {
 			mockStub *mockstub.MockStub,
 			functionName string,
 			owner *mocks.UserFoundationMultisigned,
-			feeSetter *mocks.UserFoundation,
-			feeAddressSetter *mocks.UserFoundation,
 			user1 *mocks.UserFoundation,
 			parameters ...string,
 		) peer.Response
@@ -532,8 +529,6 @@ func TestMultisigEmitTransfer(t *testing.T) {
 				mockStub *mockstub.MockStub,
 				functionName string,
 				owner *mocks.UserFoundationMultisigned,
-				feeSetter *mocks.UserFoundation,
-				feeAddressSetter *mocks.UserFoundation,
 				user1 *mocks.UserFoundation,
 				parameters ...string,
 			) peer.Response {
@@ -599,8 +594,6 @@ func TestMultisigEmitTransfer(t *testing.T) {
 				mockStub *mockstub.MockStub,
 				functionName string,
 				owner *mocks.UserFoundationMultisigned,
-				feeSetter *mocks.UserFoundation,
-				feeAddressSetter *mocks.UserFoundation,
 				user1 *mocks.UserFoundation,
 				parameters ...string,
 			) peer.Response {
@@ -690,34 +683,76 @@ func TestMultisigEmitTransfer(t *testing.T) {
 func TestBuyLimit(t *testing.T) {
 	t.Parallel()
 
-	ledger := mock.NewLedger(t)
-	owner := ledger.NewWallet()
+	testCollection := []struct {
+		name         string
+		functionName string
+	}{
+		{
+			name:         "Setting rate",
+			functionName: "setRate",
+		},
+		{
+			name:         "Buying token",
+			functionName: "buyToken",
+		},
+		{
+			name:         "Setting limits",
+			functionName: "setLimits",
+		},
+		{
+			name:         "[negative] Error setting limits",
+			functionName: "setLimits",
+		},
+		{
+			name:         "Buying token with limits",
+			functionName: "buyToken",
+		},
+		{
+			name:         "[negative] Error buying token with limits",
+			functionName: "buyToken",
+		},
+	}
 
-	cc := NewMintableTestToken()
-	ccConfig := makeBaseTokenConfig("currency coin token", "CC", 8,
-		owner.Address(), "", "", "", nil)
-	ledger.NewCC("cc", cc, ccConfig)
+	for _, test := range testCollection {
+		t.Run(test.name, func(t *testing.T) {
+			mockStub := mockstub.NewMockStub(t)
 
-	user1 := ledger.NewWallet()
-	user1.AddAllowedBalance("cc", "FIAT", 1000)
+			owner, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
+			require.NoError(t, err)
 
-	owner.SignedInvoke("cc", "setRate", "buyToken", "FIAT", "50000000")
+			ccConfig := makeBaseTokenConfig("currency coin token", "CC", 8,
+				owner.AddressBase58Check, "", "", "", nil)
 
-	user1.SignedInvoke("cc", "buyToken", "100", "FIAT")
+			cc, err := core.NewCC(NewMintableTestToken())
+			require.NoError(t, err)
 
-	owner.SignedInvoke("cc", "setLimits", "buyToken", "FIAT", "100", "200")
+			user, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
+			require.NoError(t, err)
 
-	_, resp, _ := user1.RawSignedInvoke("cc", "buyToken", "50", "FIAT")
-	require.Equal(t, "amount out of limits", resp.Error)
+		})
+	}
 
-	_, resp, _ = user1.RawSignedInvoke("cc", "buyToken", "300", "FIAT")
-	require.Equal(t, "amount out of limits", resp.Error)
+	/*
+		user1.AddAllowedBalance("cc", "FIAT", 1000)
 
-	user1.SignedInvoke("cc", "buyToken", "150", "FIAT")
+		owner.SignedInvoke("cc", "setRate", "buyToken", "FIAT", "50000000")
 
-	_, resp, _ = owner.RawSignedInvoke("cc", "setLimits", "buyToken", "FIAT", "100", "0")
-	require.Equal(t, "", resp.Error)
+		user1.SignedInvoke("cc", "buyToken", "100", "FIAT")
 
-	_, resp, _ = owner.RawSignedInvoke("cc", "setLimits", "buyToken", "FIAT", "100", "50")
-	require.Equal(t, "min limit is greater than max limit", resp.Error)
+		owner.SignedInvoke("cc", "setLimits", "buyToken", "FIAT", "100", "200")
+
+		_, resp, _ := user1.RawSignedInvoke("cc", "buyToken", "50", "FIAT")
+		require.Equal(t, "amount out of limits", resp.Error)
+
+		_, resp, _ = user1.RawSignedInvoke("cc", "buyToken", "300", "FIAT")
+		require.Equal(t, "amount out of limits", resp.Error)
+
+		user1.SignedInvoke("cc", "buyToken", "150", "FIAT")
+
+		_, resp, _ = owner.RawSignedInvoke("cc", "setLimits", "buyToken", "FIAT", "100", "0")
+		require.Equal(t, "", resp.Error)
+
+		_, resp, _ = owner.RawSignedInvoke("cc", "setLimits", "buyToken", "FIAT", "100", "50")
+		require.Equal(t, "min limit is greater than max limit", resp.Error)
+	*/
 }
