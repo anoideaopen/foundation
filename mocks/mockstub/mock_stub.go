@@ -214,6 +214,24 @@ func (ms *MockStub) TxInvokeChaincodeSigned(
 	return ms.TxInvokeChaincode(chaincode, functionName, params...)
 }
 
+// TxInvokeChaincodeMultisigned returns result of batchExecute transaction with signed arguments
+func (ms *MockStub) TxInvokeChaincodeMultisigned(
+	chaincode *core.Chaincode,
+	functionName string,
+	user *mocks.UserFoundationMultisigned,
+	requestID string,
+	chaincodeName string,
+	channelName string,
+	parameters ...string,
+) (string, peer.Response) {
+	params, err := getParametersMultisigned(functionName, user, requestID, chaincodeName, channelName, parameters...)
+	if err != nil {
+		return "", shim.Error(err.Error())
+	}
+
+	return ms.TxInvokeChaincode(chaincode, functionName, params...)
+}
+
 // getParametersSigned returns parameters string with specified user's signification
 func getParametersSigned(
 	functionName string,
@@ -231,4 +249,27 @@ func getParametersSigned(
 	}
 
 	return append(ctorArgs[1:], pubKey, base58.Encode(sMsg)), nil
+}
+
+// getParametersMultisigned returns parameters string with specified multisigned user's signification
+func getParametersMultisigned(
+	functionName string,
+	user *mocks.UserFoundationMultisigned,
+	requestID string,
+	chaincodeName string,
+	channelName string,
+	parameters ...string,
+) ([]string, error) {
+	ctorArgs := append(append([]string{functionName, requestID, channelName, chaincodeName}, parameters...), mocks.GetNewStringNonce())
+	pubKey, sMsgsByte, err := user.Sign(ctorArgs...)
+	if err != nil {
+		return []string{}, err
+	}
+
+	sMsgsStr := make([]string, 0, len(sMsgsByte))
+	for _, sMsgByte := range sMsgsByte {
+		sMsgsStr = append(sMsgsStr, base58.Encode(sMsgByte))
+	}
+
+	return append(append(ctorArgs[1:], pubKey...), sMsgsStr...), nil
 }

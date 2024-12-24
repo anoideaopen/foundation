@@ -169,10 +169,10 @@ func (mt *MintableTestToken) TxBuyBack(sender *types.Sender, amount *big.Int, cu
 	return mt.EmissionSub(amount)
 }
 
+const keyMetadata = "tokenMetadata"
+
 func TestEmitTransfer(t *testing.T) {
 	t.Parallel()
-
-	keyMetadata := "tokenMetadata"
 
 	testCollection := []struct {
 		name                string
@@ -486,19 +486,205 @@ func TestEmitTransfer(t *testing.T) {
 func TestMultisigEmitTransfer(t *testing.T) {
 	t.Parallel()
 
-	ledger := mock.NewLedger(t)
-	owner := ledger.NewMultisigWallet(3)
+	testCollection := []struct {
+		name                string
+		functionName        string
+		funcPrepareMockStub func(
+			t *testing.T,
+			mockStub *mockstub.MockStub,
+			user1 *mocks.UserFoundation,
+			user2 *mocks.UserFoundation,
+			feeAggregator *mocks.UserFoundation,
+		) []string
+		funcInvokeChaincode func(
+			cc *core.Chaincode,
+			mockStub *mockstub.MockStub,
+			functionName string,
+			owner *mocks.UserFoundationMultisigned,
+			feeSetter *mocks.UserFoundation,
+			feeAddressSetter *mocks.UserFoundation,
+			user1 *mocks.UserFoundation,
+			parameters ...string,
+		) peer.Response
+		funcCheckResponse func(
+			t *testing.T,
+			mockStub *mockstub.MockStub,
+			user1 *mocks.UserFoundation,
+			user2 *mocks.UserFoundation,
+			feeAggregator *mocks.UserFoundation,
+			resp peer.Response,
+		)
+	}{
+		{
+			name:         "Multisigned emission",
+			functionName: "emit",
+			funcPrepareMockStub: func(
+				t *testing.T,
+				mockStub *mockstub.MockStub,
+				user1 *mocks.UserFoundation,
+				user2 *mocks.UserFoundation,
+				feeAggregator *mocks.UserFoundation,
+			) []string {
+				return []string{user1.AddressBase58Check, "1000"}
+			},
+			funcInvokeChaincode: func(
+				cc *core.Chaincode,
+				mockStub *mockstub.MockStub,
+				functionName string,
+				owner *mocks.UserFoundationMultisigned,
+				feeSetter *mocks.UserFoundation,
+				feeAddressSetter *mocks.UserFoundation,
+				user1 *mocks.UserFoundation,
+				parameters ...string,
+			) peer.Response {
+				_, resp := mockStub.TxInvokeChaincodeMultisigned(cc, functionName, owner, "", "", "", parameters...)
+				return resp
+			},
+			funcCheckResponse: func(
+				t *testing.T,
+				mockStub *mockstub.MockStub,
+				user1 *mocks.UserFoundation,
+				user2 *mocks.UserFoundation,
+				feeAggregator *mocks.UserFoundation,
+				resp peer.Response,
+			) {
+				user1BalanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user1.AddressBase58Check})
+				require.NoError(t, err)
 
-	fiat := NewFiatTestToken(token.BaseToken{})
-	fiatConfig := makeBaseTokenConfig("fiat token", "FIAT", 8,
-		owner.Address(), "", "", "", nil)
-	ledger.NewCC("fiat", fiat, fiatConfig)
+				checked := false
+				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+					putStateKey, value := mockStub.PutStateArgsForCall(i)
+					if putStateKey == user1BalanceKey {
+						require.Equal(t, big.NewInt(1000).Bytes(), value)
+						checked = true
+					}
+				}
+				require.True(t, checked)
+			},
+		},
+		{
+			name:         "Multisigned transfer",
+			functionName: "transfer",
+			funcPrepareMockStub: func(
+				t *testing.T,
+				mockStub *mockstub.MockStub,
+				user1 *mocks.UserFoundation,
+				user2 *mocks.UserFoundation,
+				feeAggregator *mocks.UserFoundation,
+			) []string {
+				user1BalanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user1.AddressBase58Check})
+				require.NoError(t, err)
 
-	user1 := ledger.NewWallet()
+				feeAddressHash := sha3.Sum256(feeAggregator.PublicKeyBytes)
 
-	_, res, _ := owner.RawSignedInvoke(2, "fiat", "emit", user1.Address(), "1000")
-	require.Equal(t, "", res.Error)
-	user1.BalanceShouldBe("fiat", 1000)
+				metadata := &pbfound.Token{
+					Fee: &pbfound.TokenFee{
+						Currency: "FIAT",
+						Fee:      big.NewInt(500000).Bytes(),
+						Floor:    big.NewInt(100).Bytes(),
+						Cap:      big.NewInt(100000).Bytes(),
+					},
+					FeeAddress: feeAddressHash[:],
+				}
+
+				rawMetadata, err := proto.Marshal(metadata)
+				require.NoError(t, err)
+
+				mockStub.GetStateCallsMap[user1BalanceKey] = big.NewInt(1000).Bytes()
+				mockStub.GetStateCallsMap[keyMetadata] = rawMetadata
+				return []string{user2.AddressBase58Check, "400", ""}
+			},
+			funcInvokeChaincode: func(
+				cc *core.Chaincode,
+				mockStub *mockstub.MockStub,
+				functionName string,
+				owner *mocks.UserFoundationMultisigned,
+				feeSetter *mocks.UserFoundation,
+				feeAddressSetter *mocks.UserFoundation,
+				user1 *mocks.UserFoundation,
+				parameters ...string,
+			) peer.Response {
+				_, resp := mockStub.TxInvokeChaincodeSigned(cc, functionName, user1, "", "", "", parameters...)
+				return resp
+			},
+			funcCheckResponse: func(
+				t *testing.T,
+				mockStub *mockstub.MockStub,
+				user1 *mocks.UserFoundation,
+				user2 *mocks.UserFoundation,
+				feeAggregator *mocks.UserFoundation,
+				resp peer.Response,
+			) {
+				user1BalanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user1.AddressBase58Check})
+				require.NoError(t, err)
+
+				user2BalanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user2.AddressBase58Check})
+				require.NoError(t, err)
+
+				feeAggregatorBalanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{feeAggregator.AddressBase58Check})
+				require.NoError(t, err)
+
+				user1Checked := false
+				user2Checked := false
+				feeChecked := false
+				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+					putStateKey, value := mockStub.PutStateArgsForCall(i)
+					if putStateKey == user1BalanceKey {
+						require.Equal(t, big.NewInt(500).Bytes(), value)
+						user1Checked = true
+					}
+					if putStateKey == user2BalanceKey {
+						require.Equal(t, big.NewInt(400).Bytes(), value)
+						user2Checked = true
+					}
+					if putStateKey == feeAggregatorBalanceKey {
+						require.Equal(t, big.NewInt(100).Bytes(), value)
+						feeChecked = true
+					}
+				}
+				require.True(t, user1Checked && user2Checked && feeChecked)
+			},
+		},
+	}
+
+	for _, test := range testCollection {
+		t.Run(test.name, func(t *testing.T) {
+
+			mockStub := mockstub.NewMockStub(t)
+
+			owner, err := mocks.NewUserFoundationMultisigned(pbfound.KeyType_ed25519, 3)
+			require.NoError(t, err)
+
+			feeSetter, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
+			require.NoError(t, err)
+
+			feeAddressSetter, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
+			require.NoError(t, err)
+
+			feeAggregator, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
+			require.NoError(t, err)
+
+			user1, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
+			require.NoError(t, err)
+
+			user2, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
+			require.NoError(t, err)
+
+			fiatConfig := makeBaseTokenConfig("fiat token", "FIAT", 8,
+				owner.AddressBase58Check, feeSetter.AddressBase58Check, feeAddressSetter.AddressBase58Check, "", nil)
+
+			cc, err := core.NewCC(NewFiatTestToken(token.BaseToken{}))
+			require.NoError(t, err)
+
+			mockStub.SetConfig(fiatConfig)
+
+			parameters := test.funcPrepareMockStub(t, mockStub, user1, user2, feeAggregator)
+			resp := test.funcInvokeChaincode(cc, mockStub, test.functionName, owner, feeSetter, feeAddressSetter, user1, parameters...)
+			require.Equal(t, int32(http.StatusOK), resp.GetStatus())
+			require.Empty(t, resp.GetMessage())
+			test.funcCheckResponse(t, mockStub, user1, user2, feeAggregator, resp)
+		})
+	}
 }
 
 func TestBuyLimit(t *testing.T) {
