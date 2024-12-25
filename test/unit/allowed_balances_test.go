@@ -226,15 +226,13 @@ func TestQuery(t *testing.T) {
 			user2, err := mocks.NewUserFoundation(pbfound.KeyType_secp256k1)
 			require.NoError(t, err)
 
-			config := makeBaseTokenConfig("CC Token", "CC", 8,
+			mockStub.CreateAndSetConfig("CC Token", "CC", 8,
 				issuer.AddressBase58Check, "", "", "", nil)
 
 			cc, err := core.NewCC(&QueryTestToken{})
 			require.NoError(t, err)
 
 			// preparing stub
-			mockStub.SetConfig(config)
-
 			if test.prepareMockStubAdditional != nil {
 				test.prepareMockStubAdditional(t, mockStub, issuer, user1)
 			}
@@ -506,10 +504,8 @@ func TestAllowedBalanceInvoke(t *testing.T) {
 			user2, err := mocks.NewUserFoundation(pbfound.KeyType_secp256k1)
 			require.NoError(t, err)
 
-			config := makeBaseTokenConfig("CC Token", "CC", 8,
+			mockStub.CreateAndSetConfig("CC Token", "CC", 8,
 				issuer.AddressBase58Check, "", "", "", nil)
-
-			mockStub.SetConfig(config)
 
 			cc, err := core.NewCC(&InvokeTestToken{})
 			require.NoError(t, err)

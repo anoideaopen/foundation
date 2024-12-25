@@ -33,7 +33,7 @@ func TestCreateIndex(t *testing.T) {
 
 	mockStub := mockstub.NewMockStub(t)
 
-	config := makeBaseTokenConfig(
+	mockStub.CreateAndSetConfig(
 		"Test Token",
 		"TT",
 		8,
@@ -49,14 +49,10 @@ func TestCreateIndex(t *testing.T) {
 
 	// Checking for index absence
 	var index bool
-	mockStub.GetStateReturnsOnCall(0, []byte(config), nil)
-	mockStub.GetStateReturnsOnCall(1, []byte{}, nil)
 	balanceTypeStr, err := balance.BalanceTypeToStringMapValue(balance.BalanceTypeToken)
 	require.NoError(t, err)
-	mockStub.GetFunctionAndParametersReturns("indexCreated", []string{balanceTypeStr})
 
-	resp := cc.Invoke(mockStub)
-	require.Nil(t, err)
+	resp := mockStub.QueryChaincode(cc, "indexCreated", []string{balanceTypeStr}...)
 	require.NoError(t, json.Unmarshal(resp.Payload, &index))
 	require.False(t, index)
 
@@ -99,7 +95,6 @@ func TestCreateIndex(t *testing.T) {
 		Value: []byte("1000"),
 	}, nil)
 
-	mockStub.GetStateReturns([]byte(config), nil)
 	mockStub.GetFunctionAndParametersReturns("createIndex", []string{balanceTypeStr})
 	resp = cc.Invoke(mockStub)
 	require.Equal(t, "", resp.Message)
@@ -118,7 +113,7 @@ func TestAutoBalanceIndexing(t *testing.T) {
 
 	mockStub := mockstub.NewMockStub(t)
 
-	config := makeBaseTokenConfig(
+	mockStub.CreateAndSetConfig(
 		"Test Token",
 		"TT",
 		8,
@@ -138,8 +133,6 @@ func TestAutoBalanceIndexing(t *testing.T) {
 	require.Equal(t, 0, ownersAutoIndexed)
 
 	// emulating batch execute for emitting tokens to user
-	mockStub.SetConfig(config)
-
 	_, resp := mockStub.TxInvokeChaincodeSigned(cc, "emitIndustrial", owner, "", "", "", []string{user.AddressBase58Check, "1000", "usdt"}...)
 	require.Equal(t, "", resp.Message)
 

@@ -122,13 +122,11 @@ func TestExternalTransfers(t *testing.T) {
 			owner, err := mocks.NewUserFoundation(proto.KeyType_ed25519)
 			require.NoError(t, err)
 
-			ccConfig := makeBaseTokenConfig("CC Token", "CC", 8,
+			mockStub.CreateAndSetConfig("CC Token", "CC", 8,
 				owner.AddressBase58Check, "", "", owner.AddressBase58Check, nil)
 
 			cc, err := core.NewCC(&CustomToken{})
 			require.NoError(t, err)
-
-			mockStub.SetConfig(ccConfig)
 
 			user1, err := mocks.NewUserFoundation(proto.KeyType_ed25519)
 			require.NoError(t, err)

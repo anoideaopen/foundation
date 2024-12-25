@@ -303,10 +303,8 @@ func TestExternalLocks(t *testing.T) {
 			user, err := mocks.NewUserFoundation(proto.KeyType_ed25519)
 			require.NoError(t, err)
 
-			config := makeBaseTokenConfig("CC Token", "CC", 8,
+			mockStub.CreateAndSetConfig("CC Token", "CC", 8,
 				issuer.AddressBase58Check, "", "", issuer.AddressBase58Check, nil)
-
-			mockStub.SetConfig(config)
 
 			cc, err := core.NewCC(&CustomToken{})
 			require.NoError(t, err)
@@ -899,10 +897,8 @@ func TestExternalUnlocks(t *testing.T) {
 			user, err := mocks.NewUserFoundation(proto.KeyType_ed25519)
 			require.NoError(t, err)
 
-			config := makeBaseTokenConfig("CC Token", "CC", 8,
+			mockStub.CreateAndSetConfig("CC Token", "CC", 8,
 				issuer.AddressBase58Check, "", "", issuer.AddressBase58Check, nil)
-
-			mockStub.SetConfig(config)
 
 			cc, err := core.NewCC(&CustomToken{})
 			require.NoError(t, err)

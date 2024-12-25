@@ -395,14 +395,11 @@ func TestIndustrialBalances(t *testing.T) {
 			user2, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
 			require.NoError(t, err)
 
-			tt := &TestToken{}
-			ttConfig := makeBaseTokenConfig(testTokenWithGroup, testTokenSymbol, 8,
+			mockStub.CreateAndSetConfig(testTokenWithGroup, testTokenSymbol, 8,
 				owner.AddressBase58Check, "", "", "", nil)
 
-			cc, err := core.NewCC(tt)
+			cc, err := core.NewCC(&TestToken{})
 			require.NoError(t, err)
-
-			mockStub.SetConfig(ttConfig)
 
 			parameters := test.funcPrepareMockStub(t, mockStub, user1, user2)
 

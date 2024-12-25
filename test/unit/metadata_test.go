@@ -21,7 +21,7 @@ func TestMetadataMethods(t *testing.T) {
 	require.Nil(t, err)
 
 	tt := &token.BaseToken{}
-	config := makeBaseTokenConfig("Test Token", "TT", 8,
+	config := mockStub.CreateAndSetConfig("Test Token", "TT", 8,
 		issuer.AddressBase58Check, "", "", "", nil)
 
 	cc, err := core.NewCC(tt)
@@ -30,10 +30,7 @@ func TestMetadataMethods(t *testing.T) {
 	mockStub.GetStringArgsReturns([]string{config})
 	cc.Init(mockStub)
 
-	mockStub.GetFunctionAndParametersReturns("metadata", []string{})
-	mockStub.GetStateReturnsOnCall(0, []byte(config), nil)
-	mockStub.GetStateReturnsOnCall(1, []byte{}, nil)
-	resp := cc.Invoke(mockStub)
+	resp := mockStub.QueryChaincode(cc, "metadata", []string{}...)
 	require.Empty(t, resp.GetMessage())
 
 	var meta token.Metadata

@@ -44,13 +44,12 @@ func TestKeyTypesEmission(t *testing.T) {
 			user, err := mocks.NewUserFoundation(test.keyType)
 			require.NoError(t, err)
 
-			config := makeBaseTokenConfig("CC Token", "CC", 8,
+			mockStub.CreateAndSetConfig("CC Token", "CC", 8,
 				issuer.AddressBase58Check, "", "", "", nil)
 
 			cc, err := core.NewCC(&FiatTestToken{})
 			require.NoError(t, err)
 
-			mockStub.SetConfig(config)
 			_, resp := mockStub.TxInvokeChaincodeSigned(
 				cc,
 				"emit",
