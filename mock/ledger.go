@@ -106,8 +106,8 @@ func (l *Ledger) NewCCArgsArr(
 	require.False(
 		l.t,
 		exists,
-		fmt.Sprintf("stub with name '%s' has already exist in ledger mock; "+
-			"try to use other chaincode name.", name),
+		"stub with name '"+name+"' has already exist in ledger mock; "+
+			"try to use other chaincode name.",
 	)
 
 	cc, err := core.NewCC(bci, opts...)
