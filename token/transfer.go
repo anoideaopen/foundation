@@ -198,7 +198,7 @@ func (bt *BaseToken) TxSetFee(sender *types.Sender, currency string, fee *big.In
 // TxSetFeeAddress sets the fee address
 func (bt *BaseToken) TxSetFeeAddress(sender *types.Sender, address *types.Address) error {
 	if !sender.Equal(bt.FeeAddressSetter()) {
-		return errors.New("unauthorized")
+		return errors.New(ErrUnauthorized)
 	}
 
 	cfg, err := bt.loadConfig()

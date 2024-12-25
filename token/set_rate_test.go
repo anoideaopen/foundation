@@ -233,7 +233,7 @@ func TestSetRateWrongAuthorized(t *testing.T) {
 	ledger.NewCC("tt", tt, config)
 
 	if err := outsider.RawSignedInvokeWithErrorReturned("tt", "setRate", "distribute", "", "1"); err != nil {
-		require.Equal(t, "unauthorized", err.Error())
+		require.Equal(t, ErrUnauthorized, err.Error())
 	}
 }
 

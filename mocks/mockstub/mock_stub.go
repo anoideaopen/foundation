@@ -8,12 +8,14 @@ import (
 	"github.com/anoideaopen/foundation/core"
 	"github.com/anoideaopen/foundation/mocks"
 	pbfound "github.com/anoideaopen/foundation/proto"
+	"github.com/anoideaopen/foundation/test/unit/fixtures_test"
 	"github.com/btcsuite/btcd/btcutil/base58"
 	"github.com/golang/protobuf/proto" //nolint: staticcheck
 	"github.com/google/uuid"
 	"github.com/hyperledger/fabric-chaincode-go/shim"
 	"github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 // MockStub represents mock stub structure
@@ -93,6 +95,51 @@ func NewMockStub(t *testing.T) *MockStub {
 // SetConfig sets config to MockStub state
 func (ms *MockStub) SetConfig(config string) {
 	ms.GetStateCallsMap["__config"] = []byte(config)
+}
+
+// CreateAndSetConfig creates config for token, based on BaseToken.
+// If feeSetter is not set or empty, Token.FeeSetter will be nil.
+// If feeAddressSetter is not set or empty, Token.FeeAddressSetter will be nil.
+func (ms *MockStub) CreateAndSetConfig(
+	name, symbol string,
+	decimals uint,
+	issuer string,
+	feeSetter string,
+	feeAddressSetter string,
+	admin string,
+	tracingCollectorEndpoint *pbfound.CollectorEndpoint,
+) string {
+	cfg := &pbfound.Config{
+		Contract: &pbfound.ContractConfig{
+			Symbol:   symbol,
+			RobotSKI: fixtures_test.RobotHashedCert,
+		},
+		Token: &pbfound.TokenConfig{
+			Name:     name,
+			Decimals: uint32(decimals),
+			Issuer:   &pbfound.Wallet{Address: issuer},
+		},
+	}
+
+	if feeSetter != "" {
+		cfg.Token.FeeSetter = &pbfound.Wallet{Address: feeSetter}
+	}
+
+	if feeAddressSetter != "" {
+		cfg.Token.FeeAddressSetter = &pbfound.Wallet{Address: feeAddressSetter}
+	}
+
+	if admin != "" {
+		cfg.Contract.Admin = &pbfound.Wallet{Address: admin}
+	}
+
+	cfg.Contract.TracingCollectorEndpoint = tracingCollectorEndpoint
+
+	cfgBytes, _ := protojson.Marshal(cfg)
+
+	ms.GetStateCallsMap["__config"] = cfgBytes
+
+	return string(cfgBytes)
 }
 
 // invokeChaincode invokes chaincode

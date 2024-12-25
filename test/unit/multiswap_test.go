@@ -13,6 +13,7 @@ import (
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/core/types/big"
 	"github.com/anoideaopen/foundation/mock"
+	"github.com/anoideaopen/foundation/mocks"
 	"github.com/anoideaopen/foundation/proto"
 	"github.com/anoideaopen/foundation/test/unit/fixtures_test"
 	"github.com/anoideaopen/foundation/token"
@@ -168,7 +169,7 @@ func TestAtomicMultiSwapMoveToken(t *testing.T) { //nolint:gocognit
 			},
 		}
 		data, _ := pb.Marshal(&x)
-		cert, _ := hex.DecodeString(BatchRobotCert)
+		cert, _ := hex.DecodeString(mocks.BatchRobotCert)
 		ch := swap.To
 		stub := w.Ledger().GetStub(ch)
 		stub.SetCreator(cert)
@@ -252,7 +253,7 @@ func TestAtomicMultiSwapMoveToken(t *testing.T) { //nolint:gocognit
 			},
 		}
 		data, _ := pb.Marshal(&x)
-		cert, _ := hex.DecodeString(BatchRobotCert)
+		cert, _ := hex.DecodeString(mocks.BatchRobotCert)
 		ch := swap.From
 		stub := w.Ledger().GetStub(ch)
 		stub.SetCreator(cert)

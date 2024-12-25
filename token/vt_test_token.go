@@ -16,7 +16,7 @@ type VT struct {
 // TxEmitToken emits tokens
 func (vt *VT) TxEmitToken(sender *types.Sender, amount *big.Int) error {
 	if !sender.Equal(vt.Issuer()) {
-		return errors.New("unauthorized")
+		return errors.New(ErrUnauthorized)
 	}
 	if err := vt.TokenBalanceAdd(vt.Issuer(), amount, "emitToken"); err != nil {
 		return err

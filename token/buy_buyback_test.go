@@ -36,7 +36,7 @@ func TestBaseTokenTxBuy(t *testing.T) {
 		require.Equal(t, "impossible to buy for this currency", err.Error())
 	}
 	if err := user.RawSignedInvokeWithErrorReturned("vt", "buyToken", "100", "usd"); err != nil {
-		require.Equal(t, "amount out of limits", err.Error())
+		require.Equal(t, ErrAmountOutOfLimits, err.Error())
 	}
 	err := user.RawSignedInvokeWithErrorReturned("vt", "buyToken", "1", "usd")
 	require.NoError(t, err)

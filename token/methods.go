@@ -167,7 +167,7 @@ func (bt *BaseToken) TxDeleteDoc(sender *types.Sender, docID string) error {
 // TxSetRate sets token rate to an asset for a type of deal
 func (bt *BaseToken) TxSetRate(sender *types.Sender, dealType string, currency string, rate *big.Int) error {
 	if !sender.Equal(bt.Issuer()) {
-		return errors.New("unauthorized")
+		return errors.New(ErrUnauthorized)
 	}
 
 	if rate.Sign() == 0 {
@@ -199,10 +199,10 @@ func (bt *BaseToken) TxSetRate(sender *types.Sender, dealType string, currency s
 // TxSetLimits sets limits for a deal type and an asset
 func (bt *BaseToken) TxSetLimits(sender *types.Sender, dealType string, currency string, min *big.Int, max *big.Int) error {
 	if !sender.Equal(bt.Issuer()) {
-		return errors.New("unauthorized")
+		return errors.New(ErrUnauthorized)
 	}
 	if min.Cmp(max) > 0 && max.Cmp(big.NewInt(0)) > 0 {
-		return errors.New("min limit is greater than max limit")
+		return errors.New(ErrMinLimitGreaterThanMax)
 	}
 	cfg, err := bt.loadConfig()
 	if err != nil {
@@ -228,7 +228,7 @@ func (bt *BaseToken) TxSetLimits(sender *types.Sender, dealType string, currency
 // TxDeleteRate - deletes rate from state
 func (bt *BaseToken) TxDeleteRate(sender *types.Sender, dealType string, currency string) error {
 	if !sender.Equal(bt.Issuer()) {
-		return errors.New("unauthorized")
+		return errors.New(ErrUnauthorized)
 	}
 	if bt.ContractConfig().GetSymbol() == currency {
 		return errors.New("currency is equals token: it is impossible")

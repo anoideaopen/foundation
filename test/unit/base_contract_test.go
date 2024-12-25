@@ -214,15 +214,13 @@ func TestContractMethods(t *testing.T) {
 			require.NoError(t, err)
 
 			tt := &TestToken{}
-			config := makeBaseTokenConfig(testTokenName, testTokenSymbol, 8,
+			mockStub.CreateAndSetConfig(testTokenName, testTokenSymbol, 8,
 				owner.AddressBase58Check, "", "", "", nil)
 
 			cc, err := core.NewCC(tt)
 			require.NoError(t, err)
 
 			// preparing mockStub
-			mockStub.SetConfig(config)
-
 			if test.prepareMockStubAdditional != nil {
 				test.prepareMockStubAdditional(t, mockStub, owner)
 			}
@@ -251,7 +249,7 @@ func TestInit(t *testing.T) {
 	require.NoError(t, err)
 
 	tt := &TestToken{}
-	config := makeBaseTokenConfig(testTokenName, testTokenSymbol, 8,
+	config := mockStub.CreateAndSetConfig(testTokenName, testTokenSymbol, 8,
 		owner.AddressBase58Check, "", "", "", nil)
 
 	cc, err := core.NewCC(tt)
@@ -259,7 +257,7 @@ func TestInit(t *testing.T) {
 
 	t.Run("[negative] Init with wrong cert", func(t *testing.T) {
 		mockStub.GetStringArgsReturns([]string{config})
-		err = mocks.SetCreator(mockStub.ChaincodeStub, BatchRobotCert)
+		err = mocks.SetCreator(mockStub.ChaincodeStub, mocks.BatchRobotCert)
 		require.NoError(t, err)
 
 		resp := cc.Init(mockStub)

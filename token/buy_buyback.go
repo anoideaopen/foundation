@@ -17,7 +17,7 @@ func (bt *BaseToken) CheckLimitsAndPrice(method string, amount *big.Int, currenc
 		return big.NewInt(0), errors.New("impossible to buy for this currency")
 	}
 	if !rate.InLimit(amount) {
-		return big.NewInt(0), errors.New("amount out of limits")
+		return big.NewInt(0), errors.New(ErrAmountOutOfLimits)
 	}
 	return rate.CalcPrice(amount, RateDecimal), nil
 }

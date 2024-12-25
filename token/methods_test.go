@@ -54,7 +54,7 @@ func TestIndustrialTokenSetRate(t *testing.T) {
 	ledger.NewCC("tt", tt, config)
 
 	if err := outsider.RawSignedInvokeWithErrorReturned("tt", "setRate", "distribute", "", "1"); err != nil {
-		require.Equal(t, "unauthorized", err.Error())
+		require.Equal(t, ErrUnauthorized, err.Error())
 	}
 	if err := issuer.RawSignedInvokeWithErrorReturned("tt", "setRate", "distribute", "", "0"); err != nil {
 		require.Equal(t, "trying to set rate = 0", err.Error())

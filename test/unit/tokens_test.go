@@ -3,7 +3,6 @@ package unit
 import (
 	"encoding/json"
 	"errors"
-	"golang.org/x/crypto/sha3"
 	"net/http"
 	"testing"
 
@@ -18,9 +17,9 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/crypto/sha3"
+	pb "google.golang.org/protobuf/proto"
 )
-
-const BatchRobotCert = "0a0a61746f6d797a654d535012d7062d2d2d2d2d424547494e2043455254494649434154452d2d2d2d2d0a4d494943536a434341664367417749424167495241496b514e37444f456b6836686f52425057633157495577436759494b6f5a497a6a304541774977675963780a437a414a42674e5642415954416c56544d524d77455159445651514945777044595778705a6d3979626d6c684d525977464159445651514845773154595734670a526e4a68626d4e7063324e764d534d77495159445651514b45787068644739746558706c4c6e56686443356b624851755958527662586c365a53356a6144456d0a4d4351474131554541784d64593245755958527662586c365a533531595851755a4778304c6d463062323135656d5575593267774868634e4d6a41784d44457a0a4d4467314e6a41775768634e4d7a41784d4445784d4467314e6a4177576a42324d517377435159445651514745774a56557a45544d4245474131554543424d4b0a5132467361575a76636d3570595445574d4251474131554542784d4e5532467549455a795957356a61584e6a627a45504d4130474131554543784d47593278700a5a5735304d536b774a7759445651514444434256633256794d554268644739746558706c4c6e56686443356b624851755958527662586c365a53356a6144425a0a4d424d4742797147534d34394167454743437147534d3439417745484130494142427266315057484d51674d736e786263465a346f3579774b476e677830594e0a504b6270494335423761446f6a46747932576e4871416b5656723270697853502b4668497634434c634935633162473963365a375738616a5454424c4d4134470a41315564447745422f775145417749486744414d42674e5648524d4241663845416a41414d437347413155644977516b4d434b4149464b2f5335356c6f4865700a6137384441363173364e6f7433727a4367436f435356386f71462b37585172344d416f4743437147534d343942414d43413067414d4555434951436e6870476d0a58515664754b632b634266554d6b31494a6835354444726b3335436d436c4d657041533353674967596b634d6e5a6b385a42727179796953544d6466526248740a5a32506837364e656d536b62345651706230553d0a2d2d2d2d2d454e442043455254494649434154452d2d2d2d2d0a"
 
 type metadata struct {
 	Fee struct {
@@ -465,13 +464,11 @@ func TestEmitTransfer(t *testing.T) {
 			user2, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
 			require.NoError(t, err)
 
-			fiatConfig := makeBaseTokenConfig("fiat", "FIAT", 8,
+			mockStub.CreateAndSetConfig("fiat", "FIAT", 8,
 				owner.AddressBase58Check, feeSetter.AddressBase58Check, feeAddressSetter.AddressBase58Check, "", nil)
 
 			cc, err := core.NewCC(NewFiatTestToken(token.BaseToken{}))
 			require.NoError(t, err)
-
-			mockStub.SetConfig(fiatConfig)
 
 			parameters := test.funcPrepareMockStub(t, mockStub, user1, user2, feeAggregator)
 			resp := test.funcInvokeChaincode(cc, mockStub, test.functionName, owner, feeSetter, feeAddressSetter, user1, parameters...)
@@ -663,16 +660,14 @@ func TestMultisigEmitTransfer(t *testing.T) {
 			user2, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
 			require.NoError(t, err)
 
-			fiatConfig := makeBaseTokenConfig("fiat token", "FIAT", 8,
+			mockStub.CreateAndSetConfig("fiat token", "FIAT", 8,
 				owner.AddressBase58Check, feeSetter.AddressBase58Check, feeAddressSetter.AddressBase58Check, "", nil)
 
 			cc, err := core.NewCC(NewFiatTestToken(token.BaseToken{}))
 			require.NoError(t, err)
 
-			mockStub.SetConfig(fiatConfig)
-
 			parameters := test.funcPrepareMockStub(t, mockStub, user1, user2, feeAggregator)
-			resp := test.funcInvokeChaincode(cc, mockStub, test.functionName, owner, feeSetter, feeAddressSetter, user1, parameters...)
+			resp := test.funcInvokeChaincode(cc, mockStub, test.functionName, owner, user1, parameters...)
 			require.Equal(t, int32(http.StatusOK), resp.GetStatus())
 			require.Empty(t, resp.GetMessage())
 			test.funcCheckResponse(t, mockStub, user1, user2, feeAggregator, resp)
@@ -684,32 +679,408 @@ func TestBuyLimit(t *testing.T) {
 	t.Parallel()
 
 	testCollection := []struct {
-		name         string
-		functionName string
+		name                string
+		functionName        string
+		funcPrepareMockStub func(
+			t *testing.T,
+			mockStub *mockstub.MockStub,
+			owner *mocks.UserFoundation,
+			user *mocks.UserFoundation,
+		) []string
+		funcInvokeChaincode func(
+			cc *core.Chaincode,
+			mockStub *mockstub.MockStub,
+			functionName string,
+			owner *mocks.UserFoundation,
+			user1 *mocks.UserFoundation,
+			parameters ...string,
+		) peer.Response
+		funcCheckResponse func(
+			t *testing.T,
+			mockStub *mockstub.MockStub,
+			owner *mocks.UserFoundation,
+			user *mocks.UserFoundation,
+			resp peer.Response,
+		)
 	}{
 		{
 			name:         "Setting rate",
 			functionName: "setRate",
+			funcPrepareMockStub: func(
+				t *testing.T,
+				mockStub *mockstub.MockStub,
+				owner *mocks.UserFoundation,
+				user *mocks.UserFoundation,
+			) []string {
+				return []string{"buyToken", "FIAT", "50000000"}
+			},
+			funcInvokeChaincode: func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, owner *mocks.UserFoundation, user *mocks.UserFoundation, parameters ...string) peer.Response {
+				_, resp := mockStub.TxInvokeChaincodeSigned(cc, functionName, owner, "", "", "", parameters...)
+				return resp
+			},
+			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, owner *mocks.UserFoundation, user *mocks.UserFoundation, resp peer.Response) {
+				checked := false
+				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+					putStateKey, value := mockStub.PutStateArgsForCall(i)
+					if putStateKey == keyMetadata {
+						tokenMetadata := &pbfound.Token{}
+
+						err := proto.Unmarshal(value, tokenMetadata)
+						require.NoError(t, err)
+
+						expectedRate := &pbfound.TokenRate{
+							DealType: "buyToken",
+							Currency: "FIAT",
+							Rate:     big.NewInt(50000000).Bytes(),
+						}
+
+						require.True(t, proto.Equal(expectedRate, tokenMetadata.Rates[0]))
+						checked = true
+					}
+				}
+				require.True(t, checked)
+			},
 		},
 		{
 			name:         "Buying token",
 			functionName: "buyToken",
+			funcPrepareMockStub: func(
+				t *testing.T,
+				mockStub *mockstub.MockStub,
+				owner *mocks.UserFoundation,
+				user *mocks.UserFoundation,
+			) []string {
+				keyBalance, err := mockStub.CreateCompositeKey(balance.BalanceTypeAllowed.String(), []string{user.AddressBase58Check, "FIAT"})
+				require.NoError(t, err)
+
+				mockStub.GetStateCallsMap[keyBalance] = big.NewInt(1000).Bytes()
+
+				tokenMetadata := &pbfound.Token{
+					Rates: []*pbfound.TokenRate{
+						{
+							DealType: "buyToken",
+							Currency: "FIAT",
+							Rate:     big.NewInt(50000000).Bytes(),
+						},
+					},
+				}
+
+				rawMetadata, err := proto.Marshal(tokenMetadata)
+				require.NoError(t, err)
+
+				mockStub.GetStateCallsMap[keyMetadata] = rawMetadata
+
+				return []string{"100", "FIAT"}
+			},
+			funcInvokeChaincode: func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, owner *mocks.UserFoundation, user *mocks.UserFoundation, parameters ...string) peer.Response {
+				_, resp := mockStub.TxInvokeChaincodeSigned(cc, functionName, user, "", "", "", parameters...)
+				return resp
+			},
+			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, owner *mocks.UserFoundation, user *mocks.UserFoundation, resp peer.Response) {
+				keyBalance, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user.AddressBase58Check})
+				require.NoError(t, err)
+
+				keyAllowedBalance, err := mockStub.CreateCompositeKey(balance.BalanceTypeAllowed.String(), []string{user.AddressBase58Check, "FIAT"})
+				require.NoError(t, err)
+
+				checkedBalance := false
+				checkedAllowed := false
+				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+					putStateKey, value := mockStub.PutStateArgsForCall(i)
+					if putStateKey == keyBalance {
+						require.Equal(t, big.NewInt(100).Bytes(), value)
+						checkedBalance = true
+					}
+					if putStateKey == keyAllowedBalance {
+						require.Equal(t, big.NewInt(950).Bytes(), value)
+						checkedAllowed = true
+					}
+				}
+				require.True(t, checkedBalance && checkedAllowed)
+			},
 		},
 		{
 			name:         "Setting limits",
 			functionName: "setLimits",
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub, owner *mocks.UserFoundation, user *mocks.UserFoundation) []string {
+				tokenMetadata := &pbfound.Token{
+					Rates: []*pbfound.TokenRate{
+						{
+							DealType: "buyToken",
+							Currency: "FIAT",
+							Rate:     big.NewInt(50000000).Bytes(),
+						},
+					},
+				}
+
+				rawMetadata, err := proto.Marshal(tokenMetadata)
+				require.NoError(t, err)
+
+				mockStub.GetStateCallsMap[keyMetadata] = rawMetadata
+
+				return []string{"buyToken", "FIAT", "100", "200"}
+			},
+			funcInvokeChaincode: func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, owner *mocks.UserFoundation, user *mocks.UserFoundation, parameters ...string) peer.Response {
+				_, resp := mockStub.TxInvokeChaincodeSigned(cc, functionName, owner, "", "", "", parameters...)
+				return resp
+			},
+			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, owner *mocks.UserFoundation, user *mocks.UserFoundation, resp peer.Response) {
+				checked := false
+				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+					putStateKey, value := mockStub.PutStateArgsForCall(i)
+					if putStateKey == keyMetadata {
+						tokenMetadata := &pbfound.Token{}
+
+						err := proto.Unmarshal(value, tokenMetadata)
+						require.NoError(t, err)
+
+						expectedRate := &pbfound.TokenRate{
+							DealType: "buyToken",
+							Currency: "FIAT",
+							Rate:     big.NewInt(50000000).Bytes(),
+							Min:      big.NewInt(100).Bytes(),
+							Max:      big.NewInt(200).Bytes(),
+						}
+
+						require.True(t, proto.Equal(expectedRate, tokenMetadata.Rates[0]))
+						checked = true
+					}
+				}
+				require.True(t, checked)
+			},
 		},
 		{
 			name:         "[negative] Error setting limits",
 			functionName: "setLimits",
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub, owner *mocks.UserFoundation, user *mocks.UserFoundation) []string {
+				tokenMetadata := &pbfound.Token{
+					Rates: []*pbfound.TokenRate{
+						{
+							DealType: "buyToken",
+							Currency: "FIAT",
+							Rate:     big.NewInt(50000000).Bytes(),
+						},
+					},
+				}
+
+				rawMetadata, err := proto.Marshal(tokenMetadata)
+				require.NoError(t, err)
+
+				mockStub.GetStateCallsMap[keyMetadata] = rawMetadata
+
+				return []string{"buyToken", "FIAT", "100", "50"}
+			},
+			funcInvokeChaincode: func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, owner *mocks.UserFoundation, user *mocks.UserFoundation, parameters ...string) peer.Response {
+				_, resp := mockStub.TxInvokeChaincodeSigned(cc, functionName, owner, "", "", "", parameters...)
+				return resp
+			},
+			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, owner *mocks.UserFoundation, user *mocks.UserFoundation, resp peer.Response) {
+				payload := &pbfound.BatchResponse{}
+
+				err := pb.Unmarshal(resp.Payload, payload)
+				require.NoError(t, err)
+				require.Equal(t, token.ErrMinLimitGreaterThanMax, payload.TxResponses[0].Error.Error)
+			},
+		},
+		{
+			name:         "Setting limit without Max value",
+			functionName: "setLimits",
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub, owner *mocks.UserFoundation, user *mocks.UserFoundation) []string {
+				tokenMetadata := &pbfound.Token{
+					Rates: []*pbfound.TokenRate{
+						{
+							DealType: "buyToken",
+							Currency: "FIAT",
+							Rate:     big.NewInt(50000000).Bytes(),
+						},
+					},
+				}
+
+				rawMetadata, err := proto.Marshal(tokenMetadata)
+				require.NoError(t, err)
+
+				mockStub.GetStateCallsMap[keyMetadata] = rawMetadata
+
+				return []string{"buyToken", "FIAT", "100", "0"}
+			},
+			funcInvokeChaincode: func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, owner *mocks.UserFoundation, user *mocks.UserFoundation, parameters ...string) peer.Response {
+				_, resp := mockStub.TxInvokeChaincodeSigned(cc, functionName, owner, "", "", "", parameters...)
+				return resp
+			},
+			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, owner *mocks.UserFoundation, user *mocks.UserFoundation, resp peer.Response) {
+				checked := false
+				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+					putStateKey, value := mockStub.PutStateArgsForCall(i)
+					if putStateKey == keyMetadata {
+						tokenMetadata := &pbfound.Token{}
+
+						err := proto.Unmarshal(value, tokenMetadata)
+						require.NoError(t, err)
+
+						expectedRate := &pbfound.TokenRate{
+							DealType: "buyToken",
+							Currency: "FIAT",
+							Rate:     big.NewInt(50000000).Bytes(),
+							Min:      big.NewInt(100).Bytes(),
+							Max:      big.NewInt(0).Bytes(),
+						}
+
+						require.True(t, proto.Equal(expectedRate, tokenMetadata.Rates[0]))
+						checked = true
+					}
+				}
+				require.True(t, checked)
+			},
 		},
 		{
 			name:         "Buying token with limits",
 			functionName: "buyToken",
+			funcPrepareMockStub: func(
+				t *testing.T,
+				mockStub *mockstub.MockStub,
+				owner *mocks.UserFoundation,
+				user *mocks.UserFoundation,
+			) []string {
+				keyBalance, err := mockStub.CreateCompositeKey(balance.BalanceTypeAllowed.String(), []string{user.AddressBase58Check, "FIAT"})
+				require.NoError(t, err)
+
+				mockStub.GetStateCallsMap[keyBalance] = big.NewInt(1000).Bytes()
+
+				tokenMetadata := &pbfound.Token{
+					Rates: []*pbfound.TokenRate{
+						{
+							DealType: "buyToken",
+							Currency: "FIAT",
+							Rate:     big.NewInt(50000000).Bytes(),
+							Min:      big.NewInt(100).Bytes(),
+							Max:      big.NewInt(200).Bytes(),
+						},
+					},
+				}
+
+				rawMetadata, err := proto.Marshal(tokenMetadata)
+				require.NoError(t, err)
+
+				mockStub.GetStateCallsMap[keyMetadata] = rawMetadata
+
+				return []string{"100", "FIAT"}
+			},
+			funcInvokeChaincode: func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, owner *mocks.UserFoundation, user *mocks.UserFoundation, parameters ...string) peer.Response {
+				_, resp := mockStub.TxInvokeChaincodeSigned(cc, functionName, user, "", "", "", parameters...)
+				return resp
+			},
+			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, owner *mocks.UserFoundation, user *mocks.UserFoundation, resp peer.Response) {
+				keyBalance, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user.AddressBase58Check})
+				require.NoError(t, err)
+
+				keyAllowedBalance, err := mockStub.CreateCompositeKey(balance.BalanceTypeAllowed.String(), []string{user.AddressBase58Check, "FIAT"})
+				require.NoError(t, err)
+
+				checkedBalance := false
+				checkedAllowed := false
+				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+					putStateKey, value := mockStub.PutStateArgsForCall(i)
+					if putStateKey == keyBalance {
+						require.Equal(t, big.NewInt(100).Bytes(), value)
+						checkedBalance = true
+					}
+					if putStateKey == keyAllowedBalance {
+						require.Equal(t, big.NewInt(950).Bytes(), value)
+						checkedAllowed = true
+					}
+				}
+				require.True(t, checkedBalance && checkedAllowed)
+			},
 		},
 		{
-			name:         "[negative] Error buying token with limits",
+			name:         "[negative] Error buying token below limits",
 			functionName: "buyToken",
+			funcPrepareMockStub: func(
+				t *testing.T,
+				mockStub *mockstub.MockStub,
+				owner *mocks.UserFoundation,
+				user *mocks.UserFoundation,
+			) []string {
+				keyBalance, err := mockStub.CreateCompositeKey(balance.BalanceTypeAllowed.String(), []string{user.AddressBase58Check, "FIAT"})
+				require.NoError(t, err)
+
+				mockStub.GetStateCallsMap[keyBalance] = big.NewInt(1000).Bytes()
+
+				tokenMetadata := &pbfound.Token{
+					Rates: []*pbfound.TokenRate{
+						{
+							DealType: "buyToken",
+							Currency: "FIAT",
+							Rate:     big.NewInt(50000000).Bytes(),
+							Min:      big.NewInt(100).Bytes(),
+							Max:      big.NewInt(200).Bytes(),
+						},
+					},
+				}
+
+				rawMetadata, err := proto.Marshal(tokenMetadata)
+				require.NoError(t, err)
+
+				mockStub.GetStateCallsMap[keyMetadata] = rawMetadata
+
+				return []string{"50", "FIAT"}
+			},
+			funcInvokeChaincode: func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, owner *mocks.UserFoundation, user *mocks.UserFoundation, parameters ...string) peer.Response {
+				_, resp := mockStub.TxInvokeChaincodeSigned(cc, functionName, user, "", "", "", parameters...)
+				return resp
+			},
+			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, owner *mocks.UserFoundation, user *mocks.UserFoundation, resp peer.Response) {
+				payload := &pbfound.BatchResponse{}
+
+				err := pb.Unmarshal(resp.Payload, payload)
+				require.NoError(t, err)
+				require.Equal(t, token.ErrAmountOutOfLimits, payload.TxResponses[0].Error.Error)
+			},
+		},
+		{
+			name:         "[negative] Error buying token above limits",
+			functionName: "buyToken",
+			funcPrepareMockStub: func(
+				t *testing.T,
+				mockStub *mockstub.MockStub,
+				owner *mocks.UserFoundation,
+				user *mocks.UserFoundation,
+			) []string {
+				keyBalance, err := mockStub.CreateCompositeKey(balance.BalanceTypeAllowed.String(), []string{user.AddressBase58Check, "FIAT"})
+				require.NoError(t, err)
+
+				mockStub.GetStateCallsMap[keyBalance] = big.NewInt(1000).Bytes()
+
+				tokenMetadata := &pbfound.Token{
+					Rates: []*pbfound.TokenRate{
+						{
+							DealType: "buyToken",
+							Currency: "FIAT",
+							Rate:     big.NewInt(50000000).Bytes(),
+							Min:      big.NewInt(100).Bytes(),
+							Max:      big.NewInt(200).Bytes(),
+						},
+					},
+				}
+
+				rawMetadata, err := proto.Marshal(tokenMetadata)
+				require.NoError(t, err)
+
+				mockStub.GetStateCallsMap[keyMetadata] = rawMetadata
+
+				return []string{"300", "FIAT"}
+			},
+			funcInvokeChaincode: func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, owner *mocks.UserFoundation, user *mocks.UserFoundation, parameters ...string) peer.Response {
+				_, resp := mockStub.TxInvokeChaincodeSigned(cc, functionName, user, "", "", "", parameters...)
+				return resp
+			},
+			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, owner *mocks.UserFoundation, user *mocks.UserFoundation, resp peer.Response) {
+				payload := &pbfound.BatchResponse{}
+
+				err := pb.Unmarshal(resp.Payload, payload)
+				require.NoError(t, err)
+				require.Equal(t, token.ErrAmountOutOfLimits, payload.TxResponses[0].Error.Error)
+			},
 		},
 	}
 
@@ -720,7 +1091,7 @@ func TestBuyLimit(t *testing.T) {
 			owner, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
 			require.NoError(t, err)
 
-			ccConfig := makeBaseTokenConfig("currency coin token", "CC", 8,
+			mockStub.CreateAndSetConfig("currency coin token", "CC", 8,
 				owner.AddressBase58Check, "", "", "", nil)
 
 			cc, err := core.NewCC(NewMintableTestToken())
@@ -729,30 +1100,12 @@ func TestBuyLimit(t *testing.T) {
 			user, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
 			require.NoError(t, err)
 
+			parameters := test.funcPrepareMockStub(t, mockStub, owner, user)
+
+			resp := test.funcInvokeChaincode(cc, mockStub, test.functionName, owner, user, parameters...)
+			require.Equal(t, int32(http.StatusOK), resp.GetStatus())
+			require.Empty(t, resp.GetMessage())
+			test.funcCheckResponse(t, mockStub, owner, user, resp)
 		})
 	}
-
-	/*
-		user1.AddAllowedBalance("cc", "FIAT", 1000)
-
-		owner.SignedInvoke("cc", "setRate", "buyToken", "FIAT", "50000000")
-
-		user1.SignedInvoke("cc", "buyToken", "100", "FIAT")
-
-		owner.SignedInvoke("cc", "setLimits", "buyToken", "FIAT", "100", "200")
-
-		_, resp, _ := user1.RawSignedInvoke("cc", "buyToken", "50", "FIAT")
-		require.Equal(t, "amount out of limits", resp.Error)
-
-		_, resp, _ = user1.RawSignedInvoke("cc", "buyToken", "300", "FIAT")
-		require.Equal(t, "amount out of limits", resp.Error)
-
-		user1.SignedInvoke("cc", "buyToken", "150", "FIAT")
-
-		_, resp, _ = owner.RawSignedInvoke("cc", "setLimits", "buyToken", "FIAT", "100", "0")
-		require.Equal(t, "", resp.Error)
-
-		_, resp, _ = owner.RawSignedInvoke("cc", "setLimits", "buyToken", "FIAT", "100", "50")
-		require.Equal(t, "min limit is greater than max limit", resp.Error)
-	*/
 }

@@ -22,6 +22,7 @@ func step(t *testing.T, name string, skip bool, f func()) {
 // makeBaseTokenConfig creates config for token, based on BaseToken.
 // If feeSetter is not set or empty, Token.FeeSetter will be nil.
 // If feeAddressSetter is not set or empty, Token.FeeAddressSetter will be nil.
+// Deprecated. Use MockStub.CreateAndSetConfig instead
 func makeBaseTokenConfig(
 	name, symbol string,
 	decimals uint,

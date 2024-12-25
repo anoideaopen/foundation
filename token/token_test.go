@@ -74,7 +74,7 @@ func (tt *TestToken) QueryGetFeeAddressSetter() (string, error) {
 
 func (tt *TestToken) TxEmissionAdd(sender *types.Sender, address *types.Address, amount *big.Int) error {
 	if !sender.Equal(tt.Issuer()) {
-		return errors.New("unauthorized")
+		return errors.New(ErrUnauthorized)
 	}
 
 	if amount.Cmp(big.NewInt(0)) == 0 {
@@ -88,7 +88,7 @@ func (tt *TestToken) TxEmissionAdd(sender *types.Sender, address *types.Address,
 
 func (tt *TestToken) TxEmissionSub(sender *types.Sender, address *types.Address, amount *big.Int) error {
 	if !sender.Equal(tt.Issuer()) {
-		return errors.New("unauthorized")
+		return errors.New(ErrUnauthorized)
 	}
 
 	if amount.Cmp(big.NewInt(0)) == 0 {
