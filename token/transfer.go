@@ -154,7 +154,7 @@ func (bt *BaseToken) TxAllowedIndustrialBalanceTransfer(sender *types.Sender, re
 
 	for _, industrialAsset := range assets {
 		if new(big.Int).SetBytes(industrialAsset.GetAmount()).Cmp(big.NewInt(0)) == 0 {
-			return errors.New("amount should be more than zero")
+			return errors.New(ErrAmountEqualZero)
 		}
 	}
 

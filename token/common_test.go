@@ -6,6 +6,9 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
+const keyMetadata = "tokenMetadata"
+
+// Deprecated
 func makeBaseTokenConfig(
 	name, symbol string,
 	decimals uint,

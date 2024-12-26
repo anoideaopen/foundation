@@ -14,7 +14,7 @@ func (bt *BaseToken) CheckLimitsAndPrice(method string, amount *big.Int, currenc
 		return big.NewInt(0), err
 	}
 	if !exists {
-		return big.NewInt(0), errors.New("impossible to buy for this currency")
+		return big.NewInt(0), errors.New(ErrWrongCurrency)
 	}
 	if !rate.InLimit(amount) {
 		return big.NewInt(0), errors.New(ErrAmountOutOfLimits)
@@ -29,7 +29,7 @@ func (bt *BaseToken) TxBuyToken(sender *types.Sender, amount *big.Int, currency 
 	}
 
 	if amount.Cmp(big.NewInt(0)) == 0 {
-		return errors.New("amount should be more than zero")
+		return errors.New(ErrAmountEqualZero)
 	}
 
 	price, err := bt.CheckLimitsAndPrice("buyToken", amount, currency)
@@ -51,7 +51,7 @@ func (bt *BaseToken) TxBuyBack(sender *types.Sender, amount *big.Int, currency s
 	}
 
 	if amount.Cmp(big.NewInt(0)) == 0 {
-		return errors.New("amount should be more than zero")
+		return errors.New(ErrAmountEqualZero)
 	}
 
 	price, err := bt.CheckLimitsAndPrice("buyBack", amount, currency)

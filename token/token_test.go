@@ -78,7 +78,7 @@ func (tt *TestToken) TxEmissionAdd(sender *types.Sender, address *types.Address,
 	}
 
 	if amount.Cmp(big.NewInt(0)) == 0 {
-		return errors.New("amount should be more than zero")
+		return errors.New(ErrAmountEqualZero)
 	}
 	if err := tt.TokenBalanceAdd(address, amount, "txEmit"); err != nil {
 		return err
@@ -92,7 +92,7 @@ func (tt *TestToken) TxEmissionSub(sender *types.Sender, address *types.Address,
 	}
 
 	if amount.Cmp(big.NewInt(0)) == 0 {
-		return errors.New("amount should be more than zero")
+		return errors.New(ErrAmountEqualZero)
 	}
 	if err := tt.TokenBalanceSub(address, amount, "txEmitSub"); err != nil {
 		return err

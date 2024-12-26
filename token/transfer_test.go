@@ -38,7 +38,7 @@ func TestBaseTokenTxTransfer(t *testing.T) {
 	require.NoError(t, err)
 
 	if err = seller.RawSignedInvokeWithErrorReturned("vt", "transfer", buyer.Address(), "0", ""); err != nil {
-		require.ErrorContains(t, err, "amount should be more than zero")
+		require.ErrorContains(t, err, ErrAmountEqualZero)
 	}
 	if err = seller.RawSignedInvokeWithErrorReturned("vt", "transfer", buyer.Address(), "100", ""); err != nil {
 		require.ErrorContains(t, err, "insufficient balance")
@@ -91,7 +91,7 @@ func TestTransferWithFee(t *testing.T) {
 
 	t.Run("[negative] trying to transfer zero amount", func(t *testing.T) {
 		err = issuer.RawSignedInvokeWithErrorReturned("vt", "transfer", user.Address(), "0", "")
-		require.ErrorContains(t, err, "amount should be more than zero")
+		require.ErrorContains(t, err, ErrAmountEqualZero)
 	})
 
 	t.Run("[negative] trying to transfer when fee address is not set", func(t *testing.T) {
