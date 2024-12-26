@@ -18,6 +18,7 @@ const MultisignKeyDelimiter = "/"
 type UserFoundationMultisigned struct {
 	Users              []*UserFoundation
 	AddressBase58Check string
+	AddressBytes       []byte
 	UserID             string
 }
 
@@ -50,6 +51,7 @@ func NewUserFoundationMultisigned(keyType pbfound.KeyType, n int) (*UserFoundati
 
 	hashedAddr := sha3.Sum256(bytes.Join(binPubKeys, []byte("")))
 	userMultisigned.AddressBase58Check = base58.CheckEncode(hashedAddr[1:], hashedAddr[0])
+	userMultisigned.AddressBytes = hashedAddr[:]
 	return userMultisigned, nil
 }
 

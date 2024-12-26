@@ -15,6 +15,7 @@ import (
 type UserFoundation struct {
 	*keys.Keys
 	AddressBase58Check string
+	AddressBytes       []byte
 	UserID             string
 }
 
@@ -30,6 +31,7 @@ func NewUserFoundation(keyType pbfound.KeyType) (*UserFoundation, error) {
 	return &UserFoundation{
 		Keys:               keysStr,
 		AddressBase58Check: addressBase58Check,
+		AddressBytes:       hash[:],
 		UserID:             "testuser",
 	}, nil
 }
