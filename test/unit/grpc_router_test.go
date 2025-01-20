@@ -6,10 +6,14 @@ import (
 	"testing"
 
 	"github.com/anoideaopen/foundation/core"
+	"github.com/anoideaopen/foundation/core/balance"
 	"github.com/anoideaopen/foundation/core/routing/grpc"
 	"github.com/anoideaopen/foundation/core/routing/reflect"
-	"github.com/anoideaopen/foundation/mock"
-	mockgrpc "github.com/anoideaopen/foundation/mock/grpc"
+	"github.com/anoideaopen/foundation/core/types/big"
+	"github.com/anoideaopen/foundation/mocks"
+	mockgrpc "github.com/anoideaopen/foundation/mocks/grpc"
+	"github.com/anoideaopen/foundation/mocks/mockstub"
+	pbfound "github.com/anoideaopen/foundation/proto"
 	"github.com/anoideaopen/foundation/test/unit/token/proto"
 	"github.com/anoideaopen/foundation/test/unit/token/service"
 	"github.com/anoideaopen/foundation/token"
@@ -18,21 +22,22 @@ import (
 )
 
 func TestGRPCRouter(t *testing.T) {
-	var (
-		ledger = mock.NewLedger(t)
-		owner  = ledger.NewWallet()
-		user1  = ledger.NewWallet()
-		ch     = "cc"
-	)
+	mockStub := mockstub.NewMockStub(t)
 
-	ccConfig := makeBaseTokenConfig(
+	owner, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
+	require.NoError(t, err)
+
+	user1, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
+	require.NoError(t, err)
+
+	mockStub.CreateAndSetConfig(
 		"CC Token",
 		"CC",
 		8,
-		owner.Address(),
+		owner.AddressBase58Check,
 		"",
 		"",
-		owner.Address(),
+		owner.AddressBase58Check,
 		nil,
 	)
 
@@ -46,18 +51,13 @@ func TestGRPCRouter(t *testing.T) {
 	proto.RegisterBalanceServiceServer(grpcRouter, balanceToken)
 
 	// Init chaincode.
-	initMsg := ledger.NewCC(
-		ch,
-		balanceToken,
-		ccConfig,
-		core.WithRouters(reflectRouter, grpcRouter),
-	)
-	require.Empty(t, initMsg)
+	cc, err := core.NewCC(balanceToken, core.WithRouters(reflectRouter, grpcRouter))
+	require.NoError(t, err)
 
 	// Prepare request.
 	req := &proto.BalanceAdjustmentRequest{
 		Address: &proto.Address{
-			Base58Check: user1.Address(),
+			Base58Check: user1.AddressBase58Check,
 		},
 		Amount: &proto.BigInt{
 			Value: "1000",
@@ -66,20 +66,28 @@ func TestGRPCRouter(t *testing.T) {
 	}
 
 	// Add balance by admin with a client by URL.
-	client := proto.NewBalanceServiceClient(mockgrpc.NewMockClientConn(ch).SetCaller(owner))
+	client := proto.NewBalanceServiceClient(mockgrpc.NewMockClientConn(t, mockStub, cc).SetCaller(owner))
 
-	_, err := client.AddBalanceByAdmin(context.Background(), req)
+	_, err = client.AddBalanceByAdmin(context.Background(), req)
 	require.NoError(t, err)
-	user1.BalanceShouldBe(ch, 1000)
+	keyBalance, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user1.AddressBase58Check})
+	require.NoError(t, err)
+	for i := 0; i < mockStub.PutStateCallCount(); i++ {
+		key, data := mockStub.PutStateArgsForCall(i)
+		if key == keyBalance {
+			require.Equal(t, big.NewInt(1000).Bytes(), data)
+			break
+		}
+	}
 
 	hello, err := client.HelloWorld(context.Background(), &emptypb.Empty{})
 	require.NoError(t, err)
 	require.Equal(t, "Hello World!", hello.Message)
 
-	resp := user1.Invoke(ch, "metadata")
+	resp := mockStub.QueryChaincode(cc, "metadata")
 
 	var meta token.Metadata
-	err = json.Unmarshal([]byte(resp), &meta)
+	err = json.Unmarshal(resp.GetPayload(), &meta)
 	require.NoError(t, err)
 
 	require.Equal(t, meta.Methods[0], "/foundation.token.BalanceService/AddBalanceByAdmin")
