@@ -3,24 +3,30 @@ package token
 import (
 	"encoding/json"
 	"fmt"
+	"testing"
+
 	"github.com/anoideaopen/foundation/core"
+	"github.com/anoideaopen/foundation/core/balance"
 	"github.com/anoideaopen/foundation/core/types"
+	"github.com/anoideaopen/foundation/core/types/big"
 	"github.com/anoideaopen/foundation/mocks"
 	"github.com/anoideaopen/foundation/mocks/mockstub"
 	pbfound "github.com/anoideaopen/foundation/proto"
-	"testing"
-
-	"github.com/anoideaopen/foundation/core/types/big"
+	"github.com/golang/protobuf/proto"
 	"github.com/hyperledger/fabric-chaincode-go/shim"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/crypto/sha3"
 )
+
+const keyMetadata = "tokenMetadata"
 
 func TestBaseToken_QueryGetFeeTransfer(t *testing.T) {
 	t.Parallel()
-	from, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
+
+	userFrom, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
 	require.NoError(t, err)
 
-	to, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
+	userTo, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
 	require.NoError(t, err)
 
 	type testArgs struct {
@@ -41,8 +47,8 @@ func TestBaseToken_QueryGetFeeTransfer(t *testing.T) {
 			name: "success query fee of transfer",
 			args: testArgs{
 				chaincodeArgs: FeeTransferRequestDTO{
-					SenderAddress:    &types.Address{UserID: from.UserID, Address: from.AddressBytes},
-					RecipientAddress: &types.Address{UserID: to.UserID, Address: to.AddressBytes},
+					SenderAddress:    &types.Address{UserID: userFrom.UserID, Address: userFrom.AddressBytes},
+					RecipientAddress: &types.Address{UserID: userTo.UserID, Address: userTo.AddressBytes},
 					Amount:           big.NewInt(10),
 				},
 				emit:                 "10",
@@ -61,7 +67,7 @@ func TestBaseToken_QueryGetFeeTransfer(t *testing.T) {
 			name: "recipient is empty",
 			args: testArgs{
 				chaincodeArgs: FeeTransferRequestDTO{
-					SenderAddress:    &types.Address{UserID: from.UserID, Address: from.AddressBytes},
+					SenderAddress:    &types.Address{UserID: userFrom.UserID, Address: userFrom.AddressBytes},
 					RecipientAddress: nil,
 					Amount:           big.NewInt(10),
 				},
@@ -79,7 +85,7 @@ func TestBaseToken_QueryGetFeeTransfer(t *testing.T) {
 			args: testArgs{
 				chaincodeArgs: FeeTransferRequestDTO{
 					SenderAddress:    nil,
-					RecipientAddress: &types.Address{UserID: to.UserID, Address: to.AddressBytes},
+					RecipientAddress: &types.Address{UserID: userTo.UserID, Address: userTo.AddressBytes},
 					Amount:           big.NewInt(10),
 				},
 				emit:                 "10",
@@ -95,8 +101,8 @@ func TestBaseToken_QueryGetFeeTransfer(t *testing.T) {
 			name: "amount is empty",
 			args: testArgs{
 				chaincodeArgs: FeeTransferRequestDTO{
-					SenderAddress:    &types.Address{UserID: from.UserID, Address: from.AddressBytes},
-					RecipientAddress: &types.Address{UserID: to.UserID, Address: to.AddressBytes},
+					SenderAddress:    &types.Address{UserID: userFrom.UserID, Address: userFrom.AddressBytes},
+					RecipientAddress: &types.Address{UserID: userTo.UserID, Address: userTo.AddressBytes},
 					Amount:           nil,
 				},
 				emit:                 "10",
@@ -139,16 +145,32 @@ func TestBaseToken_QueryGetFeeTransfer(t *testing.T) {
 			cc, err := core.NewCC(&VT{})
 			require.NoError(t, err)
 
-			issuer.SignedInvoke(name, "emitToken", test.args.emit)
-			from.AddAllowedBalance(name, test.args.allowedBalanceToken, test.args.allowedBalanceAmount)
+			// preparing mockStub
+			user1BalanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeAllowed.String(), []string{userFrom.AddressBase58Check, test.args.allowedBalanceToken})
+			require.NoError(t, err)
 
-			feeSetter.SignedInvoke(name, "setFee", "VT", "500000", "1", "0")
-			feeAddressSetter.SignedInvoke(name, "setFeeAddress", feeAggregator.Address())
+			feeAddressHash := sha3.Sum256(feeAggregator.PublicKeyBytes)
+
+			metadata := &pbfound.Token{
+				Fee: &pbfound.TokenFee{
+					Currency: "VT",
+					Fee:      big.NewInt(500000).Bytes(),
+					Floor:    big.NewInt(1).Bytes(),
+					Cap:      big.NewInt(0).Bytes(),
+				},
+				FeeAddress: feeAddressHash[:],
+			}
+
+			rawMetadata, err := proto.Marshal(metadata)
+			require.NoError(t, err)
+
+			mockStub.GetStateCallsMap[user1BalanceKey] = new(big.Int).SetUint64(test.args.allowedBalanceAmount).Bytes()
+			mockStub.GetStateCallsMap[keyMetadata] = rawMetadata
 
 			bytes, err := json.Marshal(test.args.chaincodeArgs)
 			require.NoError(t, err)
 
-			resp, err := from.InvokeWithPeerResponse(name, "getFeeTransfer", string(bytes))
+			resp := mockStub.QueryChaincode(cc, "getFeeTransfer", []string{string(bytes)}...)
 			test.wantErr(t, err, fmt.Sprintf("QueryGetFeeTransfer(%v, %v, %v)", test.args.chaincodeArgs.SenderAddress, test.args.chaincodeArgs.RecipientAddress, test.args.chaincodeArgs.Amount))
 
 			require.Equal(t, test.wantRespStatus, resp.Status)
@@ -159,7 +181,7 @@ func TestBaseToken_QueryGetFeeTransfer(t *testing.T) {
 				_ = json.Unmarshal(resp.Payload, &feeTransferRespDTO)
 				require.Equal(t, test.want.Currency, feeTransferRespDTO.Currency)
 				require.Equal(t, test.want.Amount, feeTransferRespDTO.Amount)
-				require.Equal(t, feeAggregator.Address(), feeTransferRespDTO.FeeAddress.String())
+				require.Equal(t, feeAggregator.AddressBase58Check, feeTransferRespDTO.FeeAddress.String())
 			}
 		})
 	}
