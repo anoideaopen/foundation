@@ -18,8 +18,6 @@ import (
 	"golang.org/x/crypto/sha3"
 )
 
-const keyMetadata = "tokenMetadata"
-
 func TestBaseToken_QueryGetFeeTransfer(t *testing.T) {
 	t.Parallel()
 
