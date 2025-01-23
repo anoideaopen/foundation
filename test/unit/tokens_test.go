@@ -17,7 +17,6 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/crypto/sha3"
 	pb "google.golang.org/protobuf/proto"
 )
 
@@ -281,8 +280,6 @@ func TestEmitTransfer(t *testing.T) {
 				feeAggregator *mocks.UserFoundation,
 				resp peer.Response,
 			) {
-				feeAddressHash := sha3.Sum256(feeAggregator.PublicKeyBytes)
-
 				checked := false
 				for i := 0; i < mockStub.PutStateCallCount(); i++ {
 					putStateKey, value := mockStub.PutStateArgsForCall(i)
@@ -292,7 +289,7 @@ func TestEmitTransfer(t *testing.T) {
 						err := proto.Unmarshal(value, tokenMetadata)
 						require.NoError(t, err)
 
-						require.Equal(t, feeAddressHash[:], tokenMetadata.FeeAddress)
+						require.Equal(t, feeAggregator.AddressBytes, tokenMetadata.FeeAddress)
 						checked = true
 					}
 				}
@@ -370,8 +367,6 @@ func TestEmitTransfer(t *testing.T) {
 				user1BalanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user1.AddressBase58Check})
 				require.NoError(t, err)
 
-				feeAddressHash := sha3.Sum256(feeAggregator.PublicKeyBytes)
-
 				metadata := &pbfound.Token{
 					Fee: &pbfound.TokenFee{
 						Currency: "FIAT",
@@ -379,7 +374,7 @@ func TestEmitTransfer(t *testing.T) {
 						Floor:    big.NewInt(100).Bytes(),
 						Cap:      big.NewInt(100000).Bytes(),
 					},
-					FeeAddress: feeAddressHash[:],
+					FeeAddress: feeAggregator.AddressBytes,
 				}
 
 				rawMetadata, err := proto.Marshal(metadata)
@@ -567,8 +562,6 @@ func TestMultisigEmitTransfer(t *testing.T) {
 				user1BalanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user1.AddressBase58Check})
 				require.NoError(t, err)
 
-				feeAddressHash := sha3.Sum256(feeAggregator.PublicKeyBytes)
-
 				metadata := &pbfound.Token{
 					Fee: &pbfound.TokenFee{
 						Currency: "FIAT",
@@ -576,7 +569,7 @@ func TestMultisigEmitTransfer(t *testing.T) {
 						Floor:    big.NewInt(100).Bytes(),
 						Cap:      big.NewInt(100000).Bytes(),
 					},
-					FeeAddress: feeAddressHash[:],
+					FeeAddress: feeAggregator.AddressBytes,
 				}
 
 				rawMetadata, err := proto.Marshal(metadata)

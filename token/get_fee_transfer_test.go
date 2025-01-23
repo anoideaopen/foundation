@@ -15,7 +15,6 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/hyperledger/fabric-chaincode-go/shim"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/crypto/sha3"
 )
 
 func TestBaseToken_QueryGetFeeTransfer(t *testing.T) {
@@ -147,8 +146,6 @@ func TestBaseToken_QueryGetFeeTransfer(t *testing.T) {
 			user1BalanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeAllowed.String(), []string{userFrom.AddressBase58Check, test.args.allowedBalanceToken})
 			require.NoError(t, err)
 
-			feeAddressHash := sha3.Sum256(feeAggregator.PublicKeyBytes)
-
 			metadata := &pbfound.Token{
 				Fee: &pbfound.TokenFee{
 					Currency: "VT",
@@ -156,7 +153,7 @@ func TestBaseToken_QueryGetFeeTransfer(t *testing.T) {
 					Floor:    big.NewInt(1).Bytes(),
 					Cap:      big.NewInt(0).Bytes(),
 				},
-				FeeAddress: feeAddressHash[:],
+				FeeAddress: feeAggregator.AddressBytes,
 			}
 
 			rawMetadata, err := proto.Marshal(metadata)
