@@ -16,6 +16,8 @@ import (
 	pb "google.golang.org/protobuf/proto"
 )
 
+const keyMetadata = "tokenMetadata"
+
 func TestBaseTokenTxBuy(t *testing.T) {
 	t.Parallel()
 

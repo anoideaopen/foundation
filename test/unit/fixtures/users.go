@@ -1,4 +1,4 @@
-package fixtures_test
+package fixtures
 
 import "github.com/anoideaopen/foundation/proto"
 

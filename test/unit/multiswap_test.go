@@ -4,20 +4,20 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"strconv"
-	"strings"
 	"testing"
-	"time"
 
 	"github.com/anoideaopen/foundation/core"
+	"github.com/anoideaopen/foundation/core/balance"
+	"github.com/anoideaopen/foundation/core/multiswap"
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/core/types/big"
-	"github.com/anoideaopen/foundation/mock"
 	"github.com/anoideaopen/foundation/mocks"
-	"github.com/anoideaopen/foundation/proto"
-	"github.com/anoideaopen/foundation/test/unit/fixtures_test"
-	"github.com/anoideaopen/foundation/token"
+	"github.com/anoideaopen/foundation/mocks/mockstub"
+	pbfound "github.com/anoideaopen/foundation/proto"
+	"github.com/anoideaopen/foundation/test/unit/fixtures"
 	pb "github.com/golang/protobuf/proto" //nolint:staticcheck
+	"github.com/hyperledger/fabric-chaincode-go/shim"
+	"github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/sha3"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -27,7 +27,7 @@ import (
 func (ct *CustomToken) OnMultiSwapDoneEvent(
 	token string,
 	owner *types.Address,
-	assets []*proto.Asset,
+	assets []*pbfound.Asset,
 ) {
 	type asset struct {
 		group  string
@@ -80,424 +80,804 @@ func (ct *CustomToken) QueryMultiSwapDoneEventCallCount() (int, error) {
 	return fcc.Count, nil
 }
 
-// TestAtomicMultiSwapMoveToken moves BA token from ba channel to another channel
-func TestAtomicMultiSwapMoveToken(t *testing.T) { //nolint:gocognit
-	t.Parallel()
-
+func TestMultiSwap(t *testing.T) {
 	const (
-		tokenBA           = "BA"
-		baCC              = "BA"
-		otfCC             = "OTF"
-		BA1               = "A.101"
-		BA2               = "A.102"
-		AllowedBalanceBA1 = tokenBA + "_" + BA1
-		AllowedBalanceBA2 = tokenBA + "_" + BA2
+		TokenCC           = "CC"
+		TokenVT           = "VT"
+		G1                = "A.101"
+		G2                = "A.102"
+		AllowedBalanceCC1 = TokenCC + "_" + G1
+		AllowedBalanceCC2 = TokenCC + "_" + G2
+		AllowedBalanceVT1 = TokenVT + "_" + G1
+		AllowedBalanceVT2 = TokenVT + "_" + G2
 	)
-	ledger := mock.NewLedger(t)
-	issuer := ledger.NewWallet()
-	owner := ledger.NewWallet()
-	user1 := ledger.NewWallet()
 
-	ba := &token.BaseToken{}
-	baConfig := makeBaseTokenConfig("BA Token", baCC, 8,
-		issuer.Address(), "", "", "", nil)
-	initMsg := ledger.NewCC(baCC, ba, baConfig)
-	require.Empty(t, initMsg)
+	issuer, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
+	require.NoError(t, err)
 
-	otf := &CustomToken{}
-	otfConfig := makeBaseTokenConfig("OTF Token", otfCC, 8,
-		owner.Address(), "", "", "", nil)
-	initMsg = ledger.NewCC(otfCC, otf, otfConfig)
-	require.Empty(t, initMsg)
+	user, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
+	require.NoError(t, err)
 
-	user1.AddTokenBalance(baCC, BA1, 1)
-	user1.AddTokenBalance(baCC, BA2, 1)
-
-	user1.GroupBalanceShouldBe(baCC, BA1, 1)
-	user1.GroupBalanceShouldBe(baCC, BA2, 1)
-	user1.GroupBalanceShouldBe(otfCC, BA1, 0)
-	user1.GroupBalanceShouldBe(otfCC, BA2, 0)
-
-	user1.GroupBalanceShouldBe(baCC, AllowedBalanceBA1, 0)
-	user1.GroupBalanceShouldBe(baCC, AllowedBalanceBA2, 0)
-	user1.GroupBalanceShouldBe(otfCC, AllowedBalanceBA1, 0)
-	user1.GroupBalanceShouldBe(otfCC, AllowedBalanceBA2, 0)
-
-	user1.AllowedBalanceShouldBe(baCC, AllowedBalanceBA1, 0)
-	user1.AllowedBalanceShouldBe(baCC, AllowedBalanceBA2, 0)
-	user1.AllowedBalanceShouldBe(otfCC, AllowedBalanceBA1, 0)
-	user1.AllowedBalanceShouldBe(otfCC, AllowedBalanceBA2, 0)
-
-	user1.AllowedBalanceShouldBe(baCC, BA1, 0)
-	user1.AllowedBalanceShouldBe(baCC, BA2, 0)
-	user1.AllowedBalanceShouldBe(otfCC, BA1, 0)
-	user1.AllowedBalanceShouldBe(otfCC, BA2, 0)
-
-	swapKey := "123"
-	hashed := sha3.Sum256([]byte(swapKey))
+	swapKeyEtl := "123"
+	hashed := sha3.Sum256([]byte(swapKeyEtl))
 	swapHash := hex.EncodeToString(hashed[:])
 
-	bytes, err := json.Marshal(types.MultiSwapAssets{
+	msaCCBytes, err := json.Marshal(&types.MultiSwapAssets{
 		Assets: []*types.MultiSwapAsset{
 			{
-				Group:  AllowedBalanceBA1,
+				Group:  AllowedBalanceCC1,
 				Amount: "1",
 			},
 			{
-				Group:  AllowedBalanceBA2,
+				Group:  AllowedBalanceCC2,
 				Amount: "1",
 			},
 		},
 	})
 	require.NoError(t, err)
-	txID, _, _, multiSwaps := user1.RawSignedMultiSwapInvoke(baCC, "multiSwapBegin", tokenBA, string(bytes), otfCC, swapHash)
-	w := user1
-	for _, swap := range multiSwaps {
-		x := proto.Batch{
-			MultiSwaps: []*proto.MultiSwap{
-				{
-					Id:      swap.Id,
+
+	msaCCpb := []*pbfound.Asset{
+		{
+			Group:  AllowedBalanceCC1,
+			Amount: new(big.Int).SetUint64(1).Bytes(),
+		},
+		{
+			Group:  AllowedBalanceCC2,
+			Amount: new(big.Int).SetUint64(1).Bytes(),
+		},
+	}
+
+	msaVTBytes, err := json.Marshal(&types.MultiSwapAssets{
+		Assets: []*types.MultiSwapAsset{
+			{
+				Group:  AllowedBalanceVT1,
+				Amount: "1",
+			},
+			{
+				Group:  AllowedBalanceVT2,
+				Amount: "1",
+			},
+		},
+	})
+	require.NoError(t, err)
+
+	msaVTpb := []*pbfound.Asset{
+		{
+			Group:  AllowedBalanceVT1,
+			Amount: new(big.Int).SetUint64(1).Bytes(),
+		},
+		{
+			Group:  AllowedBalanceVT2,
+			Amount: new(big.Int).SetUint64(1).Bytes(),
+		},
+	}
+
+	for _, testCase := range []struct {
+		description         string
+		functionName        string
+		isQuery             bool
+		noBatch             bool
+		errorMsg            string
+		signUser            *mocks.UserFoundation
+		codeResp            int32
+		funcPrepareMockStub func(t *testing.T, mockStub *mockstub.MockStub) []string
+		funcCheckResponse   func(t *testing.T, mockStub *mockstub.MockStub, resp *pbfound.TxResponse)
+		funcCheckQuery      func(t *testing.T, mockStub *mockstub.MockStub, payload []byte)
+	}{
+		{
+			description:  "multiSwapBegin - disable swaps",
+			functionName: "multiSwapBegin",
+			errorMsg:     "method 'multiSwapBegin' not found",
+			signUser:     user,
+			codeResp:     int32(shim.ERROR),
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				cfg := &pbfound.Config{
+					Contract: &pbfound.ContractConfig{
+						Symbol:   "CC",
+						Options:  &pbfound.ChaincodeOptions{DisableMultiSwaps: true},
+						RobotSKI: fixtures.RobotHashedCert,
+						Admin:    &pbfound.Wallet{Address: issuer.AddressBase58Check},
+					},
+					Token: &pbfound.TokenConfig{
+						Name:     "CC Token",
+						Decimals: 8,
+						Issuer:   &pbfound.Wallet{Address: issuer.AddressBase58Check},
+					},
+				}
+				cfgBytes, _ := protojson.Marshal(cfg)
+				mockStub.GetStateCallsMap["__config"] = cfgBytes
+
+				return []string{"", ""}
+			},
+		},
+		{
+			description:  "multiSwapCancel - disable swaps",
+			functionName: "multiSwapCancel",
+			errorMsg:     "method 'multiSwapCancel' not found",
+			signUser:     user,
+			codeResp:     int32(shim.ERROR),
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				cfg := &pbfound.Config{
+					Contract: &pbfound.ContractConfig{
+						Symbol:   "CC",
+						Options:  &pbfound.ChaincodeOptions{DisableMultiSwaps: true},
+						RobotSKI: fixtures.RobotHashedCert,
+						Admin:    &pbfound.Wallet{Address: issuer.AddressBase58Check},
+					},
+					Token: &pbfound.TokenConfig{
+						Name:     "CC Token",
+						Decimals: 8,
+						Issuer:   &pbfound.Wallet{Address: issuer.AddressBase58Check},
+					},
+				}
+				cfgBytes, _ := protojson.Marshal(cfg)
+				mockStub.GetStateCallsMap["__config"] = cfgBytes
+
+				return []string{"", ""}
+			},
+		},
+		{
+			description:  "multiSwapDone - disable swaps",
+			functionName: "multiSwapDone",
+			errorMsg:     core.ErrSwapDisabled.Error(),
+			signUser:     user,
+			codeResp:     int32(shim.ERROR),
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				cfg := &pbfound.Config{
+					Contract: &pbfound.ContractConfig{
+						Symbol:   "CC",
+						Options:  &pbfound.ChaincodeOptions{DisableMultiSwaps: true},
+						RobotSKI: fixtures.RobotHashedCert,
+						Admin:    &pbfound.Wallet{Address: issuer.AddressBase58Check},
+					},
+					Token: &pbfound.TokenConfig{
+						Name:     "CC Token",
+						Decimals: 8,
+						Issuer:   &pbfound.Wallet{Address: issuer.AddressBase58Check},
+					},
+				}
+				cfgBytes, _ := protojson.Marshal(cfg)
+				mockStub.GetStateCallsMap["__config"] = cfgBytes
+
+				return []string{"", ""}
+			},
+		},
+		{
+			description:  "multiSwapGet - disable swaps",
+			functionName: "multiSwapGet",
+			errorMsg:     "method 'multiSwapGet' not found",
+			signUser:     user,
+			codeResp:     int32(shim.ERROR),
+			isQuery:      true,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				cfg := &pbfound.Config{
+					Contract: &pbfound.ContractConfig{
+						Symbol:   "CC",
+						Options:  &pbfound.ChaincodeOptions{DisableMultiSwaps: true},
+						RobotSKI: fixtures.RobotHashedCert,
+						Admin:    &pbfound.Wallet{Address: issuer.AddressBase58Check},
+					},
+					Token: &pbfound.TokenConfig{
+						Name:     "CC Token",
+						Decimals: 8,
+						Issuer:   &pbfound.Wallet{Address: issuer.AddressBase58Check},
+					},
+				}
+				cfgBytes, _ := protojson.Marshal(cfg)
+				mockStub.GetStateCallsMap["__config"] = cfgBytes
+
+				return []string{"", ""}
+			},
+		},
+		{
+			description:  "multiSwapBegin - ok",
+			functionName: "multiSwapBegin",
+			errorMsg:     "",
+			signUser:     user,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				userBalanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user.AddressBase58Check, G1})
+				require.NoError(t, err)
+				mockStub.GetStateCallsMap[userBalanceKey] = new(big.Int).SetUint64(1).Bytes()
+
+				userBalanceKey, err = mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user.AddressBase58Check, G2})
+				require.NoError(t, err)
+				mockStub.GetStateCallsMap[userBalanceKey] = new(big.Int).SetUint64(1).Bytes()
+
+				return []string{TokenCC, string(msaCCBytes), TokenVT, swapHash}
+			},
+			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, resp *pbfound.TxResponse) {
+				userBalanceKey1, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user.AddressBase58Check, G1})
+				require.NoError(t, err)
+
+				userBalanceKey2, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user.AddressBase58Check, G2})
+				require.NoError(t, err)
+
+				swapKey, err := mockStub.CreateCompositeKey(multiswap.MultiSwapCompositeType, []string{hex.EncodeToString(resp.GetId())})
+				require.NoError(t, err)
+
+				var j int
+				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+					k, v := mockStub.PutStateArgsForCall(i)
+					if k == userBalanceKey1 {
+						require.Equal(t, new(big.Int).SetUint64(0).Bytes(), v)
+						j++
+					} else if k == userBalanceKey2 {
+						require.Equal(t, new(big.Int).SetUint64(0).Bytes(), v)
+						j++
+					} else if k == swapKey {
+						s := &pbfound.MultiSwap{}
+						err = pb.Unmarshal(v, s)
+						require.NoError(t, err)
+						require.True(t, pb.Equal(s, &pbfound.MultiSwap{
+							Id:      resp.GetId(),
+							Creator: user.AddressBytes,
+							Owner:   user.AddressBytes,
+							Token:   "CC",
+							Assets:  msaCCpb,
+							From:    "CC",
+							To:      "VT",
+							Hash:    hashed[:],
+							Timeout: 10800,
+						}))
+						j++
+					}
+
+					if j == 3 {
+						return
+					}
+				}
+				require.Fail(t, "not found checking data")
+			},
+		},
+		{
+			description:  "multiSwapBegin back - ok",
+			functionName: "multiSwapBegin",
+			errorMsg:     "",
+			signUser:     user,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				userBalanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeAllowed.String(), []string{user.AddressBase58Check, AllowedBalanceVT1})
+				require.NoError(t, err)
+				mockStub.GetStateCallsMap[userBalanceKey] = new(big.Int).SetUint64(1).Bytes()
+
+				userBalanceKey, err = mockStub.CreateCompositeKey(balance.BalanceTypeAllowed.String(), []string{user.AddressBase58Check, AllowedBalanceVT2})
+				require.NoError(t, err)
+				mockStub.GetStateCallsMap[userBalanceKey] = new(big.Int).SetUint64(1).Bytes()
+
+				return []string{TokenVT, string(msaVTBytes), TokenVT, swapHash}
+			},
+			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, resp *pbfound.TxResponse) {
+				userBalanceKey1, err := mockStub.CreateCompositeKey(balance.BalanceTypeAllowed.String(), []string{user.AddressBase58Check, AllowedBalanceVT1})
+				require.NoError(t, err)
+
+				userBalanceKey2, err := mockStub.CreateCompositeKey(balance.BalanceTypeAllowed.String(), []string{user.AddressBase58Check, AllowedBalanceVT2})
+				require.NoError(t, err)
+
+				swapKey, err := mockStub.CreateCompositeKey(multiswap.MultiSwapCompositeType, []string{hex.EncodeToString(resp.GetId())})
+				require.NoError(t, err)
+
+				var j int
+				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+					k, v := mockStub.PutStateArgsForCall(i)
+					if k == userBalanceKey1 {
+						require.Equal(t, new(big.Int).SetUint64(0).Bytes(), v)
+						j++
+					} else if k == userBalanceKey2 {
+						require.Equal(t, new(big.Int).SetUint64(0).Bytes(), v)
+						j++
+					} else if k == swapKey {
+						s := &pbfound.MultiSwap{}
+						err = pb.Unmarshal(v, s)
+						require.NoError(t, err)
+						require.True(t, pb.Equal(s, &pbfound.MultiSwap{
+							Id:      resp.GetId(),
+							Creator: user.AddressBytes,
+							Owner:   user.AddressBytes,
+							Token:   "VT",
+							Assets:  msaVTpb,
+							From:    "CC",
+							To:      "VT",
+							Hash:    hashed[:],
+							Timeout: 10800,
+						}))
+						j++
+					}
+
+					if j == 3 {
+						return
+					}
+				}
+				require.Fail(t, "not found checking data")
+			},
+		},
+		{
+			description:  "multiSwapBegin - incorrect swap",
+			functionName: "multiSwapBegin",
+			errorMsg:     "incorrect swap",
+			signUser:     user,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				userBalanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user.AddressBase58Check, G1})
+				require.NoError(t, err)
+				mockStub.GetStateCallsMap[userBalanceKey] = new(big.Int).SetUint64(1).Bytes()
+
+				userBalanceKey, err = mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user.AddressBase58Check, G2})
+				require.NoError(t, err)
+				mockStub.GetStateCallsMap[userBalanceKey] = new(big.Int).SetUint64(1).Bytes()
+
+				return []string{"BA", string(msaCCBytes), "VT", swapHash}
+			},
+		},
+		{
+			description:  "multiswap answer - ok",
+			functionName: "batchExecute",
+			errorMsg:     "",
+			noBatch:      true,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				err = mocks.SetCreator(mockStub.ChaincodeStub, mocks.BatchRobotCert)
+				require.NoError(t, err)
+
+				txID, err := hex.DecodeString(mockStub.GetTxID())
+				require.NoError(t, err)
+
+				dataIn, err := pb.Marshal(&pbfound.Batch{
+					MultiSwaps: []*pbfound.MultiSwap{
+						{
+							Id:      txID,
+							Creator: []byte("0000"),
+							Owner:   user.AddressBytes,
+							Token:   "VT",
+							Assets:  msaVTpb,
+							From:    "VT",
+							To:      "CC",
+							Hash:    hashed[:],
+							Timeout: 10800,
+						},
+					},
+				})
+				require.NoError(t, err)
+
+				return []string{string(dataIn)}
+			},
+			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, resp *pbfound.TxResponse) {
+				swapKey, err := mockStub.CreateCompositeKey(multiswap.MultiSwapCompositeType, []string{mockStub.GetTxID()})
+				require.NoError(t, err)
+
+				txID, err := hex.DecodeString(mockStub.GetTxID())
+				require.NoError(t, err)
+
+				k, v := mockStub.PutStateArgsForCall(0)
+				require.Equal(t, swapKey, k)
+
+				s := &pbfound.MultiSwap{}
+				err = pb.Unmarshal(v, s)
+				require.NoError(t, err)
+				require.True(t, pb.Equal(s, &pbfound.MultiSwap{
+					Id:      txID,
 					Creator: []byte("0000"),
-					Owner:   swap.Owner,
-					Token:   swap.Token,
-					Assets:  swap.Assets,
-					From:    swap.From,
-					To:      swap.To,
-					Hash:    swap.Hash,
-					Timeout: swap.Timeout,
-				},
+					Owner:   user.AddressBytes,
+					Token:   "VT",
+					Assets:  msaVTpb,
+					From:    "VT",
+					To:      "CC",
+					Hash:    hashed[:],
+					Timeout: 300,
+				}))
 			},
-		}
-		data, _ := pb.Marshal(&x)
-		cert, _ := hex.DecodeString(mocks.BatchRobotCert)
-		ch := swap.To
-		stub := w.Ledger().GetStub(ch)
-		stub.SetCreator(cert)
-		w.Invoke(ch, core.BatchExecute, string(data))
-		e := <-stub.ChaincodeEventsChannel
-		if e.EventName == core.BatchExecute {
-			events := &proto.BatchEvent{}
-			err = pb.Unmarshal(e.Payload, events)
-			if err != nil {
-				require.FailNow(t, err.Error())
-			}
-			for _, ev := range events.Events {
-				if hex.EncodeToString(ev.Id) == txID {
-					evts := make(map[string][]byte)
-					for _, evt := range ev.Events {
-						evts[evt.Name] = evt.Value
-					}
-					if ev.Error != nil {
-						require.FailNow(t, ev.GetError().GetError())
-					}
-				}
-			}
-		}
-	}
+		},
+		{
+			description:  "multiswap answer back - ok",
+			functionName: "batchExecute",
+			errorMsg:     "",
+			noBatch:      true,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				givenBalanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeGiven.String(), []string{"VT"})
+				require.NoError(t, err)
+				mockStub.GetStateCallsMap[givenBalanceKey] = new(big.Int).SetUint64(2).Bytes()
 
-	user1.GroupBalanceShouldBe(baCC, BA1, 0)
-	user1.GroupBalanceShouldBe(baCC, BA2, 0)
-	user1.GroupBalanceShouldBe(otfCC, BA1, 0)
-	user1.GroupBalanceShouldBe(otfCC, BA2, 0)
+				err = mocks.SetCreator(mockStub.ChaincodeStub, mocks.BatchRobotCert)
+				require.NoError(t, err)
 
-	user1.GroupBalanceShouldBe(baCC, AllowedBalanceBA1, 0)
-	user1.GroupBalanceShouldBe(baCC, AllowedBalanceBA2, 0)
-	user1.GroupBalanceShouldBe(otfCC, AllowedBalanceBA1, 0)
-	user1.GroupBalanceShouldBe(otfCC, AllowedBalanceBA2, 0)
+				txID, err := hex.DecodeString(mockStub.GetTxID())
+				require.NoError(t, err)
 
-	user1.AllowedBalanceShouldBe(baCC, AllowedBalanceBA1, 0)
-	user1.AllowedBalanceShouldBe(baCC, AllowedBalanceBA2, 0)
-	user1.AllowedBalanceShouldBe(otfCC, AllowedBalanceBA1, 0)
-	user1.AllowedBalanceShouldBe(otfCC, AllowedBalanceBA2, 0)
-
-	user1.AllowedBalanceShouldBe(baCC, BA1, 0)
-	user1.AllowedBalanceShouldBe(baCC, BA2, 0)
-	user1.AllowedBalanceShouldBe(otfCC, BA1, 0)
-	user1.AllowedBalanceShouldBe(otfCC, BA2, 0)
-
-	ledger.WaitMultiSwapAnswer(otfCC, txID, time.Second*5)
-
-	swapID := user1.Invoke(otfCC, "multiSwapGet", txID)
-	require.NotNil(t, swapID)
-
-	user1.Invoke(otfCC, "multiSwapDone", txID, swapKey)
-
-	user1.GroupBalanceShouldBe(baCC, BA1, 0)
-	user1.GroupBalanceShouldBe(baCC, BA2, 0)
-	user1.GroupBalanceShouldBe(otfCC, BA1, 0)
-	user1.GroupBalanceShouldBe(otfCC, BA2, 0)
-
-	user1.GroupBalanceShouldBe(baCC, AllowedBalanceBA1, 0)
-	user1.GroupBalanceShouldBe(baCC, AllowedBalanceBA2, 0)
-	user1.GroupBalanceShouldBe(otfCC, AllowedBalanceBA1, 0)
-	user1.GroupBalanceShouldBe(otfCC, AllowedBalanceBA2, 0)
-
-	user1.AllowedBalanceShouldBe(baCC, AllowedBalanceBA1, 0)
-	user1.AllowedBalanceShouldBe(baCC, AllowedBalanceBA2, 0)
-	user1.AllowedBalanceShouldBe(otfCC, AllowedBalanceBA1, 1)
-	user1.AllowedBalanceShouldBe(otfCC, AllowedBalanceBA2, 1)
-
-	user1.AllowedBalanceShouldBe(baCC, BA1, 0)
-	user1.AllowedBalanceShouldBe(baCC, BA2, 0)
-	user1.AllowedBalanceShouldBe(otfCC, BA1, 0)
-	user1.AllowedBalanceShouldBe(otfCC, BA2, 0)
-
-	// update GivenBalance using batchExecute with MultiSwapsKeys
-	for _, swap := range multiSwaps {
-		x := proto.Batch{
-			MultiSwapsKeys: []*proto.SwapKey{
-				{
-					Id:  swap.Id,
-					Key: swapKey,
-				},
+				dataIn, err := pb.Marshal(&pbfound.Batch{
+					MultiSwaps: []*pbfound.MultiSwap{
+						{
+							Id:      txID,
+							Creator: []byte("0000"),
+							Owner:   user.AddressBytes,
+							Token:   "CC",
+							Assets:  msaCCpb,
+							From:    "VT",
+							To:      "CC",
+							Hash:    hashed[:],
+							Timeout: 10800,
+						},
+					},
+				})
+				require.NoError(t, err)
+				return []string{string(dataIn)}
 			},
-		}
-		data, _ := pb.Marshal(&x)
-		cert, _ := hex.DecodeString(mocks.BatchRobotCert)
-		ch := swap.From
-		stub := w.Ledger().GetStub(ch)
-		stub.SetCreator(cert)
-		w.Invoke(ch, core.BatchExecute, string(data))
-		e := <-stub.ChaincodeEventsChannel
-		if e.EventName == core.BatchExecute {
-			events := &proto.BatchEvent{}
-			err = pb.Unmarshal(e.Payload, events)
-			if err != nil {
-				require.FailNow(t, err.Error())
-			}
-			for _, ev := range events.Events {
-				if hex.EncodeToString(ev.Id) == txID {
-					evts := make(map[string][]byte)
-					for _, evt := range ev.Events {
-						evts[evt.Name] = evt.Value
+			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, resp *pbfound.TxResponse) {
+				givenBalanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeGiven.String(), []string{"VT"})
+				require.NoError(t, err)
+
+				swapKey, err := mockStub.CreateCompositeKey(multiswap.MultiSwapCompositeType, []string{mockStub.GetTxID()})
+				require.NoError(t, err)
+
+				txID, err := hex.DecodeString(mockStub.GetTxID())
+				require.NoError(t, err)
+
+				var j int
+				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+					k, v := mockStub.PutStateArgsForCall(i)
+					if k == givenBalanceKey {
+						require.Equal(t, new(big.Int).SetUint64(0).Bytes(), v)
+						j++
+					} else if k == swapKey {
+						s := &pbfound.MultiSwap{}
+						err = pb.Unmarshal(v, s)
+						require.NoError(t, err)
+						require.True(t, pb.Equal(s, &pbfound.MultiSwap{
+							Id:      txID,
+							Creator: []byte("0000"),
+							Owner:   user.AddressBytes,
+							Token:   "CC",
+							Assets:  msaCCpb,
+							From:    "VT",
+							To:      "CC",
+							Hash:    hashed[:],
+							Timeout: 300,
+						}))
+						j++
 					}
-					if ev.Error != nil {
-						require.FailNow(t, ev.GetError().GetError())
+
+					if j == 2 {
+						return
 					}
 				}
+				require.Fail(t, "not found checking data")
+			},
+		},
+		{
+			description:  "multiSwapGet - ok",
+			functionName: "multiSwapGet",
+			errorMsg:     "",
+			isQuery:      true,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				txID, err := hex.DecodeString(mockStub.GetTxID())
+				require.NoError(t, err)
+
+				swapKey, err := mockStub.CreateCompositeKey(multiswap.MultiSwapCompositeType, []string{mockStub.GetTxID()})
+				require.NoError(t, err)
+				s, err := pb.Marshal(&pbfound.MultiSwap{
+					Id:      txID,
+					Creator: user.AddressBytes,
+					Owner:   user.AddressBytes,
+					Token:   "CC",
+					Assets:  msaCCpb,
+					From:    "CC",
+					To:      "VT",
+					Hash:    hashed[:],
+					Timeout: 10800,
+				})
+				require.NoError(t, err)
+				mockStub.GetStateCallsMap[swapKey] = s
+
+				return []string{mockStub.GetTxID()}
+			},
+			funcCheckQuery: func(t *testing.T, mockStub *mockstub.MockStub, payload []byte) {
+				txID, err := hex.DecodeString(mockStub.GetTxID())
+				require.NoError(t, err)
+
+				s := &pbfound.MultiSwap{}
+				err = json.Unmarshal(payload, s)
+				require.NoError(t, err)
+				require.True(t, pb.Equal(s, &pbfound.MultiSwap{
+					Id:      txID,
+					Creator: user.AddressBytes,
+					Owner:   user.AddressBytes,
+					Token:   "CC",
+					Assets:  msaCCpb,
+					From:    "CC",
+					To:      "VT",
+					Hash:    hashed[:],
+					Timeout: 10800,
+				}))
+			},
+		},
+		{
+			description:  "multiSwapGet - not found",
+			functionName: "multiSwapGet",
+			errorMsg:     "multiswap doesn't exist",
+			isQuery:      true,
+			codeResp:     int32(shim.ERROR),
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				return []string{mockStub.GetTxID()}
+			},
+		},
+		{
+			description:  "multiSwapDone - ok",
+			functionName: "multiSwapDone",
+			errorMsg:     "",
+			noBatch:      true,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				swapKey, err := mockStub.CreateCompositeKey(multiswap.MultiSwapCompositeType, []string{mockStub.GetTxID()})
+				require.NoError(t, err)
+
+				txID, err := hex.DecodeString(mockStub.GetTxID())
+				require.NoError(t, err)
+
+				s, err := pb.Marshal(&pbfound.MultiSwap{
+					Id:      txID,
+					Creator: []byte("0000"),
+					Owner:   user.AddressBytes,
+					Token:   "VT",
+					Assets:  msaVTpb,
+					From:    "VT",
+					To:      "CC",
+					Hash:    hashed[:],
+					Timeout: 300,
+				})
+				require.NoError(t, err)
+				mockStub.GetStateCallsMap[swapKey] = s
+
+				return []string{mockStub.GetTxID(), swapKeyEtl}
+			},
+			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, resp *pbfound.TxResponse) {
+				swapKey, err := mockStub.CreateCompositeKey(multiswap.MultiSwapCompositeType, []string{mockStub.GetTxID()})
+				require.NoError(t, err)
+				require.Equal(t, swapKey, mockStub.DelStateArgsForCall(0))
+
+				userBalanceKey1, err := mockStub.CreateCompositeKey(balance.BalanceTypeAllowed.String(), []string{user.AddressBase58Check, AllowedBalanceVT1})
+				require.NoError(t, err)
+
+				userBalanceKey2, err := mockStub.CreateCompositeKey(balance.BalanceTypeAllowed.String(), []string{user.AddressBase58Check, AllowedBalanceVT2})
+				require.NoError(t, err)
+
+				var j int
+				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+					k, v := mockStub.PutStateArgsForCall(i)
+					if k == userBalanceKey1 {
+						require.Equal(t, new(big.Int).SetUint64(1).Bytes(), v)
+						j++
+					} else if k == userBalanceKey2 {
+						require.Equal(t, new(big.Int).SetUint64(1).Bytes(), v)
+						j++
+					}
+
+					if j == 2 {
+						return
+					}
+				}
+				require.Fail(t, "not found checking data")
+			},
+		},
+		{
+			description:  "multiSwapDone back - ok",
+			functionName: "multiSwapDone",
+			errorMsg:     "",
+			noBatch:      true,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				swapKey, err := mockStub.CreateCompositeKey(multiswap.MultiSwapCompositeType, []string{mockStub.GetTxID()})
+				require.NoError(t, err)
+
+				txID, err := hex.DecodeString(mockStub.GetTxID())
+				require.NoError(t, err)
+
+				s, err := pb.Marshal(&pbfound.MultiSwap{
+					Id:      txID,
+					Creator: []byte("0000"),
+					Owner:   user.AddressBytes,
+					Token:   "CC",
+					Assets:  msaCCpb,
+					From:    "VT",
+					To:      "CC",
+					Hash:    hashed[:],
+					Timeout: 300,
+				})
+				require.NoError(t, err)
+				mockStub.GetStateCallsMap[swapKey] = s
+
+				return []string{mockStub.GetTxID(), swapKeyEtl}
+			},
+			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, resp *pbfound.TxResponse) {
+				swapKey, err := mockStub.CreateCompositeKey(multiswap.MultiSwapCompositeType, []string{mockStub.GetTxID()})
+				require.NoError(t, err)
+				require.Equal(t, swapKey, mockStub.DelStateArgsForCall(0))
+
+				userBalanceKey1, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user.AddressBase58Check, G1})
+				require.NoError(t, err)
+
+				userBalanceKey2, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user.AddressBase58Check, G2})
+				require.NoError(t, err)
+
+				var j int
+				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+					k, v := mockStub.PutStateArgsForCall(i)
+					if k == userBalanceKey1 {
+						require.Equal(t, new(big.Int).SetUint64(1).Bytes(), v)
+						j++
+					} else if k == userBalanceKey2 {
+						require.Equal(t, new(big.Int).SetUint64(1).Bytes(), v)
+						j++
+					}
+
+					if j == 2 {
+						return
+					}
+				}
+				require.Fail(t, "not found checking data")
+			},
+		},
+		{
+			description:  "multiswap robot done - ok",
+			functionName: "batchExecute",
+			errorMsg:     "",
+			noBatch:      true,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				swapKey, err := mockStub.CreateCompositeKey(multiswap.MultiSwapCompositeType, []string{mockStub.GetTxID()})
+				require.NoError(t, err)
+
+				txID, err := hex.DecodeString(mockStub.GetTxID())
+				require.NoError(t, err)
+
+				s, err := pb.Marshal(&pbfound.MultiSwap{
+					Id:      txID,
+					Creator: user.AddressBytes,
+					Owner:   user.AddressBytes,
+					Token:   "CC",
+					Assets:  msaCCpb,
+					From:    "CC",
+					To:      "VT",
+					Hash:    hashed[:],
+					Timeout: 10800,
+				})
+				require.NoError(t, err)
+				mockStub.GetStateCallsMap[swapKey] = s
+
+				err = mocks.SetCreator(mockStub.ChaincodeStub, mocks.BatchRobotCert)
+				require.NoError(t, err)
+
+				dataIn, err := pb.Marshal(&pbfound.Batch{
+					MultiSwapsKeys: []*pbfound.SwapKey{
+						{
+							Id:  txID,
+							Key: swapKeyEtl,
+						},
+					},
+				})
+				require.NoError(t, err)
+
+				return []string{string(dataIn)}
+			},
+			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, resp *pbfound.TxResponse) {
+				swapKey, err := mockStub.CreateCompositeKey(multiswap.MultiSwapCompositeType, []string{mockStub.GetTxID()})
+				require.NoError(t, err)
+				require.Equal(t, swapKey, mockStub.DelStateArgsForCall(0))
+
+				givenBalanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeGiven.String(), []string{"VT"})
+				require.NoError(t, err)
+				k, v := mockStub.PutStateArgsForCall(0)
+				require.Equal(t, givenBalanceKey, k)
+				require.Equal(t, new(big.Int).SetUint64(2).Bytes(), v)
+			},
+		},
+		{
+			description:  "multiswap robot done back - ok",
+			functionName: "batchExecute",
+			errorMsg:     "",
+			noBatch:      true,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				swapKey, err := mockStub.CreateCompositeKey(multiswap.MultiSwapCompositeType, []string{mockStub.GetTxID()})
+				require.NoError(t, err)
+
+				txID, err := hex.DecodeString(mockStub.GetTxID())
+				require.NoError(t, err)
+
+				s, err := pb.Marshal(&pbfound.MultiSwap{
+					Id:      txID,
+					Creator: user.AddressBytes,
+					Owner:   user.AddressBytes,
+					Token:   "VT",
+					Assets:  msaVTpb,
+					From:    "CC",
+					To:      "VT",
+					Hash:    hashed[:],
+					Timeout: 10800,
+				})
+				require.NoError(t, err)
+				mockStub.GetStateCallsMap[swapKey] = s
+
+				err = mocks.SetCreator(mockStub.ChaincodeStub, mocks.BatchRobotCert)
+				require.NoError(t, err)
+
+				dataIn, err := pb.Marshal(&pbfound.Batch{
+					MultiSwapsKeys: []*pbfound.SwapKey{
+						{
+							Id:  txID,
+							Key: swapKeyEtl,
+						},
+					},
+				})
+				require.NoError(t, err)
+				return []string{string(dataIn)}
+			},
+			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, resp *pbfound.TxResponse) {
+				swapKey, err := mockStub.CreateCompositeKey(multiswap.MultiSwapCompositeType, []string{mockStub.GetTxID()})
+				require.NoError(t, err)
+				require.Equal(t, swapKey, mockStub.DelStateArgsForCall(0))
+			},
+		},
+	} {
+		t.Run(testCase.description, func(t *testing.T) {
+			mockStub := mockstub.NewMockStub(t)
+
+			mockStub.CreateAndSetConfig(
+				"CC Token",
+				"CC",
+				8,
+				issuer.AddressBase58Check,
+				"",
+				"",
+				issuer.AddressBase58Check,
+				nil,
+			)
+
+			cc, err := core.NewCC(&CustomToken{})
+			require.NoError(t, err)
+
+			parameters := testCase.funcPrepareMockStub(t, mockStub)
+
+			var (
+				txId string
+				resp peer.Response
+			)
+			if testCase.isQuery {
+				resp = mockStub.QueryChaincode(cc, testCase.functionName, parameters...)
+			} else if testCase.noBatch {
+				resp = mockStub.NbTxInvokeChaincode(cc, testCase.functionName, parameters...)
+			} else {
+				txId, resp = mockStub.TxInvokeChaincodeSigned(cc, testCase.functionName, testCase.signUser, "", "", "", parameters...)
 			}
-		}
+
+			// check result
+			if testCase.codeResp == int32(shim.ERROR) {
+				require.Equal(t, resp.GetStatus(), testCase.codeResp)
+				require.Contains(t, resp.GetMessage(), testCase.errorMsg)
+				require.Empty(t, resp.GetPayload())
+				return
+			}
+
+			require.Equal(t, resp.GetStatus(), int32(shim.OK))
+			require.Empty(t, resp.GetMessage())
+
+			if testCase.isQuery {
+				if testCase.funcCheckQuery != nil {
+					testCase.funcCheckQuery(t, mockStub, resp.GetPayload())
+				}
+				return
+			}
+
+			bResp := &pbfound.BatchResponse{}
+			err = pb.Unmarshal(resp.GetPayload(), bResp)
+			require.NoError(t, err)
+
+			var respb *pbfound.TxResponse
+			for _, r := range bResp.GetTxResponses() {
+				if hex.EncodeToString(r.GetId()) == txId {
+					respb = r
+					break
+				}
+			}
+
+			if len(testCase.errorMsg) != 0 {
+				require.Contains(t, respb.GetError().GetError(), testCase.errorMsg)
+				return
+			}
+
+			if testCase.funcCheckResponse != nil {
+				testCase.funcCheckResponse(t, mockStub, respb)
+			}
+		})
 	}
-	user1.CheckGivenBalanceShouldBe(baCC, otfCC, 2)
-
-	// check MultiSwap callback is called exactly 1 time
-	fnCountData := user1.Invoke(otfCC, "multiSwapDoneEventCallCount")
-	swapDoneFnCount, err := strconv.Atoi(fnCountData)
-	require.NoError(t, err)
-	require.Equal(t, 1, swapDoneFnCount)
-}
-
-// TestAtomicMultiSwapMoveTokenBack moves allowed tokens from external channel to token channel
-func TestAtomicMultiSwapMoveTokenBack(t *testing.T) {
-	t.Parallel()
-
-	const (
-		tokenBA           = "BA"
-		baCC              = "BA"
-		otfCC             = "OTF"
-		BA1               = "A.101"
-		BA2               = "A.102"
-		AllowedBalanceBA1 = tokenBA + "_" + BA1
-		AllowedBalanceBA2 = tokenBA + "_" + BA2
-	)
-
-	ledger := mock.NewLedger(t)
-	issuer := ledger.NewWallet()
-	owner := ledger.NewWallet()
-	user1 := ledger.NewWallet()
-
-	ba := &token.BaseToken{}
-	baConfig := makeBaseTokenConfig("BA Token", baCC, 8,
-		issuer.Address(), "", "", "", nil)
-	initMsg := ledger.NewCC(baCC, ba, baConfig)
-	require.Empty(t, initMsg)
-
-	otf := &CustomToken{}
-	otfConfig := makeBaseTokenConfig("OTF Token", otfCC, 8,
-		owner.Address(), "", "", "", nil)
-	initMsg = ledger.NewCC(otfCC, otf, otfConfig)
-	require.Empty(t, initMsg)
-
-	user1.AddGivenBalance(baCC, otfCC, 2)
-	user1.CheckGivenBalanceShouldBe(baCC, otfCC, 2)
-
-	user1.AddAllowedBalance(otfCC, AllowedBalanceBA1, 1)
-	user1.AddAllowedBalance(otfCC, AllowedBalanceBA2, 1)
-
-	user1.GroupBalanceShouldBe(baCC, BA1, 0)
-	user1.GroupBalanceShouldBe(baCC, BA2, 0)
-	user1.GroupBalanceShouldBe(otfCC, BA1, 0)
-	user1.GroupBalanceShouldBe(otfCC, BA2, 0)
-
-	user1.GroupBalanceShouldBe(baCC, AllowedBalanceBA1, 0)
-	user1.GroupBalanceShouldBe(baCC, AllowedBalanceBA2, 0)
-	user1.GroupBalanceShouldBe(otfCC, AllowedBalanceBA1, 0)
-	user1.GroupBalanceShouldBe(otfCC, AllowedBalanceBA2, 0)
-
-	user1.AllowedBalanceShouldBe(baCC, AllowedBalanceBA1, 0)
-	user1.AllowedBalanceShouldBe(baCC, AllowedBalanceBA2, 0)
-	user1.AllowedBalanceShouldBe(otfCC, AllowedBalanceBA1, 1)
-	user1.AllowedBalanceShouldBe(otfCC, AllowedBalanceBA2, 1)
-
-	user1.AllowedBalanceShouldBe(baCC, BA1, 0)
-	user1.AllowedBalanceShouldBe(baCC, BA2, 0)
-	user1.AllowedBalanceShouldBe(otfCC, BA1, 0)
-	user1.AllowedBalanceShouldBe(otfCC, BA2, 0)
-
-	swapKey := "123"
-	hashed := sha3.Sum256([]byte(swapKey))
-	swapHash := hex.EncodeToString(hashed[:])
-
-	bytes, err := json.Marshal(types.MultiSwapAssets{
-		Assets: []*types.MultiSwapAsset{
-			{
-				Group:  AllowedBalanceBA1,
-				Amount: "1",
-			},
-			{
-				Group:  AllowedBalanceBA2,
-				Amount: "1",
-			},
-		},
-	})
-	require.NoError(t, err)
-	txID := user1.SignedMultiSwapsInvoke(otfCC, "multiSwapBegin", tokenBA, string(bytes), baCC, swapHash)
-
-	user1.GroupBalanceShouldBe(baCC, BA1, 0)
-	user1.GroupBalanceShouldBe(baCC, BA2, 0)
-	user1.GroupBalanceShouldBe(otfCC, BA1, 0)
-	user1.GroupBalanceShouldBe(otfCC, BA2, 0)
-
-	user1.GroupBalanceShouldBe(baCC, AllowedBalanceBA1, 0)
-	user1.GroupBalanceShouldBe(baCC, AllowedBalanceBA2, 0)
-	user1.GroupBalanceShouldBe(otfCC, AllowedBalanceBA1, 0)
-	user1.GroupBalanceShouldBe(otfCC, AllowedBalanceBA2, 0)
-
-	user1.AllowedBalanceShouldBe(baCC, AllowedBalanceBA1, 0)
-	user1.AllowedBalanceShouldBe(baCC, AllowedBalanceBA2, 0)
-	user1.AllowedBalanceShouldBe(otfCC, AllowedBalanceBA1, 0)
-	user1.AllowedBalanceShouldBe(otfCC, AllowedBalanceBA2, 0)
-
-	user1.AllowedBalanceShouldBe(baCC, BA1, 0)
-	user1.AllowedBalanceShouldBe(baCC, BA2, 0)
-	user1.AllowedBalanceShouldBe(otfCC, BA1, 0)
-	user1.AllowedBalanceShouldBe(otfCC, BA2, 0)
-
-	ledger.WaitMultiSwapAnswer(baCC, txID, time.Second*5)
-
-	swapID := user1.Invoke(baCC, "multiSwapGet", txID)
-	require.NotNil(t, swapID)
-
-	user1.CheckGivenBalanceShouldBe(baCC, otfCC, 0)
-	user1.GroupBalanceShouldBe(baCC, BA1, 0)
-	user1.GroupBalanceShouldBe(baCC, BA2, 0)
-
-	user1.Invoke(baCC, "multiSwapDone", txID, swapKey)
-
-	user1.CheckGivenBalanceShouldBe(baCC, otfCC, 0)
-
-	user1.AllowedBalanceShouldBe(baCC, AllowedBalanceBA1, 0)
-	user1.AllowedBalanceShouldBe(baCC, AllowedBalanceBA2, 0)
-	user1.AllowedBalanceShouldBe(otfCC, AllowedBalanceBA1, 0)
-	user1.AllowedBalanceShouldBe(otfCC, AllowedBalanceBA2, 0)
-
-	user1.AllowedBalanceShouldBe(baCC, BA1, 0)
-	user1.AllowedBalanceShouldBe(baCC, BA2, 0)
-	user1.AllowedBalanceShouldBe(otfCC, BA1, 0)
-	user1.AllowedBalanceShouldBe(otfCC, BA2, 0)
-
-	user1.GroupBalanceShouldBe(baCC, AllowedBalanceBA1, 0)
-	user1.GroupBalanceShouldBe(baCC, AllowedBalanceBA2, 0)
-	user1.GroupBalanceShouldBe(otfCC, AllowedBalanceBA1, 0)
-	user1.GroupBalanceShouldBe(otfCC, AllowedBalanceBA2, 0)
-
-	user1.GroupBalanceShouldBe(baCC, BA1, 1)
-	user1.GroupBalanceShouldBe(baCC, BA2, 1)
-	user1.GroupBalanceShouldBe(otfCC, BA1, 0)
-	user1.GroupBalanceShouldBe(otfCC, BA2, 0)
-}
-
-func TestAtomicMultiSwapDisableMultiSwaps(t *testing.T) {
-	t.Parallel()
-
-	const baCC = "BA"
-
-	ledger := mock.NewLedger(t)
-	issuer := ledger.NewWallet()
-	user1 := ledger.NewWallet()
-
-	cfg := &proto.Config{
-		Contract: &proto.ContractConfig{
-			Symbol:   baCC,
-			Options:  &proto.ChaincodeOptions{DisableMultiSwaps: true},
-			RobotSKI: fixtures_test.RobotHashedCert,
-			Admin:    &proto.Wallet{Address: fixtures_test.AdminAddr},
-		},
-		Token: &proto.TokenConfig{
-			Name:     "BA Token",
-			Decimals: 8,
-			Issuer:   &proto.Wallet{Address: issuer.Address()},
-		},
-	}
-	cfgBytes, err := protojson.Marshal(cfg)
-	require.NoError(t, err)
-
-	initMsg := ledger.NewCC(baCC, &token.BaseToken{}, string(cfgBytes))
-	require.Empty(t, initMsg)
-
-	err = user1.RawSignedInvokeWithErrorReturned(baCC, "multiSwapBegin", "", "")
-	require.ErrorContains(t, err, "method 'multiSwapBegin' not found")
-	err = user1.RawSignedInvokeWithErrorReturned(baCC, "multiSwapCancel", "", "")
-	require.ErrorContains(t, err, "method 'multiSwapCancel' not found")
-	err = user1.RawSignedInvokeWithErrorReturned(baCC, "multiSwapGet", "", "")
-	require.ErrorContains(t, err, "method 'multiSwapGet' not found")
-	err = user1.RawSignedInvokeWithErrorReturned(baCC, "multiSwapDone", "", "")
-	require.ErrorContains(t, err, core.ErrMultiSwapDisabled.Error())
-}
-
-// TestAtomicMultiSwapToThirdChannel checks swap/multi swap with third channel is not available
-func TestAtomicMultiSwapToThirdChannel(t *testing.T) {
-	t.Parallel()
-
-	const (
-		tokenBA           = "BA"
-		ba02CC            = "BA02"
-		otfCC             = "OTF"
-		BA1               = "A.101"
-		BA2               = "A.102"
-		AllowedBalanceBA1 = tokenBA + "_" + BA1
-		AllowedBalanceBA2 = tokenBA + "_" + BA2
-	)
-
-	ledger := mock.NewLedger(t)
-	owner := ledger.NewWallet()
-	user1 := ledger.NewWallet()
-
-	otf := &CustomToken{}
-	otfConfig := makeBaseTokenConfig(strings.ToLower(otfCC), otfCC, 8,
-		owner.Address(), "", "", "", nil)
-	ledger.NewCC(otfCC, otf, otfConfig)
-
-	swapKey := "123"
-	hashed := sha3.Sum256([]byte(swapKey))
-	swapHash := hex.EncodeToString(hashed[:])
-
-	bytes, err := json.Marshal(types.MultiSwapAssets{
-		Assets: []*types.MultiSwapAsset{
-			{
-				Group:  AllowedBalanceBA1,
-				Amount: "1",
-			},
-			{
-				Group:  AllowedBalanceBA2,
-				Amount: "1",
-			},
-		},
-	})
-	require.NoError(t, err)
-	_, res, _, _ := user1.RawSignedMultiSwapInvoke(otfCC, "multiSwapBegin", tokenBA, string(bytes), ba02CC, swapHash) //nolint:dogsled
-	require.Equal(t, "incorrect swap", res.Error)
-	err = user1.RawSignedInvokeWithErrorReturned(otfCC, "swapBegin", tokenBA, string(bytes), ba02CC, swapHash)
-	require.Error(t, err)
-	require.Equal(t, "incorrect swap", res.Error)
 }

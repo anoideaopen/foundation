@@ -23,18 +23,18 @@ func TestEmbedSrcFiles(t *testing.T) {
 	t.Parallel()
 
 	mockStub := mockstub.NewMockStub(t)
-
-	tt := &token.BaseToken{}
-	config := makeBaseTokenConfig(
+	mockStub.CreateAndSetConfig(
 		testTokenName,
 		testTokenSymbol,
 		8,
 		issuerAddress,
 		"",
 		"",
-		"",
+		issuerAddress,
 		nil,
 	)
+
+	tt := &token.BaseToken{}
 
 	cc, err := core.NewCC(tt, core.WithSrcFS(&f))
 	require.NoError(t, err)
@@ -42,7 +42,6 @@ func TestEmbedSrcFiles(t *testing.T) {
 	mockStub.GetChannelIDReturns(testTokenCCName)
 
 	mockStub.GetFunctionAndParametersReturns("nameOfFiles", []string{})
-	mockStub.GetStateReturns([]byte(config), nil)
 
 	resp := cc.Invoke(mockStub)
 	var files []string
@@ -90,14 +89,14 @@ func TestEmbedSrcFilesWithoutFS(t *testing.T) {
 	mockStub := mockstub.NewMockStub(t)
 
 	tt := &token.BaseToken{}
-	config := makeBaseTokenConfig(
+	mockStub.CreateAndSetConfig(
 		testTokenName,
 		testTokenSymbol,
 		8,
 		issuerAddress,
 		"",
 		"",
-		"",
+		issuerAddress,
 		nil,
 	)
 	cc, err := core.NewCC(tt)
@@ -105,7 +104,6 @@ func TestEmbedSrcFilesWithoutFS(t *testing.T) {
 
 	mockStub.GetChannelIDReturns(testTokenCCName)
 
-	mockStub.GetStateReturns([]byte(config), nil)
 	mockStub.GetFunctionAndParametersReturns("nameOfFiles", []string{})
 
 	resp := cc.Invoke(mockStub)
@@ -131,14 +129,14 @@ func TestBuildInfo(t *testing.T) {
 	mockStub := mockstub.NewMockStub(t)
 
 	tt := &token.BaseToken{}
-	config := makeBaseTokenConfig(
+	mockStub.CreateAndSetConfig(
 		testTokenName,
 		testTokenSymbol,
 		8,
 		issuerAddress,
 		"",
 		"",
-		"",
+		issuerAddress,
 		nil,
 	)
 	cc, err := core.NewCC(tt)
@@ -146,7 +144,6 @@ func TestBuildInfo(t *testing.T) {
 
 	mockStub.GetChannelIDReturns(testTokenCCName)
 
-	mockStub.GetStateReturns([]byte(config), nil)
 	mockStub.GetFunctionAndParametersReturns("buildInfo", []string{})
 
 	resp := cc.Invoke(mockStub)
@@ -165,14 +162,14 @@ func TestSysEnv(t *testing.T) {
 	mockStub := mockstub.NewMockStub(t)
 
 	tt := &token.BaseToken{}
-	config := makeBaseTokenConfig(
+	mockStub.CreateAndSetConfig(
 		testTokenName,
 		testTokenSymbol,
 		8,
 		issuerAddress,
 		"",
 		"",
-		"",
+		issuerAddress,
 		nil,
 	)
 
@@ -181,7 +178,6 @@ func TestSysEnv(t *testing.T) {
 
 	mockStub.GetChannelIDReturns(testTokenCCName)
 
-	mockStub.GetStateReturns([]byte(config), nil)
 	mockStub.GetFunctionAndParametersReturns("systemEnv", []string{})
 
 	resp := cc.Invoke(mockStub)
@@ -201,14 +197,14 @@ func TestCoreChaincodeIdName(t *testing.T) {
 	mockStub := mockstub.NewMockStub(t)
 
 	tt := &token.BaseToken{}
-	config := makeBaseTokenConfig(
+	mockStub.CreateAndSetConfig(
 		testTokenName,
 		testTokenSymbol,
 		8,
 		issuerAddress,
 		"",
 		"",
-		"",
+		issuerAddress,
 		nil,
 	)
 	cc, err := core.NewCC(tt)
@@ -216,7 +212,6 @@ func TestCoreChaincodeIdName(t *testing.T) {
 
 	mockStub.GetChannelIDReturns(testTokenCCName)
 
-	mockStub.GetStateReturns([]byte(config), nil)
 	mockStub.GetFunctionAndParametersReturns("coreChaincodeIDName", []string{})
 
 	resp := cc.Invoke(mockStub)

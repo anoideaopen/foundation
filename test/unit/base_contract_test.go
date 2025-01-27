@@ -100,8 +100,6 @@ func (tt *TestToken) TxEmissionAdd(sender *types.Sender, address *types.Address,
 func TestContractMethods(t *testing.T) {
 	t.Parallel()
 
-	existedNonce := []byte(strconv.FormatInt(time.Now().UnixNano()/1000000, 10))
-
 	testCollection := []struct {
 		name                      string
 		owner                     *mocks.UserFoundation
@@ -182,7 +180,7 @@ func TestContractMethods(t *testing.T) {
 				prefix := hex.EncodeToString([]byte{core.StateKeyNonce})
 				key, err := mockStub.CreateCompositeKey(prefix, []string{owner.AddressBase58Check})
 				require.NoError(t, err)
-				mockStub.GetStateCallsMap[key] = existedNonce
+				mockStub.GetStateCallsMap[key] = []byte(strconv.FormatInt(time.Now().UnixNano()/1000000, 10))
 			},
 			resultMessage: "",
 			preparePayloadNotEqual: func() []byte {

@@ -14,7 +14,7 @@ import (
 	"github.com/anoideaopen/foundation/mocks"
 	"github.com/anoideaopen/foundation/mocks/mockstub"
 	pb "github.com/anoideaopen/foundation/proto"
-	"github.com/anoideaopen/foundation/test/unit/fixtures_test"
+	"github.com/anoideaopen/foundation/test/unit/fixtures"
 	"github.com/anoideaopen/foundation/token"
 	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/require"
@@ -64,7 +64,7 @@ const configKey = "__config"
 func TestInitWithPositionedArgs(t *testing.T) {
 	t.Parallel()
 
-	robotSKI := fixtures_test.RobotHashedCert
+	robotSKI := fixtures.RobotHashedCert
 
 	testsCollection := []struct {
 		channel       string
@@ -78,7 +78,7 @@ func TestInitWithPositionedArgs(t *testing.T) {
 			args: []string{
 				"<backend_ski>,deprecated",
 				robotSKI,
-				fixtures_test.AdminAddr,
+				fixtures.AdminAddr,
 			},
 			bci: &core.BaseContract{},
 		},
@@ -87,8 +87,8 @@ func TestInitWithPositionedArgs(t *testing.T) {
 			args: []string{
 				"<backend_ski>,deprecated",
 				robotSKI,
-				fixtures_test.IssuerAddr,
-				fixtures_test.AdminAddr,
+				fixtures.IssuerAddr,
+				fixtures.AdminAddr,
 			},
 			bci: &token.BaseToken{},
 		},
@@ -97,7 +97,7 @@ func TestInitWithPositionedArgs(t *testing.T) {
 			args: []string{
 				"<backend_ski>,deprecated",
 				robotSKI,
-				fixtures_test.AdminAddr,
+				fixtures.AdminAddr,
 			},
 			bci:     &core.BaseContract{},
 			initMsg: "",
@@ -107,9 +107,9 @@ func TestInitWithPositionedArgs(t *testing.T) {
 			args: []string{
 				"<backend_ski>,deprecated",
 				robotSKI,
-				fixtures_test.IssuerAddr,
-				fixtures_test.FeeSetterAddr,
-				fixtures_test.FeeAddressSetterAddr,
+				fixtures.IssuerAddr,
+				fixtures.FeeSetterAddr,
+				fixtures.FeeAddressSetterAddr,
 			},
 			bci:           &core.BaseContract{},
 			initMsg:       "",
@@ -120,7 +120,7 @@ func TestInitWithPositionedArgs(t *testing.T) {
 			args: []string{
 				"<backend_ski>,deprecated",
 				robotSKI,
-				fixtures_test.AdminAddr,
+				fixtures.AdminAddr,
 			},
 			bci:     &core.BaseContract{},
 			initMsg: "chaincode 'non-handled-channel' does not have positional args initialization",
@@ -130,8 +130,8 @@ func TestInitWithPositionedArgs(t *testing.T) {
 			args: []string{
 				"<backend_ski>,deprecated",
 				robotSKI,
-				fixtures_test.IssuerAddr,
-				fixtures_test.FeeSetterAddr,
+				fixtures.IssuerAddr,
+				fixtures.FeeSetterAddr,
 			},
 			bci:           &core.BaseContract{},
 			initMsg:       "",
@@ -169,13 +169,13 @@ func TestInitWithPositionedArgs(t *testing.T) {
 			require.Equal(t, symbolExpected, cfg.GetContract().Symbol)
 			require.Equal(t, robotSKI, cfg.GetContract().RobotSKI)
 			if test.adminIsIssuer {
-				require.Equal(t, fixtures_test.IssuerAddr, cfg.GetContract().GetAdmin().GetAddress())
+				require.Equal(t, fixtures.IssuerAddr, cfg.GetContract().GetAdmin().GetAddress())
 			} else {
-				require.Equal(t, fixtures_test.AdminAddr, cfg.GetContract().GetAdmin().GetAddress())
+				require.Equal(t, fixtures.AdminAddr, cfg.GetContract().GetAdmin().GetAddress())
 			}
 
 			if _, ok := test.bci.(token.Tokener); ok {
-				require.Equal(t, fixtures_test.IssuerAddr, cfg.GetToken().GetIssuer().GetAddress())
+				require.Equal(t, fixtures.IssuerAddr, cfg.GetToken().GetIssuer().GetAddress())
 			}
 		})
 	}
@@ -198,7 +198,7 @@ func TestInitWithCommonConfig(t *testing.T) {
 			Options: &pb.ChaincodeOptions{
 				DisableMultiSwaps: true,
 			},
-			RobotSKI: fixtures_test.RobotHashedCert,
+			RobotSKI: fixtures.RobotHashedCert,
 			Admin:    &pb.Wallet{Address: issuer.AddressBase58Check},
 		},
 		Token: &pb.TokenConfig{
@@ -250,13 +250,13 @@ func TestWithConfigMapperFunc(t *testing.T) {
 
 	// Initializing new chaincode
 	initArgs := []string{
-		"test token",                  // Chaincode Name
-		"TT",                          // Token Symbol
-		"8",                           // Decimals
-		"",                            // PlatformSKI (backend) - deprecated
-		fixtures_test.RobotHashedCert, // RobotSKI
-		issuer.AddressBase58Check,     // IssuerAddress
-		fixtures_test.AdminAddr,       // AdminAddress
+		"test token",              // Chaincode Name
+		"TT",                      // Token Symbol
+		"8",                       // Decimals
+		"",                        // PlatformSKI (backend) - deprecated
+		fixtures.RobotHashedCert,  // RobotSKI
+		issuer.AddressBase58Check, // IssuerAddress
+		fixtures.AdminAddr,        // AdminAddress
 	}
 	tct := &TestConfigToken{}
 
@@ -292,13 +292,13 @@ func TestWithConfigMapperFuncFromArgs(t *testing.T) {
 
 	// Initializing new chaincode
 	initArgs := []string{
-		"",                            // Chaincode Name
-		"tt",                          // Token Symbol
-		"",                            // Decimals
-		"",                            // PlatformSKI (backend) - deprecated
-		fixtures_test.RobotHashedCert, // RobotSKI
-		issuer.AddressBase58Check,     // IssuerAddress
-		fixtures_test.AdminAddr,       // AdminAddress
+		"",                        // Chaincode Name
+		"tt",                      // Token Symbol
+		"",                        // Decimals
+		"",                        // PlatformSKI (backend) - deprecated
+		fixtures.RobotHashedCert,  // RobotSKI
+		issuer.AddressBase58Check, // IssuerAddress
+		fixtures.AdminAddr,        // AdminAddress
 	}
 	tct := &TestConfigToken{}
 
@@ -338,8 +338,8 @@ func TestDisabledFunctions(t *testing.T) {
 	cfgEtl := &pb.Config{
 		Contract: &pb.ContractConfig{
 			Symbol:   "TT1",
-			RobotSKI: fixtures_test.RobotHashedCert,
-			Admin:    &pb.Wallet{Address: fixtures_test.AdminAddr},
+			RobotSKI: fixtures.RobotHashedCert,
+			Admin:    &pb.Wallet{Address: fixtures.AdminAddr},
 		},
 	}
 
@@ -362,8 +362,8 @@ func TestDisabledFunctions(t *testing.T) {
 			Options: &pb.ChaincodeOptions{
 				DisabledFunctions: []string{"TxTestFunction"},
 			},
-			RobotSKI: fixtures_test.RobotHashedCert,
-			Admin:    &pb.Wallet{Address: fixtures_test.AdminAddr},
+			RobotSKI: fixtures.RobotHashedCert,
+			Admin:    &pb.Wallet{Address: fixtures.AdminAddr},
 		},
 	}
 	rawCfg, err = protojson.Marshal(cfgEtl)
@@ -371,7 +371,7 @@ func TestDisabledFunctions(t *testing.T) {
 
 	mockStub.SetConfig(string(rawCfg))
 
-	//Calling TxTestFunction while it's disabled
+	// Calling TxTestFunction while it's disabled
 	resp = mockStub.NbTxInvokeChaincodeSigned(cc, testFunctionName, user1, "", "", "")
 	require.Equal(t, "invoke: finding method: method 'testFunction' not found", resp.GetMessage())
 }
@@ -400,7 +400,7 @@ func TestConfigValidation(t *testing.T) {
 		cfg := &pb.Config{
 			Contract: &pb.ContractConfig{
 				Symbol:   s,
-				RobotSKI: fixtures_test.RobotHashedCert,
+				RobotSKI: fixtures.RobotHashedCert,
 			},
 		}
 		require.NoError(t, cfg.Validate(), s)
@@ -411,7 +411,7 @@ func TestConfigValidation(t *testing.T) {
 		cfg := &pb.Config{
 			Contract: &pb.ContractConfig{
 				Symbol:   s,
-				RobotSKI: fixtures_test.RobotHashedCert,
+				RobotSKI: fixtures.RobotHashedCert,
 			},
 		}
 		require.Error(t, cfg.Validate(), s)
@@ -565,7 +565,7 @@ func TestInitWithExtConfig(t *testing.T) {
 	cfgEtl := &pb.Config{
 		Contract: &pb.ContractConfig{
 			Symbol:   "EXTCC",
-			RobotSKI: fixtures_test.RobotHashedCert,
+			RobotSKI: fixtures.RobotHashedCert,
 			Admin:    &pb.Wallet{Address: issuer.AddressBase58Check},
 		},
 	}

@@ -1,13 +1,21 @@
 package unit
 
 import (
+	"fmt"
 	"testing"
 
+	"github.com/anoideaopen/foundation/core"
 	"github.com/anoideaopen/foundation/core/acl"
 	"github.com/anoideaopen/foundation/core/types"
-	"github.com/anoideaopen/foundation/mock"
+	"github.com/anoideaopen/foundation/mocks"
+	"github.com/anoideaopen/foundation/mocks/mockstub"
+	pbfound "github.com/anoideaopen/foundation/proto"
 	"github.com/anoideaopen/foundation/token"
+	"github.com/golang/protobuf/proto"
+	"github.com/hyperledger/fabric-chaincode-go/shim"
+	"github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 type IssuerCheckerToken struct {
@@ -15,9 +23,8 @@ type IssuerCheckerToken struct {
 }
 
 const (
-	fnGetRight                   = "getRight"
-	fnGetAddressRightForNominee  = "getAddressRightForNominee"
-	fnGetAddressesListForNominee = "getAddressesListForNominee"
+	fnGetRight                  = "getRight"
+	fnGetAddressRightForNominee = "getAddressRightForNominee"
 )
 
 func (ict *IssuerCheckerToken) QueryGetRight(ccname string, address *types.Address, role, operation string) (bool, error) {
@@ -72,164 +79,153 @@ func (ict *IssuerCheckerToken) QueryGetAddressesListForNominee(chaincodeName str
 	return addresses, nil
 }
 
-func TestRights(t *testing.T) {
+func TestRightsAndAddressRightsForNominee(t *testing.T) {
 	t.Parallel()
 
-	ledgerMock := mock.NewLedger(t)
-	issuer := ledgerMock.NewWallet()
+	issuer, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
+	require.NoError(t, err)
 
-	config := makeBaseTokenConfig("NT Token", "NT", 8,
-		issuer.Address(), "", "", "", nil)
+	user, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
+	require.NoError(t, err)
 
-	initMsg := ledgerMock.NewCC(testTokenCCName, &IssuerCheckerToken{}, config)
-	require.Empty(t, initMsg)
+	nominee, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
+	require.NoError(t, err)
 
 	const (
 		createOp = "createEmissionApp"
-		acceptOp = "acceptEmissionApp"
 		deleteOp = "deleteEmissionApp"
 	)
 
-	user := ledgerMock.NewWallet()
+	for _, testCase := range []struct {
+		description         string
+		functionName        string
+		errorMsg            string
+		signUser            *mocks.UserFoundation
+		codeResp            int32
+		funcPrepareMockStub func(t *testing.T, mockStub *mockstub.MockStub) []string
+		funcCheckQuery      func(t *testing.T, mockStub *mockstub.MockStub, payload []byte)
+	}{
+		{
+			description:  "GetRight - true",
+			functionName: fnGetRight,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				mockStub.GetChannelIDReturns("cc")
+				mockStub.InvokeACLMap["getAccountOperationRight"] = func(mockStub *mockstub.MockStub, parameters ...string) peer.Response {
+					if len(parameters) != acl.ArgsQtyGetAccOpRight {
+						return shim.Error(fmt.Sprintf(acl.ErrWrongArgsCount, len(parameters), acl.ArgsQtyGetAccOpRight))
+					}
 
-	t.Run("add right & check if it's granted for user and operation", func(t *testing.T) {
-		err := issuer.AddAccountRight(&mock.Right{
-			Channel:   testTokenCCName,
-			Chaincode: testTokenCCName,
-			Role:      acl.Issuer.String(),
-			Operation: createOp,
-			Address:   user.Address(),
+					rawResultData, err := proto.Marshal(&pbfound.HaveRight{HaveRight: true})
+					if err != nil {
+						return shim.Error(err.Error())
+					}
+					return shim.Success(rawResultData)
+				}
+
+				return []string{"cc", user.AddressBase58Check, acl.Issuer.String(), createOp}
+			},
+			funcCheckQuery: func(t *testing.T, mockStub *mockstub.MockStub, payload []byte) {
+				require.Equal(t, "true", string(payload))
+			},
+		},
+		{
+			description:  "GetRight - false",
+			functionName: fnGetRight,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				mockStub.GetChannelIDReturns("cc")
+				mockStub.InvokeACLMap["getAccountOperationRight"] = func(mockStub *mockstub.MockStub, parameters ...string) peer.Response {
+					if len(parameters) != acl.ArgsQtyGetAccOpRight {
+						return shim.Error(fmt.Sprintf(acl.ErrWrongArgsCount, len(parameters), acl.ArgsQtyGetAccOpRight))
+					}
+
+					rawResultData, err := proto.Marshal(&pbfound.HaveRight{HaveRight: false})
+					if err != nil {
+						return shim.Error(err.Error())
+					}
+					return shim.Success(rawResultData)
+				}
+
+				return []string{"cc", user.AddressBase58Check, acl.Issuer.String(), deleteOp}
+			},
+			funcCheckQuery: func(t *testing.T, mockStub *mockstub.MockStub, payload []byte) {
+				require.Equal(t, "false", string(payload))
+			},
+		},
+		{
+			description:  "AddressRightsForNominee - true",
+			functionName: fnGetAddressRightForNominee,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				mockStub.GetChannelIDReturns("cc")
+				mockStub.InvokeACLMap["getAddressRightForNominee"] = func(mockStub *mockstub.MockStub, args ...string) peer.Response {
+					if len(args) != acl.ArgsQtyGetAddressRightForNominee {
+						return shim.Error(fmt.Sprintf(acl.ErrWrongArgsCount, len(args), acl.ArgsQtyGetAddressRightForNominee))
+					}
+
+					rawResultData, err := protojson.MarshalOptions{EmitUnpopulated: true}.Marshal(&pbfound.HaveRight{HaveRight: true})
+					if err != nil {
+						return shim.Error(err.Error())
+					}
+					return shim.Success(rawResultData)
+				}
+
+				return []string{"cc", nominee.AddressBase58Check, user.AddressBase58Check}
+			},
+			funcCheckQuery: func(t *testing.T, mockStub *mockstub.MockStub, payload []byte) {
+				require.Equal(t, "true", string(payload))
+			},
+		},
+		{
+			description:  "AddressRightsForNominee - false",
+			functionName: fnGetAddressRightForNominee,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				mockStub.GetChannelIDReturns("cc")
+				mockStub.InvokeACLMap["getAddressRightForNominee"] = func(mockStub *mockstub.MockStub, args ...string) peer.Response {
+					if len(args) != acl.ArgsQtyGetAddressRightForNominee {
+						return shim.Error(fmt.Sprintf(acl.ErrWrongArgsCount, len(args), acl.ArgsQtyGetAddressRightForNominee))
+					}
+
+					rawResultData, err := protojson.MarshalOptions{EmitUnpopulated: true}.Marshal(&pbfound.HaveRight{HaveRight: false})
+					if err != nil {
+						return shim.Error(err.Error())
+					}
+					return shim.Success(rawResultData)
+				}
+
+				return []string{"cc", nominee.AddressBase58Check, user.AddressBase58Check}
+			},
+			funcCheckQuery: func(t *testing.T, mockStub *mockstub.MockStub, payload []byte) {
+				require.Equal(t, "false", string(payload))
+			},
+		},
+	} {
+		t.Run(testCase.description, func(t *testing.T) {
+			mockStub := mockstub.NewMockStub(t)
+
+			mockStub.CreateAndSetConfig(
+				"NT Token",
+				"NT",
+				8,
+				issuer.AddressBase58Check,
+				"",
+				"",
+				issuer.AddressBase58Check,
+				nil,
+			)
+
+			cc, err := core.NewCC(&IssuerCheckerToken{})
+			require.NoError(t, err)
+
+			parameters := testCase.funcPrepareMockStub(t, mockStub)
+
+			resp := mockStub.QueryChaincode(cc, testCase.functionName, parameters...)
+
+			// check result
+			require.Equal(t, resp.GetStatus(), int32(shim.OK))
+			require.Empty(t, resp.GetMessage())
+
+			if testCase.funcCheckQuery != nil {
+				testCase.funcCheckQuery(t, mockStub, resp.GetPayload())
+			}
 		})
-		require.NoError(t, err)
-
-		isIssuer := issuer.Invoke(testTokenCCName, fnGetRight,
-			testTokenCCName, user.Address(), acl.Issuer.String(), createOp)
-		require.Equal(t, "true", isIssuer)
-	})
-
-	t.Run("multi-emission, non-permitted operation", func(t *testing.T) {
-		isIssuer := issuer.Invoke(testTokenCCName, fnGetRight,
-			testTokenCCName, issuer.Address(), acl.Issuer.String(), deleteOp)
-		require.Equal(t, "false", isIssuer)
-	})
-
-	t.Run("remove right & check it is removed", func(t *testing.T) {
-		err := issuer.RemoveAccountRight(&mock.Right{
-			Channel:   testTokenCCName,
-			Chaincode: testTokenCCName,
-			Role:      acl.Issuer.String(),
-			Operation: createOp,
-			Address:   user.Address(),
-		})
-		require.NoError(t, err)
-		isIssuer := issuer.Invoke(testTokenCCName, fnGetRight,
-			testTokenCCName, user.Address(), acl.Issuer.String(), createOp)
-		require.Equal(t, "false", isIssuer)
-	})
-
-	t.Run("check double setting right", func(t *testing.T) {
-		err := issuer.AddAccountRight(&mock.Right{
-			Channel:   testTokenCCName,
-			Chaincode: testTokenCCName,
-			Role:      acl.Issuer.String(),
-			Operation: acceptOp,
-			Address:   user.Address(),
-		})
-		require.NoError(t, err)
-
-		err = issuer.AddAccountRight(&mock.Right{
-			Channel:   testTokenCCName,
-			Chaincode: testTokenCCName,
-			Role:      acl.Issuer.String(),
-			Operation: acceptOp,
-			Address:   user.Address(),
-		})
-		require.NoError(t, err)
-
-		err = issuer.RemoveAccountRight(&mock.Right{
-			Channel:   testTokenCCName,
-			Chaincode: testTokenCCName,
-			Role:      acl.Issuer.String(),
-			Operation: acceptOp,
-			Address:   user.Address(),
-		})
-		require.NoError(t, err)
-
-		isIssuer := issuer.Invoke(testTokenCCName, fnGetRight,
-			testTokenCCName, user.Address(), acl.Issuer.String(), acceptOp)
-		require.Equal(t, "false", isIssuer)
-	})
-}
-
-func TestAddressRightsForNominee(t *testing.T) {
-	t.Parallel()
-
-	ledgerMock := mock.NewLedger(t)
-	issuer := ledgerMock.NewWallet()
-
-	config := makeBaseTokenConfig("NT Token", "NT", 8,
-		issuer.Address(), "", "", "", nil)
-
-	initMsg := ledgerMock.NewCC(testTokenCCName, &IssuerCheckerToken{}, config)
-	require.Empty(t, initMsg)
-
-	nominee := ledgerMock.NewWallet()
-	principal := ledgerMock.NewWallet()
-	user := ledgerMock.NewWallet()
-
-	t.Run("add right & check if it's granted for nominee", func(t *testing.T) {
-		err := issuer.AddAddressRightForNominee(&mock.AddressRight{
-			Channel:          testTokenCCName,
-			Chaincode:        testTokenCCName,
-			NomineeAddress:   nominee.Address(),
-			PrincipalAddress: principal.Address(),
-		})
-		require.NoError(t, err)
-
-		haveRight := issuer.Invoke(testTokenCCName, fnGetAddressRightForNominee,
-			testTokenCCName, nominee.Address(), principal.Address())
-		require.Equal(t, "true", haveRight)
-	})
-
-	t.Run("[negative] requesting right for another user", func(t *testing.T) {
-		haveRight := issuer.Invoke(testTokenCCName, fnGetAddressRightForNominee,
-			testTokenCCName, nominee.Address(), user.Address())
-		require.Equal(t, "false", haveRight)
-	})
-
-	t.Run("remove right & check it is removed", func(t *testing.T) {
-		err := issuer.RemoveAddressRightFromNominee(&mock.AddressRight{
-			Channel:          testTokenCCName,
-			Chaincode:        testTokenCCName,
-			NomineeAddress:   nominee.Address(),
-			PrincipalAddress: principal.Address(),
-		})
-		require.NoError(t, err)
-		haveRight := issuer.Invoke(testTokenCCName, fnGetAddressRightForNominee,
-			testTokenCCName, nominee.Address(), principal.Address())
-		require.Equal(t, "false", haveRight)
-	})
-
-	t.Run("check double setting right", func(t *testing.T) {
-		err := issuer.AddAddressRightForNominee(&mock.AddressRight{
-			Channel:          testTokenCCName,
-			Chaincode:        testTokenCCName,
-			NomineeAddress:   nominee.Address(),
-			PrincipalAddress: principal.Address(),
-		})
-		require.NoError(t, err)
-
-		err = issuer.AddAddressRightForNominee(&mock.AddressRight{
-			Channel:          testTokenCCName,
-			Chaincode:        testTokenCCName,
-			NomineeAddress:   nominee.Address(),
-			PrincipalAddress: principal.Address(),
-		})
-		require.NoError(t, err)
-
-		rawAddresses := issuer.Invoke(testTokenCCName, fnGetAddressesListForNominee,
-			testTokenCCName, nominee.Address())
-		require.NoError(t, err)
-		require.Equal(t, "[\""+principal.Address()+"\"]", rawAddresses)
-	})
+	}
 }

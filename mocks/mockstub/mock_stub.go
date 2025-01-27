@@ -2,15 +2,18 @@ package mockstub
 
 import (
 	"encoding/hex"
+	"fmt"
+	"math/rand"
+	"strconv"
 	"testing"
 	"time"
 
 	"github.com/anoideaopen/foundation/core"
 	"github.com/anoideaopen/foundation/mocks"
 	pbfound "github.com/anoideaopen/foundation/proto"
-	"github.com/anoideaopen/foundation/test/unit/fixtures_test"
+	"github.com/anoideaopen/foundation/test/unit/fixtures"
 	"github.com/btcsuite/btcd/btcutil/base58"
-	"github.com/golang/protobuf/proto" //nolint: staticcheck
+	"github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/google/uuid"
 	"github.com/hyperledger/fabric-chaincode-go/shim"
 	"github.com/hyperledger/fabric-protos-go/peer"
@@ -112,7 +115,7 @@ func (ms *MockStub) CreateAndSetConfig(
 	cfg := &pbfound.Config{
 		Contract: &pbfound.ContractConfig{
 			Symbol:   symbol,
-			RobotSKI: fixtures_test.RobotHashedCert,
+			RobotSKI: fixtures.RobotHashedCert,
 		},
 		Token: &pbfound.TokenConfig{
 			Name:     name,
@@ -279,6 +282,55 @@ func (ms *MockStub) TxInvokeChaincodeMultisigned(
 	return ms.TxInvokeChaincode(chaincode, functionName, params...)
 }
 
+type ExecutorRequest struct {
+	User *mocks.UserFoundation
+	Task *pbfound.Task
+}
+
+// TxInvokeTaskExecutor returns result of task execute transaction
+func (ms *MockStub) TxInvokeTaskExecutor(
+	chaincode *core.Chaincode,
+	requestID string,
+	chaincodeName string,
+	channelName string,
+	tasksReq []*ExecutorRequest,
+) (string, peer.Response) {
+	tasks := make([]*pbfound.Task, 0, len(tasksReq))
+	nonce := time.Now().UnixNano() / 1000000
+	for _, task := range tasksReq {
+		task.Task.Id = strconv.FormatInt(rand.Int63(), 10)
+		if task.User != nil {
+			params, err := getParametersSignedWithNonce(task.Task.GetMethod(), task.User, requestID, chaincodeName, channelName, strconv.FormatInt(nonce, 10), task.Task.GetArgs()...)
+			if err != nil {
+				return "", shim.Error(err.Error())
+			}
+			nonce++
+			task.Task.Args = params
+		}
+
+		tasks = append(tasks, task.Task)
+	}
+
+	err := mocks.SetCreator(ms.ChaincodeStub, mocks.BatchRobotCert)
+	if err != nil {
+		return "", shim.Error(err.Error())
+	}
+
+	dataIn, err := proto.Marshal(&pbfound.ExecuteTasksRequest{Tasks: tasks})
+	if err != nil {
+		return "", shim.Error(fmt.Errorf("failed to marshal tasks ExecuteTasksRequest: %w", err).Error())
+	}
+
+	resp := ms.invokeChaincode(chaincode, core.ExecuteTasks, []string{string(dataIn)}...)
+
+	err = mocks.SetCreator(ms.ChaincodeStub, mocks.AdminHexCert)
+	if err != nil {
+		return "", shim.Error(err.Error())
+	}
+
+	return ms.GetTxID(), resp
+}
+
 // getParametersSigned returns parameters string with specified user's signification
 func getParametersSigned(
 	functionName string,
@@ -288,7 +340,28 @@ func getParametersSigned(
 	channelName string,
 	parameters ...string,
 ) ([]string, error) {
-	ctorArgs := append(append([]string{functionName, requestID, channelName, chaincodeName}, parameters...), mocks.GetNewStringNonce())
+	return getParametersSignedWithNonce(
+		functionName,
+		user,
+		requestID,
+		chaincodeName,
+		channelName,
+		mocks.GetNewStringNonce(),
+		parameters...,
+	)
+}
+
+// getParametersSigned returns parameters string with specified user's signification
+func getParametersSignedWithNonce(
+	functionName string,
+	user *mocks.UserFoundation,
+	requestID string,
+	chaincodeName string,
+	channelName string,
+	nonce string,
+	parameters ...string,
+) ([]string, error) {
+	ctorArgs := append(append([]string{functionName, requestID, channelName, chaincodeName}, parameters...), nonce)
 
 	pubKey, sMsg, err := user.Sign(ctorArgs...)
 	if err != nil {

@@ -2,40 +2,45 @@ package unit
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
+	"strings"
 	"testing"
-	"time"
 
-	"github.com/anoideaopen/foundation/mock"
+	"github.com/anoideaopen/foundation/core/config"
+
+	"github.com/anoideaopen/foundation/core/telemetry"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
+
+	"github.com/anoideaopen/foundation/test/unit/fixtures"
+
+	"github.com/anoideaopen/foundation/core"
+	"github.com/anoideaopen/foundation/mocks"
+	"github.com/anoideaopen/foundation/mocks/mockstub"
 	"github.com/anoideaopen/foundation/proto"
+	pbfound "github.com/anoideaopen/foundation/proto"
+	pb "github.com/golang/protobuf/proto"
+	"github.com/hyperledger/fabric-chaincode-go/shim"
+	"github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/stretchr/testify/require"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/trace"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 const (
 	collectorEndpoint = "172.23.0.6:4318"
 )
 
-// TestTelemetryWithInit does the next steps:
-//   - instantiates chaincode with telemetry endpoint set;
-//   - invokes chaincode Query, NoBatchTx, BatchedTx with parent span in transient map;
-//   - invokes chaincode BatchedTx without parent span in transient map
-func TestTelemetryWithInit(t *testing.T) {
-	ledgerMock := mock.NewLedger(t)
-	owner := ledgerMock.NewWallet()
-	feeAddressSetter := ledgerMock.NewWallet()
-	feeSetter := ledgerMock.NewWallet()
+func TestTelemetry(t *testing.T) {
+	t.Parallel()
 
-	config := makeBaseTokenConfig(testTokenName, testTokenSymbol, 8,
-		owner.Address(), feeSetter.Address(), feeAddressSetter.Address(), "", &proto.CollectorEndpoint{Endpoint: collectorEndpoint})
+	issuer, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
+	require.NoError(t, err)
 
-	initMsg := ledgerMock.NewCC(
-		testTokenCCName,
-		&TestToken{},
-		config,
-	)
-	require.Empty(t, initMsg)
+	user, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
+	require.NoError(t, err)
 
 	tracerProvider := sdktrace.NewTracerProvider()
 	tr := tracerProvider.Tracer("test")
@@ -45,109 +50,347 @@ func TestTelemetryWithInit(t *testing.T) {
 	fmt.Println("Start test TraceID: " + spanContext.TraceID().String())
 	fmt.Println("Start test SpanID: " + spanContext.SpanID().String())
 
-	var noTelemetryTxID, telemetryTx1ID, telemetryTx2ID, setEndpointTxId string
-	t.Run("Query test", func(t *testing.T) {
-		result := owner.InvokeTraced(ctx, testTokenCCName, "systemEnv")
-		require.NotZero(t, result)
-	})
+	carrier := propagation.MapCarrier{}
 
-	t.Run("NoBatchTx test", func(t *testing.T) {
-		_, hash := owner.NbInvokeTraced(ctx, testTokenCCName, "healthCheckNb")
-		require.NotZero(t, hash)
-	})
+	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}))
+	otel.GetTextMapPropagator().Inject(ctx, carrier)
+	transientDataMap, err := telemetry.PackToTransientMap(carrier)
+	require.NoError(t, err)
 
-	t.Run("Healthcheck checking", func(t *testing.T) {
-		txID := owner.SignedInvokeTraced(ctx, testTokenCCName, "healthCheck")
-		require.NotEmpty(t, txID)
-		noTelemetryTxID = txID
-	})
+	for _, testCase := range []struct {
+		description         string
+		functionName        string
+		isQuery             bool
+		noBatch             bool
+		errorMsg            string
+		signUser            *mocks.UserFoundation
+		codeResp            int32
+		funcPrepareMockStub func(t *testing.T, mockStub *mockstub.MockStub) []string
+		funcCheckResponse   func(t *testing.T, mockStub *mockstub.MockStub, resp *pbfound.TxResponse)
+		funcCheckQuery      func(t *testing.T, mockStub *mockstub.MockStub, payload []byte)
+	}{
+		{
+			description:  "BatchTx with init Collector Endpoint and with telemetry",
+			functionName: "healthCheck",
+			signUser:     user,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				cfg := &pbfound.Config{
+					Contract: &pbfound.ContractConfig{
+						Symbol:                   testTokenSymbol,
+						RobotSKI:                 fixtures.RobotHashedCert,
+						Admin:                    &pbfound.Wallet{Address: issuer.AddressBase58Check},
+						TracingCollectorEndpoint: &proto.CollectorEndpoint{Endpoint: collectorEndpoint},
+					},
+					Token: &pbfound.TokenConfig{
+						Name:     testTokenName,
+						Decimals: 8,
+						Issuer:   &pbfound.Wallet{Address: issuer.AddressBase58Check},
+					},
+				}
+				cfgBytes, _ := protojson.Marshal(cfg)
+				mockStub.GetStateCallsMap["__config"] = cfgBytes
+				mockStub.GetTransientReturns(transientDataMap, nil)
 
-	t.Run("Healthcheck checking with telemetry #1", func(t *testing.T) {
-		telemetryTx1ID = owner.SignedInvokeTraced(ctx, testTokenCCName, "healthCheck")
-		require.NotEmpty(t, telemetryTx1ID)
-	})
+				return []string{}
+			},
+			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, resp *pbfound.TxResponse) {
+				var j int
+				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+					k, v := mockStub.PutStateArgsForCall(i)
+					if strings.Contains(k, config.BatchPrefix) {
+						pending := new(proto.PendingTx)
+						err = pb.Unmarshal(v, pending)
+						require.NoError(t, err)
+						require.Equal(t, carrier.Keys()[0], pending.GetPairs()[0].GetKey())
+						require.Equal(t, carrier.Get(carrier.Keys()[0]), pending.GetPairs()[0].GetValue())
 
-	t.Run("Health check without tracing", func(t *testing.T) {
-		txID := owner.SignedInvoke(testTokenCCName, "healthCheck")
-		require.NotEmpty(t, txID)
-	})
+						j++
+					}
 
-	t.Run("failedTestCall telemetry #1", func(t *testing.T) {
-		err := owner.RawSignedInvokeTracedWithErrorReturned(ctx, testTokenCCName, "failedTestCall")
-		require.Error(t, err)
-	})
+					if j == 1 {
+						return
+					}
+				}
+				require.Fail(t, "not found checking data")
+			},
+		},
+		{
+			description:  "BatchTx with init Collector Endpoint and without tracing",
+			functionName: "healthCheck",
+			signUser:     user,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				cfg := &pbfound.Config{
+					Contract: &pbfound.ContractConfig{
+						Symbol:                   testTokenSymbol,
+						RobotSKI:                 fixtures.RobotHashedCert,
+						Admin:                    &pbfound.Wallet{Address: issuer.AddressBase58Check},
+						TracingCollectorEndpoint: &proto.CollectorEndpoint{Endpoint: collectorEndpoint},
+					},
+					Token: &pbfound.TokenConfig{
+						Name:     testTokenName,
+						Decimals: 8,
+						Issuer:   &pbfound.Wallet{Address: issuer.AddressBase58Check},
+					},
+				}
+				cfgBytes, _ := protojson.Marshal(cfg)
+				mockStub.GetStateCallsMap["__config"] = cfgBytes
 
-	// t.Run("Fetch metadata with telemetry #1", func(t *testing.T) {
-	//	err := owner.InvokeWithError(testTokenCCName, "metadata")
-	//	require.NoError(t, err)
-	// })
+				return []string{}
+			},
+			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, resp *pbfound.TxResponse) {
+				var j int
+				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+					k, v := mockStub.PutStateArgsForCall(i)
+					if strings.Contains(k, config.BatchPrefix) {
+						pending := new(proto.PendingTx)
+						err = pb.Unmarshal(v, pending)
+						require.NoError(t, err)
+						require.Nil(t, pending.GetPairs())
 
-	t.Run("Healthcheck checking with telemetry #2", func(t *testing.T) {
-		telemetryTx2ID = owner.SignedInvokeTraced(ctx, testTokenCCName, "healthCheck")
-		require.NotEmpty(t, telemetryTx2ID)
-	})
+						j++
+					}
 
-	// for {
-	//	<-time.After(10 * time.Second)
-	//	break
-	// }
+					if j == 1 {
+						return
+					}
+				}
+				require.Fail(t, "not found checking data")
+			},
+		},
+		{
+			description:  "failedTestCall with init Collector Endpoint and with telemetry",
+			functionName: "failedTestCall",
+			signUser:     user,
+			codeResp:     int32(shim.ERROR),
+			errorMsg:     "incorrect number of arguments: found 6 but expected 0: validate TxFailedTestCall",
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				cfg := &pbfound.Config{
+					Contract: &pbfound.ContractConfig{
+						Symbol:                   testTokenSymbol,
+						RobotSKI:                 fixtures.RobotHashedCert,
+						Admin:                    &pbfound.Wallet{Address: issuer.AddressBase58Check},
+						TracingCollectorEndpoint: &proto.CollectorEndpoint{Endpoint: collectorEndpoint},
+					},
+					Token: &pbfound.TokenConfig{
+						Name:     testTokenName,
+						Decimals: 8,
+						Issuer:   &pbfound.Wallet{Address: issuer.AddressBase58Check},
+					},
+				}
+				cfgBytes, _ := protojson.Marshal(cfg)
+				mockStub.GetStateCallsMap["__config"] = cfgBytes
+				mockStub.GetTransientReturns(transientDataMap, nil)
 
-	time.Sleep(10 * time.Second)
+				return []string{}
+			},
+		},
+		{
+			description:  "NoBatchTx with init Collector Endpoint and with telemetry",
+			functionName: "healthCheckNb",
+			signUser:     user,
+			noBatch:      true,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				cfg := &pbfound.Config{
+					Contract: &pbfound.ContractConfig{
+						Symbol:                   testTokenSymbol,
+						RobotSKI:                 fixtures.RobotHashedCert,
+						Admin:                    &pbfound.Wallet{Address: issuer.AddressBase58Check},
+						TracingCollectorEndpoint: &proto.CollectorEndpoint{Endpoint: collectorEndpoint},
+					},
+					Token: &pbfound.TokenConfig{
+						Name:     testTokenName,
+						Decimals: 8,
+						Issuer:   &pbfound.Wallet{Address: issuer.AddressBase58Check},
+					},
+				}
+				cfgBytes, _ := protojson.Marshal(cfg)
+				mockStub.GetStateCallsMap["__config"] = cfgBytes
+				mockStub.GetTransientReturns(transientDataMap, nil)
 
-	fmt.Printf(
-		"  noTelemetryTxID: %s\n  setEndpointTxId: %s\n  telemetryTx1ID: %s\n  telemetryTx2ID: %s\n",
-		noTelemetryTxID,
-		setEndpointTxId,
-		telemetryTx1ID, // should be visible in jaeger
-		telemetryTx2ID, // should NOT be visible in jaeger
-	)
-}
+				return []string{}
+			},
+		},
+		{
+			description:  "Query with init Collector Endpoint and with telemetry",
+			functionName: "systemEnv",
+			isQuery:      true,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				cfg := &pbfound.Config{
+					Contract: &pbfound.ContractConfig{
+						Symbol:                   testTokenSymbol,
+						RobotSKI:                 fixtures.RobotHashedCert,
+						Admin:                    &pbfound.Wallet{Address: issuer.AddressBase58Check},
+						TracingCollectorEndpoint: &proto.CollectorEndpoint{Endpoint: collectorEndpoint},
+					},
+					Token: &pbfound.TokenConfig{
+						Name:     testTokenName,
+						Decimals: 8,
+						Issuer:   &pbfound.Wallet{Address: issuer.AddressBase58Check},
+					},
+				}
+				cfgBytes, _ := protojson.Marshal(cfg)
+				mockStub.GetStateCallsMap["__config"] = cfgBytes
+				mockStub.GetTransientReturns(transientDataMap, nil)
 
-// TestTelemetryWithoutInit  does the next steps:
-//   - instantiates chaincode without telemetry endpoint set;
-//   - invokes chaincode Query, NoBatchTx, BatchedTx with parent span in transient map;
-//   - invokes chaincode BatchedTx without parent span in transient map
-func TestTelemetryWithoutInit(t *testing.T) {
-	ledgerMock := mock.NewLedger(t)
-	owner := ledgerMock.NewWallet()
-	feeAddressSetter := ledgerMock.NewWallet()
-	feeSetter := ledgerMock.NewWallet()
+				return []string{}
+			},
+			funcCheckQuery: func(t *testing.T, mockStub *mockstub.MockStub, payload []byte) {
+				require.NotEmpty(t, payload)
+			},
+		},
+		{
+			description:  "BatchTx without init Collector Endpoint and with telemetry",
+			functionName: "healthCheck",
+			signUser:     user,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				mockStub.GetTransientReturns(transientDataMap, nil)
 
-	config := makeBaseTokenConfig(testTokenName, testTokenSymbol, 8,
-		owner.Address(), feeSetter.Address(), feeAddressSetter.Address(), "", nil)
+				return []string{}
+			},
+			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, resp *pbfound.TxResponse) {
+				var j int
+				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+					k, v := mockStub.PutStateArgsForCall(i)
+					if strings.Contains(k, config.BatchPrefix) {
+						pending := new(proto.PendingTx)
+						err = pb.Unmarshal(v, pending)
+						require.NoError(t, err)
+						require.Equal(t, carrier.Keys()[0], pending.GetPairs()[0].GetKey())
+						require.Equal(t, carrier.Get(carrier.Keys()[0]), pending.GetPairs()[0].GetValue())
 
-	initMsg := ledgerMock.NewCC(
-		testTokenCCName,
-		&TestToken{},
-		config,
-	)
-	require.Empty(t, initMsg)
+						j++
+					}
 
-	tracerProvider := sdktrace.NewTracerProvider()
-	tr := tracerProvider.Tracer("test")
-	ctx, _ := tr.Start(context.Background(), "top-test")
+					if j == 1 {
+						return
+					}
+				}
+				require.Fail(t, "not found checking data")
+			},
+		},
+		{
+			description:  "BatchTx without init Collector Endpoint and without tracing",
+			functionName: "healthCheck",
+			signUser:     user,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				return []string{}
+			},
+			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, resp *pbfound.TxResponse) {
+				var j int
+				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+					k, v := mockStub.PutStateArgsForCall(i)
+					if strings.Contains(k, config.BatchPrefix) {
+						pending := new(proto.PendingTx)
+						err = pb.Unmarshal(v, pending)
+						require.NoError(t, err)
+						require.Nil(t, pending.GetPairs())
 
-	spanContext := trace.SpanContextFromContext(ctx)
-	fmt.Println("Start test TraceID: " + spanContext.TraceID().String())
-	fmt.Println("Start test SpanID: " + spanContext.SpanID().String())
+						j++
+					}
 
-	t.Run("Query test", func(t *testing.T) {
-		result := owner.InvokeTraced(ctx, testTokenCCName, "systemEnv")
-		require.NotZero(t, result)
-	})
+					if j == 1 {
+						return
+					}
+				}
+				require.Fail(t, "not found checking data")
+			},
+		},
+		{
+			description:  "NoBatchTx without init Collector Endpoint and with telemetry",
+			functionName: "healthCheckNb",
+			signUser:     user,
+			noBatch:      true,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				mockStub.GetTransientReturns(transientDataMap, nil)
 
-	t.Run("NoBatchTx test", func(t *testing.T) {
-		_, hash := owner.NbInvokeTraced(ctx, testTokenCCName, "healthCheckNb")
-		require.NotZero(t, hash)
-	})
+				return []string{}
+			},
+		},
+		{
+			description:  "Query without init Collector Endpoint and with telemetry",
+			functionName: "systemEnv",
+			isQuery:      true,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				mockStub.GetTransientReturns(transientDataMap, nil)
 
-	t.Run("Healthcheck checking", func(t *testing.T) {
-		txID := owner.SignedInvokeTraced(ctx, testTokenCCName, "healthCheck")
-		require.NotEmpty(t, txID)
-	})
+				return []string{}
+			},
+			funcCheckQuery: func(t *testing.T, mockStub *mockstub.MockStub, payload []byte) {
+				require.NotEmpty(t, payload)
+			},
+		},
+	} {
+		t.Run(testCase.description, func(t *testing.T) {
+			mockStub := mockstub.NewMockStub(t)
 
-	t.Run("Health check without tracing", func(t *testing.T) {
-		txID := owner.SignedInvoke(testTokenCCName, "healthCheck")
-		require.NotEmpty(t, txID)
-	})
+			mockStub.CreateAndSetConfig(
+				testTokenName,
+				testTokenSymbol,
+				8,
+				issuer.AddressBase58Check,
+				"",
+				"",
+				issuer.AddressBase58Check,
+				nil,
+			)
+
+			cc, err := core.NewCC(&TestToken{})
+			require.NoError(t, err)
+
+			parameters := testCase.funcPrepareMockStub(t, mockStub)
+
+			var (
+				txId string
+				resp peer.Response
+			)
+			if testCase.isQuery {
+				resp = mockStub.QueryChaincode(cc, testCase.functionName, parameters...)
+			} else if testCase.noBatch {
+				resp = mockStub.NbTxInvokeChaincodeSigned(cc, testCase.functionName, testCase.signUser, "", "", "", parameters...)
+			} else {
+				txId, resp = mockStub.TxInvokeChaincodeSigned(cc, testCase.functionName, testCase.signUser, "", "", "", parameters...)
+			}
+
+			// check result
+			if testCase.codeResp == int32(shim.ERROR) {
+				require.Equal(t, resp.GetStatus(), testCase.codeResp)
+				require.Contains(t, resp.GetMessage(), testCase.errorMsg)
+				require.Empty(t, resp.GetPayload())
+				return
+			}
+
+			require.Equal(t, resp.GetStatus(), int32(shim.OK))
+			require.Empty(t, resp.GetMessage())
+
+			if testCase.isQuery {
+				if testCase.funcCheckQuery != nil {
+					testCase.funcCheckQuery(t, mockStub, resp.GetPayload())
+				}
+				return
+			}
+
+			bResp := &pbfound.BatchResponse{}
+			if string(resp.GetPayload()) != "null" {
+				err = pb.Unmarshal(resp.GetPayload(), bResp)
+				require.NoError(t, err)
+			}
+
+			var respb *pbfound.TxResponse
+			for _, r := range bResp.GetTxResponses() {
+				if hex.EncodeToString(r.GetId()) == txId {
+					respb = r
+					break
+				}
+			}
+
+			if len(testCase.errorMsg) != 0 {
+				require.Contains(t, respb.GetError().GetError(), testCase.errorMsg)
+				return
+			}
+
+			if testCase.funcCheckResponse != nil {
+				testCase.funcCheckResponse(t, mockStub, respb)
+			}
+		})
+	}
 }

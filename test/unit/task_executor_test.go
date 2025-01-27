@@ -1,210 +1,152 @@
 package unit
 
 import (
-	"encoding/json"
-	"math/rand"
-	"strconv"
 	"testing"
-	"time"
 
-	"github.com/anoideaopen/foundation/mock"
-	"github.com/anoideaopen/foundation/proto"
+	"github.com/anoideaopen/foundation/core"
+	"github.com/anoideaopen/foundation/core/balance"
+	"github.com/anoideaopen/foundation/core/types/big"
+	"github.com/anoideaopen/foundation/mocks"
+	"github.com/anoideaopen/foundation/mocks/mockstub"
+	pbfound "github.com/anoideaopen/foundation/proto"
 	"github.com/anoideaopen/foundation/token"
-	"github.com/btcsuite/btcd/btcutil/base58"
+	pb "github.com/golang/protobuf/proto"
+	"github.com/hyperledger/fabric-chaincode-go/shim"
 	"github.com/stretchr/testify/require"
 )
 
-func TestGroupTxExecutorEmitAndTransfer(t *testing.T) {
+func TestTaskExecutor(t *testing.T) {
 	t.Parallel()
 
-	ledger := mock.NewLedger(t)
-	owner := ledger.NewWallet()
-	feeAddressSetter := ledger.NewWallet()
-	feeSetter := ledger.NewWallet()
-	feeAggregator := ledger.NewWallet()
-
-	fiat := NewFiatTestToken(token.BaseToken{})
-	fiatConfig := makeBaseTokenConfig("fiat", "FIAT", 8,
-		owner.Address(), feeSetter.Address(), feeAddressSetter.Address(), "", nil)
-	initMsg := ledger.NewCC("fiat", fiat, fiatConfig)
-	require.Empty(t, initMsg)
-
-	user1 := ledger.NewWallet()
-
-	_, err := owner.ExecuteSignedInvoke("fiat", "emit", user1.Address(), "1000")
+	issuer, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
 	require.NoError(t, err)
 
-	user1.BalanceShouldBe("fiat", 1000)
-
-	_, err = feeAddressSetter.ExecuteSignedInvoke("fiat", "setFeeAddress", feeAggregator.Address())
-	require.NoError(t, err)
-	_, err = feeSetter.ExecuteSignedInvoke("fiat", "setFee", "FIAT", "500000", "100", "100000")
+	feeAddressSetter, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
 	require.NoError(t, err)
 
-	rawMD := feeSetter.Invoke("fiat", "metadata")
-	md := &metadata{}
-	require.NoError(t, json.Unmarshal([]byte(rawMD), md))
-
-	require.Equal(t, "FIAT", md.Fee.Currency)
-	require.Equal(t, "500000", md.Fee.Fee.String())
-	require.Equal(t, "100000", md.Fee.Cap.String())
-	require.Equal(t, "100", md.Fee.Floor.String())
-	require.Equal(t, feeAggregator.Address(), md.Fee.Address)
-
-	user2 := ledger.NewWallet()
-	_, err = user1.ExecuteSignedInvoke("fiat", "transfer", user2.Address(), "400", "")
-	require.NoError(t, err)
-	user1.BalanceShouldBe("fiat", 500)
-	user2.BalanceShouldBe("fiat", 400)
-
-	user1.PublicKeyBase58 = base58.Encode(user1.PublicKeyEd25519)
-	_, err = user2.ExecuteSignedInvoke("fiat", "accountsTest", user1.Address(), user1.PublicKeyBase58)
-	require.NoError(t, err)
-}
-
-func TestTxExecutorHealthcheck(t *testing.T) {
-	t.Parallel()
-
-	ledger := mock.NewLedger(t)
-	owner := ledger.NewWallet()
-	feeAddressSetter := ledger.NewWallet()
-	feeSetter := ledger.NewWallet()
-	fiat := NewFiatTestToken(token.BaseToken{})
-	fiatConfig := makeBaseTokenConfig("fiat", "FIAT", 8,
-		owner.Address(), feeSetter.Address(), feeAddressSetter.Address(), "", nil)
-	initMsg := ledger.NewCC("fiat", fiat, fiatConfig)
-	require.Empty(t, initMsg)
-
-	_, err := owner.ExecuteSignedInvoke("fiat", "healthCheck")
-	require.NoError(t, err)
-}
-
-func TestTxExecutorHealthcheckNb(t *testing.T) {
-	t.Parallel()
-
-	ledger := mock.NewLedger(t)
-	owner := ledger.NewWallet()
-	feeAddressSetter := ledger.NewWallet()
-	feeSetter := ledger.NewWallet()
-	fiat := NewFiatTestToken(token.BaseToken{})
-	fiatConfig := makeBaseTokenConfig("fiat", "FIAT", 8,
-		owner.Address(), feeSetter.Address(), feeAddressSetter.Address(), "", nil)
-	initMsg := ledger.NewCC("fiat", fiat, fiatConfig)
-	require.Empty(t, initMsg)
-
-	_, err := owner.ExecuteSignedInvoke("fiat", "healthCheckNb")
-	require.NoError(t, err)
-}
-
-func TestTxExecutorMultipleHealthcheckInBatch(t *testing.T) {
-	t.Parallel()
-
-	ledger := mock.NewLedger(t)
-	owner := ledger.NewWallet()
-	feeAddressSetter := ledger.NewWallet()
-	feeSetter := ledger.NewWallet()
-	fiat := NewFiatTestToken(token.BaseToken{})
-	fiatConfig := makeBaseTokenConfig("fiat", "FIAT", 8,
-		owner.Address(), feeSetter.Address(), feeAddressSetter.Address(), "", nil)
-	initMsg := ledger.NewCC("fiat", fiat, fiatConfig)
-	require.Empty(t, initMsg)
-
-	executorRequests := make([]mock.ExecutorRequest, 0)
-	countRequestsInBatch := 100
-	for i := 0; i < countRequestsInBatch/2; i++ {
-		request := mock.NewExecutorRequest("fiat", "healthCheck", []string{}, true)
-		executorRequests = append(executorRequests, request)
-	}
-	for i := 0; i < countRequestsInBatch/2; i++ {
-		request := mock.NewExecutorRequest("fiat", "healthCheckNb", []string{}, true)
-		executorRequests = append(executorRequests, request)
-	}
-	resp, err := owner.TaskExecutorRequest("fiat", executorRequests...)
+	feeSetter, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
 	require.NoError(t, err)
 
-	require.Len(t, resp, countRequestsInBatch)
-}
-
-type PreparedTask struct {
-	tasks []*proto.Task
-}
-
-func BenchmarkTestGroupTxExecutorEmitAndTransfer(b *testing.B) {
-	b.StopTimer()
-	t := &testing.T{}
-	ledger := mock.NewLedger(t)
-	owner := ledger.NewWallet()
-	feeAddressSetter := ledger.NewWallet()
-	feeSetter := ledger.NewWallet()
-	feeAggregator := ledger.NewWallet()
-
-	fiat := NewFiatTestToken(token.BaseToken{})
-	fiatConfig := makeBaseTokenConfig("fiat", "FIAT", 8,
-		owner.Address(), feeSetter.Address(), feeAddressSetter.Address(), "", nil)
-	initMsg := ledger.NewCC("fiat", fiat, fiatConfig)
-	require.Empty(t, initMsg)
-
-	user1 := ledger.NewWallet()
-
-	_, err := owner.ExecuteSignedInvoke("fiat", "emit", user1.Address(), "9999999999999999")
+	feeAggregator, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
 	require.NoError(t, err)
 
-	user1.BalanceShouldBe("fiat", 9999999999999999)
-
-	_, err = feeAddressSetter.ExecuteSignedInvoke("fiat", "setFeeAddress", feeAggregator.Address())
-	require.NoError(t, err)
-	_, err = feeSetter.ExecuteSignedInvoke("fiat", "setFee", "FIAT", "500000", "100", "100000")
+	user, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
 	require.NoError(t, err)
 
-	rawMD := feeSetter.Invoke("fiat", "metadata")
-	md := &metadata{}
-	require.NoError(t, json.Unmarshal([]byte(rawMD), md))
+	user2, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
+	require.NoError(t, err)
 
-	require.Equal(t, "FIAT", md.Fee.Currency)
-	require.Equal(t, "500000", md.Fee.Fee.String())
-	require.Equal(t, "100000", md.Fee.Cap.String())
-	require.Equal(t, "100", md.Fee.Floor.String())
-	require.Equal(t, feeAggregator.Address(), md.Fee.Address)
+	for _, testCase := range []struct {
+		description         string
+		errorMsg            string
+		funcPrepareMockStub func(t *testing.T, mockStub *mockstub.MockStub) []*mockstub.ExecutorRequest
+		funcCheckResponse   func(t *testing.T, mockStub *mockstub.MockStub, resp *pbfound.BatchResponse)
+	}{
+		{
+			description: "group TxExecutor emit and transfer",
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []*mockstub.ExecutorRequest {
+				userBalanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user.AddressBase58Check})
+				require.NoError(t, err)
+				mockStub.GetStateCallsMap[userBalanceKey] = new(big.Int).SetUint64(1000).Bytes()
 
-	// transfer arguments
-	channel := "fiat"
-	transferFn := "transfer"
-	emitAmount := "1"
-	reason := ""
-	countInBatch := 10
+				return []*mockstub.ExecutorRequest{
+					{User: issuer, Task: &pbfound.Task{Method: "emit", Args: []string{user.AddressBase58Check, "1000"}}},
+					{User: feeAddressSetter, Task: &pbfound.Task{Method: "setFeeAddress", Args: []string{feeAggregator.AddressBase58Check}}},
+					{User: feeSetter, Task: &pbfound.Task{Method: "setFee", Args: []string{"FIAT", "500000", "100", "100000"}}},
+					{User: user, Task: &pbfound.Task{Method: "transfer", Args: []string{user2.AddressBase58Check, "400", ""}}},
+					{User: user2, Task: &pbfound.Task{Method: "accountsTest", Args: []string{user.AddressBase58Check, user.PublicKeyBase58}}},
+				}
+			},
+			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, resp *pbfound.BatchResponse) {
+				require.Equal(t, mockStub.PutStateCallCount(), 9)
+				require.Len(t, resp.GetTxResponses(), 5)
+				for _, r := range resp.GetTxResponses() {
+					require.Nil(t, r.GetError())
+				}
+			},
+		},
+		{
+			description: "group TxExecutor Healthcheck",
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []*mockstub.ExecutorRequest {
+				return []*mockstub.ExecutorRequest{
+					{User: issuer, Task: &pbfound.Task{Method: "healthCheck", Args: []string{}}},
+				}
+			},
+			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, resp *pbfound.BatchResponse) {
+				require.Equal(t, mockStub.PutStateCallCount(), 1)
+				require.Len(t, resp.GetTxResponses(), 1)
+				for _, r := range resp.GetTxResponses() {
+					require.Nil(t, r.GetError())
+				}
+			},
+		},
+		{
+			description: "group TxExecutor HealthCheckNb",
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []*mockstub.ExecutorRequest {
+				return []*mockstub.ExecutorRequest{
+					{User: issuer, Task: &pbfound.Task{Method: "healthCheckNb", Args: []string{}}},
+				}
+			},
+			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, resp *pbfound.BatchResponse) {
+				require.Equal(t, mockStub.PutStateCallCount(), 1)
+				require.Len(t, resp.GetTxResponses(), 1)
+				for _, r := range resp.GetTxResponses() {
+					require.Nil(t, r.GetError())
+				}
+			},
+		},
+		{
+			description: "group TxExecutor 50 - Healthcheck, 50 - HealthCheckNb",
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []*mockstub.ExecutorRequest {
+				reqs := make([]*mockstub.ExecutorRequest, 0, 100)
+				for i := 0; i < 50; i++ {
+					reqs = append(reqs, &mockstub.ExecutorRequest{User: issuer, Task: &pbfound.Task{Method: "healthCheck", Args: []string{}}})
+				}
+				for i := 0; i < 50; i++ {
+					reqs = append(reqs, &mockstub.ExecutorRequest{User: issuer, Task: &pbfound.Task{Method: "healthCheckNb", Args: []string{}}})
+				}
+				return reqs
+			},
+			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, resp *pbfound.BatchResponse) {
+				require.Equal(t, 1, mockStub.PutStateCallCount())
+				require.Len(t, resp.GetTxResponses(), 100)
+				for _, r := range resp.GetTxResponses() {
+					require.Nil(t, r.GetError())
+				}
+			},
+		},
+	} {
+		t.Run(testCase.description, func(t *testing.T) {
+			mockStub := mockstub.NewMockStub(t)
 
-	// Artificial delay to update the nonce value.
-	time.Sleep(time.Millisecond * 1)
-	// Generation of nonce based on current time in milliseconds.
-	ms := time.Now().UnixNano() / 1000000
+			mockStub.CreateAndSetConfig(
+				"fiat",
+				"FIAT",
+				8,
+				issuer.AddressBase58Check,
+				feeSetter.AddressBase58Check,
+				feeAddressSetter.AddressBase58Check,
+				issuer.AddressBase58Check,
+				nil,
+			)
 
-	// prepare arguments for test
-	p := make([]PreparedTask, 0)
-	for i := 0; i < b.N; i++ {
-		var tasks []*proto.Task
-		for i := 0; i < countInBatch; i++ {
-			ms++
-			nonce := strconv.FormatInt(ms, 10)
-			args := []string{ledger.NewWallet().Address(), emitAmount, reason}
-			executorRequest := mock.NewExecutorRequest(channel, transferFn, args, true)
-			if executorRequest.IsSignedInvoke {
-				args = user1.WithNonceSignArgs(executorRequest.Channel, executorRequest.Method, nonce, args...)
+			cc, err := core.NewCC(NewFiatTestToken(token.BaseToken{}))
+			require.NoError(t, err)
+
+			tasksReq := testCase.funcPrepareMockStub(t, mockStub)
+
+			_, resp := mockStub.TxInvokeTaskExecutor(cc, "", "", "", tasksReq)
+
+			require.Equal(t, resp.GetStatus(), int32(shim.OK))
+			require.Empty(t, resp.GetMessage())
+
+			bResp := &pbfound.BatchResponse{}
+			err = pb.Unmarshal(resp.GetPayload(), bResp)
+			require.NoError(t, err)
+
+			if testCase.funcCheckResponse != nil {
+				testCase.funcCheckResponse(t, mockStub, bResp)
 			}
-			task := &proto.Task{
-				Id:     strconv.FormatInt(rand.Int63(), 10),
-				Method: executorRequest.Method,
-				Args:   args,
-			}
-			tasks = append(tasks, task)
-		}
-		p = append(p, PreparedTask{
-			tasks: tasks,
 		})
-	}
-
-	// start test method 'transfer' with prepared arguments
-	b.StartTimer()
-	for i := 0; i < b.N; i++ {
-		user1.TasksExecutor(channel, p[i].tasks)
 	}
 }

@@ -13,7 +13,7 @@ import (
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/mocks"
 	"github.com/anoideaopen/foundation/proto"
-	"github.com/anoideaopen/foundation/test/unit/fixtures_test"
+	"github.com/anoideaopen/foundation/test/unit/fixtures"
 	pb "github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/hyperledger/fabric-chaincode-go/shim"
@@ -91,7 +91,7 @@ func TestSaveToBatchWithWrongArgs(t *testing.T) {
 	cfgEtl := &proto.Config{
 		Contract: &proto.ContractConfig{
 			Symbol:   "CC",
-			RobotSKI: fixtures_test.RobotHashedCert,
+			RobotSKI: fixtures.RobotHashedCert,
 		},
 	}
 	cfg, _ := protojson.Marshal(cfgEtl)
@@ -126,7 +126,7 @@ func TestSaveToBatchWithSignedArgs(t *testing.T) {
 	cfgEtl := &proto.Config{
 		Contract: &proto.ContractConfig{
 			Symbol:   "CC",
-			RobotSKI: fixtures_test.RobotHashedCert,
+			RobotSKI: fixtures.RobotHashedCert,
 		},
 	}
 	cfg, _ := protojson.Marshal(cfgEtl)
@@ -166,7 +166,7 @@ func TestSaveToBatchWithWrongSignedArgs(t *testing.T) {
 	cfgEtl := &proto.Config{
 		Contract: &proto.ContractConfig{
 			Symbol:   "CC",
-			RobotSKI: fixtures_test.RobotHashedCert,
+			RobotSKI: fixtures.RobotHashedCert,
 		},
 	}
 	cfg, _ := protojson.Marshal(cfgEtl)
@@ -197,8 +197,8 @@ func TestSaveToBatchWrongFnName(t *testing.T) {
 	cfg := &proto.Config{
 		Contract: &proto.ContractConfig{
 			Symbol:   "CC",
-			RobotSKI: fixtures_test.RobotHashedCert,
-			Admin:    fixtures_test.Admin,
+			RobotSKI: fixtures.RobotHashedCert,
+			Admin:    fixtures.Admin,
 		},
 	}
 	cfgBytes, _ := protojson.Marshal(cfg)
@@ -234,8 +234,8 @@ func SaveAndLoadToBatchTest(t *testing.T, ser *serieBatches, args []string) {
 	cfg := &proto.Config{
 		Contract: &proto.ContractConfig{
 			Symbol:   "CC",
-			RobotSKI: fixtures_test.RobotHashedCert,
-			Admin:    fixtures_test.Admin,
+			RobotSKI: fixtures.RobotHashedCert,
+			Admin:    fixtures.Admin,
 		},
 	}
 	cfgBytes, _ := protojson.Marshal(cfg)
@@ -344,8 +344,8 @@ func BatchExecuteTest(t *testing.T, ser *serieBatchExecute, args []string) peer.
 	cfg := &proto.Config{
 		Contract: &proto.ContractConfig{
 			Symbol:   "TT",
-			RobotSKI: fixtures_test.RobotHashedCert,
-			Admin:    &proto.Wallet{Address: fixtures_test.AdminAddr},
+			RobotSKI: fixtures.RobotHashedCert,
+			Admin:    &proto.Wallet{Address: fixtures.AdminAddr},
 		},
 	}
 	cfgBytes, _ := protojson.Marshal(cfg)
@@ -409,8 +409,8 @@ func TestBatchedTxExecute(t *testing.T) {
 		Contract: &proto.ContractConfig{
 			Symbol:   "CC",
 			Options:  &proto.ChaincodeOptions{},
-			RobotSKI: fixtures_test.RobotHashedCert,
-			Admin:    &proto.Wallet{Address: fixtures_test.AdminAddr},
+			RobotSKI: fixtures.RobotHashedCert,
+			Admin:    &proto.Wallet{Address: fixtures.AdminAddr},
 		},
 	}
 

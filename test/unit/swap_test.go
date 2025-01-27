@@ -4,17 +4,21 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"strconv"
 	"testing"
-	"time"
 
 	"github.com/anoideaopen/foundation/core"
+	"github.com/anoideaopen/foundation/core/balance"
+	"github.com/anoideaopen/foundation/core/swap"
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/core/types/big"
-	"github.com/anoideaopen/foundation/mock"
-	"github.com/anoideaopen/foundation/proto"
-	"github.com/anoideaopen/foundation/test/unit/fixtures_test"
+	"github.com/anoideaopen/foundation/mocks"
+	"github.com/anoideaopen/foundation/mocks/mockstub"
+	pbfound "github.com/anoideaopen/foundation/proto"
+	"github.com/anoideaopen/foundation/test/unit/fixtures"
 	"github.com/anoideaopen/foundation/token"
+	pb "github.com/golang/protobuf/proto"
+	"github.com/hyperledger/fabric-chaincode-go/shim"
+	"github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/sha3"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -75,130 +79,707 @@ func (ct *CustomToken) QuerySwapDoneEventCallCount() (int, error) {
 	return fcc.Count, nil
 }
 
-func TestAtomicSwap(t *testing.T) {
-	t.Parallel()
-
-	ledger := mock.NewLedger(t)
-	owner := ledger.NewWallet()
-
-	cc := CustomToken{}
-	ccConfig := makeBaseTokenConfig("CC Token", "CC", 8,
-		owner.Address(), "", "", "", nil)
-	initMsg := ledger.NewCC("cc", &cc, ccConfig)
-	require.Empty(t, initMsg)
-
-	vt := CustomToken{}
-	vtConfig := makeBaseTokenConfig("VT Token", "VT", 8,
-		owner.Address(), "", "", "", nil)
-	ledger.NewCC("vt", &vt, vtConfig)
-
-	user1 := ledger.NewWallet()
-	user1.AddBalance("cc", 1000)
-
-	swapKey := "123"
-	hashed := sha3.Sum256([]byte(swapKey))
-	swapHash := hex.EncodeToString(hashed[:])
-
-	txID := user1.SignedInvoke("cc", "swapBegin", "CC", "VT", "450", swapHash)
-	user1.BalanceShouldBe("cc", 550)
-	ledger.WaitSwapAnswer("vt", txID, time.Second*5)
-
-	user1.Invoke("vt", "swapDone", txID, swapKey)
-	user1.AllowedBalanceShouldBe("vt", "CC", 450)
-
-	user1.CheckGivenBalanceShouldBe("vt", "VT", 0)
-	user1.CheckGivenBalanceShouldBe("vt", "CC", 0)
-	user1.CheckGivenBalanceShouldBe("cc", "CC", 0)
-	user1.CheckGivenBalanceShouldBe("cc", "VT", 0)
-
-	// TODO: Missed part where robot applies this swapDone in 'cc' channel
-
-	// check swap callback is called exactly 1 time
-	fnCountData := user1.Invoke("vt", "swapDoneEventCallCount")
-	swapDoneFnCount, err := strconv.Atoi(fnCountData)
+func TestSwap(t *testing.T) {
+	issuer, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
 	require.NoError(t, err)
-	require.Equal(t, 1, swapDoneFnCount)
-}
 
-func TestAtomicSwapBack(t *testing.T) {
-	t.Parallel()
+	user, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
+	require.NoError(t, err)
 
-	ledger := mock.NewLedger(t)
-	owner := ledger.NewWallet()
-
-	cc := CustomToken{}
-	ccConfig := makeBaseTokenConfig("CC Token", "CC", 8,
-		owner.Address(), "", "", "", nil)
-	initMsg := ledger.NewCC("cc", &cc, ccConfig)
-	require.Empty(t, initMsg)
-
-	vt := CustomToken{}
-	vtConfig := makeBaseTokenConfig("VT Token", "VT", 8,
-		owner.Address(), "", "", "", nil)
-	ledger.NewCC("vt", &vt, vtConfig)
-
-	user1 := ledger.NewWallet()
-
-	user1.AddAllowedBalance("vt", "CC", 1000)
-	user1.AddGivenBalance("cc", "VT", 1000)
-	user1.AllowedBalanceShouldBe("vt", "CC", 1000)
-
-	swapKey := "123"
-	hashed := sha3.Sum256([]byte(swapKey))
+	swapKeyEtl := "123"
+	hashed := sha3.Sum256([]byte(swapKeyEtl))
 	swapHash := hex.EncodeToString(hashed[:])
 
-	txID := user1.SignedInvoke("vt", "swapBegin", "CC", "CC", "450", swapHash)
-	ledger.WaitSwapAnswer("cc", txID, time.Second*5)
+	for _, testCase := range []struct {
+		description         string
+		functionName        string
+		isQuery             bool
+		noBatch             bool
+		errorMsg            string
+		signUser            *mocks.UserFoundation
+		codeResp            int32
+		funcPrepareMockStub func(t *testing.T, mockStub *mockstub.MockStub) []string
+		funcCheckResponse   func(t *testing.T, mockStub *mockstub.MockStub, resp *pbfound.TxResponse)
+		funcCheckQuery      func(t *testing.T, mockStub *mockstub.MockStub, payload []byte)
+	}{
+		{
+			description:  "swapBegin - disable swaps",
+			functionName: "swapBegin",
+			errorMsg:     "method 'swapBegin' not found",
+			signUser:     user,
+			codeResp:     int32(shim.ERROR),
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				cfg := &pbfound.Config{
+					Contract: &pbfound.ContractConfig{
+						Symbol:   "CC",
+						Options:  &pbfound.ChaincodeOptions{DisableSwaps: true},
+						RobotSKI: fixtures.RobotHashedCert,
+						Admin:    &pbfound.Wallet{Address: issuer.AddressBase58Check},
+					},
+					Token: &pbfound.TokenConfig{
+						Name:     "CC Token",
+						Decimals: 8,
+						Issuer:   &pbfound.Wallet{Address: issuer.AddressBase58Check},
+					},
+				}
+				cfgBytes, _ := protojson.Marshal(cfg)
+				mockStub.GetStateCallsMap["__config"] = cfgBytes
 
-	user1.Invoke("cc", "swapDone", txID, swapKey)
-
-	user1.AllowedBalanceShouldBe("cc", "CC", 0)
-	user1.AllowedBalanceShouldBe("vt", "CC", 550)
-	user1.BalanceShouldBe("cc", 450)
-	user1.BalanceShouldBe("vt", 0)
-	user1.CheckGivenBalanceShouldBe("vt", "VT", 0)
-	user1.CheckGivenBalanceShouldBe("vt", "CC", 0)
-	user1.CheckGivenBalanceShouldBe("cc", "CC", 0)
-	user1.CheckGivenBalanceShouldBe("cc", "VT", 550)
-}
-
-func TestAtomicSwapDisableSwaps(t *testing.T) {
-	t.Parallel()
-
-	const baCC = "BA"
-
-	ledger := mock.NewLedger(t)
-	issuer := ledger.NewWallet()
-	user1 := ledger.NewWallet()
-
-	ba := &token.BaseToken{}
-
-	cfg := &proto.Config{
-		Contract: &proto.ContractConfig{
-			Symbol:   baCC,
-			Options:  &proto.ChaincodeOptions{DisableSwaps: true},
-			RobotSKI: fixtures_test.RobotHashedCert,
-			Admin:    &proto.Wallet{Address: fixtures_test.AdminAddr},
+				return []string{"", ""}
+			},
 		},
-		Token: &proto.TokenConfig{
-			Name:     "BA Token",
-			Decimals: 8,
-			Issuer:   &proto.Wallet{Address: issuer.Address()},
+		{
+			description:  "swapCancel - disable swaps",
+			functionName: "swapCancel",
+			errorMsg:     "method 'swapCancel' not found",
+			signUser:     user,
+			codeResp:     int32(shim.ERROR),
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				cfg := &pbfound.Config{
+					Contract: &pbfound.ContractConfig{
+						Symbol:   "CC",
+						Options:  &pbfound.ChaincodeOptions{DisableSwaps: true},
+						RobotSKI: fixtures.RobotHashedCert,
+						Admin:    &pbfound.Wallet{Address: issuer.AddressBase58Check},
+					},
+					Token: &pbfound.TokenConfig{
+						Name:     "CC Token",
+						Decimals: 8,
+						Issuer:   &pbfound.Wallet{Address: issuer.AddressBase58Check},
+					},
+				}
+				cfgBytes, _ := protojson.Marshal(cfg)
+				mockStub.GetStateCallsMap["__config"] = cfgBytes
+
+				return []string{"", ""}
+			},
 		},
+		{
+			description:  "swapDone - disable swaps",
+			functionName: "swapDone",
+			errorMsg:     core.ErrSwapDisabled.Error(),
+			signUser:     user,
+			codeResp:     int32(shim.ERROR),
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				cfg := &pbfound.Config{
+					Contract: &pbfound.ContractConfig{
+						Symbol:   "CC",
+						Options:  &pbfound.ChaincodeOptions{DisableSwaps: true},
+						RobotSKI: fixtures.RobotHashedCert,
+						Admin:    &pbfound.Wallet{Address: issuer.AddressBase58Check},
+					},
+					Token: &pbfound.TokenConfig{
+						Name:     "CC Token",
+						Decimals: 8,
+						Issuer:   &pbfound.Wallet{Address: issuer.AddressBase58Check},
+					},
+				}
+				cfgBytes, _ := protojson.Marshal(cfg)
+				mockStub.GetStateCallsMap["__config"] = cfgBytes
+
+				return []string{"", ""}
+			},
+		},
+		{
+			description:  "swapGet - disable swaps",
+			functionName: "swapGet",
+			errorMsg:     "method 'swapGet' not found",
+			signUser:     user,
+			codeResp:     int32(shim.ERROR),
+			isQuery:      true,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				cfg := &pbfound.Config{
+					Contract: &pbfound.ContractConfig{
+						Symbol:   "CC",
+						Options:  &pbfound.ChaincodeOptions{DisableSwaps: true},
+						RobotSKI: fixtures.RobotHashedCert,
+						Admin:    &pbfound.Wallet{Address: issuer.AddressBase58Check},
+					},
+					Token: &pbfound.TokenConfig{
+						Name:     "CC Token",
+						Decimals: 8,
+						Issuer:   &pbfound.Wallet{Address: issuer.AddressBase58Check},
+					},
+				}
+				cfgBytes, _ := protojson.Marshal(cfg)
+				mockStub.GetStateCallsMap["__config"] = cfgBytes
+
+				return []string{"", ""}
+			},
+		},
+		{
+			description:  "swapBegin - ok",
+			functionName: "swapBegin",
+			errorMsg:     "",
+			signUser:     user,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				userBalanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user.AddressBase58Check})
+				require.NoError(t, err)
+				mockStub.GetStateCallsMap[userBalanceKey] = new(big.Int).SetUint64(1000).Bytes()
+
+				return []string{"CC", "VT", "450", swapHash}
+			},
+			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, resp *pbfound.TxResponse) {
+				userBalanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user.AddressBase58Check})
+				require.NoError(t, err)
+
+				swapKey, err := mockStub.CreateCompositeKey(swap.SwapCompositeType, []string{hex.EncodeToString(resp.GetId())})
+				require.NoError(t, err)
+
+				var j int
+				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+					k, v := mockStub.PutStateArgsForCall(i)
+					if k == userBalanceKey {
+						require.Equal(t, new(big.Int).SetUint64(550).Bytes(), v)
+						j++
+					} else if k == swapKey {
+						s := &pbfound.Swap{}
+						err = pb.Unmarshal(v, s)
+						require.NoError(t, err)
+						require.True(t, pb.Equal(s, &pbfound.Swap{
+							Id:      resp.GetId(),
+							Creator: user.AddressBytes,
+							Owner:   user.AddressBytes,
+							Token:   "CC",
+							Amount:  new(big.Int).SetUint64(450).Bytes(),
+							From:    "CC",
+							To:      "VT",
+							Hash:    hashed[:],
+							Timeout: 10800,
+						}))
+						j++
+					}
+
+					if j == 2 {
+						return
+					}
+				}
+				require.Fail(t, "not found checking data")
+			},
+		},
+		{
+			description:  "swapBegin back - ok",
+			functionName: "swapBegin",
+			errorMsg:     "",
+			signUser:     user,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				userBalanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeAllowed.String(), []string{user.AddressBase58Check, "VT"})
+				require.NoError(t, err)
+				mockStub.GetStateCallsMap[userBalanceKey] = new(big.Int).SetUint64(1000).Bytes()
+
+				return []string{"VT", "VT", "450", swapHash}
+			},
+			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, resp *pbfound.TxResponse) {
+				userBalanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeAllowed.String(), []string{user.AddressBase58Check, "VT"})
+				require.NoError(t, err)
+
+				swapKey, err := mockStub.CreateCompositeKey(swap.SwapCompositeType, []string{hex.EncodeToString(resp.GetId())})
+				require.NoError(t, err)
+
+				var j int
+				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+					k, v := mockStub.PutStateArgsForCall(i)
+					if k == userBalanceKey {
+						require.Equal(t, new(big.Int).SetUint64(550).Bytes(), v)
+						j++
+					} else if k == swapKey {
+						s := &pbfound.Swap{}
+						err = pb.Unmarshal(v, s)
+						require.NoError(t, err)
+						require.True(t, pb.Equal(s, &pbfound.Swap{
+							Id:      resp.GetId(),
+							Creator: user.AddressBytes,
+							Owner:   user.AddressBytes,
+							Token:   "VT",
+							Amount:  new(big.Int).SetUint64(450).Bytes(),
+							From:    "CC",
+							To:      "VT",
+							Hash:    hashed[:],
+							Timeout: 10800,
+						}))
+						j++
+					}
+
+					if j == 2 {
+						return
+					}
+				}
+				require.Fail(t, "not found checking data")
+			},
+		},
+		{
+			description:  "swapBegin - incorrect swap",
+			functionName: "swapBegin",
+			errorMsg:     "incorrect swap",
+			signUser:     user,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				userBalanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user.AddressBase58Check})
+				require.NoError(t, err)
+				mockStub.GetStateCallsMap[userBalanceKey] = new(big.Int).SetUint64(1000).Bytes()
+
+				return []string{"BA", "VT", "450", swapHash}
+			},
+		},
+		{
+			description:  "answer - ok",
+			functionName: "batchExecute",
+			errorMsg:     "",
+			noBatch:      true,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				err = mocks.SetCreator(mockStub.ChaincodeStub, mocks.BatchRobotCert)
+				require.NoError(t, err)
+
+				txID, err := hex.DecodeString(mockStub.GetTxID())
+				require.NoError(t, err)
+
+				dataIn, err := pb.Marshal(&pbfound.Batch{
+					Swaps: []*pbfound.Swap{
+						{
+							Id:      txID,
+							Creator: []byte("0000"),
+							Owner:   user.AddressBytes,
+							Token:   "VT",
+							Amount:  new(big.Int).SetUint64(450).Bytes(),
+							From:    "VT",
+							To:      "CC",
+							Hash:    hashed[:],
+							Timeout: 10800,
+						},
+					},
+				})
+				require.NoError(t, err)
+
+				return []string{string(dataIn)}
+			},
+			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, resp *pbfound.TxResponse) {
+				swapKey, err := mockStub.CreateCompositeKey(swap.SwapCompositeType, []string{mockStub.GetTxID()})
+				require.NoError(t, err)
+
+				txID, err := hex.DecodeString(mockStub.GetTxID())
+				require.NoError(t, err)
+
+				k, v := mockStub.PutStateArgsForCall(0)
+				require.Equal(t, swapKey, k)
+
+				s := &pbfound.Swap{}
+				err = pb.Unmarshal(v, s)
+				require.NoError(t, err)
+				require.True(t, pb.Equal(s, &pbfound.Swap{
+					Id:      txID,
+					Creator: []byte("0000"),
+					Owner:   user.AddressBytes,
+					Token:   "VT",
+					Amount:  new(big.Int).SetUint64(450).Bytes(),
+					From:    "VT",
+					To:      "CC",
+					Hash:    hashed[:],
+					Timeout: 300,
+				}))
+			},
+		},
+		{
+			description:  "answer back - ok",
+			functionName: "batchExecute",
+			errorMsg:     "",
+			noBatch:      true,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				givenBalanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeGiven.String(), []string{"VT"})
+				require.NoError(t, err)
+				mockStub.GetStateCallsMap[givenBalanceKey] = new(big.Int).SetUint64(450).Bytes()
+
+				err = mocks.SetCreator(mockStub.ChaincodeStub, mocks.BatchRobotCert)
+				require.NoError(t, err)
+
+				txID, err := hex.DecodeString(mockStub.GetTxID())
+				require.NoError(t, err)
+
+				dataIn, err := pb.Marshal(&pbfound.Batch{
+					Swaps: []*pbfound.Swap{
+						{
+							Id:      txID,
+							Creator: []byte("0000"),
+							Owner:   user.AddressBytes,
+							Token:   "CC",
+							Amount:  new(big.Int).SetUint64(450).Bytes(),
+							From:    "VT",
+							To:      "CC",
+							Hash:    hashed[:],
+							Timeout: 10800,
+						},
+					},
+				})
+				require.NoError(t, err)
+				return []string{string(dataIn)}
+			},
+			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, resp *pbfound.TxResponse) {
+				givenBalanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeGiven.String(), []string{"VT"})
+				require.NoError(t, err)
+
+				swapKey, err := mockStub.CreateCompositeKey(swap.SwapCompositeType, []string{mockStub.GetTxID()})
+				require.NoError(t, err)
+
+				txID, err := hex.DecodeString(mockStub.GetTxID())
+				require.NoError(t, err)
+
+				var j int
+				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+					k, v := mockStub.PutStateArgsForCall(i)
+					if k == givenBalanceKey {
+						require.Equal(t, new(big.Int).SetUint64(0).Bytes(), v)
+						j++
+					} else if k == swapKey {
+						s := &pbfound.Swap{}
+						err = pb.Unmarshal(v, s)
+						require.NoError(t, err)
+						require.True(t, pb.Equal(s, &pbfound.Swap{
+							Id:      txID,
+							Creator: []byte("0000"),
+							Owner:   user.AddressBytes,
+							Token:   "CC",
+							Amount:  new(big.Int).SetUint64(450).Bytes(),
+							From:    "VT",
+							To:      "CC",
+							Hash:    hashed[:],
+							Timeout: 300,
+						}))
+						j++
+					}
+
+					if j == 2 {
+						return
+					}
+				}
+				require.Fail(t, "not found checking data")
+			},
+		},
+		{
+			description:  "swapGet - ok",
+			functionName: "swapGet",
+			errorMsg:     "",
+			isQuery:      true,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				txID, err := hex.DecodeString(mockStub.GetTxID())
+				require.NoError(t, err)
+
+				swapKey, err := mockStub.CreateCompositeKey(swap.SwapCompositeType, []string{mockStub.GetTxID()})
+				require.NoError(t, err)
+				s, err := pb.Marshal(&pbfound.Swap{
+					Id:      txID,
+					Creator: user.AddressBytes,
+					Owner:   user.AddressBytes,
+					Token:   "CC",
+					Amount:  new(big.Int).SetUint64(450).Bytes(),
+					From:    "CC",
+					To:      "VT",
+					Hash:    hashed[:],
+					Timeout: 10800,
+				})
+				require.NoError(t, err)
+				mockStub.GetStateCallsMap[swapKey] = s
+
+				return []string{mockStub.GetTxID()}
+			},
+			funcCheckQuery: func(t *testing.T, mockStub *mockstub.MockStub, payload []byte) {
+				txID, err := hex.DecodeString(mockStub.GetTxID())
+				require.NoError(t, err)
+
+				s := &pbfound.Swap{}
+				err = json.Unmarshal(payload, s)
+				require.NoError(t, err)
+				require.True(t, pb.Equal(s, &pbfound.Swap{
+					Id:      txID,
+					Creator: user.AddressBytes,
+					Owner:   user.AddressBytes,
+					Token:   "CC",
+					Amount:  new(big.Int).SetUint64(450).Bytes(),
+					From:    "CC",
+					To:      "VT",
+					Hash:    hashed[:],
+					Timeout: 10800,
+				}))
+			},
+		},
+		{
+			description:  "swapGet - not found",
+			functionName: "swapGet",
+			errorMsg:     "swap doesn't exist by key",
+			isQuery:      true,
+			codeResp:     int32(shim.ERROR),
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				return []string{mockStub.GetTxID()}
+			},
+		},
+		{
+			description:  "swapDone - ok",
+			functionName: "swapDone",
+			errorMsg:     "",
+			noBatch:      true,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				swapKey, err := mockStub.CreateCompositeKey(swap.SwapCompositeType, []string{mockStub.GetTxID()})
+				require.NoError(t, err)
+
+				txID, err := hex.DecodeString(mockStub.GetTxID())
+				require.NoError(t, err)
+
+				s, err := pb.Marshal(&pbfound.Swap{
+					Id:      txID,
+					Creator: []byte("0000"),
+					Owner:   user.AddressBytes,
+					Token:   "VT",
+					Amount:  new(big.Int).SetUint64(450).Bytes(),
+					From:    "VT",
+					To:      "CC",
+					Hash:    hashed[:],
+					Timeout: 300,
+				})
+				require.NoError(t, err)
+				mockStub.GetStateCallsMap[swapKey] = s
+
+				return []string{mockStub.GetTxID(), swapKeyEtl}
+			},
+			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, resp *pbfound.TxResponse) {
+				swapKey, err := mockStub.CreateCompositeKey(swap.SwapCompositeType, []string{mockStub.GetTxID()})
+				require.NoError(t, err)
+				require.Equal(t, swapKey, mockStub.DelStateArgsForCall(0))
+
+				userBalanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeAllowed.String(), []string{user.AddressBase58Check, "VT"})
+				require.NoError(t, err)
+
+				var j int
+				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+					k, v := mockStub.PutStateArgsForCall(i)
+					if k == userBalanceKey {
+						require.Equal(t, new(big.Int).SetUint64(450).Bytes(), v)
+						j++
+					}
+
+					if j == 1 {
+						return
+					}
+				}
+				require.Fail(t, "not found checking data")
+			},
+		},
+		{
+			description:  "swapDone back - ok",
+			functionName: "swapDone",
+			errorMsg:     "",
+			noBatch:      true,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				swapKey, err := mockStub.CreateCompositeKey(swap.SwapCompositeType, []string{mockStub.GetTxID()})
+				require.NoError(t, err)
+
+				txID, err := hex.DecodeString(mockStub.GetTxID())
+				require.NoError(t, err)
+
+				s, err := pb.Marshal(&pbfound.Swap{
+					Id:      txID,
+					Creator: []byte("0000"),
+					Owner:   user.AddressBytes,
+					Token:   "CC",
+					Amount:  new(big.Int).SetUint64(450).Bytes(),
+					From:    "VT",
+					To:      "CC",
+					Hash:    hashed[:],
+					Timeout: 300,
+				})
+				require.NoError(t, err)
+				mockStub.GetStateCallsMap[swapKey] = s
+
+				return []string{mockStub.GetTxID(), swapKeyEtl}
+			},
+			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, resp *pbfound.TxResponse) {
+				swapKey, err := mockStub.CreateCompositeKey(swap.SwapCompositeType, []string{mockStub.GetTxID()})
+				require.NoError(t, err)
+				require.Equal(t, swapKey, mockStub.DelStateArgsForCall(0))
+
+				userBalanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user.AddressBase58Check})
+				require.NoError(t, err)
+
+				var j int
+				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+					k, v := mockStub.PutStateArgsForCall(i)
+					if k == userBalanceKey {
+						require.Equal(t, new(big.Int).SetUint64(450).Bytes(), v)
+						j++
+					}
+
+					if j == 1 {
+						return
+					}
+				}
+				require.Fail(t, "not found checking data")
+			},
+		},
+		{
+			description:  "robot done - ok",
+			functionName: "batchExecute",
+			errorMsg:     "",
+			noBatch:      true,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				swapKey, err := mockStub.CreateCompositeKey(swap.SwapCompositeType, []string{mockStub.GetTxID()})
+				require.NoError(t, err)
+
+				txID, err := hex.DecodeString(mockStub.GetTxID())
+				require.NoError(t, err)
+
+				s, err := pb.Marshal(&pbfound.Swap{
+					Id:      txID,
+					Creator: user.AddressBytes,
+					Owner:   user.AddressBytes,
+					Token:   "CC",
+					Amount:  new(big.Int).SetUint64(450).Bytes(),
+					From:    "CC",
+					To:      "VT",
+					Hash:    hashed[:],
+					Timeout: 10800,
+				})
+				require.NoError(t, err)
+				mockStub.GetStateCallsMap[swapKey] = s
+
+				err = mocks.SetCreator(mockStub.ChaincodeStub, mocks.BatchRobotCert)
+				require.NoError(t, err)
+
+				dataIn, err := pb.Marshal(&pbfound.Batch{
+					Keys: []*pbfound.SwapKey{
+						{
+							Id:  txID,
+							Key: swapKeyEtl,
+						},
+					},
+				})
+				require.NoError(t, err)
+
+				return []string{string(dataIn)}
+			},
+			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, resp *pbfound.TxResponse) {
+				swapKey, err := mockStub.CreateCompositeKey(swap.SwapCompositeType, []string{mockStub.GetTxID()})
+				require.NoError(t, err)
+				require.Equal(t, swapKey, mockStub.DelStateArgsForCall(0))
+
+				givenBalanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeGiven.String(), []string{"VT"})
+				require.NoError(t, err)
+				k, v := mockStub.PutStateArgsForCall(0)
+				require.Equal(t, givenBalanceKey, k)
+				require.Equal(t, new(big.Int).SetUint64(450).Bytes(), v)
+			},
+		},
+		{
+			description:  "robot done back - ok",
+			functionName: "batchExecute",
+			errorMsg:     "",
+			noBatch:      true,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				swapKey, err := mockStub.CreateCompositeKey(swap.SwapCompositeType, []string{mockStub.GetTxID()})
+				require.NoError(t, err)
+
+				txID, err := hex.DecodeString(mockStub.GetTxID())
+				require.NoError(t, err)
+
+				s, err := pb.Marshal(&pbfound.Swap{
+					Id:      txID,
+					Creator: user.AddressBytes,
+					Owner:   user.AddressBytes,
+					Token:   "VT",
+					Amount:  new(big.Int).SetUint64(450).Bytes(),
+					From:    "CC",
+					To:      "VT",
+					Hash:    hashed[:],
+					Timeout: 10800,
+				})
+				require.NoError(t, err)
+				mockStub.GetStateCallsMap[swapKey] = s
+
+				err = mocks.SetCreator(mockStub.ChaincodeStub, mocks.BatchRobotCert)
+				require.NoError(t, err)
+
+				dataIn, err := pb.Marshal(&pbfound.Batch{
+					Keys: []*pbfound.SwapKey{
+						{
+							Id:  txID,
+							Key: swapKeyEtl,
+						},
+					},
+				})
+				require.NoError(t, err)
+				return []string{string(dataIn)}
+			},
+			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, resp *pbfound.TxResponse) {
+				swapKey, err := mockStub.CreateCompositeKey(swap.SwapCompositeType, []string{mockStub.GetTxID()})
+				require.NoError(t, err)
+				require.Equal(t, swapKey, mockStub.DelStateArgsForCall(0))
+			},
+		},
+	} {
+		t.Run(testCase.description, func(t *testing.T) {
+			mockStub := mockstub.NewMockStub(t)
+
+			mockStub.CreateAndSetConfig(
+				"CC Token",
+				"CC",
+				8,
+				issuer.AddressBase58Check,
+				"",
+				"",
+				issuer.AddressBase58Check,
+				nil,
+			)
+
+			cc, err := core.NewCC(&CustomToken{})
+			require.NoError(t, err)
+
+			parameters := testCase.funcPrepareMockStub(t, mockStub)
+
+			var (
+				txId string
+				resp peer.Response
+			)
+			if testCase.isQuery {
+				resp = mockStub.QueryChaincode(cc, testCase.functionName, parameters...)
+			} else if testCase.noBatch {
+				resp = mockStub.NbTxInvokeChaincode(cc, testCase.functionName, parameters...)
+			} else {
+				txId, resp = mockStub.TxInvokeChaincodeSigned(cc, testCase.functionName, testCase.signUser, "", "", "", parameters...)
+			}
+
+			// check result
+			if testCase.codeResp == int32(shim.ERROR) {
+				require.Equal(t, resp.GetStatus(), testCase.codeResp)
+				require.Contains(t, resp.GetMessage(), testCase.errorMsg)
+				require.Empty(t, resp.GetPayload())
+				return
+			}
+
+			require.Equal(t, resp.GetStatus(), int32(shim.OK))
+			require.Empty(t, resp.GetMessage())
+
+			if testCase.isQuery {
+				if testCase.funcCheckQuery != nil {
+					testCase.funcCheckQuery(t, mockStub, resp.GetPayload())
+				}
+				return
+			}
+
+			bResp := &pbfound.BatchResponse{}
+			err = pb.Unmarshal(resp.GetPayload(), bResp)
+			require.NoError(t, err)
+
+			var respb *pbfound.TxResponse
+			for _, r := range bResp.GetTxResponses() {
+				if hex.EncodeToString(r.GetId()) == txId {
+					respb = r
+					break
+				}
+			}
+
+			if len(testCase.errorMsg) != 0 {
+				require.Contains(t, respb.GetError().GetError(), testCase.errorMsg)
+				return
+			}
+
+			if testCase.funcCheckResponse != nil {
+				testCase.funcCheckResponse(t, mockStub, respb)
+			}
+		})
 	}
-
-	cfgBytes, err := protojson.Marshal(cfg)
-	require.NoError(t, err)
-
-	initMsg := ledger.NewCC(baCC, ba, string(cfgBytes))
-	require.Empty(t, initMsg)
-
-	err = user1.RawSignedInvokeWithErrorReturned(baCC, "swapBegin", "", "")
-	require.ErrorContains(t, err, "method 'swapBegin' not found")
-	err = user1.RawSignedInvokeWithErrorReturned(baCC, "swapCancel", "", "")
-	require.ErrorContains(t, err, "method 'swapCancel' not found")
-	err = user1.RawSignedInvokeWithErrorReturned(baCC, "swapGet", "", "")
-	require.ErrorContains(t, err, "method 'swapGet' not found")
-	err = user1.RawSignedInvokeWithErrorReturned(baCC, "swapDone", "", "")
-	require.ErrorContains(t, err, core.ErrSwapDisabled.Error())
 }

@@ -126,7 +126,7 @@ func (bs *BatchCacheStub) insertCacheCheckKeys(
 		Payload: address,
 	}
 
-	accinfo, err := pb.Marshal(addrMsg.GetAccount())
+	accinfo, err := json.Marshal(addrMsg.GetAccount())
 	if err != nil {
 		return
 	}

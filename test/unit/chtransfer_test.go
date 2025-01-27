@@ -1,1723 +1,1944 @@
 package unit
 
 import (
+	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
+	"strconv"
 	"testing"
-	"time"
 
 	"github.com/anoideaopen/foundation/core"
+	"github.com/anoideaopen/foundation/core/balance"
 	"github.com/anoideaopen/foundation/core/cctransfer"
 	"github.com/anoideaopen/foundation/core/types/big"
-	"github.com/anoideaopen/foundation/mock"
-	pb "github.com/anoideaopen/foundation/proto"
-	"github.com/anoideaopen/foundation/test/unit/fixtures_test"
-	"github.com/anoideaopen/foundation/token"
+	"github.com/anoideaopen/foundation/mocks"
+	"github.com/anoideaopen/foundation/mocks/mockstub"
+	pbfound "github.com/anoideaopen/foundation/proto"
+	"github.com/anoideaopen/foundation/test/unit/fixtures"
+	pb "github.com/golang/protobuf/proto"
 	"github.com/google/uuid"
+	"github.com/hyperledger/fabric-chaincode-go/shim"
+	"github.com/hyperledger/fabric-protos-go/ledger/queryresult"
+	"github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
-func TestByCustomerForwardSuccess(t *testing.T) {
-	ledger := mock.NewLedger(t)
-	owner := ledger.NewWallet()
-
-	ccConfig := makeBaseTokenConfig("CC Token", "CC", 8,
-		owner.Address(), "", "", "", nil)
-	initMsg := ledger.NewCC("cc", &token.BaseToken{}, ccConfig)
-	require.Empty(t, initMsg)
-
-	vtConfig := makeBaseTokenConfig("VT Token", "VT", 8,
-		owner.Address(), "", "", "", nil)
-	initMsg = ledger.NewCC("vt", &token.BaseToken{}, vtConfig)
-	require.Empty(t, initMsg)
-
-	user1 := ledger.NewWallet()
-	user1.AddBalance("cc", 1000)
-
-	id := uuid.NewString()
-
-	_ = user1.SignedInvoke("cc", "channelTransferByCustomer", id, "VT", "CC", "450")
-	cct := user1.Invoke("cc", "channelTransferFrom", id)
-
-	_, _, err := user1.RawChTransferInvokeWithBatch("vt", "createCCTransferTo", cct)
-	require.NoError(t, err)
-	ledger.WaitChTransferTo("vt", id, time.Second*5)
-	_ = user1.Invoke("vt", "channelTransferTo", id)
-
-	_, _, err = user1.RawChTransferInvoke("cc", "commitCCTransferFrom", id)
-	require.NoError(t, err)
-
-	_, _, err = user1.RawChTransferInvoke("vt", "deleteCCTransferTo", id)
-	require.NoError(t, err)
-
-	_, _, err = user1.RawChTransferInvoke("cc", "deleteCCTransferFrom", id)
-	require.NoError(t, err)
-
-	err = user1.InvokeWithError("cc", "channelTransferFrom", id)
-	require.Error(t, err)
-	err = user1.InvokeWithError("vt", "channelTransferTo", id)
-	require.Error(t, err)
-
-	user1.BalanceShouldBe("cc", 550)
-	user1.AllowedBalanceShouldBe("vt", "CC", 450)
-	user1.CheckGivenBalanceShouldBe("vt", "VT", 0)
-	user1.CheckGivenBalanceShouldBe("vt", "CC", 0)
-	user1.CheckGivenBalanceShouldBe("cc", "CC", 0)
-	user1.CheckGivenBalanceShouldBe("cc", "VT", 450)
-
-	user1.GivenBalanceShouldBe("cc", "VT", 450)
-	resp := user1.Invoke("cc", "givenBalancesWithPagination", "", "100")
-	require.Equal(t, "{\"bookmark\":\"\",\"sum\":[{\"key\":\"\",\"value\":\"450\"}],\"records\":[{\"key\":\"\\u00002d\\u0000VT\\u0000\",\"value\":\"450\"}]}", resp)
-
-	resp = user1.Invoke("cc", "tokenBalancesWithPagination", "", "100")
-	require.Contains(t, resp, "{\"bookmark\":\"\",\"sum\":[{\"key\":\"\",\"value\":\"550\"}],\"records\":[{\"key\":\"\\u00002b\\u0000")
-
-	resp = user1.Invoke("cc", "lockedTokenBalancesWithPagination", "", "100")
-	require.Equal(t, "{\"bookmark\":\"\",\"sum\":[],\"records\":[]}", resp)
-
-	resp = user1.Invoke("vt", "allowedBalancesWithPagination", "", "100")
-	require.Contains(t, resp, "{\"bookmark\":\"\",\"sum\":[{\"key\":\"CC\",\"value\":\"450\"}],\"records\":[{\"key\":\"\\u00002c\\u0000")
-
-	resp = user1.Invoke("vt", "lockedAllowedBalancesWithPagination", "", "100")
-	require.Equal(t, "{\"bookmark\":\"\",\"sum\":[],\"records\":[]}", resp)
-}
-
-func TestByAdminForwardSuccess(t *testing.T) {
-	ledger := mock.NewLedger(t)
-	owner := ledger.NewWallet()
-	feeSetter := ledger.NewWallet()
-
-	cc := token.BaseToken{}
-	ccConfig := makeBaseTokenConfig("CC Token", "CC", 8,
-		owner.Address(), feeSetter.Address(), "", owner.Address(), nil)
-	initMsg := ledger.NewCC("cc", &cc, ccConfig)
-	require.Empty(t, initMsg)
-
-	vt := token.BaseToken{}
-	vtConfig := makeBaseTokenConfig("VT Token", "VT", 8,
-		owner.Address(), feeSetter.Address(), "", owner.Address(), nil)
-	initMsg = ledger.NewCC("vt", &vt, vtConfig)
-	require.Empty(t, initMsg)
-
-	user1 := ledger.NewWallet()
-	user1.AddBalance("cc", 1000)
-
-	id := uuid.NewString()
-
-	err := owner.RawSignedInvokeWithErrorReturned("cc", "channelTransferByAdmin",
-		id, "VT", user1.Address(), "CC", "450")
-	require.NoError(t, err)
-	cct := user1.Invoke("cc", "channelTransferFrom", id)
-
-	_, _, err = user1.RawChTransferInvokeWithBatch("vt", "createCCTransferTo", cct)
-	require.NoError(t, err)
-	ledger.WaitChTransferTo("vt", id, time.Second*5)
-	err = user1.InvokeWithError("vt", "channelTransferTo", id)
-	require.NoError(t, err)
-
-	_, _, err = user1.RawChTransferInvoke("cc", "commitCCTransferFrom", id)
-	require.NoError(t, err)
-
-	_, _, err = user1.RawChTransferInvoke("vt", "deleteCCTransferTo", id)
-	require.NoError(t, err)
-
-	_, _, err = user1.RawChTransferInvoke("cc", "deleteCCTransferFrom", id)
-	require.NoError(t, err)
-
-	err = user1.InvokeWithError("cc", "channelTransferFrom", id)
-	require.Error(t, err)
-	err = user1.InvokeWithError("vt", "channelTransferTo", id)
-	require.Error(t, err)
-
-	user1.BalanceShouldBe("cc", 550)
-	user1.AllowedBalanceShouldBe("vt", "CC", 450)
-	user1.CheckGivenBalanceShouldBe("vt", "VT", 0)
-	user1.CheckGivenBalanceShouldBe("vt", "CC", 0)
-	user1.CheckGivenBalanceShouldBe("cc", "CC", 0)
-	user1.CheckGivenBalanceShouldBe("cc", "VT", 450)
-}
-
-func TestCancelForwardSuccess(t *testing.T) {
-	ledger := mock.NewLedger(t)
-	owner := ledger.NewWallet()
-
-	ccConfig := makeBaseTokenConfig("CC Token", "CC", 8,
-		owner.Address(), "", "", owner.Address(), nil)
-
-	initMsg := ledger.NewCC("cc", &token.BaseToken{}, ccConfig)
-	require.Empty(t, initMsg)
-
-	vtConfig := makeBaseTokenConfig("VT Token", "VT", 8,
-		owner.Address(), "", "", owner.Address(), nil)
-
-	initMsg = ledger.NewCC("vt", &token.BaseToken{}, vtConfig)
-	require.Empty(t, initMsg)
-
-	user1 := ledger.NewWallet()
-	user1.AddBalance("cc", 1000)
-
-	id := uuid.NewString()
-
-	_ = user1.SignedInvoke("cc", "channelTransferByCustomer", id, "VT", "CC", "450")
-	err := user1.InvokeWithError("cc", "channelTransferFrom", id)
-	require.NoError(t, err)
-
-	_, _, err = user1.RawChTransferInvokeWithBatch("cc", "cancelCCTransferFrom", id)
-	require.NoError(t, err)
-
-	err = user1.InvokeWithError("cc", "channelTransferFrom", id)
-	require.Error(t, err)
-
-	user1.BalanceShouldBe("cc", 1000)
-	user1.CheckGivenBalanceShouldBe("cc", "CC", 0)
-	user1.CheckGivenBalanceShouldBe("cc", "VT", 0)
-}
-
-func TestByCustomerBackSuccess(t *testing.T) {
-	ledger := mock.NewLedger(t)
-	owner := ledger.NewWallet()
-
-	ccConfig := makeBaseTokenConfig("CC Token", "CC", 8,
-		owner.Address(), "", "", owner.Address(), nil)
-
-	initMsg := ledger.NewCC("cc", &token.BaseToken{}, ccConfig)
-	require.Empty(t, initMsg)
-
-	vtConfig := makeBaseTokenConfig("VT Token", "VT", 8,
-		owner.Address(), "", "", owner.Address(), nil)
-	initMsg = ledger.NewCC("vt", &token.BaseToken{}, vtConfig)
-	require.Empty(t, initMsg)
-
-	user1 := ledger.NewWallet()
-	user1.AddAllowedBalance("cc", "VT", 1000)
-	user1.AddGivenBalance("vt", "CC", 1000)
-	user1.AllowedBalanceShouldBe("cc", "VT", 1000)
-
-	id := uuid.NewString()
-
-	_ = user1.SignedInvoke("cc", "channelTransferByCustomer", id, "VT", "VT", "450")
-	cct := user1.Invoke("cc", "channelTransferFrom", id)
-
-	_, _, err := user1.RawChTransferInvokeWithBatch("vt", "createCCTransferTo", cct)
-	require.NoError(t, err)
-	ledger.WaitChTransferTo("vt", id, time.Second*5)
-	_ = user1.Invoke("vt", "channelTransferTo", id)
-
-	_, _, err = user1.RawChTransferInvoke("cc", "commitCCTransferFrom", id)
-	require.NoError(t, err)
-
-	_, _, err = user1.RawChTransferInvoke("vt", "deleteCCTransferTo", id)
-	require.NoError(t, err)
-
-	_, _, err = user1.RawChTransferInvoke("cc", "deleteCCTransferFrom", id)
-	require.NoError(t, err)
-
-	err = user1.InvokeWithError("cc", "channelTransferFrom", id)
-	require.Error(t, err)
-	err = user1.InvokeWithError("vt", "channelTransferTo", id)
-	require.Error(t, err)
-
-	user1.AllowedBalanceShouldBe("vt", "VT", 0)
-	user1.AllowedBalanceShouldBe("cc", "VT", 550)
-	user1.BalanceShouldBe("vt", 450)
-	user1.BalanceShouldBe("cc", 0)
-	user1.CheckGivenBalanceShouldBe("cc", "CC", 0)
-	user1.CheckGivenBalanceShouldBe("cc", "VT", 0)
-	user1.CheckGivenBalanceShouldBe("vt", "VT", 0)
-	user1.CheckGivenBalanceShouldBe("vt", "CC", 550)
-}
-
-func TestByAdminBackSuccess(t *testing.T) {
+func TestChannelTransfer(t *testing.T) {
 	t.Parallel()
 
-	ledger := mock.NewLedger(t)
-	owner := ledger.NewWallet()
+	issuer, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
+	require.NoError(t, err)
 
-	ccConfig := makeBaseTokenConfig("CC Token", "CC", 8,
-		owner.Address(), "", "", owner.Address(), nil)
-
-	initMsg := ledger.NewCC("cc", &CustomToken{}, ccConfig)
-	require.Empty(t, initMsg)
-
-	vtConfig := makeBaseTokenConfig("VT Token", "VT", 8,
-		owner.Address(), "", "", owner.Address(), nil)
-
-	initMsg = ledger.NewCC("vt", &CustomToken{}, vtConfig)
-	require.Empty(t, initMsg)
-
-	user1 := ledger.NewWallet()
-	user1.AddAllowedBalance("cc", "VT", 1000)
-	user1.AddGivenBalance("vt", "CC", 1000)
-	user1.AllowedBalanceShouldBe("cc", "VT", 1000)
+	user, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
+	require.NoError(t, err)
 
 	id := uuid.NewString()
 
-	_ = owner.SignedInvoke("cc", "channelTransferByAdmin", id, "VT", user1.Address(), "VT", "450")
-	cct := user1.Invoke("cc", "channelTransferFrom", id)
-
-	_, _, err := user1.RawChTransferInvokeWithBatch("vt", "createCCTransferTo", cct)
-	require.NoError(t, err)
-	ledger.WaitChTransferTo("vt", id, time.Second*5)
-	_ = user1.Invoke("vt", "channelTransferTo", id)
-
-	_, _, err = user1.RawChTransferInvoke("cc", "commitCCTransferFrom", id)
-	require.NoError(t, err)
-
-	_, _, err = user1.RawChTransferInvoke("vt", "deleteCCTransferTo", id)
+	itemsCCpb := []*pbfound.CCTransferItem{
+		{Token: "CC_1", Amount: new(big.Int).SetInt64(450).Bytes()},
+		{Token: "CC_2", Amount: new(big.Int).SetInt64(900).Bytes()},
+	}
+	itemsCC := []core.TransferItem{
+		{Token: "CC_1", Amount: new(big.Int).SetInt64(450)},
+		{Token: "CC_2", Amount: new(big.Int).SetInt64(900)},
+	}
+	itemsCCJSON, err := json.Marshal(itemsCC)
 	require.NoError(t, err)
 
-	_, _, err = user1.RawChTransferInvoke("cc", "deleteCCTransferFrom", id)
+	itemsVTpb := []*pbfound.CCTransferItem{
+		{Token: "VT_1", Amount: new(big.Int).SetInt64(450).Bytes()},
+		{Token: "VT_2", Amount: new(big.Int).SetInt64(900).Bytes()},
+	}
+	itemsVT := []core.TransferItem{
+		{Token: "VT_1", Amount: new(big.Int).SetInt64(450)},
+		{Token: "VT_2", Amount: new(big.Int).SetInt64(900)},
+	}
+	itemsVTJSON, err := json.Marshal(itemsVT)
 	require.NoError(t, err)
 
-	err = user1.InvokeWithError("cc", "channelTransferFrom", id)
-	require.Error(t, err)
-	err = user1.InvokeWithError("vt", "channelTransferTo", id)
-	require.Error(t, err)
+	for _, testCase := range []struct {
+		description         string
+		functionName        string
+		isQuery             bool
+		noSign              bool
+		noBatch             bool
+		errorMsg            string
+		signUser            *mocks.UserFoundation
+		codeResp            int32
+		funcPrepareMockStub func(t *testing.T, mockStub *mockstub.MockStub) []string
+		funcCheckResponse   func(t *testing.T, mockStub *mockstub.MockStub, resp *pbfound.TxResponse)
+		funcCheckQuery      func(t *testing.T, mockStub *mockstub.MockStub, payload []byte)
+	}{
+		{
+			description:  "channelTransferByCustomer forward - ok",
+			functionName: "channelTransferByCustomer",
+			signUser:     user,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				userBalanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user.AddressBase58Check})
+				require.NoError(t, err)
+				mockStub.GetStateCallsMap[userBalanceKey] = new(big.Int).SetUint64(450).Bytes()
 
-	user1.AllowedBalanceShouldBe("vt", "VT", 0)
-	user1.AllowedBalanceShouldBe("cc", "VT", 550)
-	user1.BalanceShouldBe("vt", 450)
-	user1.BalanceShouldBe("cc", 0)
-	user1.CheckGivenBalanceShouldBe("cc", "CC", 0)
-	user1.CheckGivenBalanceShouldBe("cc", "VT", 0)
-	user1.CheckGivenBalanceShouldBe("vt", "VT", 0)
-	user1.CheckGivenBalanceShouldBe("vt", "CC", 550)
-}
+				return []string{id, "VT", "CC", "450"}
+			},
+			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, resp *pbfound.TxResponse) {
+				userBalanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user.AddressBase58Check})
+				require.NoError(t, err)
 
-func TestCancelBackSuccess(t *testing.T) {
-	ledger := mock.NewLedger(t)
-	owner := ledger.NewWallet()
-	feeSetter := ledger.NewWallet()
+				givenBalanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeGiven.String(), []string{"VT"})
+				require.NoError(t, err)
 
-	ccConfig := makeBaseTokenConfig("CC Token", "CC", 8,
-		owner.Address(), "", "", owner.Address(), nil)
+				var j int
+				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+					k, v := mockStub.PutStateArgsForCall(i)
+					if k == userBalanceKey {
+						require.Equal(t, new(big.Int).SetUint64(0).Bytes(), v)
+						j++
+					} else if k == givenBalanceKey {
+						require.Equal(t, new(big.Int).SetUint64(450).Bytes(), v)
+						j++
+					} else if k == "/transfer/from/"+id {
+						s := &pbfound.CCTransfer{}
+						err = protojson.Unmarshal(v, s)
+						require.NoError(t, err)
+						require.True(t, pb.Equal(s, &pbfound.CCTransfer{
+							Id:               id,
+							From:             "CC",
+							To:               "VT",
+							Token:            "CC",
+							User:             user.AddressBytes,
+							Amount:           new(big.Int).SetUint64(450).Bytes(),
+							ForwardDirection: true,
+						}))
+						j++
+					}
 
-	initMsg := ledger.NewCC("cc", &token.BaseToken{}, ccConfig)
-	require.Empty(t, initMsg)
+					if j == 3 {
+						return
+					}
+				}
+				require.Fail(t, "not found checking data")
+			},
+		},
+		{
+			description:  "channelTransferByCustomer backward - ok",
+			functionName: "channelTransferByCustomer",
+			signUser:     user,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				userBalanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeAllowed.String(), []string{user.AddressBase58Check, "VT"})
+				require.NoError(t, err)
+				mockStub.GetStateCallsMap[userBalanceKey] = new(big.Int).SetUint64(450).Bytes()
 
-	vtConfig := makeBaseTokenConfig("VT Token", "VT", 8,
-		owner.Address(), feeSetter.Address(), "", owner.Address(), nil)
+				return []string{id, "VT", "VT", "450"}
+			},
+			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, resp *pbfound.TxResponse) {
+				userBalanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeAllowed.String(), []string{user.AddressBase58Check, "VT"})
+				require.NoError(t, err)
 
-	initMsg = ledger.NewCC("vt", &token.BaseToken{}, vtConfig)
-	require.Empty(t, initMsg)
+				var j int
+				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+					k, v := mockStub.PutStateArgsForCall(i)
+					if k == userBalanceKey {
+						require.Equal(t, new(big.Int).SetUint64(0).Bytes(), v)
+						j++
+					} else if k == "/transfer/from/"+id {
+						s := &pbfound.CCTransfer{}
+						err = protojson.Unmarshal(v, s)
+						require.NoError(t, err)
+						require.True(t, pb.Equal(s, &pbfound.CCTransfer{
+							Id:               id,
+							From:             "CC",
+							To:               "VT",
+							Token:            "VT",
+							User:             user.AddressBytes,
+							Amount:           new(big.Int).SetUint64(450).Bytes(),
+							ForwardDirection: false,
+						}))
+						j++
+					}
 
-	user1 := ledger.NewWallet()
-	user1.AddAllowedBalance("cc", "VT", 1000)
-	user1.AllowedBalanceShouldBe("cc", "VT", 1000)
+					if j == 2 {
+						return
+					}
+				}
+				require.Fail(t, "not found checking data")
+			},
+		},
+		{
+			description:  "channelTransferByCustomer - CC-to-CC transfer",
+			functionName: "channelTransferByCustomer",
+			errorMsg:     cctransfer.ErrInvalidChannel.Error(),
+			signUser:     user,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				return []string{id, "CC", "CC", "450"}
+			},
+		},
+		{
+			description:  "channelTransferByCustomer - transferring the wrong tokens",
+			functionName: "channelTransferByCustomer",
+			errorMsg:     cctransfer.ErrInvalidToken.Error(),
+			signUser:     user,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				return []string{id, "VT", "FIAT", "450"}
+			},
+		},
+		{
+			description:  "channelTransferByCustomer - insufficient funds",
+			functionName: "channelTransferByCustomer",
+			errorMsg:     "failed to subtract token balance: insufficient balance",
+			signUser:     user,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				return []string{id, "VT", "CC", "450"}
+			},
+		},
+		{
+			description:  "channelTransferByCustomer - such a transfer is already in place",
+			functionName: "channelTransferByCustomer",
+			errorMsg:     cctransfer.ErrIDTransferExist.Error(),
+			signUser:     user,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				tr, err := pb.Marshal(&pbfound.CCTransfer{
+					Id:               id,
+					From:             "CC",
+					To:               "VT",
+					Token:            "CC",
+					User:             user.AddressBytes,
+					Amount:           new(big.Int).SetUint64(450).Bytes(),
+					ForwardDirection: true,
+				})
+				require.NoError(t, err)
+				mockStub.GetStateCallsMap["/transfer/from/"+id] = tr
 
-	id := uuid.NewString()
+				return []string{id, "VT", "CC", "450"}
+			},
+		},
+		{
+			description:  "channelTransferByAdmin forward - ok",
+			functionName: "channelTransferByAdmin",
+			signUser:     issuer,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				userBalanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user.AddressBase58Check})
+				require.NoError(t, err)
+				mockStub.GetStateCallsMap[userBalanceKey] = new(big.Int).SetUint64(450).Bytes()
 
-	_ = user1.SignedInvoke("cc", "channelTransferByCustomer", id, "VT", "VT", "450")
-	err := user1.InvokeWithError("cc", "channelTransferFrom", id)
-	require.NoError(t, err)
+				return []string{id, "VT", user.AddressBase58Check, "CC", "450"}
+			},
+			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, resp *pbfound.TxResponse) {
+				userBalanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user.AddressBase58Check})
+				require.NoError(t, err)
 
-	_, _, err = user1.RawChTransferInvokeWithBatch("cc", "cancelCCTransferFrom", id)
-	require.NoError(t, err)
+				givenBalanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeGiven.String(), []string{"VT"})
+				require.NoError(t, err)
 
-	err = user1.InvokeWithError("cc", "channelTransferFrom", id)
-	require.Error(t, err)
+				var j int
+				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+					k, v := mockStub.PutStateArgsForCall(i)
+					if k == userBalanceKey {
+						require.Equal(t, new(big.Int).SetUint64(0).Bytes(), v)
+						j++
+					} else if k == givenBalanceKey {
+						require.Equal(t, new(big.Int).SetUint64(450).Bytes(), v)
+						j++
+					} else if k == "/transfer/from/"+id {
+						s := &pbfound.CCTransfer{}
+						err = protojson.Unmarshal(v, s)
+						require.NoError(t, err)
+						require.True(t, pb.Equal(s, &pbfound.CCTransfer{
+							Id:               id,
+							From:             "CC",
+							To:               "VT",
+							Token:            "CC",
+							User:             user.AddressBytes,
+							Amount:           new(big.Int).SetUint64(450).Bytes(),
+							ForwardDirection: true,
+						}))
+						j++
+					}
 
-	user1.AllowedBalanceShouldBe("cc", "VT", 1000)
+					if j == 3 {
+						return
+					}
+				}
+				require.Fail(t, "not found checking data")
+			},
+		},
+		{
+			description:  "channelTransferByAdmin backward - ok",
+			functionName: "channelTransferByAdmin",
+			signUser:     issuer,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				userBalanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeAllowed.String(), []string{user.AddressBase58Check, "VT"})
+				require.NoError(t, err)
+				mockStub.GetStateCallsMap[userBalanceKey] = new(big.Int).SetUint64(450).Bytes()
+
+				return []string{id, "VT", user.AddressBase58Check, "VT", "450"}
+			},
+			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, resp *pbfound.TxResponse) {
+				userBalanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeAllowed.String(), []string{user.AddressBase58Check, "VT"})
+				require.NoError(t, err)
+
+				var j int
+				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+					k, v := mockStub.PutStateArgsForCall(i)
+					if k == userBalanceKey {
+						require.Equal(t, new(big.Int).SetUint64(0).Bytes(), v)
+						j++
+					} else if k == "/transfer/from/"+id {
+						s := &pbfound.CCTransfer{}
+						err = protojson.Unmarshal(v, s)
+						require.NoError(t, err)
+						require.True(t, pb.Equal(s, &pbfound.CCTransfer{
+							Id:               id,
+							From:             "CC",
+							To:               "VT",
+							Token:            "VT",
+							User:             user.AddressBytes,
+							Amount:           new(big.Int).SetUint64(450).Bytes(),
+							ForwardDirection: false,
+						}))
+						j++
+					}
+
+					if j == 2 {
+						return
+					}
+				}
+				require.Fail(t, "not found checking data")
+			},
+		},
+		{
+			description:  "channelTransferByAdmin - admin in ContractConfig was not set",
+			functionName: "channelTransferByAdmin",
+			errorMsg:     cctransfer.ErrAdminNotSet.Error(),
+			signUser:     issuer,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				cfg := &pbfound.Config{
+					Contract: &pbfound.ContractConfig{
+						Symbol:   "CC",
+						RobotSKI: fixtures.RobotHashedCert,
+					},
+					Token: &pbfound.TokenConfig{
+						Name:     "CC Token",
+						Decimals: 8,
+						Issuer:   &pbfound.Wallet{Address: issuer.AddressBase58Check},
+					},
+				}
+				cfgBytes, _ := protojson.Marshal(cfg)
+				mockStub.GetStateCallsMap["__config"] = cfgBytes
+
+				return []string{id, "VT", user.AddressBase58Check, "CC", "450"}
+			},
+		},
+		{
+			description:  "channelTransferByAdmin - admin function sent by someone other than admin",
+			functionName: "channelTransferByAdmin",
+			errorMsg:     cctransfer.ErrUnauthorisedNotAdmin.Error(),
+			signUser:     user,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				return []string{id, "VT", user.AddressBase58Check, "CC", "450"}
+			},
+		},
+		{
+			description:  "channelTransferByAdmin - the admin sends the transfer to himself",
+			functionName: "channelTransferByAdmin",
+			errorMsg:     cctransfer.ErrInvalidIDUser.Error(),
+			signUser:     issuer,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				return []string{id, "VT", issuer.AddressBase58Check, "CC", "450"}
+			},
+		},
+		{
+			description:  "channelMultiTransferByCustomer forward - ok",
+			functionName: "channelMultiTransferByCustomer",
+			signUser:     user,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				userBalanceKey1, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user.AddressBase58Check, "1"})
+				require.NoError(t, err)
+				mockStub.GetStateCallsMap[userBalanceKey1] = new(big.Int).SetUint64(450).Bytes()
+
+				userBalanceKey2, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user.AddressBase58Check, "2"})
+				require.NoError(t, err)
+				mockStub.GetStateCallsMap[userBalanceKey2] = new(big.Int).SetUint64(900).Bytes()
+
+				return []string{id, "VT", string(itemsCCJSON)}
+			},
+			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, resp *pbfound.TxResponse) {
+				userBalanceKey1, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user.AddressBase58Check, "1"})
+				require.NoError(t, err)
+
+				userBalanceKey2, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user.AddressBase58Check, "2"})
+				require.NoError(t, err)
+
+				givenBalanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeGiven.String(), []string{"VT"})
+				require.NoError(t, err)
+
+				var j int
+				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+					k, v := mockStub.PutStateArgsForCall(i)
+					if k == userBalanceKey1 {
+						require.Equal(t, new(big.Int).SetUint64(0).Bytes(), v)
+						j++
+					} else if k == userBalanceKey2 {
+						require.Equal(t, new(big.Int).SetUint64(0).Bytes(), v)
+						j++
+					} else if k == givenBalanceKey {
+						require.Equal(t, new(big.Int).SetUint64(1350).Bytes(), v)
+						j++
+					} else if k == "/transfer/from/"+id {
+						s := &pbfound.CCTransfer{}
+						err = protojson.Unmarshal(v, s)
+						require.NoError(t, err)
+						require.True(t, pb.Equal(s, &pbfound.CCTransfer{
+							Id:               id,
+							From:             "CC",
+							To:               "VT",
+							User:             user.AddressBytes,
+							ForwardDirection: true,
+							Items:            itemsCCpb,
+						}))
+						j++
+					}
+
+					if j == 4 {
+						return
+					}
+				}
+				require.Fail(t, "not found checking data")
+			},
+		},
+		{
+			description:  "channelMultiTransferByCustomer backward - ok",
+			functionName: "channelMultiTransferByCustomer",
+			signUser:     user,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				userBalanceKey1, err := mockStub.CreateCompositeKey(balance.BalanceTypeAllowed.String(), []string{user.AddressBase58Check, "VT_1"})
+				require.NoError(t, err)
+				mockStub.GetStateCallsMap[userBalanceKey1] = new(big.Int).SetUint64(450).Bytes()
+
+				userBalanceKey2, err := mockStub.CreateCompositeKey(balance.BalanceTypeAllowed.String(), []string{user.AddressBase58Check, "VT_2"})
+				require.NoError(t, err)
+				mockStub.GetStateCallsMap[userBalanceKey2] = new(big.Int).SetUint64(900).Bytes()
+
+				return []string{id, "VT", string(itemsVTJSON)}
+			},
+			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, resp *pbfound.TxResponse) {
+				userBalanceKey1, err := mockStub.CreateCompositeKey(balance.BalanceTypeAllowed.String(), []string{user.AddressBase58Check, "VT_1"})
+				require.NoError(t, err)
+
+				userBalanceKey2, err := mockStub.CreateCompositeKey(balance.BalanceTypeAllowed.String(), []string{user.AddressBase58Check, "VT_2"})
+				require.NoError(t, err)
+
+				var j int
+				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+					k, v := mockStub.PutStateArgsForCall(i)
+					if k == userBalanceKey1 {
+						require.Equal(t, new(big.Int).SetUint64(0).Bytes(), v)
+						j++
+					} else if k == userBalanceKey2 {
+						require.Equal(t, new(big.Int).SetUint64(0).Bytes(), v)
+						j++
+					} else if k == "/transfer/from/"+id {
+						s := &pbfound.CCTransfer{}
+						err = protojson.Unmarshal(v, s)
+						require.NoError(t, err)
+						require.True(t, pb.Equal(s, &pbfound.CCTransfer{
+							Id:               id,
+							From:             "CC",
+							To:               "VT",
+							User:             user.AddressBytes,
+							ForwardDirection: false,
+							Items:            itemsVTpb,
+						}))
+						j++
+					}
+
+					if j == 3 {
+						return
+					}
+				}
+				require.Fail(t, "not found checking data")
+			},
+		},
+		{
+			description:  "channelMultiTransferByCustomer - invalid argument token",
+			functionName: "channelMultiTransferByCustomer",
+			errorMsg:     cctransfer.ErrInvalidToken.Error(),
+			signUser:     user,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				itemsFIAT, err := json.Marshal([]core.TransferItem{
+					{Token: "FIAT_1", Amount: new(big.Int).SetInt64(450)},
+					{Token: "FIAT_2", Amount: new(big.Int).SetInt64(900)},
+				})
+				require.NoError(t, err)
+
+				return []string{id, "VT", string(itemsFIAT)}
+			},
+		},
+		{
+			description:  "channelMultiTransferByCustomer - invalid items count found 0",
+			functionName: "channelMultiTransferByCustomer",
+			errorMsg:     "invalid argument transfer items count found 0 but expected from 1 to 100",
+			signUser:     user,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				items := make([]core.TransferItem, 0)
+				itemsJSON, err := json.Marshal(items)
+				require.NoError(t, err)
+
+				return []string{id, "VT", string(itemsJSON)}
+			},
+		},
+		{
+			description:  "channelMultiTransferByCustomer - invalid argument token already exists",
+			functionName: "channelMultiTransferByCustomer",
+			errorMsg:     cctransfer.ErrInvalidTokenAlreadyExists.Error(),
+			signUser:     user,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				items := []core.TransferItem{
+					{Token: "CC_1", Amount: new(big.Int).SetInt64(450)},
+					{Token: "CC_1", Amount: new(big.Int).SetInt64(450)},
+				}
+				itemsJSON, err := json.Marshal(items)
+				require.NoError(t, err)
+
+				return []string{id, "VT", string(itemsJSON)}
+			},
+		},
+		{
+			description:  "channelMultiTransferByCustomer - invalid items count found 101",
+			functionName: "channelMultiTransferByCustomer",
+			errorMsg:     "invalid argument transfer items count found 101 but expected from 1 to 100",
+			signUser:     user,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				items := make([]core.TransferItem, 0, 101)
+				for i := 0; i < 101; i++ {
+					itemToken := fmt.Sprintf("CC_%d", i)
+					items = append(items, core.TransferItem{Token: itemToken, Amount: new(big.Int).SetInt64(1)})
+				}
+				itemsJSON, err := json.Marshal(items)
+				require.NoError(t, err)
+
+				return []string{id, "VT", string(itemsJSON)}
+			},
+		},
+		{
+			description:  "channelMultiTransferByCustomer - invalid argument token",
+			functionName: "channelMultiTransferByCustomer",
+			signUser:     user,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				items := make([]core.TransferItem, 0, 100)
+				for i := 0; i < 100; i++ {
+					n := strconv.Itoa(i)
+					itemToken := "CC_" + n
+					items = append(items, core.TransferItem{Token: itemToken, Amount: new(big.Int).SetInt64(1)})
+					userBalanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user.AddressBase58Check, n})
+					require.NoError(t, err)
+					mockStub.GetStateCallsMap[userBalanceKey] = new(big.Int).SetUint64(1).Bytes()
+				}
+				itemsJSON, err := json.Marshal(items)
+				require.NoError(t, err)
+
+				return []string{id, "VT", string(itemsJSON)}
+			},
+			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, resp *pbfound.TxResponse) {
+				givenBalanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeGiven.String(), []string{"VT"})
+				require.NoError(t, err)
+
+				var j int
+				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+					k, v := mockStub.PutStateArgsForCall(i)
+					if k == givenBalanceKey {
+						require.Equal(t, new(big.Int).SetUint64(100).Bytes(), v)
+						j++
+					} else if k == "/transfer/from/"+id {
+						s := &pbfound.CCTransfer{}
+						err = protojson.Unmarshal(v, s)
+						require.NoError(t, err)
+						require.Len(t, s.Items, 100)
+						j++
+					}
+
+					if j == 2 {
+						return
+					}
+				}
+				require.Fail(t, "not found checking data")
+			},
+		},
+		{
+			description:  "channelMultiTransferByAdmin forward - ok",
+			functionName: "channelMultiTransferByAdmin",
+			signUser:     issuer,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				userBalanceKey1, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user.AddressBase58Check, "1"})
+				require.NoError(t, err)
+				mockStub.GetStateCallsMap[userBalanceKey1] = new(big.Int).SetUint64(450).Bytes()
+
+				userBalanceKey2, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user.AddressBase58Check, "2"})
+				require.NoError(t, err)
+				mockStub.GetStateCallsMap[userBalanceKey2] = new(big.Int).SetUint64(900).Bytes()
+
+				return []string{id, "VT", user.AddressBase58Check, string(itemsCCJSON)}
+			},
+			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, resp *pbfound.TxResponse) {
+				userBalanceKey1, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user.AddressBase58Check, "1"})
+				require.NoError(t, err)
+
+				userBalanceKey2, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user.AddressBase58Check, "2"})
+				require.NoError(t, err)
+
+				givenBalanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeGiven.String(), []string{"VT"})
+				require.NoError(t, err)
+
+				var j int
+				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+					k, v := mockStub.PutStateArgsForCall(i)
+					if k == userBalanceKey1 {
+						require.Equal(t, new(big.Int).SetUint64(0).Bytes(), v)
+						j++
+					} else if k == userBalanceKey2 {
+						require.Equal(t, new(big.Int).SetUint64(0).Bytes(), v)
+						j++
+					} else if k == givenBalanceKey {
+						require.Equal(t, new(big.Int).SetUint64(1350).Bytes(), v)
+						j++
+					} else if k == "/transfer/from/"+id {
+						s := &pbfound.CCTransfer{}
+						err = protojson.Unmarshal(v, s)
+						require.NoError(t, err)
+						require.True(t, pb.Equal(s, &pbfound.CCTransfer{
+							Id:               id,
+							From:             "CC",
+							To:               "VT",
+							User:             user.AddressBytes,
+							ForwardDirection: true,
+							Items:            itemsCCpb,
+						}))
+						j++
+					}
+
+					if j == 4 {
+						return
+					}
+				}
+				require.Fail(t, "not found checking data")
+			},
+		},
+		{
+			description:  "channelMultiTransferByAdmin backward - ok",
+			functionName: "channelMultiTransferByAdmin",
+			signUser:     issuer,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				userBalanceKey1, err := mockStub.CreateCompositeKey(balance.BalanceTypeAllowed.String(), []string{user.AddressBase58Check, "VT_1"})
+				require.NoError(t, err)
+				mockStub.GetStateCallsMap[userBalanceKey1] = new(big.Int).SetUint64(450).Bytes()
+
+				userBalanceKey2, err := mockStub.CreateCompositeKey(balance.BalanceTypeAllowed.String(), []string{user.AddressBase58Check, "VT_2"})
+				require.NoError(t, err)
+				mockStub.GetStateCallsMap[userBalanceKey2] = new(big.Int).SetUint64(900).Bytes()
+
+				return []string{id, "VT", user.AddressBase58Check, string(itemsVTJSON)}
+			},
+			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, resp *pbfound.TxResponse) {
+				userBalanceKey1, err := mockStub.CreateCompositeKey(balance.BalanceTypeAllowed.String(), []string{user.AddressBase58Check, "VT_1"})
+				require.NoError(t, err)
+
+				userBalanceKey2, err := mockStub.CreateCompositeKey(balance.BalanceTypeAllowed.String(), []string{user.AddressBase58Check, "VT_2"})
+				require.NoError(t, err)
+
+				var j int
+				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+					k, v := mockStub.PutStateArgsForCall(i)
+					if k == userBalanceKey1 {
+						require.Equal(t, new(big.Int).SetUint64(0).Bytes(), v)
+						j++
+					} else if k == userBalanceKey2 {
+						require.Equal(t, new(big.Int).SetUint64(0).Bytes(), v)
+						j++
+					} else if k == "/transfer/from/"+id {
+						s := &pbfound.CCTransfer{}
+						err = protojson.Unmarshal(v, s)
+						require.NoError(t, err)
+						require.True(t, pb.Equal(s, &pbfound.CCTransfer{
+							Id:               id,
+							From:             "CC",
+							To:               "VT",
+							User:             user.AddressBytes,
+							ForwardDirection: false,
+							Items:            itemsVTpb,
+						}))
+						j++
+					}
+
+					if j == 3 {
+						return
+					}
+				}
+				require.Fail(t, "not found checking data")
+			},
+		},
+		{
+			description:  "createCCTransferTo single forward - ok",
+			functionName: "createCCTransferTo",
+			noSign:       true,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				err = mocks.SetCreator(mockStub.ChaincodeStub, mocks.BatchRobotCert)
+				require.NoError(t, err)
+
+				data, err := json.Marshal(&pbfound.CCTransfer{
+					Id:               id,
+					From:             "VT",
+					To:               "CC",
+					Token:            "VT",
+					User:             user.AddressBytes,
+					Amount:           new(big.Int).SetUint64(450).Bytes(),
+					ForwardDirection: true,
+				})
+				require.NoError(t, err)
+
+				return []string{string(data)}
+			},
+			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, resp *pbfound.TxResponse) {
+				userBalanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeAllowed.String(), []string{user.AddressBase58Check, "VT"})
+				require.NoError(t, err)
+
+				nonceBalanceKey, err := mockStub.CreateCompositeKey(hex.EncodeToString([]byte{core.StateKeyNonce}), []string{"VT", core.CreateTo.String(), user.AddressBase58Check})
+				require.NoError(t, err)
+
+				var j int
+				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+					k, v := mockStub.PutStateArgsForCall(i)
+					if k == userBalanceKey {
+						require.Equal(t, new(big.Int).SetUint64(450).Bytes(), v)
+						j++
+					} else if k == nonceBalanceKey {
+						n := new(pbfound.Nonce)
+						err = pb.Unmarshal(v, n)
+						require.NoError(t, err)
+						require.Equal(t, uint64(0), n.GetNonce()[0])
+						j++
+					} else if k == "/transfer/to/"+id {
+						s := &pbfound.CCTransfer{}
+						err = protojson.Unmarshal(v, s)
+						require.NoError(t, err)
+						require.True(t, pb.Equal(s, &pbfound.CCTransfer{
+							Id:               id,
+							From:             "VT",
+							To:               "CC",
+							Token:            "VT",
+							User:             user.AddressBytes,
+							Amount:           new(big.Int).SetUint64(450).Bytes(),
+							ForwardDirection: true,
+							IsCommit:         true,
+						}))
+						j++
+					}
+
+					if j == 3 {
+						return
+					}
+				}
+				require.Fail(t, "not found checking data")
+			},
+		},
+		{
+			description:  "createCCTransferTo single backward - ok",
+			functionName: "createCCTransferTo",
+			noSign:       true,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				givenBalanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeGiven.String(), []string{"VT"})
+				require.NoError(t, err)
+				mockStub.GetStateCallsMap[givenBalanceKey] = new(big.Int).SetUint64(450).Bytes()
+
+				err = mocks.SetCreator(mockStub.ChaincodeStub, mocks.BatchRobotCert)
+				require.NoError(t, err)
+
+				data, err := json.Marshal(&pbfound.CCTransfer{
+					Id:     id,
+					From:   "VT",
+					To:     "CC",
+					Token:  "CC",
+					User:   user.AddressBytes,
+					Amount: new(big.Int).SetUint64(450).Bytes(),
+				})
+				require.NoError(t, err)
+
+				return []string{string(data)}
+			},
+			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, resp *pbfound.TxResponse) {
+				userBalanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user.AddressBase58Check})
+				require.NoError(t, err)
+
+				givenBalanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeGiven.String(), []string{"VT"})
+				require.NoError(t, err)
+
+				nonceBalanceKey, err := mockStub.CreateCompositeKey(hex.EncodeToString([]byte{core.StateKeyNonce}), []string{"VT", core.CreateTo.String(), user.AddressBase58Check})
+				require.NoError(t, err)
+
+				var j int
+				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+					k, v := mockStub.PutStateArgsForCall(i)
+					if k == userBalanceKey {
+						require.Equal(t, new(big.Int).SetUint64(450).Bytes(), v)
+						j++
+					} else if k == givenBalanceKey {
+						require.Equal(t, new(big.Int).SetUint64(0).Bytes(), v)
+						j++
+					} else if k == nonceBalanceKey {
+						n := new(pbfound.Nonce)
+						err = pb.Unmarshal(v, n)
+						require.NoError(t, err)
+						require.Equal(t, uint64(0), n.GetNonce()[0])
+						j++
+					} else if k == "/transfer/to/"+id {
+						s := &pbfound.CCTransfer{}
+						err = protojson.Unmarshal(v, s)
+						require.NoError(t, err)
+						require.True(t, pb.Equal(s, &pbfound.CCTransfer{
+							Id:       id,
+							From:     "VT",
+							To:       "CC",
+							Token:    "CC",
+							User:     user.AddressBytes,
+							Amount:   new(big.Int).SetUint64(450).Bytes(),
+							IsCommit: true,
+						}))
+						j++
+					}
+
+					if j == 4 {
+						return
+					}
+				}
+				require.Fail(t, "not found checking data")
+			},
+		},
+		{
+			description:  "createCCTransferTo multi forward - ok",
+			functionName: "createCCTransferTo",
+			noSign:       true,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				err = mocks.SetCreator(mockStub.ChaincodeStub, mocks.BatchRobotCert)
+				require.NoError(t, err)
+
+				data, err := json.Marshal(&pbfound.CCTransfer{
+					Id:               id,
+					From:             "VT",
+					To:               "CC",
+					User:             user.AddressBytes,
+					ForwardDirection: true,
+					Items:            itemsVTpb,
+				})
+				require.NoError(t, err)
+
+				return []string{string(data)}
+			},
+			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, resp *pbfound.TxResponse) {
+				userBalanceKey1, err := mockStub.CreateCompositeKey(balance.BalanceTypeAllowed.String(), []string{user.AddressBase58Check, "VT_1"})
+				require.NoError(t, err)
+
+				userBalanceKey2, err := mockStub.CreateCompositeKey(balance.BalanceTypeAllowed.String(), []string{user.AddressBase58Check, "VT_2"})
+				require.NoError(t, err)
+
+				nonceBalanceKey, err := mockStub.CreateCompositeKey(hex.EncodeToString([]byte{core.StateKeyNonce}), []string{"VT", core.CreateTo.String(), user.AddressBase58Check})
+				require.NoError(t, err)
+
+				var j int
+				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+					k, v := mockStub.PutStateArgsForCall(i)
+					if k == userBalanceKey1 {
+						require.Equal(t, new(big.Int).SetUint64(450).Bytes(), v)
+						j++
+					} else if k == userBalanceKey2 {
+						require.Equal(t, new(big.Int).SetUint64(900).Bytes(), v)
+						j++
+					} else if k == nonceBalanceKey {
+						n := new(pbfound.Nonce)
+						err = pb.Unmarshal(v, n)
+						require.NoError(t, err)
+						require.Equal(t, uint64(0), n.GetNonce()[0])
+						j++
+					} else if k == "/transfer/to/"+id {
+						s := &pbfound.CCTransfer{}
+						err = protojson.Unmarshal(v, s)
+						require.NoError(t, err)
+						require.True(t, pb.Equal(s, &pbfound.CCTransfer{
+							Id:               id,
+							From:             "VT",
+							To:               "CC",
+							User:             user.AddressBytes,
+							Items:            itemsVTpb,
+							ForwardDirection: true,
+							IsCommit:         true,
+						}))
+						j++
+					}
+
+					if j == 4 {
+						return
+					}
+				}
+				require.Fail(t, "not found checking data")
+			},
+		},
+		{
+			description:  "createCCTransferTo multi backward - ok",
+			functionName: "createCCTransferTo",
+			noSign:       true,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				givenBalanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeGiven.String(), []string{"VT"})
+				require.NoError(t, err)
+				mockStub.GetStateCallsMap[givenBalanceKey] = new(big.Int).SetUint64(1350).Bytes()
+
+				err = mocks.SetCreator(mockStub.ChaincodeStub, mocks.BatchRobotCert)
+				require.NoError(t, err)
+
+				data, err := json.Marshal(&pbfound.CCTransfer{
+					Id:    id,
+					From:  "VT",
+					To:    "CC",
+					User:  user.AddressBytes,
+					Items: itemsCCpb,
+				})
+				require.NoError(t, err)
+
+				return []string{string(data)}
+			},
+			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, resp *pbfound.TxResponse) {
+				userBalanceKey1, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user.AddressBase58Check, "1"})
+				require.NoError(t, err)
+
+				userBalanceKey2, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user.AddressBase58Check, "2"})
+				require.NoError(t, err)
+
+				givenBalanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeGiven.String(), []string{"VT"})
+				require.NoError(t, err)
+
+				nonceBalanceKey, err := mockStub.CreateCompositeKey(hex.EncodeToString([]byte{core.StateKeyNonce}), []string{"VT", core.CreateTo.String(), user.AddressBase58Check})
+				require.NoError(t, err)
+
+				var j int
+				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+					k, v := mockStub.PutStateArgsForCall(i)
+					if k == userBalanceKey1 {
+						require.Equal(t, new(big.Int).SetUint64(450).Bytes(), v)
+						j++
+					} else if k == userBalanceKey2 {
+						require.Equal(t, new(big.Int).SetUint64(900).Bytes(), v)
+						j++
+					} else if k == givenBalanceKey {
+						require.Equal(t, new(big.Int).SetUint64(0).Bytes(), v)
+						j++
+					} else if k == nonceBalanceKey {
+						n := new(pbfound.Nonce)
+						err = pb.Unmarshal(v, n)
+						require.NoError(t, err)
+						require.Equal(t, uint64(0), n.GetNonce()[0])
+						j++
+					} else if k == "/transfer/to/"+id {
+						s := &pbfound.CCTransfer{}
+						err = protojson.Unmarshal(v, s)
+						require.NoError(t, err)
+						require.True(t, pb.Equal(s, &pbfound.CCTransfer{
+							Id:       id,
+							From:     "VT",
+							To:       "CC",
+							User:     user.AddressBytes,
+							Items:    itemsCCpb,
+							IsCommit: true,
+						}))
+						j++
+					}
+
+					if j == 5 {
+						return
+					}
+				}
+				require.Fail(t, "not found checking data")
+			},
+		},
+		{
+			description:  "createCCTransferTo - the transfer went into the wrong channel",
+			functionName: "createCCTransferTo",
+			errorMsg:     cctransfer.ErrInvalidChannel.Error(),
+			noSign:       true,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				err = mocks.SetCreator(mockStub.ChaincodeStub, mocks.BatchRobotCert)
+				require.NoError(t, err)
+
+				data, err := json.Marshal(&pbfound.CCTransfer{
+					Id:               id,
+					From:             "VT",
+					To:               "FIAT",
+					Token:            "VT",
+					User:             user.AddressBytes,
+					Amount:           new(big.Int).SetUint64(450).Bytes(),
+					ForwardDirection: true,
+				})
+				require.NoError(t, err)
+
+				return []string{string(data)}
+			},
+		},
+		{
+			description:  "createCCTransferTo - incorrect data format",
+			functionName: "createCCTransferTo",
+			errorMsg:     "invalid character '(' looking for beginning of value",
+			noSign:       true,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				err = mocks.SetCreator(mockStub.ChaincodeStub, mocks.BatchRobotCert)
+				require.NoError(t, err)
+
+				return []string{"(09345345-0934]"}
+			},
+		},
+		{
+			description:  "createCCTransferTo - From and To channels are equal",
+			functionName: "createCCTransferTo",
+			errorMsg:     cctransfer.ErrInvalidChannel.Error(),
+			noSign:       true,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				err = mocks.SetCreator(mockStub.ChaincodeStub, mocks.BatchRobotCert)
+				require.NoError(t, err)
+
+				data, err := json.Marshal(&pbfound.CCTransfer{
+					Id:               id,
+					From:             "CC",
+					To:               "CC",
+					Token:            "VT",
+					User:             user.AddressBytes,
+					Amount:           new(big.Int).SetUint64(450).Bytes(),
+					ForwardDirection: true,
+				})
+				require.NoError(t, err)
+
+				return []string{string(data)}
+			},
+		},
+		{
+			description:  "createCCTransferTo - token is not equal to one of the channels",
+			functionName: "createCCTransferTo",
+			errorMsg:     cctransfer.ErrInvalidToken.Error(),
+			noSign:       true,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				err = mocks.SetCreator(mockStub.ChaincodeStub, mocks.BatchRobotCert)
+				require.NoError(t, err)
+
+				data, err := json.Marshal(&pbfound.CCTransfer{
+					Id:               id,
+					From:             "VT",
+					To:               "CC",
+					Token:            "FIAT",
+					User:             user.AddressBytes,
+					Amount:           new(big.Int).SetUint64(450).Bytes(),
+					ForwardDirection: true,
+				})
+				require.NoError(t, err)
+
+				return []string{string(data)}
+			},
+		},
+		{
+			description:  "createCCTransferTo - misdirection of changes in balances",
+			functionName: "createCCTransferTo",
+			errorMsg:     cctransfer.ErrInvalidToken.Error(),
+			noSign:       true,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				err = mocks.SetCreator(mockStub.ChaincodeStub, mocks.BatchRobotCert)
+				require.NoError(t, err)
+
+				data, err := json.Marshal(&pbfound.CCTransfer{
+					Id:               id,
+					From:             "VT",
+					To:               "CC",
+					Token:            "VT",
+					User:             user.AddressBytes,
+					Amount:           new(big.Int).SetUint64(450).Bytes(),
+					ForwardDirection: false,
+				})
+				require.NoError(t, err)
+
+				return []string{string(data)}
+			},
+		},
+		{
+			description:  "createCCTransferTo - the transfer is already in place",
+			functionName: "createCCTransferTo",
+			errorMsg:     cctransfer.ErrIDTransferExist.Error(),
+			noSign:       true,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				dataTmp, err := protojson.Marshal(&pbfound.CCTransfer{
+					Id:               id,
+					From:             "VT",
+					To:               "CC",
+					Token:            "VT",
+					User:             user.AddressBytes,
+					Amount:           new(big.Int).SetUint64(450).Bytes(),
+					ForwardDirection: true,
+				})
+				require.NoError(t, err)
+				mockStub.GetStateCallsMap["/transfer/to/"+id] = dataTmp
+
+				err = mocks.SetCreator(mockStub.ChaincodeStub, mocks.BatchRobotCert)
+				require.NoError(t, err)
+
+				data, err := json.Marshal(&pbfound.CCTransfer{
+					Id:               id,
+					From:             "VT",
+					To:               "CC",
+					Token:            "VT",
+					User:             user.AddressBytes,
+					Amount:           new(big.Int).SetUint64(450).Bytes(),
+					ForwardDirection: true,
+				})
+				require.NoError(t, err)
+
+				return []string{string(data)}
+			},
+		},
+		{
+			description:  "createCCTransferTo - trying to create again but already removed",
+			functionName: "createCCTransferTo",
+			errorMsg:     "nonce 0 already exists",
+			noSign:       true,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				nonceBalanceKey, err := mockStub.CreateCompositeKey(hex.EncodeToString([]byte{core.StateKeyNonce}), []string{"VT", core.CreateTo.String(), user.AddressBase58Check})
+				require.NoError(t, err)
+				n := &pbfound.Nonce{
+					Nonce: []uint64{0},
+				}
+				b, err := pb.Marshal(n)
+				mockStub.GetStateCallsMap[nonceBalanceKey] = b
+
+				err = mocks.SetCreator(mockStub.ChaincodeStub, mocks.BatchRobotCert)
+				require.NoError(t, err)
+
+				data, err := json.Marshal(&pbfound.CCTransfer{
+					Id:               id,
+					From:             "VT",
+					To:               "CC",
+					Token:            "VT",
+					User:             user.AddressBytes,
+					Amount:           new(big.Int).SetUint64(450).Bytes(),
+					ForwardDirection: true,
+				})
+				require.NoError(t, err)
+
+				return []string{string(data)}
+			},
+		},
+		{
+			description:  "commitCCTransferFrom - ok",
+			functionName: "commitCCTransferFrom",
+			noBatch:      true,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				err = mocks.SetCreator(mockStub.ChaincodeStub, mocks.BatchRobotCert)
+				require.NoError(t, err)
+
+				data, err := protojson.Marshal(&pbfound.CCTransfer{
+					Id:               id,
+					From:             "CC",
+					To:               "VT",
+					Token:            "CC",
+					User:             user.AddressBytes,
+					Amount:           new(big.Int).SetUint64(450).Bytes(),
+					ForwardDirection: true,
+				})
+				require.NoError(t, err)
+				mockStub.GetStateCallsMap["/transfer/from/"+id] = data
+
+				return []string{id}
+			},
+			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, resp *pbfound.TxResponse) {
+				var j int
+				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+					k, v := mockStub.PutStateArgsForCall(i)
+					if k == "/transfer/from/"+id {
+						s := &pbfound.CCTransfer{}
+						err = protojson.Unmarshal(v, s)
+						require.NoError(t, err)
+						require.True(t, pb.Equal(s, &pbfound.CCTransfer{
+							Id:               id,
+							From:             "CC",
+							To:               "VT",
+							Token:            "CC",
+							User:             user.AddressBytes,
+							Amount:           new(big.Int).SetUint64(450).Bytes(),
+							ForwardDirection: true,
+							IsCommit:         true,
+						}))
+						j++
+					}
+
+					if j == 1 {
+						return
+					}
+				}
+				require.Fail(t, "not found checking data")
+			},
+		},
+		{
+			description:  "commitCCTransferFrom - transfer not found",
+			functionName: "commitCCTransferFrom",
+			errorMsg:     cctransfer.ErrNotFound.Error(),
+			noBatch:      true,
+			codeResp:     int32(shim.ERROR),
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				err = mocks.SetCreator(mockStub.ChaincodeStub, mocks.BatchRobotCert)
+				require.NoError(t, err)
+
+				return []string{id}
+			},
+		},
+		{
+			description:  "commitCCTransferFrom - transfer is already committed",
+			functionName: "commitCCTransferFrom",
+			errorMsg:     cctransfer.ErrTransferCommit.Error(),
+			noBatch:      true,
+			codeResp:     int32(shim.ERROR),
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				err = mocks.SetCreator(mockStub.ChaincodeStub, mocks.BatchRobotCert)
+				require.NoError(t, err)
+
+				data, err := protojson.Marshal(&pbfound.CCTransfer{
+					Id:               id,
+					From:             "CC",
+					To:               "VT",
+					Token:            "CC",
+					User:             user.AddressBytes,
+					Amount:           new(big.Int).SetUint64(450).Bytes(),
+					ForwardDirection: true,
+					IsCommit:         true,
+				})
+				require.NoError(t, err)
+				mockStub.GetStateCallsMap["/transfer/from/"+id] = data
+
+				return []string{id}
+			},
+		},
+		{
+			description:  "deleteCCTransferTo - ok",
+			functionName: "deleteCCTransferTo",
+			noBatch:      true,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				err = mocks.SetCreator(mockStub.ChaincodeStub, mocks.BatchRobotCert)
+				require.NoError(t, err)
+
+				data, err := protojson.Marshal(&pbfound.CCTransfer{
+					Id:               id,
+					From:             "VT",
+					To:               "CC",
+					Token:            "VT",
+					User:             user.AddressBytes,
+					Amount:           new(big.Int).SetUint64(450).Bytes(),
+					ForwardDirection: true,
+					IsCommit:         true,
+				})
+				require.NoError(t, err)
+				mockStub.GetStateCallsMap["/transfer/to/"+id] = data
+
+				return []string{id}
+			},
+			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, resp *pbfound.TxResponse) {
+				k := mockStub.DelStateArgsForCall(0)
+				require.Equal(t, "/transfer/to/"+id, k)
+			},
+		},
+		{
+			description:  "deleteCCTransferTo - there's a From but we don't delete it.",
+			functionName: "deleteCCTransferTo",
+			noBatch:      true,
+			errorMsg:     cctransfer.ErrNotFound.Error(),
+			codeResp:     int32(shim.ERROR),
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				err = mocks.SetCreator(mockStub.ChaincodeStub, mocks.BatchRobotCert)
+				require.NoError(t, err)
+
+				data, err := protojson.Marshal(&pbfound.CCTransfer{
+					Id:               id,
+					From:             "VT",
+					To:               "CC",
+					Token:            "VT",
+					User:             user.AddressBytes,
+					Amount:           new(big.Int).SetUint64(450).Bytes(),
+					ForwardDirection: true,
+					IsCommit:         true,
+				})
+				require.NoError(t, err)
+				mockStub.GetStateCallsMap["/transfer/from/"+id] = data
+
+				return []string{id}
+			},
+		},
+		{
+			description:  "deleteCCTransferTo - transfer not found",
+			functionName: "deleteCCTransferTo",
+			noBatch:      true,
+			errorMsg:     cctransfer.ErrNotFound.Error(),
+			codeResp:     int32(shim.ERROR),
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				err = mocks.SetCreator(mockStub.ChaincodeStub, mocks.BatchRobotCert)
+				require.NoError(t, err)
+
+				return []string{id}
+			},
+		},
+		{
+			description:  "deleteCCTransferFrom - ok",
+			functionName: "deleteCCTransferFrom",
+			noBatch:      true,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				err = mocks.SetCreator(mockStub.ChaincodeStub, mocks.BatchRobotCert)
+				require.NoError(t, err)
+
+				data, err := protojson.Marshal(&pbfound.CCTransfer{
+					Id:               id,
+					From:             "CC",
+					To:               "VT",
+					Token:            "CC",
+					User:             user.AddressBytes,
+					Amount:           new(big.Int).SetUint64(450).Bytes(),
+					ForwardDirection: true,
+					IsCommit:         true,
+				})
+				require.NoError(t, err)
+				mockStub.GetStateCallsMap["/transfer/from/"+id] = data
+
+				return []string{id}
+			},
+			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, resp *pbfound.TxResponse) {
+				k := mockStub.DelStateArgsForCall(0)
+				require.Equal(t, "/transfer/from/"+id, k)
+			},
+		},
+		{
+			description:  "deleteCCTransferFrom - the transfer is not committed",
+			functionName: "deleteCCTransferFrom",
+			noBatch:      true,
+			errorMsg:     cctransfer.ErrTransferNotCommit.Error(),
+			codeResp:     int32(shim.ERROR),
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				err = mocks.SetCreator(mockStub.ChaincodeStub, mocks.BatchRobotCert)
+				require.NoError(t, err)
+
+				data, err := protojson.Marshal(&pbfound.CCTransfer{
+					Id:               id,
+					From:             "CC",
+					To:               "VT",
+					Token:            "CC",
+					User:             user.AddressBytes,
+					Amount:           new(big.Int).SetUint64(450).Bytes(),
+					ForwardDirection: true,
+				})
+				require.NoError(t, err)
+				mockStub.GetStateCallsMap["/transfer/from/"+id] = data
+
+				return []string{id}
+			},
+		},
+		{
+			description:  "deleteCCTransferFrom - there's a To but we don't delete it.",
+			functionName: "deleteCCTransferFrom",
+			noBatch:      true,
+			errorMsg:     cctransfer.ErrNotFound.Error(),
+			codeResp:     int32(shim.ERROR),
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				err = mocks.SetCreator(mockStub.ChaincodeStub, mocks.BatchRobotCert)
+				require.NoError(t, err)
+
+				data, err := protojson.Marshal(&pbfound.CCTransfer{
+					Id:               id,
+					From:             "VT",
+					To:               "CC",
+					Token:            "VT",
+					User:             user.AddressBytes,
+					Amount:           new(big.Int).SetUint64(450).Bytes(),
+					ForwardDirection: true,
+					IsCommit:         true,
+				})
+				require.NoError(t, err)
+				mockStub.GetStateCallsMap["/transfer/to/"+id] = data
+
+				return []string{id}
+			},
+		},
+		{
+			description:  "deleteCCTransferFrom - transfer not found",
+			functionName: "deleteCCTransferFrom",
+			noBatch:      true,
+			errorMsg:     cctransfer.ErrNotFound.Error(),
+			codeResp:     int32(shim.ERROR),
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				err = mocks.SetCreator(mockStub.ChaincodeStub, mocks.BatchRobotCert)
+				require.NoError(t, err)
+
+				return []string{id}
+			},
+		},
+		{
+			description:  "channelTransferFrom - ok",
+			functionName: "channelTransferFrom",
+			isQuery:      true,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				err = mocks.SetCreator(mockStub.ChaincodeStub, mocks.BatchRobotCert)
+				require.NoError(t, err)
+
+				data, err := protojson.Marshal(&pbfound.CCTransfer{
+					Id:               id,
+					From:             "CC",
+					To:               "VT",
+					Token:            "CC",
+					User:             user.AddressBytes,
+					Amount:           new(big.Int).SetUint64(450).Bytes(),
+					ForwardDirection: true,
+					IsCommit:         true,
+				})
+				require.NoError(t, err)
+				mockStub.GetStateCallsMap["/transfer/from/"+id] = data
+
+				return []string{id}
+			},
+			funcCheckQuery: func(t *testing.T, mockStub *mockstub.MockStub, payload []byte) {
+				s := &pbfound.CCTransfer{}
+				err = protojson.Unmarshal(payload, s)
+				require.NoError(t, err)
+				require.True(t, pb.Equal(s, &pbfound.CCTransfer{
+					Id:               id,
+					From:             "CC",
+					To:               "VT",
+					Token:            "CC",
+					User:             user.AddressBytes,
+					Amount:           new(big.Int).SetUint64(450).Bytes(),
+					ForwardDirection: true,
+					IsCommit:         true,
+				}))
+			},
+		},
+		{
+			description:  "channelTransferFrom - transfer not found",
+			functionName: "channelTransferFrom",
+			isQuery:      true,
+			errorMsg:     cctransfer.ErrNotFound.Error(),
+			codeResp:     int32(shim.ERROR),
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				err = mocks.SetCreator(mockStub.ChaincodeStub, mocks.BatchRobotCert)
+				require.NoError(t, err)
+
+				return []string{id}
+			},
+		},
+		{
+			description:  "channelTransferTo - ok",
+			functionName: "channelTransferTo",
+			isQuery:      true,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				err = mocks.SetCreator(mockStub.ChaincodeStub, mocks.BatchRobotCert)
+				require.NoError(t, err)
+
+				data, err := protojson.Marshal(&pbfound.CCTransfer{
+					Id:               id,
+					From:             "VT",
+					To:               "CC",
+					Token:            "VT",
+					User:             user.AddressBytes,
+					Amount:           new(big.Int).SetUint64(450).Bytes(),
+					ForwardDirection: true,
+					IsCommit:         true,
+				})
+				require.NoError(t, err)
+				mockStub.GetStateCallsMap["/transfer/to/"+id] = data
+
+				return []string{id}
+			},
+			funcCheckQuery: func(t *testing.T, mockStub *mockstub.MockStub, payload []byte) {
+				s := &pbfound.CCTransfer{}
+				err = protojson.Unmarshal(payload, s)
+				require.NoError(t, err)
+				require.True(t, pb.Equal(s, &pbfound.CCTransfer{
+					Id:               id,
+					From:             "VT",
+					To:               "CC",
+					Token:            "VT",
+					User:             user.AddressBytes,
+					Amount:           new(big.Int).SetUint64(450).Bytes(),
+					ForwardDirection: true,
+					IsCommit:         true,
+				}))
+			},
+		},
+		{
+			description:  "channelTransferTo - transfer not found",
+			functionName: "channelTransferTo",
+			isQuery:      true,
+			errorMsg:     cctransfer.ErrNotFound.Error(),
+			codeResp:     int32(shim.ERROR),
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				err = mocks.SetCreator(mockStub.ChaincodeStub, mocks.BatchRobotCert)
+				require.NoError(t, err)
+
+				return []string{id}
+			},
+		},
+		{
+			description:  "cancelCCTransferFrom single forward - ok",
+			functionName: "cancelCCTransferFrom",
+			noSign:       true,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				err = mocks.SetCreator(mockStub.ChaincodeStub, mocks.BatchRobotCert)
+				require.NoError(t, err)
+
+				givenBalanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeGiven.String(), []string{"VT"})
+				require.NoError(t, err)
+				mockStub.GetStateCallsMap[givenBalanceKey] = new(big.Int).SetUint64(450).Bytes()
+
+				data, err := json.Marshal(&pbfound.CCTransfer{
+					Id:               id,
+					From:             "CC",
+					To:               "VT",
+					Token:            "CC",
+					User:             user.AddressBytes,
+					Amount:           new(big.Int).SetUint64(450).Bytes(),
+					ForwardDirection: true,
+				})
+				require.NoError(t, err)
+				mockStub.GetStateCallsMap["/transfer/from/"+id] = data
+
+				return []string{id}
+			},
+			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, resp *pbfound.TxResponse) {
+				var j int
+				for i := 0; i < mockStub.DelStateCallCount(); i++ {
+					k := mockStub.DelStateArgsForCall(i)
+					if k == "/transfer/from/"+id {
+						j++
+					}
+
+					if j == 1 {
+						break
+					}
+				}
+				if j != 1 {
+					require.Fail(t, "not found checking data")
+				}
+
+				userBalanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user.AddressBase58Check})
+				require.NoError(t, err)
+
+				givenBalanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeGiven.String(), []string{"VT"})
+				require.NoError(t, err)
+
+				j = 0
+				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+					k, v := mockStub.PutStateArgsForCall(i)
+					if k == userBalanceKey {
+						require.Equal(t, new(big.Int).SetUint64(450).Bytes(), v)
+						j++
+					} else if k == givenBalanceKey {
+						require.Equal(t, new(big.Int).SetUint64(0).Bytes(), v)
+						j++
+					}
+
+					if j == 2 {
+						return
+					}
+				}
+				require.Fail(t, "not found checking data")
+			},
+		},
+		{
+			description:  "cancelCCTransferFrom single backward - ok",
+			functionName: "cancelCCTransferFrom",
+			noSign:       true,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				err = mocks.SetCreator(mockStub.ChaincodeStub, mocks.BatchRobotCert)
+				require.NoError(t, err)
+
+				data, err := json.Marshal(&pbfound.CCTransfer{
+					Id:     id,
+					From:   "CC",
+					To:     "VT",
+					Token:  "VT",
+					User:   user.AddressBytes,
+					Amount: new(big.Int).SetUint64(450).Bytes(),
+				})
+				require.NoError(t, err)
+				mockStub.GetStateCallsMap["/transfer/from/"+id] = data
+
+				return []string{id}
+			},
+			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, resp *pbfound.TxResponse) {
+				var j int
+				for i := 0; i < mockStub.DelStateCallCount(); i++ {
+					k := mockStub.DelStateArgsForCall(i)
+					if k == "/transfer/from/"+id {
+						j++
+					}
+
+					if j == 1 {
+						break
+					}
+				}
+				if j != 1 {
+					require.Fail(t, "not found checking data")
+				}
+
+				userBalanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeAllowed.String(), []string{user.AddressBase58Check, "VT"})
+				require.NoError(t, err)
+
+				j = 0
+				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+					k, v := mockStub.PutStateArgsForCall(i)
+					if k == userBalanceKey {
+						require.Equal(t, new(big.Int).SetUint64(450).Bytes(), v)
+						j++
+					}
+
+					if j == 1 {
+						return
+					}
+				}
+				require.Fail(t, "not found checking data")
+			},
+		},
+		{
+			description:  "cancelCCTransferFrom multi forward - ok",
+			functionName: "cancelCCTransferFrom",
+			noSign:       true,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				err = mocks.SetCreator(mockStub.ChaincodeStub, mocks.BatchRobotCert)
+				require.NoError(t, err)
+
+				givenBalanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeGiven.String(), []string{"VT"})
+				require.NoError(t, err)
+				mockStub.GetStateCallsMap[givenBalanceKey] = new(big.Int).SetUint64(1350).Bytes()
+
+				data, err := json.Marshal(&pbfound.CCTransfer{
+					Id:               id,
+					From:             "CC",
+					To:               "VT",
+					User:             user.AddressBytes,
+					ForwardDirection: true,
+					Items:            itemsCCpb,
+				})
+				require.NoError(t, err)
+				mockStub.GetStateCallsMap["/transfer/from/"+id] = data
+
+				return []string{id}
+			},
+			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, resp *pbfound.TxResponse) {
+				var j int
+				for i := 0; i < mockStub.DelStateCallCount(); i++ {
+					k := mockStub.DelStateArgsForCall(i)
+					if k == "/transfer/from/"+id {
+						j++
+					}
+
+					if j == 1 {
+						break
+					}
+				}
+				if j != 1 {
+					require.Fail(t, "not found checking data")
+				}
+
+				userBalanceKey1, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user.AddressBase58Check, "1"})
+				require.NoError(t, err)
+
+				userBalanceKey2, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user.AddressBase58Check, "2"})
+				require.NoError(t, err)
+
+				givenBalanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeGiven.String(), []string{"VT"})
+				require.NoError(t, err)
+
+				j = 0
+				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+					k, v := mockStub.PutStateArgsForCall(i)
+					if k == userBalanceKey1 {
+						require.Equal(t, new(big.Int).SetUint64(450).Bytes(), v)
+						j++
+					} else if k == userBalanceKey2 {
+						require.Equal(t, new(big.Int).SetUint64(900).Bytes(), v)
+						j++
+					} else if k == givenBalanceKey {
+						require.Equal(t, new(big.Int).SetUint64(0).Bytes(), v)
+						j++
+					}
+
+					if j == 3 {
+						return
+					}
+				}
+				require.Fail(t, "not found checking data")
+			},
+		},
+		{
+			description:  "cancelCCTransferFrom multi backward - ok",
+			functionName: "cancelCCTransferFrom",
+			noSign:       true,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				err = mocks.SetCreator(mockStub.ChaincodeStub, mocks.BatchRobotCert)
+				require.NoError(t, err)
+
+				data, err := json.Marshal(&pbfound.CCTransfer{
+					Id:    id,
+					From:  "CC",
+					To:    "VT",
+					User:  user.AddressBytes,
+					Items: itemsVTpb,
+				})
+				require.NoError(t, err)
+				mockStub.GetStateCallsMap["/transfer/from/"+id] = data
+
+				return []string{id}
+			},
+			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, resp *pbfound.TxResponse) {
+				var j int
+				for i := 0; i < mockStub.DelStateCallCount(); i++ {
+					k := mockStub.DelStateArgsForCall(i)
+					if k == "/transfer/from/"+id {
+						j++
+					}
+
+					if j == 1 {
+						break
+					}
+				}
+				if j != 1 {
+					require.Fail(t, "not found checking data")
+				}
+
+				userBalanceKey1, err := mockStub.CreateCompositeKey(balance.BalanceTypeAllowed.String(), []string{user.AddressBase58Check, "VT_1"})
+				require.NoError(t, err)
+
+				userBalanceKey2, err := mockStub.CreateCompositeKey(balance.BalanceTypeAllowed.String(), []string{user.AddressBase58Check, "VT_2"})
+				require.NoError(t, err)
+
+				j = 0
+				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+					k, v := mockStub.PutStateArgsForCall(i)
+					if k == userBalanceKey1 {
+						require.Equal(t, new(big.Int).SetUint64(450).Bytes(), v)
+						j++
+					} else if k == userBalanceKey2 {
+						require.Equal(t, new(big.Int).SetUint64(900).Bytes(), v)
+						j++
+					}
+
+					if j == 2 {
+						return
+					}
+				}
+				require.Fail(t, "not found checking data")
+			},
+		},
+		{
+			description:  "cancelCCTransferFrom - transfer completed",
+			functionName: "cancelCCTransferFrom",
+			noSign:       true,
+			errorMsg:     cctransfer.ErrTransferCommit.Error(),
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				err = mocks.SetCreator(mockStub.ChaincodeStub, mocks.BatchRobotCert)
+				require.NoError(t, err)
+
+				givenBalanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeGiven.String(), []string{"VT"})
+				require.NoError(t, err)
+				mockStub.GetStateCallsMap[givenBalanceKey] = new(big.Int).SetUint64(450).Bytes()
+
+				data, err := json.Marshal(&pbfound.CCTransfer{
+					Id:               id,
+					From:             "CC",
+					To:               "VT",
+					Token:            "CC",
+					User:             user.AddressBytes,
+					Amount:           new(big.Int).SetUint64(450).Bytes(),
+					ForwardDirection: true,
+					IsCommit:         true,
+				})
+				require.NoError(t, err)
+				mockStub.GetStateCallsMap["/transfer/from/"+id] = data
+
+				return []string{id}
+			},
+		},
+		{
+			description:  "cancelCCTransferFrom - transfer not found",
+			functionName: "cancelCCTransferFrom",
+			noSign:       true,
+			errorMsg:     cctransfer.ErrNotFound.Error(),
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				err = mocks.SetCreator(mockStub.ChaincodeStub, mocks.BatchRobotCert)
+				require.NoError(t, err)
+
+				return []string{id}
+			},
+		},
+	} {
+		t.Run(testCase.description, func(t *testing.T) {
+			mockStub := mockstub.NewMockStub(t)
+
+			mockStub.CreateAndSetConfig(
+				"CC Token",
+				"CC",
+				8,
+				issuer.AddressBase58Check,
+				"",
+				"",
+				issuer.AddressBase58Check,
+				nil,
+			)
+
+			cc, err := core.NewCC(&CustomToken{})
+			require.NoError(t, err)
+
+			parameters := testCase.funcPrepareMockStub(t, mockStub)
+
+			var (
+				txId string
+				resp peer.Response
+			)
+			if testCase.isQuery {
+				resp = mockStub.QueryChaincode(cc, testCase.functionName, parameters...)
+			} else if testCase.noSign {
+				txId, resp = mockStub.TxInvokeChaincode(cc, testCase.functionName, parameters...)
+			} else if testCase.noBatch {
+				resp = mockStub.NbTxInvokeChaincode(cc, testCase.functionName, parameters...)
+			} else {
+				txId, resp = mockStub.TxInvokeChaincodeSigned(cc, testCase.functionName, testCase.signUser, "", "", "", parameters...)
+			}
+
+			// check result
+			if testCase.codeResp == int32(shim.ERROR) {
+				require.Equal(t, resp.GetStatus(), testCase.codeResp)
+				require.Contains(t, resp.GetMessage(), testCase.errorMsg)
+				require.Empty(t, resp.GetPayload())
+				return
+			}
+
+			require.Equal(t, resp.GetStatus(), int32(shim.OK))
+			require.Empty(t, resp.GetMessage())
+
+			if testCase.isQuery {
+				if testCase.funcCheckQuery != nil {
+					testCase.funcCheckQuery(t, mockStub, resp.GetPayload())
+				}
+				return
+			}
+
+			bResp := &pbfound.BatchResponse{}
+			if string(resp.GetPayload()) != "null" {
+				err = pb.Unmarshal(resp.GetPayload(), bResp)
+				require.NoError(t, err)
+			}
+
+			var respb *pbfound.TxResponse
+			for _, r := range bResp.GetTxResponses() {
+				if hex.EncodeToString(r.GetId()) == txId {
+					respb = r
+					break
+				}
+			}
+
+			if len(testCase.errorMsg) != 0 {
+				require.Contains(t, respb.GetError().GetError(), testCase.errorMsg)
+				return
+			}
+
+			if testCase.funcCheckResponse != nil {
+				testCase.funcCheckResponse(t, mockStub, respb)
+			}
+		})
+	}
 }
 
 func TestQueryAllTransfersFrom(t *testing.T) {
-	ledger := mock.NewLedger(t)
-	owner := ledger.NewWallet()
-
-	ccConfig := makeBaseTokenConfig("CC Token", "CC", 8,
-		owner.Address(), "", "", owner.Address(), nil)
-
-	initMsg := ledger.NewCC("cc", &token.BaseToken{}, ccConfig)
-	require.Empty(t, initMsg)
-
-	user1 := ledger.NewWallet()
-	user1.AddBalance("cc", 1000)
-
-	ids := make(map[string]struct{})
-
-	id := uuid.NewString()
-	ids[id] = struct{}{}
-	_ = user1.SignedInvoke("cc", "channelTransferByCustomer", id, "VT", "CC", "100")
-	id = uuid.NewString()
-	ids[id] = struct{}{}
-	_ = user1.SignedInvoke("cc", "channelTransferByCustomer", id, "VT", "CC", "100")
-	id = uuid.NewString()
-	ids[id] = struct{}{}
-	_ = user1.SignedInvoke("cc", "channelTransferByCustomer", id, "VT", "CC", "100")
-	id = uuid.NewString()
-	ids[id] = struct{}{}
-	_ = user1.SignedInvoke("cc", "channelTransferByCustomer", id, "VT", "CC", "100")
-	id = uuid.NewString()
-	ids[id] = struct{}{}
-	_ = user1.SignedInvoke("cc", "channelTransferByCustomer", id, "VT", "CC", "100")
-
-	b := ""
-	for {
-		resStr := user1.Invoke("cc", "channelTransfersFrom", "2", b)
-		res := new(pb.CCTransfers)
-		err := json.Unmarshal([]byte(resStr), &res)
-		require.NoError(t, err)
-		for _, tr := range res.Ccts {
-			_, ok := ids[tr.Id]
-			require.True(t, ok)
-			delete(ids, tr.Id)
-		}
-		if res.Bookmark == "" {
-			break
-		}
-		b = res.Bookmark
-	}
-}
-
-func TestFailBeginTransfer(t *testing.T) {
-	// preparation
-	ledger := mock.NewLedger(t)
-	owner := ledger.NewWallet()
-
-	ccConfig := makeBaseTokenConfig("CC Token", "CC", 8,
-		owner.Address(), "", "", owner.Address(), nil)
-
-	initMsg := ledger.NewCC("cc", &token.BaseToken{}, ccConfig)
-	require.Empty(t, initMsg)
-
-	vtConfig := makeBaseTokenConfig("VT Token", "VT", 8,
-		owner.Address(), "", "", owner.Address(), nil)
-
-	initMsg = ledger.NewCC("vt", &token.BaseToken{}, vtConfig)
-	require.Empty(t, initMsg)
-
-	user1 := ledger.NewWallet()
-	user1.AddBalance("cc", 1000)
-
-	id := uuid.NewString()
-
-	// TESTS
-
-	// admin function sent by someone other than admin
-	err := user1.RawSignedInvokeWithErrorReturned("cc", "channelTransferByAdmin",
-		id, "VT", user1.Address(), "CC", "450")
-	require.EqualError(t, err, cctransfer.ErrUnauthorisedNotAdmin.Error())
-
-	// the admin sends the transfer to himself
-	err = owner.RawSignedInvokeWithErrorReturned("cc", "channelTransferByAdmin",
-		id, "VT", owner.Address(), "CC", "450")
-	require.EqualError(t, err, cctransfer.ErrInvalidIDUser.Error())
-
-	// CC-to-CC transfer
-	err = user1.RawSignedInvokeWithErrorReturned("cc", "channelTransferByCustomer",
-		id, "CC", "CC", "450")
-	require.EqualError(t, err, cctransfer.ErrInvalidChannel.Error())
-
-	// transferring the wrong tokens
-	err = user1.RawSignedInvokeWithErrorReturned("cc", "channelTransferByCustomer",
-		id, "VT", "FIAT", "450")
-	require.EqualError(t, err, cctransfer.ErrInvalidToken.Error())
-
-	// insufficient funds
-	err = user1.RawSignedInvokeWithErrorReturned("cc", "channelTransferByCustomer",
-		id, "VT", "CC", "1100")
-	require.EqualError(t, err, "failed to subtract token balance: insufficient balance")
-
-	// such a transfer is already in place.
-	err = user1.RawSignedInvokeWithErrorReturned("cc", "channelTransferByCustomer",
-		id, "VT", "CC", "450")
-	require.NoError(t, err)
-	err = user1.RawSignedInvokeWithErrorReturned("cc", "channelTransferByCustomer",
-		id, "VT", "CC", "450")
-	require.EqualError(t, err, cctransfer.ErrIDTransferExist.Error())
-}
-
-func TestFailCreateTransferTo(t *testing.T) {
-	// preparation
-	ledger := mock.NewLedger(t)
-	owner := ledger.NewWallet()
-
-	ccConfig := makeBaseTokenConfig("CC Token", "CC", 8,
-		owner.Address(), "", "", owner.Address(), nil)
-
-	initMsg := ledger.NewCC("cc", &token.BaseToken{}, ccConfig)
-	require.Empty(t, initMsg)
-
-	vtConfig := makeBaseTokenConfig("VT Token", "VT", 8,
-		owner.Address(), "", "", owner.Address(), nil)
-
-	initMsg = ledger.NewCC("vt", &token.BaseToken{}, vtConfig)
-	require.Empty(t, initMsg)
-
-	user1 := ledger.NewWallet()
-	user1.AddBalance("cc", 1000)
-
-	id := uuid.NewString()
-	err := user1.RawSignedInvokeWithErrorReturned("cc", "channelTransferByCustomer",
-		id, "VT", "CC", "450")
-	require.NoError(t, err)
-
-	cctRaw := user1.Invoke("cc", "channelTransferFrom", id)
-	cct := new(pb.CCTransfer)
-	err = json.Unmarshal([]byte(cctRaw), &cct)
-	require.NoError(t, err)
-
-	// TESTS
-
-	// incorrect data format
-	_, _, err = user1.RawChTransferInvokeWithBatch("vt", "createCCTransferTo", "(09345345-0934]")
-	require.Error(t, err)
-
-	// the transfer went into the wrong channel
-	tempTo := cct.To
-	cct.To = "FIAT"
-	b, err := json.Marshal(cct)
-	require.NoError(t, err)
-	cct.To = tempTo
-	_, _, err = user1.RawChTransferInvokeWithBatch("vt", "createCCTransferTo", string(b))
-	require.EqualError(t, err, cctransfer.ErrInvalidChannel.Error())
-
-	// From and To channels are equal
-	tempFrom := cct.From
-	cct.From = cct.To
-	b, err = json.Marshal(cct)
-	require.NoError(t, err)
-	cct.From = tempFrom
-	_, _, err = user1.RawChTransferInvokeWithBatch("vt", "createCCTransferTo", string(b))
-	require.EqualError(t, err, cctransfer.ErrInvalidChannel.Error())
-
-	// token is not equal to one of the channels
-	tempToken := cct.Token
-	cct.Token = "FIAT"
-	b, err = json.Marshal(cct)
-	require.NoError(t, err)
-	cct.Token = tempToken
-	_, _, err = user1.RawChTransferInvokeWithBatch("vt", "createCCTransferTo", string(b))
-	require.EqualError(t, err, cctransfer.ErrInvalidToken.Error())
-
-	// misdirection of changes in balances
-	tempDirect := cct.ForwardDirection
-	cct.ForwardDirection = !tempDirect
-	b, err = json.Marshal(cct)
-	require.NoError(t, err)
-	cct.ForwardDirection = tempDirect
-	_, _, err = user1.RawChTransferInvokeWithBatch("vt", "createCCTransferTo", string(b))
-	require.EqualError(t, err, cctransfer.ErrInvalidToken.Error())
-
-	// The transfer is already in place
-	_, _, err = user1.RawChTransferInvokeWithBatch("vt", "createCCTransferTo", cctRaw)
-	require.NoError(t, err)
-	_, _, err = user1.RawChTransferInvokeWithBatch("vt", "createCCTransferTo", cctRaw)
-	require.EqualError(t, err, cctransfer.ErrIDTransferExist.Error())
-}
-
-func TestFailCreateTransferToAfterDeleteTransferTo(t *testing.T) {
-	// preparation
-	ledger := mock.NewLedger(t)
-	owner := ledger.NewWallet()
-
-	ccConfig := makeBaseTokenConfig("CC Token", "CC", 8,
-		owner.Address(), "", "", owner.Address(), nil)
-
-	initMsg := ledger.NewCC("cc", &token.BaseToken{}, ccConfig)
-	require.Empty(t, initMsg)
-
-	vtConfig := makeBaseTokenConfig("VT Token", "VT", 8,
-		owner.Address(), "", "", owner.Address(), nil)
-
-	initMsg = ledger.NewCC("vt", &token.BaseToken{}, vtConfig)
-	require.Empty(t, initMsg)
-
-	user1 := ledger.NewWallet()
-	user1.AddBalance("cc", 1000)
-
-	id := uuid.NewString()
-	err := user1.RawSignedInvokeWithErrorReturned("cc", "channelTransferByCustomer",
-		id, "VT", "CC", "450")
-	require.NoError(t, err)
-
-	cctRaw := user1.Invoke("cc", "channelTransferFrom", id)
-	cct := new(pb.CCTransfer)
-	err = json.Unmarshal([]byte(cctRaw), &cct)
-	require.NoError(t, err)
-
-	// TESTS
-
-	// The transfer is already in place
-	_, _, err = user1.RawChTransferInvokeWithBatch("vt", "createCCTransferTo", cctRaw)
-	require.NoError(t, err)
-	_, _, err = user1.RawChTransferInvokeWithBatch("vt", "createCCTransferTo", cctRaw)
-	require.EqualError(t, err, cctransfer.ErrIDTransferExist.Error())
-
-	// del transfer to
-	_, _, err = user1.RawChTransferInvoke("vt", "deleteCCTransferTo", id)
-	require.NoError(t, err)
-
-	// I'm trying to create again.
-	_, _, err = user1.RawChTransferInvokeWithBatch("vt", "createCCTransferTo", cctRaw)
-	require.ErrorContains(t, err, "nonce")
-	require.ErrorContains(t, err, "already exists")
-}
-
-func TestFailCancelTransferFrom(t *testing.T) { //nolint:dupl
-	// preparation
-	ledger := mock.NewLedger(t)
-	owner := ledger.NewWallet()
-
-	ccConfig := makeBaseTokenConfig("CC Token", "CC", 8,
-		owner.Address(), "", "", "", nil)
-
-	initMsg := ledger.NewCC("cc", &token.BaseToken{}, ccConfig)
-	require.Empty(t, initMsg)
-
-	user1 := ledger.NewWallet()
-	user1.AddBalance("cc", 1000)
-
-	id := uuid.NewString()
-	err := user1.RawSignedInvokeWithErrorReturned("cc", "channelTransferByCustomer", id, "VT", "CC", "450")
-	require.NoError(t, err)
-
-	// TESTS
-
-	// transfer not found
-	_, _, err = user1.RawChTransferInvokeWithBatch("cc", "cancelCCTransferFrom", uuid.NewString())
-	require.EqualError(t, err, cctransfer.ErrNotFound.Error())
-
-	// transfer completed
-	_, _, err = user1.RawChTransferInvoke("cc", "commitCCTransferFrom", id)
-	require.NoError(t, err)
-	_, _, err = user1.RawChTransferInvokeWithBatch("cc", "cancelCCTransferFrom", id)
-	require.EqualError(t, err, cctransfer.ErrTransferCommit.Error())
-}
-
-func TestFailCommitTransferFrom(t *testing.T) { //nolint:dupl
-	// preparation
-	ledger := mock.NewLedger(t)
-	owner := ledger.NewWallet()
-
-	ccConfig := makeBaseTokenConfig("CC Token", "CC", 8,
-		owner.Address(), "", "", "", nil)
-
-	initMsg := ledger.NewCC("cc", &token.BaseToken{}, ccConfig)
-	require.Empty(t, initMsg)
-
-	user1 := ledger.NewWallet()
-	user1.AddBalance("cc", 1000)
-
-	id := uuid.NewString()
-	err := user1.RawSignedInvokeWithErrorReturned("cc", "channelTransferByCustomer", id, "VT", "CC", "450")
-	require.NoError(t, err)
-
-	// TESTS
-
-	// transfer not found
-	_, _, err = user1.RawChTransferInvokeWithBatch("cc", "commitCCTransferFrom", uuid.NewString())
-	require.EqualError(t, err, cctransfer.ErrNotFound.Error())
-
-	// the transfer is already committed
-	_, _, err = user1.RawChTransferInvoke("cc", "commitCCTransferFrom", id)
-	require.NoError(t, err)
-	_, _, err = user1.RawChTransferInvoke("cc", "commitCCTransferFrom", id)
-	require.EqualError(t, err, cctransfer.ErrTransferCommit.Error())
-}
-
-func TestFailDeleteTransferFrom(t *testing.T) {
-	// preparation
-	ledger := mock.NewLedger(t)
-	issuer := ledger.NewWallet()
-
-	cc := token.BaseToken{}
-	config := makeBaseTokenConfig("CC Token", "CC", 8,
-		issuer.Address(), "", "", "", nil)
-	initMsg := ledger.NewCC("cc", &cc, config)
-	require.Empty(t, initMsg)
-
-	user1 := ledger.NewWallet()
-	user1.AddBalance("cc", 1000)
-
-	id := uuid.NewString()
-	err := user1.RawSignedInvokeWithErrorReturned("cc", "channelTransferByCustomer", id, "VT", "CC", "450")
-	require.NoError(t, err)
-
-	// TESTS
-
-	// transfer not found
-	_, _, err = user1.RawChTransferInvokeWithBatch("cc", "deleteCCTransferFrom", uuid.NewString())
-	require.EqualError(t, err, cctransfer.ErrNotFound.Error())
-
-	// the transfer is already committed
-	_, _, err = user1.RawChTransferInvoke("cc", "deleteCCTransferFrom", id)
-	require.EqualError(t, err, cctransfer.ErrTransferNotCommit.Error())
-}
-
-func TestFailDeleteTransferTo(t *testing.T) {
-	// preparation
-	ledger := mock.NewLedger(t)
-	issuer := ledger.NewWallet()
-
-	ccConfig := makeBaseTokenConfig("CC Token", "CC", 8,
-		issuer.Address(), "", "", "", nil)
-	initMsg := ledger.NewCC("cc", &token.BaseToken{}, ccConfig)
-	require.Empty(t, initMsg)
-
-	vtConfig := makeBaseTokenConfig("VT Token", "VT", 8,
-		issuer.Address(), "", "", "", nil)
-	initMsg = ledger.NewCC("vt", &token.BaseToken{}, vtConfig)
-	require.Empty(t, initMsg)
-
-	user1 := ledger.NewWallet()
-
-	// TESTS
-
-	// transfer not found
-	_, _, err := user1.RawChTransferInvoke("vt", "deleteCCTransferTo", uuid.NewString())
-	require.EqualError(t, err, cctransfer.ErrNotFound.Error())
-}
-
-func TestFailQueryAllTransfersFrom(t *testing.T) {
-	ledger := mock.NewLedger(t)
-	issuer := ledger.NewWallet()
-
-	cc := token.BaseToken{}
-	config := makeBaseTokenConfig("CC Token", "CC", 8,
-		issuer.Address(), "", "", "", nil)
-	initMsg := ledger.NewCC("cc", &cc, config)
-	require.Empty(t, initMsg)
-
-	user1 := ledger.NewWallet()
-	user1.AddBalance("cc", 1000)
-
-	id := uuid.NewString()
-	_ = user1.SignedInvoke("cc", "channelTransferByCustomer", id, "VT", "CC", "100")
-	id = uuid.NewString()
-	_ = user1.SignedInvoke("cc", "channelTransferByCustomer", id, "VT", "CC", "100")
-	id = uuid.NewString()
-	_ = user1.SignedInvoke("cc", "channelTransferByCustomer", id, "VT", "CC", "100")
-
-	b := ""
-	resStr := user1.Invoke("cc", "channelTransfersFrom", "2", b)
-	res := new(pb.CCTransfers)
-	err := json.Unmarshal([]byte(resStr), &res)
-	require.NoError(t, err)
-	require.NotEmpty(t, res.Bookmark)
-
-	b = "pfi" + res.Bookmark
-	err = user1.InvokeWithError("cc", "channelTransfersFrom", "2", b)
-	require.EqualError(t, err, cctransfer.ErrInvalidBookmark.Error())
-
-	b = res.Bookmark
-	err = user1.InvokeWithError("cc", "channelTransfersFrom", "-2", b)
-	require.EqualError(t, err, cctransfer.ErrPageSizeLessOrEqZero.Error())
-}
-
-// TestFailForwardByAdmin tries to make channel transfer but
-// admin in ContractConfig was not set.
-func TestFailForwardByAdmin(t *testing.T) {
-	ledger := mock.NewLedger(t)
-	owner := ledger.NewWallet()
-
-	cfg := pb.Config{
-		Contract: &pb.ContractConfig{
-			Symbol:   "CC",
-			RobotSKI: fixtures_test.RobotHashedCert,
-			Admin:    &pb.Wallet{Address: owner.Address()},
-		},
-		Token: &pb.TokenConfig{
-			Name:     "CC Token",
-			Decimals: 8,
-			Issuer:   &pb.Wallet{Address: owner.Address()},
-		},
-	}
-
-	cfgBytes, err := protojson.Marshal(&cfg)
-	require.NoError(t, err)
-
-	initMsg := ledger.NewCC("cc", &token.BaseToken{}, string(cfgBytes))
-	require.Empty(t, initMsg)
-
-	// unset admin and overwrite config data
-	cfg.Contract.Admin = nil
-	cfgBytes, err = protojson.Marshal(&cfg)
-	require.NoError(t, err)
-	ledger.GetStub("cc").State["__config"] = cfgBytes
-
-	user1 := ledger.NewWallet()
-	user1.AddBalance("cc", 1000)
-
-	id := uuid.NewString()
-	err = owner.RawSignedInvokeWithErrorReturned("cc", "channelTransferByAdmin",
-		id, "VT", fixtures_test.AdminAddr, "CC", "450")
-	require.EqualError(t, err, cctransfer.ErrAdminNotSet.Error())
-}
-
-func TestMultiTransferByCustomerItemsLen(t *testing.T) {
-	ledger := mock.NewLedger(t)
-	owner := ledger.NewWallet()
-
-	it1Config := makeBaseTokenConfig("IT1 Token", "IT1", 8,
-		owner.Address(), "", "", "", nil)
-	initMsg := ledger.NewCC("it1", &TestToken{}, it1Config)
-	require.Empty(t, initMsg)
-
-	it2Config := makeBaseTokenConfig("IT2 Token", "IT2", 8,
-		owner.Address(), "", "", "", nil)
-	initMsg = ledger.NewCC("it2", &TestToken{}, it2Config)
-	require.Empty(t, initMsg)
-
-	user1 := ledger.NewWallet()
-	user1.AddTokenBalance("it1", "IT1_1", 1000)
-	user1.AddTokenBalance("it1", "IT1_2", 2000)
-
-	items := make([]core.TransferItem, 0)
-	itemsJSON, err := json.Marshal(items)
-	require.NoError(t, err)
-
-	err = user1.RawSignedInvokeWithErrorReturned("it1", "channelMultiTransferByCustomer", uuid.NewString(), "IT2", string(itemsJSON))
-	require.EqualError(t, err, "invalid argument transfer items count found 0 but expected from 1 to 100")
-
-	items = []core.TransferItem{
-		{Token: "IT1_1", Amount: new(big.Int).SetInt64(450)},
-	}
-	itemsJSON, err = json.Marshal(items)
-	require.NoError(t, err)
-
-	err = user1.RawSignedInvokeWithErrorReturned("it1", "channelMultiTransferByCustomer", uuid.NewString(), "IT2", string(itemsJSON))
-	require.NoError(t, err)
-
-	items = []core.TransferItem{
-		{Token: "IT1_1", Amount: new(big.Int).SetInt64(450)},
-		{Token: "IT1_1", Amount: new(big.Int).SetInt64(450)},
-	}
-	itemsJSON, err = json.Marshal(items)
-	require.NoError(t, err)
-
-	err = user1.RawSignedInvokeWithErrorReturned("it1", "channelMultiTransferByCustomer", uuid.NewString(), "IT2", string(itemsJSON))
-	require.EqualError(t, err, cctransfer.ErrInvalidTokenAlreadyExists.Error())
-
-	items = make([]core.TransferItem, 0, 100)
-	for i := 0; i < 100; i++ {
-		itemToken := fmt.Sprintf("IT1_%d", i)
-		items = append(items, core.TransferItem{Token: itemToken, Amount: new(big.Int).SetInt64(1)})
-		user1.AddTokenBalance("it1", itemToken, 1)
-	}
-	itemsJSON, err = json.Marshal(items)
-	require.NoError(t, err)
-	err = user1.RawSignedInvokeWithErrorReturned("it1", "channelMultiTransferByCustomer", uuid.NewString(), "IT2", string(itemsJSON))
-	require.NoError(t, err)
-
-	items = make([]core.TransferItem, 0, 100)
-	for i := 0; i < 101; i++ {
-		itemToken := fmt.Sprintf("IT1_%d", i)
-		items = append(items, core.TransferItem{Token: itemToken, Amount: new(big.Int).SetInt64(1)})
-		user1.AddTokenBalance("it1", itemToken, 1)
-	}
-	itemsJSON, err = json.Marshal(items)
-	require.NoError(t, err)
-	err = user1.RawSignedInvokeWithErrorReturned("it1", "channelMultiTransferByCustomer", uuid.NewString(), "IT2", string(itemsJSON))
-	require.EqualError(t, err, "invalid argument transfer items count found 101 but expected from 1 to 100")
-}
-
-func TestMultiTransferByAdminItemsLen(t *testing.T) {
-	ledger := mock.NewLedger(t)
-	owner := ledger.NewWallet()
-	feeSetter := ledger.NewWallet()
-
-	it1Config := makeBaseTokenConfig("IT1 Token", "IT1", 8,
-		owner.Address(), feeSetter.Address(), "", owner.Address(), nil)
-	initMsg := ledger.NewCC("it1", &TestToken{}, it1Config)
-	require.Empty(t, initMsg)
-
-	it2Config := makeBaseTokenConfig("IT2 Token", "IT2", 8,
-		owner.Address(), feeSetter.Address(), "", owner.Address(), nil)
-	initMsg = ledger.NewCC("it2", &TestToken{}, it2Config)
-	require.Empty(t, initMsg)
-
-	user1 := ledger.NewWallet()
-	user1.AddTokenBalance("it1", "IT1_1", 1000)
-	user1.AddTokenBalance("it1", "IT1_2", 2000)
-
-	items := make([]core.TransferItem, 0)
-	itemsJSON, err := json.Marshal(items)
-	require.NoError(t, err)
-
-	err = owner.RawSignedInvokeWithErrorReturned("it1", "channelMultiTransferByAdmin", uuid.NewString(), "IT2", user1.Address(), string(itemsJSON))
-	require.EqualError(t, err, "invalid argument transfer items count found 0 but expected from 1 to 100")
-
-	items = []core.TransferItem{
-		{Token: "IT1_1", Amount: new(big.Int).SetInt64(450)},
-	}
-	itemsJSON, err = json.Marshal(items)
-	require.NoError(t, err)
-
-	err = owner.RawSignedInvokeWithErrorReturned("it1", "channelMultiTransferByAdmin", uuid.NewString(), "IT2", user1.Address(), string(itemsJSON))
-	require.NoError(t, err)
-
-	items = make([]core.TransferItem, 0, 100)
-	for i := 0; i < 100; i++ {
-		itemToken := fmt.Sprintf("IT1_%d", i)
-		items = append(items, core.TransferItem{Token: itemToken, Amount: new(big.Int).SetInt64(1)})
-		user1.AddTokenBalance("it1", itemToken, 1)
-	}
-	itemsJSON, err = json.Marshal(items)
-	require.NoError(t, err)
-	err = owner.RawSignedInvokeWithErrorReturned("it1", "channelMultiTransferByAdmin", uuid.NewString(), "IT2", user1.Address(), string(itemsJSON))
-	require.NoError(t, err)
-
-	items = []core.TransferItem{
-		{Token: "IT1_1", Amount: new(big.Int).SetInt64(450)},
-		{Token: "IT1_1", Amount: new(big.Int).SetInt64(450)},
-	}
-	itemsJSON, err = json.Marshal(items)
-	require.NoError(t, err)
-
-	err = owner.RawSignedInvokeWithErrorReturned("it1", "channelMultiTransferByAdmin", uuid.NewString(), "IT2", user1.Address(), string(itemsJSON))
-	require.EqualError(t, err, cctransfer.ErrInvalidTokenAlreadyExists.Error())
-
-	items = make([]core.TransferItem, 0, 100)
-	for i := 0; i < 101; i++ {
-		itemToken := fmt.Sprintf("IT1_%d", i)
-		items = append(items, core.TransferItem{Token: itemToken, Amount: new(big.Int).SetInt64(1)})
-		user1.AddTokenBalance("it1", itemToken, 1)
-	}
-	itemsJSON, err = json.Marshal(items)
-	require.NoError(t, err)
-	err = owner.RawSignedInvokeWithErrorReturned("it1", "channelMultiTransferByAdmin", uuid.NewString(), "IT2", user1.Address(), string(itemsJSON))
-	require.EqualError(t, err, "invalid argument transfer items count found 101 but expected from 1 to 100")
-}
-
-func TestMultiTransferByCustomerForwardSuccess(t *testing.T) {
-	ledger := mock.NewLedger(t)
-	owner := ledger.NewWallet()
-
-	it1Config := makeBaseTokenConfig("IT1 Token", "IT1", 8,
-		owner.Address(), "", "", "", nil)
-	initMsg := ledger.NewCC("it1", &TestToken{}, it1Config)
-	require.Empty(t, initMsg)
-
-	it2Config := makeBaseTokenConfig("IT2 Token", "IT2", 8,
-		owner.Address(), "", "", "", nil)
-	initMsg = ledger.NewCC("it2", &TestToken{}, it2Config)
-	require.Empty(t, initMsg)
-
-	user1 := ledger.NewWallet()
-	user1.AddTokenBalance("it1", "IT1_1", 1000)
-	user1.AddTokenBalance("it1", "IT1_2", 2000)
-
-	id := uuid.NewString()
-
-	items := []core.TransferItem{
-		{Token: "IT1_1", Amount: new(big.Int).SetInt64(450)},
-		{Token: "IT1_2", Amount: new(big.Int).SetInt64(900)},
-	}
-
-	itemsJSON, err := json.Marshal(items)
-	require.NoError(t, err)
-
-	err = user1.RawSignedInvokeWithErrorReturned("it1", "channelMultiTransferByCustomer", id, "IT2", string(itemsJSON))
-	require.NoError(t, err)
-	itt := user1.Invoke("it1", "channelTransferFrom", id)
-
-	_, _, err = user1.RawChTransferInvokeWithBatch("it2", "createCCTransferTo", itt)
-	require.NoError(t, err)
-	ledger.WaitChTransferTo("it2", id, time.Second*5)
-	_ = user1.Invoke("it2", "channelTransferTo", id)
-
-	_, _, err = user1.RawChTransferInvoke("it1", "commitCCTransferFrom", id)
-	require.NoError(t, err)
-
-	_, _, err = user1.RawChTransferInvoke("it2", "deleteCCTransferTo", id)
-	require.NoError(t, err)
-
-	_, _, err = user1.RawChTransferInvoke("it1", "deleteCCTransferFrom", id)
-	require.NoError(t, err)
-
-	err = user1.InvokeWithError("it1", "channelTransferFrom", id)
-	require.Error(t, err)
-	err = user1.InvokeWithError("it2", "channelTransferTo", id)
-	require.Error(t, err)
-
-	balanceResponse := owner.Invoke("it1", "industrialBalanceGet", user1.Address())
-	balanceIT1group1, err := GetIndustrialBalanceFromResponseByGroup(balanceResponse, "1")
-	require.NoError(t, err)
-	require.Equal(t, "550", balanceIT1group1)
-	balanceIT2, err := GetIndustrialBalanceFromResponseByGroup(balanceResponse, "2")
-	require.NoError(t, err)
-	require.Equal(t, "1100", balanceIT2)
-	user1.AllowedBalanceShouldBe("it2", "IT1_1", 450)
-	user1.AllowedBalanceShouldBe("it2", "IT1_2", 900)
-	user1.CheckGivenBalanceShouldBe("it2", "IT2", 0)
-	user1.CheckGivenBalanceShouldBe("it2", "IT1", 0)
-	user1.CheckGivenBalanceShouldBe("it1", "IT1", 0)
-	user1.CheckGivenBalanceShouldBe("it1", "IT2", 1350)
-}
-
-func TestMultiTransferByAdminForwardSuccess(t *testing.T) {
-	ledger := mock.NewLedger(t)
-	owner := ledger.NewWallet()
-	feeSetter := ledger.NewWallet()
-
-	it1Config := makeBaseTokenConfig("IT1 Token", "IT1", 8,
-		owner.Address(), feeSetter.Address(), "", owner.Address(), nil)
-	initMsg := ledger.NewCC("it1", &TestToken{}, it1Config)
-	require.Empty(t, initMsg)
-
-	it2Config := makeBaseTokenConfig("IT2 Token", "IT2", 8,
-		owner.Address(), feeSetter.Address(), "", owner.Address(), nil)
-	initMsg = ledger.NewCC("it2", &TestToken{}, it2Config)
-	require.Empty(t, initMsg)
-
-	user1 := ledger.NewWallet()
-	user1.AddTokenBalance("it1", "IT1_1", 1000)
-	user1.AddTokenBalance("it1", "IT1_2", 2000)
-
-	id := uuid.NewString()
-	items := []core.TransferItem{
-		{Token: "IT1_1", Amount: new(big.Int).SetInt64(450)},
-		{Token: "IT1_2", Amount: new(big.Int).SetInt64(900)},
-	}
-
-	itemsJSON, err := json.Marshal(items)
-	require.NoError(t, err)
-
-	err = owner.RawSignedInvokeWithErrorReturned("it1", "channelMultiTransferByAdmin", id, "IT2", user1.Address(), string(itemsJSON))
-	require.NoError(t, err)
-	cct := user1.Invoke("it1", "channelTransferFrom", id)
-
-	_, _, err = user1.RawChTransferInvokeWithBatch("it2", "createCCTransferTo", cct)
-	require.NoError(t, err)
-	ledger.WaitChTransferTo("it2", id, time.Second*5)
-	err = user1.InvokeWithError("it2", "channelTransferTo", id)
-	require.NoError(t, err)
-
-	_, _, err = user1.RawChTransferInvoke("it1", "commitCCTransferFrom", id)
-	require.NoError(t, err)
-
-	_, _, err = user1.RawChTransferInvoke("it2", "deleteCCTransferTo", id)
-	require.NoError(t, err)
-
-	_, _, err = user1.RawChTransferInvoke("it1", "deleteCCTransferFrom", id)
-	require.NoError(t, err)
-
-	err = user1.InvokeWithError("it1", "channelTransferFrom", id)
-	require.Error(t, err)
-	err = user1.InvokeWithError("it2", "channelTransferTo", id)
-	require.Error(t, err)
-
-	user1.AllowedBalanceShouldBe("it2", "IT1_1", 450)
-	user1.AllowedBalanceShouldBe("it2", "IT1_2", 900)
-}
-
-func TestMultiTransferCancelForwardSuccess(t *testing.T) {
-	ledger := mock.NewLedger(t)
-	owner := ledger.NewWallet()
-
-	it1Config := makeBaseTokenConfig("IT1 Token", "IT1", 8,
-		owner.Address(), "", "", owner.Address(), nil)
-
-	initMsg := ledger.NewCC("it1", &TestToken{}, it1Config)
-	require.Empty(t, initMsg)
-
-	it2Config := makeBaseTokenConfig("IT2 Token", "IT2", 8,
-		owner.Address(), "", "", owner.Address(), nil)
-
-	initMsg = ledger.NewCC("it2", &TestToken{}, it2Config)
-	require.Empty(t, initMsg)
-
-	user1 := ledger.NewWallet()
-	user1.AddTokenBalance("it1", "IT1_1", 1000)
-	user1.AddTokenBalance("it1", "IT1_2", 2000)
-
-	id := uuid.NewString()
-
-	items := []core.TransferItem{
-		{Token: "IT1_1", Amount: new(big.Int).SetInt64(450)},
-		{Token: "IT1_2", Amount: new(big.Int).SetInt64(900)},
-	}
-
-	itemsJSON, err := json.Marshal(items)
-	require.NoError(t, err)
-
-	err = user1.RawSignedInvokeWithErrorReturned("it1", "channelMultiTransferByCustomer", id, "IT2", string(itemsJSON))
-	require.NoError(t, err)
-	err = user1.InvokeWithError("it1", "channelTransferFrom", id)
-	require.NoError(t, err)
-
-	_, _, err = user1.RawChTransferInvokeWithBatch("it1", "cancelCCTransferFrom", id)
-	require.NoError(t, err)
-
-	err = user1.InvokeWithError("it1", "channelTransferFrom", id)
-	require.Error(t, err)
-
-	balanceResponse := owner.Invoke("it1", "industrialBalanceGet", user1.Address())
-	balanceIT1group1, err := GetIndustrialBalanceFromResponseByGroup(balanceResponse, "1")
-	require.NoError(t, err)
-	require.Equal(t, "1000", balanceIT1group1)
-	balanceIT1group2, err := GetIndustrialBalanceFromResponseByGroup(balanceResponse, "2")
-	require.NoError(t, err)
-	require.Equal(t, "2000", balanceIT1group2)
-	user1.CheckGivenBalanceShouldBe("it1", "IT1", 0)
-	user1.CheckGivenBalanceShouldBe("it1", "IT2", 0)
-}
-
-func TestMultiTransferByCustomerBackSuccess(t *testing.T) {
-	ledger := mock.NewLedger(t)
-	owner := ledger.NewWallet()
-
-	it1Config := makeBaseTokenConfig("IT1 Token", "IT1", 8,
-		owner.Address(), "", "", owner.Address(), nil)
-
-	initMsg := ledger.NewCC("it1", &TestToken{}, it1Config)
-	require.Empty(t, initMsg)
-
-	it2Config := makeBaseTokenConfig("IT2 Token", "IT2", 8,
-		owner.Address(), "", "", owner.Address(), nil)
-	initMsg = ledger.NewCC("it2", &TestToken{}, it2Config)
-	require.Empty(t, initMsg)
-
-	user1 := ledger.NewWallet()
-	user1.AddAllowedBalance("it1", "IT2_1", 1000)
-	user1.AddAllowedBalance("it1", "IT2_2", 2000)
-	user1.AddGivenBalance("it2", "IT1", 3000)
-	user1.AllowedBalanceShouldBe("it1", "IT2_1", 1000)
-	user1.AllowedBalanceShouldBe("it1", "IT2_2", 2000)
-
-	id := uuid.NewString()
-
-	items := []core.TransferItem{
-		{Token: "IT2_1", Amount: new(big.Int).SetInt64(450)},
-		{Token: "IT2_2", Amount: new(big.Int).SetInt64(900)},
-	}
-
-	itemsJSON, err := json.Marshal(items)
-	require.NoError(t, err)
-
-	err = user1.RawSignedInvokeWithErrorReturned("it1", "channelMultiTransferByCustomer", id, "IT2", string(itemsJSON))
-	require.NoError(t, err)
-	cct := user1.Invoke("it1", "channelTransferFrom", id)
-
-	_, _, err = user1.RawChTransferInvokeWithBatch("it2", "createCCTransferTo", cct)
-	require.NoError(t, err)
-	ledger.WaitChTransferTo("it2", id, time.Second*5)
-	_ = user1.Invoke("it2", "channelTransferTo", id)
-
-	_, _, err = user1.RawChTransferInvoke("it1", "commitCCTransferFrom", id)
-	require.NoError(t, err)
-
-	_, _, err = user1.RawChTransferInvoke("it2", "deleteCCTransferTo", id)
-	require.NoError(t, err)
-
-	_, _, err = user1.RawChTransferInvoke("it1", "deleteCCTransferFrom", id)
-	require.NoError(t, err)
-
-	err = user1.InvokeWithError("it1", "channelTransferFrom", id)
-	require.Error(t, err)
-	err = user1.InvokeWithError("it2", "channelTransferTo", id)
-	require.Error(t, err)
-
-	user1.AllowedBalanceShouldBe("it2", "IT2", 0)
-	user1.AllowedBalanceShouldBe("it1", "IT2_1", 550)
-	user1.AllowedBalanceShouldBe("it1", "IT2_2", 1100)
-
-	balanceResponse := owner.Invoke("it2", "industrialBalanceGet", user1.Address())
-	balanceIT1group1, err := GetIndustrialBalanceFromResponseByGroup(balanceResponse, "1")
-	require.NoError(t, err)
-	require.Equal(t, "450", balanceIT1group1)
-	balanceIT1group2, err := GetIndustrialBalanceFromResponseByGroup(balanceResponse, "2")
-	require.NoError(t, err)
-	require.Equal(t, "900", balanceIT1group2)
-
-	user1.CheckGivenBalanceShouldBe("it1", "IT1", 0)
-	user1.CheckGivenBalanceShouldBe("it1", "IT2_1", 0)
-	user1.CheckGivenBalanceShouldBe("it2", "IT2_1", 0)
-	user1.CheckGivenBalanceShouldBe("it1", "IT2_2", 0)
-	user1.CheckGivenBalanceShouldBe("it2", "IT2_2", 0)
-	user1.CheckGivenBalanceShouldBe("it2", "IT1", 1650)
-}
-
-func TestMultiTransferByAdminBackSuccess(t *testing.T) {
 	t.Parallel()
 
-	ledger := mock.NewLedger(t)
-	owner := ledger.NewWallet()
+	issuer, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
+	require.NoError(t, err)
 
-	it1Config := makeBaseTokenConfig("IT1 Token", "IT1", 8,
-		owner.Address(), "", "", owner.Address(), nil)
-
-	initMsg := ledger.NewCC("it1", &TestToken{}, it1Config)
-	require.Empty(t, initMsg)
-
-	it2Config := makeBaseTokenConfig("IT2 Token", "IT2", 8,
-		owner.Address(), "", "", owner.Address(), nil)
-
-	initMsg = ledger.NewCC("it2", &TestToken{}, it2Config)
-	require.Empty(t, initMsg)
-
-	user1 := ledger.NewWallet()
-	user1.AddAllowedBalance("it1", "IT2_1", 1000)
-	user1.AddAllowedBalance("it1", "IT2_2", 2000)
-	user1.AddGivenBalance("it2", "IT1", 3000)
-	user1.AllowedBalanceShouldBe("it1", "IT2_1", 1000)
-	user1.AllowedBalanceShouldBe("it1", "IT2_2", 2000)
+	user, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
+	require.NoError(t, err)
 
 	id := uuid.NewString()
-	items := []core.TransferItem{
-		{Token: "IT2_1", Amount: new(big.Int).SetInt64(450)},
-		{Token: "IT2_2", Amount: new(big.Int).SetInt64(900)},
+
+	mockStub := mockstub.NewMockStub(t)
+	mockStub.CreateAndSetConfig(
+		"CC Token",
+		"CC",
+		8,
+		issuer.AddressBase58Check,
+		"",
+		"",
+		issuer.AddressBase58Check,
+		nil,
+	)
+	meta1 := &peer.QueryResponseMetadata{
+		FetchedRecordsCount: 2,
+		Bookmark:            "/transfer/from/" + id,
 	}
-
-	itemsJSON, err := json.Marshal(items)
-	require.NoError(t, err)
-
-	err = owner.RawSignedInvokeWithErrorReturned("it1", "channelMultiTransferByAdmin", id, "IT2", user1.Address(), string(itemsJSON))
-	require.NoError(t, err)
-	cct := user1.Invoke("it1", "channelTransferFrom", id)
-
-	_, _, err = user1.RawChTransferInvokeWithBatch("it2", "createCCTransferTo", cct)
-	require.NoError(t, err)
-	ledger.WaitChTransferTo("it2", id, time.Second*5)
-	_ = user1.Invoke("it2", "channelTransferTo", id)
-
-	_, _, err = user1.RawChTransferInvoke("it1", "commitCCTransferFrom", id)
-	require.NoError(t, err)
-
-	_, _, err = user1.RawChTransferInvoke("it2", "deleteCCTransferTo", id)
-	require.NoError(t, err)
-
-	_, _, err = user1.RawChTransferInvoke("it1", "deleteCCTransferFrom", id)
-	require.NoError(t, err)
-
-	err = user1.InvokeWithError("it1", "channelTransferFrom", id)
-	require.Error(t, err)
-	err = user1.InvokeWithError("it2", "channelTransferTo", id)
-	require.Error(t, err)
-
-	user1.AllowedBalanceShouldBe("it2", "IT2", 0)
-	user1.AllowedBalanceShouldBe("it1", "IT2_1", 550)
-	user1.AllowedBalanceShouldBe("it1", "IT2_2", 1100)
-
-	balanceResponse := owner.Invoke("it2", "industrialBalanceGet", user1.Address())
-	balanceIT1group1, err := GetIndustrialBalanceFromResponseByGroup(balanceResponse, "1")
-	require.NoError(t, err)
-	require.Equal(t, "450", balanceIT1group1)
-	balanceIT1group2, err := GetIndustrialBalanceFromResponseByGroup(balanceResponse, "2")
-	require.NoError(t, err)
-	require.Equal(t, "900", balanceIT1group2)
-
-	user1.CheckGivenBalanceShouldBe("it1", "IT1", 0)
-	user1.CheckGivenBalanceShouldBe("it1", "IT2_1", 0)
-	user1.CheckGivenBalanceShouldBe("it2", "IT2_1", 0)
-	user1.CheckGivenBalanceShouldBe("it1", "IT2_2", 0)
-	user1.CheckGivenBalanceShouldBe("it2", "IT2_2", 0)
-	user1.CheckGivenBalanceShouldBe("it2", "IT1", 1650)
-}
-
-func TestMultiTransferCancelBackSuccess(t *testing.T) {
-	ledger := mock.NewLedger(t)
-	owner := ledger.NewWallet()
-	feeSetter := ledger.NewWallet()
-
-	it1Config := makeBaseTokenConfig("IT1 Token", "IT1", 8,
-		owner.Address(), "", "", owner.Address(), nil)
-
-	initMsg := ledger.NewCC("it1", &TestToken{}, it1Config)
-	require.Empty(t, initMsg)
-
-	it2Config := makeBaseTokenConfig("IT2 Token", "IT2", 8,
-		owner.Address(), feeSetter.Address(), "", owner.Address(), nil)
-
-	initMsg = ledger.NewCC("it2", &TestToken{}, it2Config)
-	require.Empty(t, initMsg)
-
-	user1 := ledger.NewWallet()
-	user1.AddAllowedBalance("it1", "IT2_1", 1000)
-	user1.AddAllowedBalance("it1", "IT2_2", 2000)
-	user1.AllowedBalanceShouldBe("it1", "IT2_1", 1000)
-	user1.AllowedBalanceShouldBe("it1", "IT2_2", 2000)
-
-	id := uuid.NewString()
-	items := []core.TransferItem{
-		{Token: "IT2_1", Amount: new(big.Int).SetInt64(450)},
-		{Token: "IT2_2", Amount: new(big.Int).SetInt64(900)},
+	meta2 := &peer.QueryResponseMetadata{
+		FetchedRecordsCount: 1,
 	}
-	itemsJSON, err := json.Marshal(items)
-	require.NoError(t, err)
-	err = user1.RawSignedInvokeWithErrorReturned("it1", "channelMultiTransferByCustomer", id, "IT2", string(itemsJSON))
-	require.NoError(t, err)
+	mockIterator := &mocks.StateIterator{}
+	mockStub.GetStateByRangeWithPaginationReturnsOnCall(0, mockIterator, meta1, nil)
+	mockStub.GetStateByRangeWithPaginationReturnsOnCall(1, mockIterator, meta1, nil)
+	mockStub.GetStateByRangeWithPaginationReturnsOnCall(2, mockIterator, meta2, nil)
+	mockIterator.HasNextReturnsOnCall(0, true)
+	mockIterator.HasNextReturnsOnCall(1, true)
+	mockIterator.HasNextReturnsOnCall(2, false)
+	mockIterator.HasNextReturnsOnCall(3, true)
+	mockIterator.HasNextReturnsOnCall(4, true)
+	mockIterator.HasNextReturnsOnCall(5, false)
+	mockIterator.HasNextReturnsOnCall(6, true)
+	mockIterator.HasNextReturnsOnCall(7, false)
 
-	err = user1.InvokeWithError("it1", "channelTransferFrom", id)
-	require.NoError(t, err)
-
-	_, _, err = user1.RawChTransferInvokeWithBatch("it1", "cancelCCTransferFrom", id)
-	require.NoError(t, err)
-
-	err = user1.InvokeWithError("it1", "channelTransferFrom", id)
-	require.Error(t, err)
-
-	user1.AllowedBalanceShouldBe("it1", "IT2_1", 1000)
-	user1.AllowedBalanceShouldBe("it1", "IT2_2", 2000)
-}
-
-func TestMultiTransferQueryAllTransfersFrom(t *testing.T) {
-	ledger := mock.NewLedger(t)
-	owner := ledger.NewWallet()
-
-	it1Config := makeBaseTokenConfig("IT1 Token", "IT1", 8,
-		owner.Address(), "", "", owner.Address(), nil)
-
-	initMsg := ledger.NewCC("it1", &TestToken{}, it1Config)
-	require.Empty(t, initMsg)
-
-	user1 := ledger.NewWallet()
-	user1.AddTokenBalance("it1", "IT1_1", 1000)
-	user1.AddTokenBalance("it1", "IT1_2", 2000)
-
-	ids := make(map[string]struct{})
-
-	id := uuid.NewString()
-	ids[id] = struct{}{}
-	items := []core.TransferItem{
-		{Token: "IT1_1", Amount: new(big.Int).SetInt64(100)},
-		{Token: "IT1_2", Amount: new(big.Int).SetInt64(100)},
+	cct := &pbfound.CCTransfer{
+		Id:               id,
+		From:             "CC",
+		To:               "VT",
+		Token:            "CC",
+		User:             user.AddressBytes,
+		Amount:           new(big.Int).SetUint64(450).Bytes(),
+		ForwardDirection: true,
 	}
-	itemsJSON, err := json.Marshal(items)
+	bCct, err := pb.Marshal(cct)
 	require.NoError(t, err)
-	err = user1.RawSignedInvokeWithErrorReturned("it1", "channelMultiTransferByCustomer", id, "IT2", string(itemsJSON))
+
+	mockIterator.NextReturns(&queryresult.KV{
+		Key:   "/transfer/from/" + id,
+		Value: bCct,
+	}, nil)
+
+	cc, err := core.NewCC(&CustomToken{})
 	require.NoError(t, err)
-	id = uuid.NewString()
-	ids[id] = struct{}{}
-	err = user1.RawSignedInvokeWithErrorReturned("it1", "channelMultiTransferByCustomer", id, "IT2", string(itemsJSON))
-	require.NoError(t, err)
-	id = uuid.NewString()
-	ids[id] = struct{}{}
-	err = user1.RawSignedInvokeWithErrorReturned("it1", "channelMultiTransferByCustomer", id, "IT2", string(itemsJSON))
-	require.NoError(t, err)
-	id = uuid.NewString()
-	ids[id] = struct{}{}
-	err = user1.RawSignedInvokeWithErrorReturned("it1", "channelMultiTransferByCustomer", id, "IT2", string(itemsJSON))
-	require.NoError(t, err)
-	id = uuid.NewString()
-	ids[id] = struct{}{}
-	err = user1.RawSignedInvokeWithErrorReturned("it1", "channelMultiTransferByCustomer", id, "IT2", string(itemsJSON))
-	require.NoError(t, err)
+
+	var resp peer.Response
 
 	b := ""
 	for {
-		resStr := user1.Invoke("it1", "channelTransfersFrom", "2", b)
-		res := new(pb.CCTransfers)
-		err := json.Unmarshal([]byte(resStr), &res)
+		resp = mockStub.QueryChaincode(cc, "channelTransfersFrom", "2", b)
+		require.Equal(t, resp.GetStatus(), int32(shim.OK))
+		require.Empty(t, resp.GetMessage())
+		require.NotEmpty(t, resp.GetPayload())
+
+		res := new(pbfound.CCTransfers)
+		err = json.Unmarshal(resp.GetPayload(), res)
 		require.NoError(t, err)
-		for _, tr := range res.Ccts {
-			_, ok := ids[tr.Id]
-			require.True(t, ok)
-			delete(ids, tr.Id)
+		for _, c := range res.GetCcts() {
+			require.True(t, pb.Equal(cct, c))
 		}
 		if res.Bookmark == "" {
 			break
 		}
 		b = res.Bookmark
 	}
-}
 
-func TestMultiTransferFailBeginTransfer(t *testing.T) {
-	// preparation
-	ledger := mock.NewLedger(t)
-	owner := ledger.NewWallet()
-
-	it1Config := makeBaseTokenConfig("IT1 Token", "IT1", 8,
-		owner.Address(), "", "", owner.Address(), nil)
-
-	initMsg := ledger.NewCC("it1", &TestToken{}, it1Config)
-	require.Empty(t, initMsg)
-
-	it2Config := makeBaseTokenConfig("IT2 Token", "IT2", 8,
-		owner.Address(), "", "", owner.Address(), nil)
-
-	initMsg = ledger.NewCC("it2", &TestToken{}, it2Config)
-	require.Empty(t, initMsg)
-
-	user1 := ledger.NewWallet()
-	user1.AddTokenBalance("it1", "IT1_1", 1000)
-	user1.AddTokenBalance("it1", "IT1_2", 2000)
-
-	id := uuid.NewString()
-	items := []core.TransferItem{
-		{Token: "IT1_1", Amount: new(big.Int).SetInt64(450)},
-		{Token: "IT1_2", Amount: new(big.Int).SetInt64(900)},
-	}
-
-	itemsJSON, err := json.Marshal(items)
-	require.NoError(t, err)
-
-	// TESTS
-
-	// admin function sent by someone other than admin
-	err = user1.RawSignedInvokeWithErrorReturned("it1", "channelMultiTransferByAdmin", id, "IT2", user1.Address(), string(itemsJSON))
-	require.EqualError(t, err, cctransfer.ErrUnauthorisedNotAdmin.Error())
-
-	// the admin sends the transfer to himself
-	err = owner.RawSignedInvokeWithErrorReturned("it1", "channelMultiTransferByAdmin", id, "IT2", owner.Address(), string(itemsJSON))
-	require.EqualError(t, err, cctransfer.ErrInvalidIDUser.Error())
-
-	// IT1-to-IT1 transfer
-	err = user1.RawSignedInvokeWithErrorReturned("it1", "channelMultiTransferByCustomer", id, "IT1", string(itemsJSON))
-	require.EqualError(t, err, cctransfer.ErrInvalidChannel.Error())
-
-	// transferring the wrong tokens
-	items = []core.TransferItem{
-		{Token: "FIAT_1", Amount: new(big.Int).SetInt64(450)},
-		{Token: "FIAT_2", Amount: new(big.Int).SetInt64(900)},
-	}
-	itemsJSON, err = json.Marshal(items)
-	require.NoError(t, err)
-	err = user1.RawSignedInvokeWithErrorReturned("it1", "channelMultiTransferByCustomer", id, "IT2", string(itemsJSON))
-	require.EqualError(t, err, cctransfer.ErrInvalidToken.Error())
-
-	// insufficient funds
-	items = []core.TransferItem{
-		{Token: "IT1_1", Amount: new(big.Int).SetInt64(2450)},
-		{Token: "IT1_2", Amount: new(big.Int).SetInt64(2900)},
-	}
-	itemsJSON, err = json.Marshal(items)
-	require.NoError(t, err)
-	err = user1.RawSignedInvokeWithErrorReturned("it1", "channelMultiTransferByCustomer", id, "IT2", string(itemsJSON))
-	require.EqualError(t, err, "failed to subtract token balance: insufficient balance")
-
-	// such a transfer is already in place.
-	items = []core.TransferItem{
-		{Token: "IT1_1", Amount: new(big.Int).SetInt64(450)},
-		{Token: "IT1_2", Amount: new(big.Int).SetInt64(900)},
-	}
-	itemsJSON, err = json.Marshal(items)
-	require.NoError(t, err)
-	err = user1.RawSignedInvokeWithErrorReturned("it1", "channelMultiTransferByCustomer", id, "IT2", string(itemsJSON))
-	require.NoError(t, err)
-	err = user1.RawSignedInvokeWithErrorReturned("it1", "channelMultiTransferByCustomer", id, "IT2", string(itemsJSON))
-	require.EqualError(t, err, cctransfer.ErrIDTransferExist.Error())
-}
-
-func TestMultiTransferFailCreateTransferTo(t *testing.T) {
-	// preparation
-	ledger := mock.NewLedger(t)
-	owner := ledger.NewWallet()
-
-	it1Config := makeBaseTokenConfig("IT1 Token", "IT1", 8,
-		owner.Address(), "", "", owner.Address(), nil)
-
-	initMsg := ledger.NewCC("it1", &TestToken{}, it1Config)
-	require.Empty(t, initMsg)
-
-	it2Config := makeBaseTokenConfig("IT2 Token", "IT2", 8,
-		owner.Address(), "", "", owner.Address(), nil)
-
-	initMsg = ledger.NewCC("it2", &TestToken{}, it2Config)
-	require.Empty(t, initMsg)
-
-	user1 := ledger.NewWallet()
-	user1.AddTokenBalance("it1", "IT1_1", 1000)
-	user1.AddTokenBalance("it1", "IT1_2", 2000)
-
-	id := uuid.NewString()
-	items := []core.TransferItem{
-		{Token: "IT1_1", Amount: new(big.Int).SetInt64(450)},
-		{Token: "IT1_2", Amount: new(big.Int).SetInt64(900)},
-	}
-	itemsJSON, err := json.Marshal(items)
-	require.NoError(t, err)
-	err = user1.RawSignedInvokeWithErrorReturned("it1", "channelMultiTransferByCustomer", id, "IT2", string(itemsJSON))
-	require.NoError(t, err)
-
-	cctRaw := user1.Invoke("it1", "channelTransferFrom", id)
-	cct := new(pb.CCTransfer)
-	err = json.Unmarshal([]byte(cctRaw), &cct)
-	require.NoError(t, err)
-
-	// TESTS
-
-	// incorrect data format
-	_, _, err = user1.RawChTransferInvokeWithBatch("it2", "createCCTransferTo", "(09345345-0934]")
-	require.Error(t, err)
-
-	// the transfer went into the wrong channel
-	tempTo := cct.To
-	cct.To = "FIAT"
-	b, err := json.Marshal(cct)
-	require.NoError(t, err)
-	cct.To = tempTo
-	_, _, err = user1.RawChTransferInvokeWithBatch("it2", "createCCTransferTo", string(b))
-	require.EqualError(t, err, cctransfer.ErrInvalidChannel.Error())
-
-	// From and To channels are equal
-	tempFrom := cct.From
-	cct.From = cct.To
-	b, err = json.Marshal(cct)
-	require.NoError(t, err)
-	cct.From = tempFrom
-	_, _, err = user1.RawChTransferInvokeWithBatch("it2", "createCCTransferTo", string(b))
-	require.EqualError(t, err, cctransfer.ErrInvalidChannel.Error())
-
-	// token is not equal to one of the channels
-	tempToken := cct.Token
-	cct.GetItems()[0].Token = "FIAT"
-	b, err = json.Marshal(cct)
-	require.NoError(t, err)
-	cct.Token = tempToken
-	_, _, err = user1.RawChTransferInvokeWithBatch("it2", "createCCTransferTo", string(b))
-	require.EqualError(t, err, cctransfer.ErrInvalidToken.Error())
-
-	// misdirection of changes in balances
-	tempDirect := cct.ForwardDirection
-	cct.ForwardDirection = !tempDirect
-	b, err = json.Marshal(cct)
-	require.NoError(t, err)
-	cct.ForwardDirection = tempDirect
-	_, _, err = user1.RawChTransferInvokeWithBatch("it2", "createCCTransferTo", string(b))
-	require.EqualError(t, err, cctransfer.ErrInvalidToken.Error())
-
-	// The transfer is already in place
-	_, _, err = user1.RawChTransferInvokeWithBatch("it2", "createCCTransferTo", cctRaw)
-	require.NoError(t, err)
-	_, _, err = user1.RawChTransferInvokeWithBatch("it2", "createCCTransferTo", cctRaw)
-	require.EqualError(t, err, cctransfer.ErrIDTransferExist.Error())
-}
-
-func TestMultiTransferFailCancelTransferFrom(t *testing.T) { //nolint:dupl
-	// preparation
-	ledger := mock.NewLedger(t)
-	owner := ledger.NewWallet()
-
-	it1Config := makeBaseTokenConfig("IT1 Token", "IT1", 8,
-		owner.Address(), "", "", "", nil)
-
-	initMsg := ledger.NewCC("it1", &TestToken{}, it1Config)
-	require.Empty(t, initMsg)
-
-	user1 := ledger.NewWallet()
-	user1.AddTokenBalance("it1", "IT1_1", 1000)
-	user1.AddTokenBalance("it1", "IT1_2", 2000)
-
-	id := uuid.NewString()
-	items := []core.TransferItem{
-		{Token: "IT1_1", Amount: new(big.Int).SetInt64(450)},
-		{Token: "IT1_2", Amount: new(big.Int).SetInt64(900)},
-	}
-	itemsJSON, err := json.Marshal(items)
-	require.NoError(t, err)
-	err = user1.RawSignedInvokeWithErrorReturned("it1", "channelMultiTransferByCustomer", id, "IT2", string(itemsJSON))
-	require.NoError(t, err)
-
-	// TESTS
-
-	// transfer not found
-	_, _, err = user1.RawChTransferInvokeWithBatch("it1", "cancelCCTransferFrom", uuid.NewString())
-	require.EqualError(t, err, cctransfer.ErrNotFound.Error())
-
-	// transfer completed
-	_, _, err = user1.RawChTransferInvoke("it1", "commitCCTransferFrom", id)
-	require.NoError(t, err)
-	_, _, err = user1.RawChTransferInvokeWithBatch("it1", "cancelCCTransferFrom", id)
-	require.EqualError(t, err, cctransfer.ErrTransferCommit.Error())
-}
-
-func TestMultiTransferFailCommitTransferFrom(t *testing.T) { //nolint:dupl
-	// preparation
-	ledger := mock.NewLedger(t)
-	owner := ledger.NewWallet()
-
-	it1Config := makeBaseTokenConfig("IT1 Token", "IT1", 8,
-		owner.Address(), "", "", "", nil)
-
-	initMsg := ledger.NewCC("it1", &TestToken{}, it1Config)
-	require.Empty(t, initMsg)
-
-	user1 := ledger.NewWallet()
-	user1.AddTokenBalance("it1", "IT1_1", 1000)
-	user1.AddTokenBalance("it1", "IT1_2", 2000)
-
-	id := uuid.NewString()
-	items := []core.TransferItem{
-		{Token: "IT1_1", Amount: new(big.Int).SetInt64(450)},
-		{Token: "IT1_2", Amount: new(big.Int).SetInt64(900)},
-	}
-	itemsJSON, err := json.Marshal(items)
-	require.NoError(t, err)
-	err = user1.RawSignedInvokeWithErrorReturned("it1", "channelMultiTransferByCustomer", id, "IT2", string(itemsJSON))
-	require.NoError(t, err)
-
-	// TESTS
-
-	// transfer not found
-	_, _, err = user1.RawChTransferInvokeWithBatch("it1", "commitCCTransferFrom", uuid.NewString())
-	require.EqualError(t, err, cctransfer.ErrNotFound.Error())
-
-	// the transfer is already committed
-	_, _, err = user1.RawChTransferInvoke("it1", "commitCCTransferFrom", id)
-	require.NoError(t, err)
-	_, _, err = user1.RawChTransferInvoke("it1", "commitCCTransferFrom", id)
-	require.EqualError(t, err, cctransfer.ErrTransferCommit.Error())
-}
-
-func TestMultiTransferFailDeleteTransferFrom(t *testing.T) {
-	// preparation
-	ledger := mock.NewLedger(t)
-	issuer := ledger.NewWallet()
-
-	config := makeBaseTokenConfig("IT1 Token", "IT1", 8,
-		issuer.Address(), "", "", "", nil)
-	initMsg := ledger.NewCC("it1", &TestToken{}, config)
-	require.Empty(t, initMsg)
-
-	user1 := ledger.NewWallet()
-	user1.AddTokenBalance("it1", "IT1_1", 1000)
-	user1.AddTokenBalance("it1", "IT1_2", 2000)
-
-	id := uuid.NewString()
-	items := []core.TransferItem{
-		{Token: "IT1_1", Amount: new(big.Int).SetInt64(450)},
-		{Token: "IT1_2", Amount: new(big.Int).SetInt64(900)},
-	}
-	itemsJSON, err := json.Marshal(items)
-	require.NoError(t, err)
-	err = user1.RawSignedInvokeWithErrorReturned("it1", "channelMultiTransferByCustomer", id, "IT2", string(itemsJSON))
-	require.NoError(t, err)
-
-	// TESTS
-
-	// transfer not found
-	_, _, err = user1.RawChTransferInvokeWithBatch("it1", "deleteCCTransferFrom", uuid.NewString())
-	require.EqualError(t, err, cctransfer.ErrNotFound.Error())
-
-	// the transfer is already committed
-	_, _, err = user1.RawChTransferInvoke("it1", "deleteCCTransferFrom", id)
-	require.EqualError(t, err, cctransfer.ErrTransferNotCommit.Error())
-}
-
-func TestMultiTransferFailDeleteTransferTo(t *testing.T) {
-	// preparation
-	ledger := mock.NewLedger(t)
-	issuer := ledger.NewWallet()
-
-	it1Config := makeBaseTokenConfig("IT1 Token", "IT1", 8,
-		issuer.Address(), "", "", "", nil)
-	initMsg := ledger.NewCC("it1", &TestToken{}, it1Config)
-	require.Empty(t, initMsg)
-
-	it2Config := makeBaseTokenConfig("IT2 Token", "IT2", 8,
-		issuer.Address(), "", "", "", nil)
-	initMsg = ledger.NewCC("it2", &TestToken{}, it2Config)
-	require.Empty(t, initMsg)
-
-	user1 := ledger.NewWallet()
-
-	// TESTS
-
-	// transfer not found
-	_, _, err := user1.RawChTransferInvoke("it2", "deleteCCTransferTo", uuid.NewString())
-	require.EqualError(t, err, cctransfer.ErrNotFound.Error())
-}
-
-func TestMultiTransferFailQueryAllTransfersFrom(t *testing.T) {
-	ledger := mock.NewLedger(t)
-	issuer := ledger.NewWallet()
-
-	config := makeBaseTokenConfig("IT1 Token", "IT1", 8,
-		issuer.Address(), "", "", "", nil)
-	initMsg := ledger.NewCC("it1", &TestToken{}, config)
-	require.Empty(t, initMsg)
-
-	user1 := ledger.NewWallet()
-	user1.AddTokenBalance("it1", "IT1_1", 1000)
-	user1.AddTokenBalance("it1", "IT1_2", 2000)
-
-	id := uuid.NewString()
-
-	items := []core.TransferItem{
-		{Token: "IT1_1", Amount: new(big.Int).SetInt64(100)},
-		{Token: "IT1_2", Amount: new(big.Int).SetInt64(100)},
-	}
-
-	itemsJSON, err := json.Marshal(items)
-	require.NoError(t, err)
-
-	err = user1.RawSignedInvokeWithErrorReturned("it1", "channelMultiTransferByCustomer", id, "IT2", string(itemsJSON))
-	require.NoError(t, err)
-	id = uuid.NewString()
-	err = user1.RawSignedInvokeWithErrorReturned("it1", "channelMultiTransferByCustomer", id, "IT2", string(itemsJSON))
-	require.NoError(t, err)
-	id = uuid.NewString()
-	err = user1.RawSignedInvokeWithErrorReturned("it1", "channelMultiTransferByCustomer", id, "IT2", string(itemsJSON))
-	require.NoError(t, err)
-
-	b := ""
-	resStr := user1.Invoke("it1", "channelTransfersFrom", "2", b)
-	res := new(pb.CCTransfers)
-	err = json.Unmarshal([]byte(resStr), &res)
-	require.NoError(t, err)
-	require.NotEmpty(t, res.Bookmark)
-
-	b = "pfi" + res.Bookmark
-	err = user1.InvokeWithError("it1", "channelTransfersFrom", "2", b)
-	require.EqualError(t, err, cctransfer.ErrInvalidBookmark.Error())
-
-	b = res.Bookmark
-	err = user1.InvokeWithError("it1", "channelTransfersFrom", "-2", b)
-	require.EqualError(t, err, cctransfer.ErrPageSizeLessOrEqZero.Error())
-}
-
-// TestFailForwardByAdmin tries to make channel transfer but
-// admin in ContractConfig was not set.
-func TestMultiTransferFailForwardByAdmin(t *testing.T) {
-	ledger := mock.NewLedger(t)
-	owner := ledger.NewWallet()
-
-	cfg := pb.Config{
-		Contract: &pb.ContractConfig{
-			Symbol:   "IT1",
-			RobotSKI: fixtures_test.RobotHashedCert,
-			Admin:    &pb.Wallet{Address: owner.Address()},
-		},
-		Token: &pb.TokenConfig{
-			Name:     "IT1 Token",
-			Decimals: 8,
-			Issuer:   &pb.Wallet{Address: owner.Address()},
-		},
-	}
-
-	cfgBytes, err := protojson.Marshal(&cfg)
-	require.NoError(t, err)
-
-	initMsg := ledger.NewCC("it1", &TestToken{}, string(cfgBytes))
-	require.Empty(t, initMsg)
-
-	// unset admin and overwrite config data
-	cfg.Contract.Admin = nil
-	cfgBytes, err = protojson.Marshal(&cfg)
-	require.NoError(t, err)
-	ledger.GetStub("it1").State["__config"] = cfgBytes
-
-	user1 := ledger.NewWallet()
-	user1.AddTokenBalance("it1", "IT1_1", 1000)
-	user1.AddTokenBalance("it1", "IT1_2", 2000)
-
-	id := uuid.NewString()
-	items := []core.TransferItem{
-		{Token: "IT1_1", Amount: new(big.Int).SetInt64(450)},
-		{Token: "IT1_2", Amount: new(big.Int).SetInt64(900)},
-	}
-
-	itemsJSON, err := json.Marshal(items)
-	require.NoError(t, err)
-
-	err = owner.RawSignedInvokeWithErrorReturned("it1", "channelMultiTransferByAdmin", id, "IT2",
-		fixtures_test.AdminAddr, string(itemsJSON))
-	require.EqualError(t, err, cctransfer.ErrAdminNotSet.Error())
-}
-
-func GetIndustrialBalanceFromResponseByGroup(response string, group string) (string, error) {
-	var balanceMap map[string]string
-	err := json.Unmarshal([]byte(response), &balanceMap)
-	if err != nil {
-		return "", err
-	}
-	bl := balanceMap[group]
-	if bl == "" {
-		return "", errors.New("cant find balance for group: " + group)
-	}
-	return bl, nil
+	resp = mockStub.QueryChaincode(cc, "channelTransfersFrom", "2", "pfi/transfer/from/"+id)
+	require.Equal(t, resp.GetStatus(), int32(shim.ERROR))
+	require.Empty(t, resp.GetPayload())
+	require.EqualError(t, cctransfer.ErrInvalidBookmark, resp.GetMessage())
+
+	resp = mockStub.QueryChaincode(cc, "channelTransfersFrom", "-2", "/transfer/from/"+id)
+	require.Equal(t, resp.GetStatus(), int32(shim.ERROR))
+	require.Empty(t, resp.GetPayload())
+	require.EqualError(t, cctransfer.ErrPageSizeLessOrEqZero, resp.GetMessage())
 }
