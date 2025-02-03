@@ -3,7 +3,6 @@ package unit
 import (
 	"encoding/hex"
 	"errors"
-	"strconv"
 	"testing"
 	"time"
 
@@ -14,6 +13,7 @@ import (
 	"github.com/anoideaopen/foundation/mocks/mockstub"
 	pbfound "github.com/anoideaopen/foundation/proto"
 	"github.com/anoideaopen/foundation/token"
+	pb "github.com/golang/protobuf/proto"
 	"github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/stretchr/testify/require"
 )
@@ -180,7 +180,14 @@ func TestContractMethods(t *testing.T) {
 				prefix := hex.EncodeToString([]byte{core.StateKeyNonce})
 				key, err := mockStub.CreateCompositeKey(prefix, []string{owner.AddressBase58Check})
 				require.NoError(t, err)
-				mockStub.GetStateCallsMap[key] = []byte(strconv.FormatInt(time.Now().UnixNano()/1000000, 10))
+
+				lastNonce := &pbfound.Nonce{
+					Nonce: []uint64{uint64(time.Now().UnixNano() / 1000000)},
+				}
+				b, err := pb.Marshal(lastNonce)
+				require.NoError(t, err)
+
+				mockStub.GetStateCallsMap[key] = b
 			},
 			resultMessage: "",
 			preparePayloadNotEqual: func() []byte {
