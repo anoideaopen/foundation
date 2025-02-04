@@ -10,9 +10,9 @@ import (
 	"github.com/anoideaopen/foundation/core/logger"
 	pb "github.com/anoideaopen/foundation/proto"
 	"github.com/btcsuite/btcd/btcutil/base58"
-	"github.com/golang/protobuf/proto" //nolint:staticcheck
-	"github.com/hyperledger/fabric-chaincode-go/shim"
-	"github.com/hyperledger/fabric-protos-go/peer"
+	"github.com/hyperledger/fabric-chaincode-go/v2/shim"
+	"github.com/hyperledger/fabric-protos-go-apiv2/peer"
+	"google.golang.org/protobuf/proto"
 )
 
 const (
@@ -212,7 +212,7 @@ func GetAccountInfo(stub shim.ChaincodeStubInterface, addr string) (*pb.AccountI
 }
 
 // GetAccountsInfo execute group requests in single invoke request each of them contains own peer.Response
-func GetAccountsInfo(stub shim.ChaincodeStubInterface, bytes [][]byte) ([]peer.Response, error) {
+func GetAccountsInfo(stub shim.ChaincodeStubInterface, bytes [][]byte) ([]*peer.Response, error) {
 	logger.Logger().Debugf("invoke acl chaincode: %s", FnGetAccountsInfo)
 	args := append([][]byte{[]byte(FnGetAccountsInfo)}, bytes...)
 	resp := stub.InvokeChaincode("acl", args, "acl")
@@ -230,7 +230,7 @@ func GetAccountsInfo(stub shim.ChaincodeStubInterface, bytes [][]byte) ([]peer.R
 		return nil, errors.New("invoke acl method getAccountsInfo: empty response")
 	}
 
-	var responses []peer.Response
+	var responses []*peer.Response
 	if err := json.Unmarshal(resp.GetPayload(), &responses); err != nil {
 		return nil, fmt.Errorf("invoke acl method getAccountsInfo: failed to unmarshal response: %w", err)
 	}

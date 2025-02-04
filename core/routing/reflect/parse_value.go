@@ -9,7 +9,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/anoideaopen/foundation/core/types"
-	"github.com/hyperledger/fabric-chaincode-go/shim"
+	"github.com/hyperledger/fabric-chaincode-go/v2/shim"
 )
 
 // ErrInvalidArgumentValue is returned when an argument value cannot be converted to the specified type.

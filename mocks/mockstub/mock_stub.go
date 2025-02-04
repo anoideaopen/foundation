@@ -13,19 +13,19 @@ import (
 	pbfound "github.com/anoideaopen/foundation/proto"
 	"github.com/anoideaopen/foundation/test/unit/fixtures"
 	"github.com/btcsuite/btcd/btcutil/base58"
-	"github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/google/uuid"
-	"github.com/hyperledger/fabric-chaincode-go/shim"
-	"github.com/hyperledger/fabric-protos-go/peer"
+	"github.com/hyperledger/fabric-chaincode-go/v2/shim"
+	"github.com/hyperledger/fabric-protos-go-apiv2/peer"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 // MockStub represents mock stub structure
 type MockStub struct {
 	*mocks.ChaincodeStub
 	GetStateCallsMap map[string][]byte
-	InvokeACLMap     map[string]func(mockStub *MockStub, parameters ...string) peer.Response
+	InvokeACLMap     map[string]func(mockStub *MockStub, parameters ...string) *peer.Response
 }
 
 // NewMockStub returns new mock stub
@@ -67,14 +67,14 @@ func NewMockStub(t *testing.T) *MockStub {
 		return nil, nil
 	})
 
-	mockStub.InvokeACLMap = map[string]func(mockStub *MockStub, parameters ...string) peer.Response{
+	mockStub.InvokeACLMap = map[string]func(mockStub *MockStub, parameters ...string) *peer.Response{
 		FnCheckAddress:    MockACLCheckAddress,
 		FnCheckKeys:       MockACLCheckKeys,
 		FnGetAccountInfo:  MockACLGetAccountInfo,
 		FnGetAccountsInfo: MockACLGetAccountsInfo,
 	}
 
-	mockStub.InvokeChaincodeCalls(func(chaincodeName string, args [][]byte, channelName string) peer.Response {
+	mockStub.InvokeChaincodeCalls(func(chaincodeName string, args [][]byte, channelName string) *peer.Response {
 		if chaincodeName != "acl" && channelName != "acl" {
 			return shim.Error("mock stub does not support chaincode " + chaincodeName + " and channel " + channelName + " calls")
 		}
@@ -146,7 +146,7 @@ func (ms *MockStub) CreateAndSetConfig(
 }
 
 // invokeChaincode invokes chaincode
-func (ms *MockStub) invokeChaincode(chaincode *core.Chaincode, functionName string, parameters ...string) peer.Response {
+func (ms *MockStub) invokeChaincode(chaincode *core.Chaincode, functionName string, parameters ...string) *peer.Response {
 	ms.GetFunctionAndParametersReturns(functionName, parameters)
 
 	// Artificial delay to update the nonce value
@@ -156,7 +156,7 @@ func (ms *MockStub) invokeChaincode(chaincode *core.Chaincode, functionName stri
 }
 
 // QueryChaincode returns query result
-func (ms *MockStub) QueryChaincode(chaincode *core.Chaincode, functionName string, parameters ...string) peer.Response {
+func (ms *MockStub) QueryChaincode(chaincode *core.Chaincode, functionName string, parameters ...string) *peer.Response {
 	return ms.invokeChaincode(chaincode, functionName, parameters...)
 }
 
@@ -165,7 +165,7 @@ func (ms *MockStub) NbTxInvokeChaincode(
 	chaincode *core.Chaincode,
 	functionName string,
 	parameters ...string,
-) peer.Response {
+) *peer.Response {
 	return ms.invokeChaincode(chaincode, functionName, parameters...)
 }
 
@@ -178,7 +178,7 @@ func (ms *MockStub) NbTxInvokeChaincodeSigned(
 	chaincodeName string,
 	channelName string,
 	parameters ...string,
-) peer.Response {
+) *peer.Response {
 	params, err := getParametersSigned(functionName, user, requestID, chaincodeName, channelName, parameters...)
 	if err != nil {
 		return shim.Error(err.Error())
@@ -192,7 +192,7 @@ func (ms *MockStub) TxInvokeChaincode(
 	chaincode *core.Chaincode,
 	functionName string,
 	parameters ...string,
-) (string, peer.Response) {
+) (string, *peer.Response) {
 	resp := ms.invokeChaincode(chaincode, functionName, parameters...)
 	if resp.GetStatus() != int32(shim.OK) || resp.GetMessage() != "" {
 		return "", resp
@@ -255,7 +255,7 @@ func (ms *MockStub) TxInvokeChaincodeSigned(
 	chaincodeName string,
 	channelName string,
 	parameters ...string,
-) (string, peer.Response) {
+) (string, *peer.Response) {
 	params, err := getParametersSigned(functionName, user, requestID, chaincodeName, channelName, parameters...)
 	if err != nil {
 		return "", shim.Error(err.Error())
@@ -273,7 +273,7 @@ func (ms *MockStub) TxInvokeChaincodeMultisigned(
 	chaincodeName string,
 	channelName string,
 	parameters ...string,
-) (string, peer.Response) {
+) (string, *peer.Response) {
 	params, err := getParametersMultisigned(functionName, user, requestID, chaincodeName, channelName, parameters...)
 	if err != nil {
 		return "", shim.Error(err.Error())
@@ -294,7 +294,7 @@ func (ms *MockStub) TxInvokeTaskExecutor(
 	chaincodeName string,
 	channelName string,
 	tasksReq []*ExecutorRequest,
-) (string, peer.Response) {
+) (string, *peer.Response) {
 	tasks := make([]*pbfound.Task, 0, len(tasksReq))
 	nonce := time.Now().UnixNano() / 1000000
 	for _, task := range tasksReq {

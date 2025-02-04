@@ -2,8 +2,8 @@ package core
 
 import (
 	"github.com/anoideaopen/foundation/core/multiswap"
-	"github.com/hyperledger/fabric-chaincode-go/shim"
-	"github.com/hyperledger/fabric-protos-go/peer"
+	"github.com/hyperledger/fabric-chaincode-go/v2/shim"
+	"github.com/hyperledger/fabric-protos-go-apiv2/peer"
 )
 
 // multiSwapDoneHandler processes a request to mark multiple swaps as done.
@@ -15,7 +15,7 @@ import (
 // Otherwise, it returns a shim.Error response.
 func (cc *Chaincode) multiSwapDoneHandler(
 	stub shim.ChaincodeStubInterface,
-) peer.Response {
+) *peer.Response {
 	if cc.contract.ContractConfig().GetOptions().GetDisableMultiSwaps() {
 		return shim.Error("handling multi-swap done failed, " + ErrMultiSwapDisabled.Error())
 	}

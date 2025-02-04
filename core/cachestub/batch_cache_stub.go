@@ -6,16 +6,16 @@ import (
 	"strings"
 
 	"github.com/anoideaopen/foundation/proto"
-	pb "github.com/golang/protobuf/proto" //nolint:staticcheck
-	"github.com/hyperledger/fabric-chaincode-go/shim"
-	"github.com/hyperledger/fabric-protos-go/peer"
+	"github.com/hyperledger/fabric-chaincode-go/v2/shim"
+	"github.com/hyperledger/fabric-protos-go-apiv2/peer"
+	pb "google.golang.org/protobuf/proto"
 )
 
 type BatchCacheStub struct {
 	shim.ChaincodeStubInterface
 	batchWriteCache   map[string]*proto.WriteElement
 	batchReadeCache   map[string]*proto.WriteElement
-	invokeResultCache map[string]peer.Response
+	invokeResultCache map[string]*peer.Response
 	Swaps             []*proto.Swap
 	MultiSwaps        []*proto.MultiSwap
 }
@@ -25,7 +25,7 @@ func NewBatchCacheStub(stub shim.ChaincodeStubInterface) *BatchCacheStub {
 		ChaincodeStubInterface: stub,
 		batchWriteCache:        make(map[string]*proto.WriteElement),
 		batchReadeCache:        make(map[string]*proto.WriteElement),
-		invokeResultCache:      make(map[string]peer.Response),
+		invokeResultCache:      make(map[string]*peer.Response),
 	}
 }
 
@@ -77,7 +77,7 @@ func (bs *BatchCacheStub) DelState(key string) error {
 	return nil
 }
 
-func (bs *BatchCacheStub) InvokeChaincode(chaincodeName string, args [][]byte, channel string) peer.Response {
+func (bs *BatchCacheStub) InvokeChaincode(chaincodeName string, args [][]byte, channel string) *peer.Response {
 	var key string
 	if string(args[0]) != "getAccountsInfo" {
 		key = bs.makeKeyByte(channel, chaincodeName, args)
@@ -107,7 +107,7 @@ func (bs *BatchCacheStub) InvokeChaincode(chaincodeName string, args [][]byte, c
 func (bs *BatchCacheStub) insertCacheCheckKeys(
 	channel string,
 	chaincodeName string,
-	resp peer.Response,
+	resp *peer.Response,
 ) {
 	addrMsg := &proto.AclResponse{}
 	if err := pb.Unmarshal(resp.GetPayload(), addrMsg); err != nil {
@@ -121,7 +121,7 @@ func (bs *BatchCacheStub) insertCacheCheckKeys(
 		return
 	}
 	keyCheck := channel + chaincodeName + "checkAddress" + addr
-	bs.invokeResultCache[keyCheck] = peer.Response{
+	bs.invokeResultCache[keyCheck] = &peer.Response{
 		Status:  http.StatusOK,
 		Payload: address,
 	}
@@ -131,7 +131,7 @@ func (bs *BatchCacheStub) insertCacheCheckKeys(
 		return
 	}
 	keyAccInfo := channel + chaincodeName + "getAccountInfo" + addr
-	bs.invokeResultCache[keyAccInfo] = peer.Response{
+	bs.invokeResultCache[keyAccInfo] = &peer.Response{
 		Status:  http.StatusOK,
 		Payload: accinfo,
 	}
@@ -141,9 +141,9 @@ func (bs *BatchCacheStub) insertCacheGetAccountsInfo(
 	channel string,
 	chaincodeName string,
 	args [][]byte,
-	resp peer.Response,
+	resp *peer.Response,
 ) {
-	var responses []peer.Response
+	var responses []*peer.Response
 	err := json.Unmarshal(resp.GetPayload(), &responses)
 	if err != nil {
 		return

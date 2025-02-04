@@ -16,13 +16,13 @@ import (
 	"github.com/anoideaopen/foundation/core/telemetry"
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/proto"
-	pb "github.com/golang/protobuf/proto" //nolint:staticcheck
-	"github.com/golang/protobuf/ptypes/timestamp"
-	"github.com/hyperledger/fabric-chaincode-go/shim"
-	"github.com/hyperledger/fabric-protos-go/peer"
+	"github.com/hyperledger/fabric-chaincode-go/v2/shim"
+	"github.com/hyperledger/fabric-protos-go-apiv2/peer"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/propagation"
+	pb "google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const robotSideTimeout = 300 // 5 minutes
@@ -149,7 +149,7 @@ func (cc *Chaincode) batchExecute(
 	traceCtx telemetry.TraceContext,
 	stub shim.ChaincodeStubInterface,
 	dataIn string,
-) peer.Response {
+) *peer.Response {
 	traceCtx, span := cc.contract.TracingHandler().StartNewSpan(traceCtx, BatchExecute)
 	defer span.End()
 
@@ -180,7 +180,7 @@ func (cc *Chaincode) batchExecute(
 	span.AddEvent("handle transactions in batch")
 	ids := make([]string, 0, len(batch.GetTxIDs()))
 	for txIdx, txID := range batch.GetTxIDs() {
-		txTimestamp := &timestamp.Timestamp{
+		txTimestamp := &timestamppb.Timestamp{
 			Seconds: batchTxTime.GetSeconds(),
 			Nanos:   batchTxTime.GetNanos() + int32(txIdx),
 		}
@@ -258,7 +258,7 @@ func (cc *Chaincode) batchedTxExecute(
 	traceCtx telemetry.TraceContext,
 	stub *cachestub.BatchCacheStub,
 	binaryTxID []byte,
-	txTimestamp *timestamp.Timestamp,
+	txTimestamp *timestamppb.Timestamp,
 ) (r *proto.TxResponse, e *proto.BatchTxEvent) {
 	traceCtx, span := cc.contract.TracingHandler().StartNewSpan(traceCtx, "batchTxExecute")
 	defer span.End()

@@ -15,12 +15,12 @@ import (
 	"github.com/anoideaopen/foundation/mocks/mockstub"
 	pbfound "github.com/anoideaopen/foundation/proto"
 	"github.com/anoideaopen/foundation/test/unit/fixtures"
-	pb "github.com/golang/protobuf/proto" //nolint:staticcheck
-	"github.com/hyperledger/fabric-chaincode-go/shim"
-	"github.com/hyperledger/fabric-protos-go/peer"
+	"github.com/hyperledger/fabric-chaincode-go/v2/shim"
+	"github.com/hyperledger/fabric-protos-go-apiv2/peer"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/sha3"
 	"google.golang.org/protobuf/encoding/protojson"
+	pb "google.golang.org/protobuf/proto"
 )
 
 // OnMultiSwapDoneEvent is a multi-swap done callback.
@@ -830,7 +830,7 @@ func TestMultiSwap(t *testing.T) {
 
 			var (
 				txId string
-				resp peer.Response
+				resp *peer.Response
 			)
 			if testCase.isQuery {
 				resp = mockStub.QueryChaincode(cc, testCase.functionName, parameters...)

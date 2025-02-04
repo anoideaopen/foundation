@@ -10,7 +10,7 @@ import (
 	"github.com/anoideaopen/foundation/core/types"
 	corebig "github.com/anoideaopen/foundation/core/types/big"
 	"github.com/anoideaopen/foundation/proto"
-	"github.com/hyperledger/fabric-chaincode-go/shim"
+	"github.com/hyperledger/fabric-chaincode-go/v2/shim"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/encoding/protojson"
 )

@@ -1,6 +1,6 @@
 package routing
 
-import "github.com/hyperledger/fabric-chaincode-go/shim"
+import "github.com/hyperledger/fabric-chaincode-go/v2/shim"
 
 // Router defines the interface for managing smart contract methods and routing calls.
 // It is used in the core package to manage method calls, perform validation, and ensure proper

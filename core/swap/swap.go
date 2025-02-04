@@ -15,10 +15,10 @@ import (
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/core/types/big"
 	"github.com/anoideaopen/foundation/proto"
-	pb "github.com/golang/protobuf/proto" //nolint:staticcheck
-	"github.com/hyperledger/fabric-chaincode-go/shim"
-	"github.com/hyperledger/fabric-protos-go/peer"
+	"github.com/hyperledger/fabric-chaincode-go/v2/shim"
+	"github.com/hyperledger/fabric-protos-go-apiv2/peer"
 	"golang.org/x/crypto/sha3"
+	pb "google.golang.org/protobuf/proto"
 )
 
 const (
@@ -118,7 +118,7 @@ type OnSwapDoneEventListener interface {
 	)
 }
 
-func UserDone(bci any, stub shim.ChaincodeStubInterface, symbol, swapID string, key string) peer.Response {
+func UserDone(bci any, stub shim.ChaincodeStubInterface, symbol, swapID string, key string) *peer.Response {
 	s, err := Load(stub, swapID)
 	if err != nil {
 		return shim.Error(err.Error())

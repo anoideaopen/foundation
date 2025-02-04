@@ -4,7 +4,7 @@ import (
 	"errors"
 	"math/big"
 
-	"github.com/hyperledger/fabric-chaincode-go/shim"
+	"github.com/hyperledger/fabric-chaincode-go/v2/shim"
 )
 
 // Error definitions for balance operations.

@@ -11,10 +11,10 @@ import (
 	"github.com/anoideaopen/foundation/core/types"
 	pbfound "github.com/anoideaopen/foundation/proto"
 	"github.com/btcsuite/btcd/btcutil/base58"
-	"github.com/golang/protobuf/proto" //nolint:staticcheck
-	"github.com/hyperledger/fabric-chaincode-go/shim"
-	"github.com/hyperledger/fabric-protos-go/peer"
+	"github.com/hyperledger/fabric-chaincode-go/v2/shim"
+	"github.com/hyperledger/fabric-protos-go-apiv2/peer"
 	"golang.org/x/crypto/sha3"
+	"google.golang.org/protobuf/proto"
 )
 
 // ACL chaincode functions
@@ -34,7 +34,7 @@ const (
 	PrefixUncompressedSecp259k1Key = 0x04
 )
 
-func MockACLCheckAddress(_ *MockStub, parameters ...string) peer.Response {
+func MockACLCheckAddress(_ *MockStub, parameters ...string) *peer.Response {
 	address := parameters[0]
 
 	addr, err := types.AddrFromBase58Check(address)
@@ -49,7 +49,7 @@ func MockACLCheckAddress(_ *MockStub, parameters ...string) peer.Response {
 	return shim.Success(data)
 }
 
-func MockACLCheckKeys(_ *MockStub, parameters ...string) peer.Response {
+func MockACLCheckKeys(_ *MockStub, parameters ...string) *peer.Response {
 	keysString := parameters[0]
 
 	keys := strings.Split(keysString, "/")
@@ -88,7 +88,7 @@ func MockACLCheckKeys(_ *MockStub, parameters ...string) peer.Response {
 	return shim.Success(data)
 }
 
-func MockACLGetAccountInfo(_ *MockStub, _ ...string) peer.Response {
+func MockACLGetAccountInfo(_ *MockStub, _ ...string) *peer.Response {
 	data, err := json.Marshal(&pbfound.AccountInfo{
 		KycHash:     "123",
 		GrayListed:  false,
@@ -100,8 +100,8 @@ func MockACLGetAccountInfo(_ *MockStub, _ ...string) peer.Response {
 	return shim.Success(data)
 }
 
-func MockACLGetAccountsInfo(mockStub *MockStub, parameters ...string) peer.Response {
-	responses := make([]peer.Response, 0)
+func MockACLGetAccountsInfo(mockStub *MockStub, parameters ...string) *peer.Response {
+	responses := make([]*peer.Response, 0)
 	for _, parameter := range parameters {
 		var argsTmp []string
 		err := json.Unmarshal([]byte(parameter), &argsTmp)
@@ -109,7 +109,7 @@ func MockACLGetAccountsInfo(mockStub *MockStub, parameters ...string) peer.Respo
 			return shim.Error(err.Error())
 		}
 
-		var response peer.Response
+		var response *peer.Response
 		functionName := argsTmp[0]
 
 		if function, ok := mockStub.InvokeACLMap[functionName]; ok {

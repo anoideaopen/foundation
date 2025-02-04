@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/anoideaopen/foundation/proto"
-	"github.com/hyperledger/fabric-chaincode-go/shim"
+	"github.com/hyperledger/fabric-chaincode-go/v2/shim"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 

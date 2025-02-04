@@ -12,9 +12,9 @@ import (
 	"github.com/anoideaopen/foundation/mocks"
 	"github.com/anoideaopen/foundation/mocks/mockstub"
 	"github.com/anoideaopen/foundation/proto"
-	pb "github.com/golang/protobuf/proto"
-	"github.com/hyperledger/fabric-protos-go/peer"
+	"github.com/hyperledger/fabric-protos-go-apiv2/peer"
 	"github.com/stretchr/testify/require"
+	pb "google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -22,17 +22,17 @@ func TestExternalTransfers(t *testing.T) {
 	testCollection := []struct {
 		name             string
 		amountToTransfer string
-		invokeFunc       func(cc *core.Chaincode, mockStub *mockstub.MockStub, owner, user *mocks.UserFoundation, parameters ...string) peer.Response
-		checkResultFunc  func(t *testing.T, mockStub *mockstub.MockStub, resp peer.Response, user1BalanceKey, user2BalanceKey string)
+		invokeFunc       func(cc *core.Chaincode, mockStub *mockstub.MockStub, owner, user *mocks.UserFoundation, parameters ...string) *peer.Response
+		checkResultFunc  func(t *testing.T, mockStub *mockstub.MockStub, resp *peer.Response, user1BalanceKey, user2BalanceKey string)
 	}{
 		{
 			name:             "happy path",
 			amountToTransfer: "600",
-			invokeFunc: func(cc *core.Chaincode, mockStub *mockstub.MockStub, owner, user *mocks.UserFoundation, parameters ...string) peer.Response {
+			invokeFunc: func(cc *core.Chaincode, mockStub *mockstub.MockStub, owner, user *mocks.UserFoundation, parameters ...string) *peer.Response {
 				_, resp := mockStub.TxInvokeChaincodeSigned(cc, "transferBalance", owner, "", "", "", parameters...)
 				return resp
 			},
-			checkResultFunc: func(t *testing.T, mockStub *mockstub.MockStub, resp peer.Response, user1BalanceKey, user2BalanceKey string) {
+			checkResultFunc: func(t *testing.T, mockStub *mockstub.MockStub, resp *peer.Response, user1BalanceKey, user2BalanceKey string) {
 				balance1Checked := false
 				balance2Checked := false
 				for i := 0; i < mockStub.PutStateCallCount(); i++ {
@@ -56,11 +56,11 @@ func TestExternalTransfers(t *testing.T) {
 		{
 			name:             "[negative] unauthorized invoke",
 			amountToTransfer: "600",
-			invokeFunc: func(cc *core.Chaincode, mockStub *mockstub.MockStub, owner, user *mocks.UserFoundation, parameters ...string) peer.Response {
+			invokeFunc: func(cc *core.Chaincode, mockStub *mockstub.MockStub, owner, user *mocks.UserFoundation, parameters ...string) *peer.Response {
 				_, resp := mockStub.TxInvokeChaincodeSigned(cc, "transferBalance", user, "", "", "", parameters...)
 				return resp
 			},
-			checkResultFunc: func(t *testing.T, mockStub *mockstub.MockStub, resp peer.Response, user1BalanceKey, user2BalanceKey string) {
+			checkResultFunc: func(t *testing.T, mockStub *mockstub.MockStub, resp *peer.Response, user1BalanceKey, user2BalanceKey string) {
 				payload := &proto.BatchResponse{}
 
 				err := pb.Unmarshal(resp.Payload, payload)
@@ -71,11 +71,11 @@ func TestExternalTransfers(t *testing.T) {
 		{
 			name:             "[negative] insufficient funds",
 			amountToTransfer: "1100",
-			invokeFunc: func(cc *core.Chaincode, mockStub *mockstub.MockStub, owner, user *mocks.UserFoundation, parameters ...string) peer.Response {
+			invokeFunc: func(cc *core.Chaincode, mockStub *mockstub.MockStub, owner, user *mocks.UserFoundation, parameters ...string) *peer.Response {
 				_, resp := mockStub.TxInvokeChaincodeSigned(cc, "transferBalance", owner, "", "", "", parameters...)
 				return resp
 			},
-			checkResultFunc: func(t *testing.T, mockStub *mockstub.MockStub, resp peer.Response, user1BalanceKey, user2BalanceKey string) {
+			checkResultFunc: func(t *testing.T, mockStub *mockstub.MockStub, resp *peer.Response, user1BalanceKey, user2BalanceKey string) {
 				payload := &proto.BatchResponse{}
 
 				err := pb.Unmarshal(resp.Payload, payload)
@@ -86,11 +86,11 @@ func TestExternalTransfers(t *testing.T) {
 		{
 			name:             "[negative] negative amount transfer",
 			amountToTransfer: "-100",
-			invokeFunc: func(cc *core.Chaincode, mockStub *mockstub.MockStub, owner, user *mocks.UserFoundation, parameters ...string) peer.Response {
+			invokeFunc: func(cc *core.Chaincode, mockStub *mockstub.MockStub, owner, user *mocks.UserFoundation, parameters ...string) *peer.Response {
 				_, resp := mockStub.TxInvokeChaincodeSigned(cc, "transferBalance", owner, "", "", "", parameters...)
 				return resp
 			},
-			checkResultFunc: func(t *testing.T, mockStub *mockstub.MockStub, resp peer.Response, user1BalanceKey, user2BalanceKey string) {
+			checkResultFunc: func(t *testing.T, mockStub *mockstub.MockStub, resp *peer.Response, user1BalanceKey, user2BalanceKey string) {
 				payload := &proto.BatchResponse{}
 
 				err := pb.Unmarshal(resp.Payload, payload)
@@ -101,11 +101,11 @@ func TestExternalTransfers(t *testing.T) {
 		{
 			name:             "[negative] zero amount transfer",
 			amountToTransfer: "0",
-			invokeFunc: func(cc *core.Chaincode, mockStub *mockstub.MockStub, owner, user *mocks.UserFoundation, parameters ...string) peer.Response {
+			invokeFunc: func(cc *core.Chaincode, mockStub *mockstub.MockStub, owner, user *mocks.UserFoundation, parameters ...string) *peer.Response {
 				_, resp := mockStub.TxInvokeChaincodeSigned(cc, "transferBalance", owner, "", "", "", parameters...)
 				return resp
 			},
-			checkResultFunc: func(t *testing.T, mockStub *mockstub.MockStub, resp peer.Response, user1BalanceKey, user2BalanceKey string) {
+			checkResultFunc: func(t *testing.T, mockStub *mockstub.MockStub, resp *peer.Response, user1BalanceKey, user2BalanceKey string) {
 				payload := &proto.BatchResponse{}
 
 				err := pb.Unmarshal(resp.Payload, payload)

@@ -15,13 +15,13 @@ import (
 	"github.com/anoideaopen/foundation/mocks/mockstub"
 	pbfound "github.com/anoideaopen/foundation/proto"
 	"github.com/anoideaopen/foundation/test/unit/fixtures"
-	pb "github.com/golang/protobuf/proto"
 	"github.com/google/uuid"
-	"github.com/hyperledger/fabric-chaincode-go/shim"
-	"github.com/hyperledger/fabric-protos-go/ledger/queryresult"
-	"github.com/hyperledger/fabric-protos-go/peer"
+	"github.com/hyperledger/fabric-chaincode-go/v2/shim"
+	"github.com/hyperledger/fabric-protos-go-apiv2/ledger/queryresult"
+	"github.com/hyperledger/fabric-protos-go-apiv2/peer"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/encoding/protojson"
+	pb "google.golang.org/protobuf/proto"
 )
 
 func TestChannelTransfer(t *testing.T) {
@@ -1793,7 +1793,7 @@ func TestChannelTransfer(t *testing.T) {
 
 			var (
 				txId string
-				resp peer.Response
+				resp *peer.Response
 			)
 			if testCase.isQuery {
 				resp = mockStub.QueryChaincode(cc, testCase.functionName, parameters...)
@@ -1911,7 +1911,7 @@ func TestQueryAllTransfersFrom(t *testing.T) {
 	cc, err := core.NewCC(&CustomToken{})
 	require.NoError(t, err)
 
-	var resp peer.Response
+	var resp *peer.Response
 
 	b := ""
 	for {

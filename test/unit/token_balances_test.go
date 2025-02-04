@@ -11,7 +11,7 @@ import (
 	"github.com/anoideaopen/foundation/mocks"
 	"github.com/anoideaopen/foundation/mocks/mockstub"
 	pbfound "github.com/anoideaopen/foundation/proto"
-	"github.com/hyperledger/fabric-protos-go/peer"
+	"github.com/hyperledger/fabric-protos-go-apiv2/peer"
 	"github.com/stretchr/testify/require"
 )
 
@@ -50,13 +50,13 @@ func TestTokenBalances(t *testing.T) {
 			issuer *mocks.UserFoundation,
 			user1 *mocks.UserFoundation,
 			parameters ...string,
-		) peer.Response
+		) *peer.Response
 		funcCheckResult func(
 			t *testing.T,
 			mockStub *mockstub.MockStub,
 			user1 *mocks.UserFoundation,
 			user2 *mocks.UserFoundation,
-			resp peer.Response,
+			resp *peer.Response,
 		)
 	}{
 		{
@@ -70,11 +70,11 @@ func TestTokenBalances(t *testing.T) {
 
 				return []string{user1.AddressBase58Check, "500"}
 			},
-			funcInvokeChaincode: func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, issuer *mocks.UserFoundation, user1 *mocks.UserFoundation, parameters ...string) peer.Response {
+			funcInvokeChaincode: func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, issuer *mocks.UserFoundation, user1 *mocks.UserFoundation, parameters ...string) *peer.Response {
 				_, resp := mockStub.TxInvokeChaincodeSigned(cc, functionName, issuer, "", "", "", parameters...)
 				return resp
 			},
-			funcCheckResult: func(t *testing.T, mockStub *mockstub.MockStub, user1 *mocks.UserFoundation, user2 *mocks.UserFoundation, resp peer.Response) {
+			funcCheckResult: func(t *testing.T, mockStub *mockstub.MockStub, user1 *mocks.UserFoundation, user2 *mocks.UserFoundation, resp *peer.Response) {
 				balanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user1.AddressBase58Check})
 				require.NoError(t, err)
 
@@ -110,10 +110,10 @@ func TestTokenBalances(t *testing.T) {
 
 				return []string{user1.AddressBase58Check}
 			},
-			funcInvokeChaincode: func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, issuer *mocks.UserFoundation, user1 *mocks.UserFoundation, parameters ...string) peer.Response {
+			funcInvokeChaincode: func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, issuer *mocks.UserFoundation, user1 *mocks.UserFoundation, parameters ...string) *peer.Response {
 				return mockStub.QueryChaincode(cc, functionName, parameters...)
 			},
-			funcCheckResult: func(t *testing.T, mockStub *mockstub.MockStub, user1 *mocks.UserFoundation, user2 *mocks.UserFoundation, resp peer.Response) {
+			funcCheckResult: func(t *testing.T, mockStub *mockstub.MockStub, user1 *mocks.UserFoundation, user2 *mocks.UserFoundation, resp *peer.Response) {
 				require.Equal(t, "\"500\"", string(resp.GetPayload()))
 			},
 		},
@@ -128,11 +128,11 @@ func TestTokenBalances(t *testing.T) {
 
 				return []string{user1.AddressBase58Check, "500"}
 			},
-			funcInvokeChaincode: func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, issuer *mocks.UserFoundation, user1 *mocks.UserFoundation, parameters ...string) peer.Response {
+			funcInvokeChaincode: func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, issuer *mocks.UserFoundation, user1 *mocks.UserFoundation, parameters ...string) *peer.Response {
 				_, resp := mockStub.TxInvokeChaincodeSigned(cc, functionName, issuer, "", "", "", parameters...)
 				return resp
 			},
-			funcCheckResult: func(t *testing.T, mockStub *mockstub.MockStub, user1 *mocks.UserFoundation, user2 *mocks.UserFoundation, resp peer.Response) {
+			funcCheckResult: func(t *testing.T, mockStub *mockstub.MockStub, user1 *mocks.UserFoundation, user2 *mocks.UserFoundation, resp *peer.Response) {
 				balanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user1.AddressBase58Check})
 				require.NoError(t, err)
 
@@ -168,11 +168,11 @@ func TestTokenBalances(t *testing.T) {
 
 				return []string{user1.AddressBase58Check, user2.AddressBase58Check, "300", "test transfer locked balance"}
 			},
-			funcInvokeChaincode: func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, issuer *mocks.UserFoundation, user1 *mocks.UserFoundation, parameters ...string) peer.Response {
+			funcInvokeChaincode: func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, issuer *mocks.UserFoundation, user1 *mocks.UserFoundation, parameters ...string) *peer.Response {
 				_, resp := mockStub.TxInvokeChaincodeSigned(cc, functionName, issuer, "", "", "", parameters...)
 				return resp
 			},
-			funcCheckResult: func(t *testing.T, mockStub *mockstub.MockStub, user1 *mocks.UserFoundation, user2 *mocks.UserFoundation, resp peer.Response) {
+			funcCheckResult: func(t *testing.T, mockStub *mockstub.MockStub, user1 *mocks.UserFoundation, user2 *mocks.UserFoundation, resp *peer.Response) {
 				user1BalanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeTokenLocked.String(), []string{user1.AddressBase58Check})
 				require.NoError(t, err)
 
@@ -208,11 +208,11 @@ func TestTokenBalances(t *testing.T) {
 
 				return []string{user1.AddressBase58Check, "500", "test token burning locked"}
 			},
-			funcInvokeChaincode: func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, issuer *mocks.UserFoundation, user1 *mocks.UserFoundation, parameters ...string) peer.Response {
+			funcInvokeChaincode: func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, issuer *mocks.UserFoundation, user1 *mocks.UserFoundation, parameters ...string) *peer.Response {
 				_, resp := mockStub.TxInvokeChaincodeSigned(cc, functionName, issuer, "", "", "", parameters...)
 				return resp
 			},
-			funcCheckResult: func(t *testing.T, mockStub *mockstub.MockStub, user1 *mocks.UserFoundation, user2 *mocks.UserFoundation, resp peer.Response) {
+			funcCheckResult: func(t *testing.T, mockStub *mockstub.MockStub, user1 *mocks.UserFoundation, user2 *mocks.UserFoundation, resp *peer.Response) {
 				lockedBalanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeTokenLocked.String(), []string{user1.AddressBase58Check})
 				require.NoError(t, err)
 

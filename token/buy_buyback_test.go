@@ -10,9 +10,9 @@ import (
 	"github.com/anoideaopen/foundation/mocks"
 	"github.com/anoideaopen/foundation/mocks/mockstub"
 	pbfound "github.com/anoideaopen/foundation/proto"
-	"github.com/golang/protobuf/proto"
-	"github.com/hyperledger/fabric-protos-go/peer"
+	"github.com/hyperledger/fabric-protos-go-apiv2/peer"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 	pb "google.golang.org/protobuf/proto"
 )
 
@@ -48,13 +48,13 @@ func TestBaseTokenTxBuy(t *testing.T) {
 			issuer *mocks.UserFoundation,
 			user *mocks.UserFoundation,
 			parameters ...string,
-		) peer.Response
+		) *peer.Response
 		funcCheckResult func(
 			t *testing.T,
 			mockStub *mockstub.MockStub,
 			issuer *mocks.UserFoundation,
 			user *mocks.UserFoundation,
-			resp peer.Response,
+			resp *peer.Response,
 		)
 	}{
 		{
@@ -63,11 +63,11 @@ func TestBaseTokenTxBuy(t *testing.T) {
 			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub, issuer, user *mocks.UserFoundation) []string {
 				return []string{vEmitAmount.String()}
 			},
-			funcInvokeChaincode: func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, issuer, user *mocks.UserFoundation, parameters ...string) peer.Response {
+			funcInvokeChaincode: func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, issuer, user *mocks.UserFoundation, parameters ...string) *peer.Response {
 				_, resp := mockStub.TxInvokeChaincodeSigned(cc, functionName, issuer, "", "", "", parameters...)
 				return resp
 			},
-			funcCheckResult: func(t *testing.T, mockStub *mockstub.MockStub, issuer, user *mocks.UserFoundation, resp peer.Response) {
+			funcCheckResult: func(t *testing.T, mockStub *mockstub.MockStub, issuer, user *mocks.UserFoundation, resp *peer.Response) {
 				issuerBalanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{issuer.AddressBase58Check})
 				require.NoError(t, err)
 
@@ -94,11 +94,11 @@ func TestBaseTokenTxBuy(t *testing.T) {
 			) []string {
 				return []string{vDealType, vCurrency, vRate.String()}
 			},
-			funcInvokeChaincode: func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, owner *mocks.UserFoundation, user *mocks.UserFoundation, parameters ...string) peer.Response {
+			funcInvokeChaincode: func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, owner *mocks.UserFoundation, user *mocks.UserFoundation, parameters ...string) *peer.Response {
 				_, resp := mockStub.TxInvokeChaincodeSigned(cc, functionName, owner, "", "", "", parameters...)
 				return resp
 			},
-			funcCheckResult: func(t *testing.T, mockStub *mockstub.MockStub, owner *mocks.UserFoundation, user *mocks.UserFoundation, resp peer.Response) {
+			funcCheckResult: func(t *testing.T, mockStub *mockstub.MockStub, owner *mocks.UserFoundation, user *mocks.UserFoundation, resp *peer.Response) {
 				checked := false
 				for i := 0; i < mockStub.PutStateCallCount(); i++ {
 					putStateKey, value := mockStub.PutStateArgsForCall(i)
@@ -143,11 +143,11 @@ func TestBaseTokenTxBuy(t *testing.T) {
 
 				return []string{vDealType, vCurrency, vLimitMin.String(), vLimitMax.String()}
 			},
-			funcInvokeChaincode: func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, owner *mocks.UserFoundation, user *mocks.UserFoundation, parameters ...string) peer.Response {
+			funcInvokeChaincode: func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, owner *mocks.UserFoundation, user *mocks.UserFoundation, parameters ...string) *peer.Response {
 				_, resp := mockStub.TxInvokeChaincodeSigned(cc, functionName, owner, "", "", "", parameters...)
 				return resp
 			},
-			funcCheckResult: func(t *testing.T, mockStub *mockstub.MockStub, owner *mocks.UserFoundation, user *mocks.UserFoundation, resp peer.Response) {
+			funcCheckResult: func(t *testing.T, mockStub *mockstub.MockStub, owner *mocks.UserFoundation, user *mocks.UserFoundation, resp *peer.Response) {
 				checked := false
 				for i := 0; i < mockStub.PutStateCallCount(); i++ {
 					putStateKey, value := mockStub.PutStateArgsForCall(i)
@@ -217,7 +217,7 @@ func TestBaseTokenTxBuy(t *testing.T) {
 				owner *mocks.UserFoundation,
 				user *mocks.UserFoundation,
 				parameters ...string,
-			) peer.Response {
+			) *peer.Response {
 				_, resp := mockStub.TxInvokeChaincodeSigned(cc, functionName, user, "", "", "", parameters...)
 				return resp
 			},
@@ -226,7 +226,7 @@ func TestBaseTokenTxBuy(t *testing.T) {
 				mockStub *mockstub.MockStub,
 				issuer *mocks.UserFoundation,
 				user *mocks.UserFoundation,
-				resp peer.Response,
+				resp *peer.Response,
 			) {
 				payload := &pbfound.BatchResponse{}
 
@@ -279,7 +279,7 @@ func TestBaseTokenTxBuy(t *testing.T) {
 				owner *mocks.UserFoundation,
 				user *mocks.UserFoundation,
 				parameters ...string,
-			) peer.Response {
+			) *peer.Response {
 				_, resp := mockStub.TxInvokeChaincodeSigned(cc, functionName, user, "", "", "", parameters...)
 				return resp
 			},
@@ -288,7 +288,7 @@ func TestBaseTokenTxBuy(t *testing.T) {
 				mockStub *mockstub.MockStub,
 				issuer *mocks.UserFoundation,
 				user *mocks.UserFoundation,
-				resp peer.Response,
+				resp *peer.Response,
 			) {
 				payload := &pbfound.BatchResponse{}
 
@@ -341,7 +341,7 @@ func TestBaseTokenTxBuy(t *testing.T) {
 				owner *mocks.UserFoundation,
 				user *mocks.UserFoundation,
 				parameters ...string,
-			) peer.Response {
+			) *peer.Response {
 				_, resp := mockStub.TxInvokeChaincodeSigned(cc, functionName, user, "", "", "", parameters...)
 				return resp
 			},
@@ -350,7 +350,7 @@ func TestBaseTokenTxBuy(t *testing.T) {
 				mockStub *mockstub.MockStub,
 				issuer *mocks.UserFoundation,
 				user *mocks.UserFoundation,
-				resp peer.Response,
+				resp *peer.Response,
 			) {
 				payload := &pbfound.BatchResponse{}
 
@@ -403,7 +403,7 @@ func TestBaseTokenTxBuy(t *testing.T) {
 				owner *mocks.UserFoundation,
 				user *mocks.UserFoundation,
 				parameters ...string,
-			) peer.Response {
+			) *peer.Response {
 				_, resp := mockStub.TxInvokeChaincodeSigned(cc, functionName, user, "", "", "", parameters...)
 				return resp
 			},
@@ -412,7 +412,7 @@ func TestBaseTokenTxBuy(t *testing.T) {
 				mockStub *mockstub.MockStub,
 				issuer *mocks.UserFoundation,
 				user *mocks.UserFoundation,
-				resp peer.Response,
+				resp *peer.Response,
 			) {
 				payload := &pbfound.BatchResponse{}
 
@@ -465,7 +465,7 @@ func TestBaseTokenTxBuy(t *testing.T) {
 				owner *mocks.UserFoundation,
 				user *mocks.UserFoundation,
 				parameters ...string,
-			) peer.Response {
+			) *peer.Response {
 				_, resp := mockStub.TxInvokeChaincodeSigned(cc, functionName, user, "", "", "", parameters...)
 				return resp
 			},
@@ -474,7 +474,7 @@ func TestBaseTokenTxBuy(t *testing.T) {
 				mockStub *mockstub.MockStub,
 				issuer *mocks.UserFoundation,
 				user *mocks.UserFoundation,
-				resp peer.Response,
+				resp *peer.Response,
 			) {
 				keyUserBalance, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user.AddressBase58Check})
 				require.NoError(t, err)
@@ -548,5 +548,3 @@ func TestBaseTokenTxBuy(t *testing.T) {
 		})
 	}
 }
-
-// ToDo: add buyback test

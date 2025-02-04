@@ -3,7 +3,7 @@ package balance
 import (
 	"math/big"
 
-	"github.com/hyperledger/fabric-chaincode-go/shim"
+	"github.com/hyperledger/fabric-chaincode-go/v2/shim"
 )
 
 // TokenBalance represents a balance entry with a token identifier and its associated value.

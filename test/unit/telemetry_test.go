@@ -7,26 +7,23 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/anoideaopen/foundation/core/config"
-
-	"github.com/anoideaopen/foundation/core/telemetry"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/propagation"
-
-	"github.com/anoideaopen/foundation/test/unit/fixtures"
-
 	"github.com/anoideaopen/foundation/core"
+	"github.com/anoideaopen/foundation/core/config"
+	"github.com/anoideaopen/foundation/core/telemetry"
 	"github.com/anoideaopen/foundation/mocks"
 	"github.com/anoideaopen/foundation/mocks/mockstub"
 	"github.com/anoideaopen/foundation/proto"
 	pbfound "github.com/anoideaopen/foundation/proto"
-	pb "github.com/golang/protobuf/proto"
-	"github.com/hyperledger/fabric-chaincode-go/shim"
-	"github.com/hyperledger/fabric-protos-go/peer"
+	"github.com/anoideaopen/foundation/test/unit/fixtures"
+	"github.com/hyperledger/fabric-chaincode-go/v2/shim"
+	"github.com/hyperledger/fabric-protos-go-apiv2/peer"
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/protobuf/encoding/protojson"
+	pb "google.golang.org/protobuf/proto"
 )
 
 const (
@@ -341,7 +338,7 @@ func TestTelemetry(t *testing.T) {
 
 			var (
 				txId string
-				resp peer.Response
+				resp *peer.Response
 			)
 			if testCase.isQuery {
 				resp = mockStub.QueryChaincode(cc, testCase.functionName, parameters...)

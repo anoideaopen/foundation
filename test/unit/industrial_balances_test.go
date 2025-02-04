@@ -12,8 +12,8 @@ import (
 	"github.com/anoideaopen/foundation/mocks"
 	"github.com/anoideaopen/foundation/mocks/mockstub"
 	pbfound "github.com/anoideaopen/foundation/proto"
-	"github.com/hyperledger/fabric-protos-go/ledger/queryresult"
-	"github.com/hyperledger/fabric-protos-go/peer"
+	"github.com/hyperledger/fabric-protos-go-apiv2/ledger/queryresult"
+	"github.com/hyperledger/fabric-protos-go-apiv2/peer"
 	"github.com/stretchr/testify/require"
 )
 
@@ -61,8 +61,8 @@ func TestIndustrialBalances(t *testing.T) {
 		name                string
 		functionName        string
 		funcPrepareMockStub func(t *testing.T, mockStub *mockstub.MockStub, user1, user2 *mocks.UserFoundation) []string
-		funcInvoke          func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, signer *mocks.UserFoundation, parameters ...string) peer.Response
-		funcCheckResult     func(t *testing.T, mockStub *mockstub.MockStub, user1, user2 *mocks.UserFoundation, resp peer.Response)
+		funcInvoke          func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, signer *mocks.UserFoundation, parameters ...string) *peer.Response
+		funcCheckResult     func(t *testing.T, mockStub *mockstub.MockStub, user1, user2 *mocks.UserFoundation, resp *peer.Response)
 	}{
 		{
 			name:         "industrial balances get",
@@ -86,10 +86,10 @@ func TestIndustrialBalances(t *testing.T) {
 
 				return []string{user1.AddressBase58Check}
 			},
-			funcInvoke: func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, signer *mocks.UserFoundation, parameters ...string) peer.Response {
+			funcInvoke: func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, signer *mocks.UserFoundation, parameters ...string) *peer.Response {
 				return mockStub.QueryChaincode(cc, functionName, parameters...)
 			},
-			funcCheckResult: func(t *testing.T, mockStub *mockstub.MockStub, user1, user2 *mocks.UserFoundation, resp peer.Response) {
+			funcCheckResult: func(t *testing.T, mockStub *mockstub.MockStub, user1, user2 *mocks.UserFoundation, resp *peer.Response) {
 				payload := map[string]string{}
 
 				err := json.Unmarshal(resp.Payload, &payload)
@@ -112,11 +112,11 @@ func TestIndustrialBalances(t *testing.T) {
 
 				return []string{testTokenWithGroup, user1.AddressBase58Check, "100", "add balance"}
 			},
-			funcInvoke: func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, signer *mocks.UserFoundation, parameters ...string) peer.Response {
+			funcInvoke: func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, signer *mocks.UserFoundation, parameters ...string) *peer.Response {
 				_, resp := mockStub.TxInvokeChaincodeSigned(cc, functionName, signer, "", "", "", parameters...)
 				return resp
 			},
-			funcCheckResult: func(t *testing.T, mockStub *mockstub.MockStub, user1, user2 *mocks.UserFoundation, resp peer.Response) {
+			funcCheckResult: func(t *testing.T, mockStub *mockstub.MockStub, user1, user2 *mocks.UserFoundation, resp *peer.Response) {
 				key, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user1.AddressBase58Check, testGroup})
 				require.NoError(t, err)
 
@@ -142,11 +142,11 @@ func TestIndustrialBalances(t *testing.T) {
 
 				return []string{testTokenWithGroup, user1.AddressBase58Check, "100", "sub balance"}
 			},
-			funcInvoke: func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, signer *mocks.UserFoundation, parameters ...string) peer.Response {
+			funcInvoke: func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, signer *mocks.UserFoundation, parameters ...string) *peer.Response {
 				_, resp := mockStub.TxInvokeChaincodeSigned(cc, functionName, signer, "", "", "", parameters...)
 				return resp
 			},
-			funcCheckResult: func(t *testing.T, mockStub *mockstub.MockStub, user1, user2 *mocks.UserFoundation, resp peer.Response) {
+			funcCheckResult: func(t *testing.T, mockStub *mockstub.MockStub, user1, user2 *mocks.UserFoundation, resp *peer.Response) {
 				key, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user1.AddressBase58Check, testGroup})
 				require.NoError(t, err)
 
@@ -172,11 +172,11 @@ func TestIndustrialBalances(t *testing.T) {
 
 				return []string{testTokenWithGroup, user1.AddressBase58Check, "100"}
 			},
-			funcInvoke: func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, signer *mocks.UserFoundation, parameters ...string) peer.Response {
+			funcInvoke: func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, signer *mocks.UserFoundation, parameters ...string) *peer.Response {
 				_, resp := mockStub.TxInvokeChaincodeSigned(cc, functionName, signer, "", "", "", parameters...)
 				return resp
 			},
-			funcCheckResult: func(t *testing.T, mockStub *mockstub.MockStub, user1, user2 *mocks.UserFoundation, resp peer.Response) {
+			funcCheckResult: func(t *testing.T, mockStub *mockstub.MockStub, user1, user2 *mocks.UserFoundation, resp *peer.Response) {
 				keyLocked, err := mockStub.CreateCompositeKey(balance.BalanceTypeTokenLocked.String(), []string{user1.AddressBase58Check, testGroup})
 				require.NoError(t, err)
 
@@ -221,10 +221,10 @@ func TestIndustrialBalances(t *testing.T) {
 
 				return []string{user1.AddressBase58Check}
 			},
-			funcInvoke: func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, signer *mocks.UserFoundation, parameters ...string) peer.Response {
+			funcInvoke: func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, signer *mocks.UserFoundation, parameters ...string) *peer.Response {
 				return mockStub.QueryChaincode(cc, functionName, parameters...)
 			},
-			funcCheckResult: func(t *testing.T, mockStub *mockstub.MockStub, user1, user2 *mocks.UserFoundation, resp peer.Response) {
+			funcCheckResult: func(t *testing.T, mockStub *mockstub.MockStub, user1, user2 *mocks.UserFoundation, resp *peer.Response) {
 				payload := map[string]string{}
 
 				err := json.Unmarshal(resp.Payload, &payload)
@@ -247,11 +247,11 @@ func TestIndustrialBalances(t *testing.T) {
 
 				return []string{testTokenWithGroup, user1.AddressBase58Check, "100"}
 			},
-			funcInvoke: func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, signer *mocks.UserFoundation, parameters ...string) peer.Response {
+			funcInvoke: func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, signer *mocks.UserFoundation, parameters ...string) *peer.Response {
 				_, resp := mockStub.TxInvokeChaincodeSigned(cc, functionName, signer, "", "", "", parameters...)
 				return resp
 			},
-			funcCheckResult: func(t *testing.T, mockStub *mockstub.MockStub, user1, user2 *mocks.UserFoundation, resp peer.Response) {
+			funcCheckResult: func(t *testing.T, mockStub *mockstub.MockStub, user1, user2 *mocks.UserFoundation, resp *peer.Response) {
 				keyLocked, err := mockStub.CreateCompositeKey(balance.BalanceTypeTokenLocked.String(), []string{user1.AddressBase58Check, testGroup})
 				require.NoError(t, err)
 
@@ -285,11 +285,11 @@ func TestIndustrialBalances(t *testing.T) {
 
 				return []string{testTokenWithGroup, user1.AddressBase58Check, user2.AddressBase58Check, "100", "transfer balance"}
 			},
-			funcInvoke: func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, signer *mocks.UserFoundation, parameters ...string) peer.Response {
+			funcInvoke: func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, signer *mocks.UserFoundation, parameters ...string) *peer.Response {
 				_, resp := mockStub.TxInvokeChaincodeSigned(cc, functionName, signer, "", "", "", parameters...)
 				return resp
 			},
-			funcCheckResult: func(t *testing.T, mockStub *mockstub.MockStub, user1, user2 *mocks.UserFoundation, resp peer.Response) {
+			funcCheckResult: func(t *testing.T, mockStub *mockstub.MockStub, user1, user2 *mocks.UserFoundation, resp *peer.Response) {
 				keyBalanceUser1, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user1.AddressBase58Check, testGroup})
 				require.NoError(t, err)
 
@@ -323,11 +323,11 @@ func TestIndustrialBalances(t *testing.T) {
 
 				return []string{testTokenWithGroup, user1.AddressBase58Check, user2.AddressBase58Check, "100", "transfer balance"}
 			},
-			funcInvoke: func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, signer *mocks.UserFoundation, parameters ...string) peer.Response {
+			funcInvoke: func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, signer *mocks.UserFoundation, parameters ...string) *peer.Response {
 				_, resp := mockStub.TxInvokeChaincodeSigned(cc, functionName, signer, "", "", "", parameters...)
 				return resp
 			},
-			funcCheckResult: func(t *testing.T, mockStub *mockstub.MockStub, user1, user2 *mocks.UserFoundation, resp peer.Response) {
+			funcCheckResult: func(t *testing.T, mockStub *mockstub.MockStub, user1, user2 *mocks.UserFoundation, resp *peer.Response) {
 				keyBalanceUser1, err := mockStub.CreateCompositeKey(balance.BalanceTypeTokenLocked.String(), []string{user1.AddressBase58Check, testGroup})
 				require.NoError(t, err)
 
@@ -361,11 +361,11 @@ func TestIndustrialBalances(t *testing.T) {
 
 				return []string{testTokenWithGroup, user1.AddressBase58Check, "100", "transfer balance"}
 			},
-			funcInvoke: func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, signer *mocks.UserFoundation, parameters ...string) peer.Response {
+			funcInvoke: func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, signer *mocks.UserFoundation, parameters ...string) *peer.Response {
 				_, resp := mockStub.TxInvokeChaincodeSigned(cc, functionName, signer, "", "", "", parameters...)
 				return resp
 			},
-			funcCheckResult: func(t *testing.T, mockStub *mockstub.MockStub, user1, user2 *mocks.UserFoundation, resp peer.Response) {
+			funcCheckResult: func(t *testing.T, mockStub *mockstub.MockStub, user1, user2 *mocks.UserFoundation, resp *peer.Response) {
 				keyBalance, err := mockStub.CreateCompositeKey(balance.BalanceTypeTokenLocked.String(), []string{user1.AddressBase58Check, testGroup})
 				require.NoError(t, err)
 

@@ -10,9 +10,9 @@ import (
 	"github.com/anoideaopen/foundation/mocks/mockstub"
 	pbfound "github.com/anoideaopen/foundation/proto"
 	"github.com/anoideaopen/foundation/token"
-	pb "github.com/golang/protobuf/proto"
-	"github.com/hyperledger/fabric-chaincode-go/shim"
+	"github.com/hyperledger/fabric-chaincode-go/v2/shim"
 	"github.com/stretchr/testify/require"
+	pb "google.golang.org/protobuf/proto"
 )
 
 func TestTaskExecutor(t *testing.T) {
@@ -130,7 +130,7 @@ func TestTaskExecutor(t *testing.T) {
 				nil,
 			)
 
-			cc, err := core.NewCC(NewFiatTestToken(token.BaseToken{}))
+			cc, err := core.NewCC(NewFiatTestToken(&token.BaseToken{}))
 			require.NoError(t, err)
 
 			tasksReq := testCase.funcPrepareMockStub(t, mockStub)

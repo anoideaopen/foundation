@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/anoideaopen/foundation/mocks"
-	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const (
@@ -365,9 +365,7 @@ func TestTxStub(t *testing.T) {
 }
 
 // CreateUtcTimestamp returns a Google/protobuf/Timestamp in UTC
-func createUtcTimestamp() *timestamp.Timestamp {
+func createUtcTimestamp() *timestamppb.Timestamp {
 	now := time.Now().UTC()
-	secs := now.Unix()
-	nanos := int32(now.UnixNano() - (secs * 1000000000))
-	return &(timestamp.Timestamp{Seconds: secs, Nanos: nanos})
+	return timestamppb.New(now)
 }

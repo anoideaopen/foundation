@@ -4,7 +4,7 @@ import (
 	"errors"
 	"math/big"
 
-	"github.com/hyperledger/fabric-chaincode-go/shim"
+	"github.com/hyperledger/fabric-chaincode-go/v2/shim"
 )
 
 // InverseBalanceObjectType is designed for indexing the inverse balance values to retrieve

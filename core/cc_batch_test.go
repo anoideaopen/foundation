@@ -14,12 +14,12 @@ import (
 	"github.com/anoideaopen/foundation/mocks"
 	"github.com/anoideaopen/foundation/proto"
 	"github.com/anoideaopen/foundation/test/unit/fixtures"
-	pb "github.com/golang/protobuf/proto"
-	"github.com/golang/protobuf/ptypes/timestamp"
-	"github.com/hyperledger/fabric-chaincode-go/shim"
-	"github.com/hyperledger/fabric-protos-go/peer"
+	"github.com/hyperledger/fabric-chaincode-go/v2/shim"
+	"github.com/hyperledger/fabric-protos-go-apiv2/peer"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/encoding/protojson"
+	pb "google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const (
@@ -69,7 +69,7 @@ type serieBatches struct {
 	FnName    string
 	testID    string
 	errorMsg  string
-	timestamp *timestamp.Timestamp
+	timestamp *timestamppb.Timestamp
 }
 
 // TestSaveToBatchWithWrongArgs - negative test with wrong Args in saveToBatch
@@ -335,7 +335,7 @@ func TestBatchExecuteWithWrongParams(t *testing.T) {
 }
 
 // BatchExecuteTest - basic test for SaveBatch, LoadBatch and batchExecute
-func BatchExecuteTest(t *testing.T, ser *serieBatchExecute, args []string) peer.Response {
+func BatchExecuteTest(t *testing.T, ser *serieBatchExecute, args []string) *peer.Response {
 	chainCode, err := NewCC(&testBatchContract{})
 	require.NoError(t, err)
 
@@ -462,9 +462,7 @@ func TestBatchedTxExecute(t *testing.T) {
 }
 
 // CreateUtcTimestamp returns a Google/protobuf/Timestamp in UTC
-func createUtcTimestamp() *timestamp.Timestamp {
+func createUtcTimestamp() *timestamppb.Timestamp {
 	now := time.Now().UTC()
-	secs := now.Unix()
-	nanos := int32(now.UnixNano() - (secs * 1000000000))
-	return &(timestamp.Timestamp{Seconds: secs, Nanos: nanos})
+	return timestamppb.New(now)
 }

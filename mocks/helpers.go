@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/golang/protobuf/proto" //nolint:staticcheck
-	"github.com/hyperledger/fabric-protos-go/msp"
+	"github.com/hyperledger/fabric-protos-go-apiv2/msp"
+	"google.golang.org/protobuf/proto"
 )
 
 func SetCreator(mockStub *ChaincodeStub, certString string) error {

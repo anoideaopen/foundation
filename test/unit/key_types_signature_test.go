@@ -10,6 +10,7 @@ import (
 	"github.com/anoideaopen/foundation/mocks"
 	"github.com/anoideaopen/foundation/mocks/mockstub"
 	pbfound "github.com/anoideaopen/foundation/proto"
+	"github.com/anoideaopen/foundation/token"
 	"github.com/stretchr/testify/require"
 )
 
@@ -47,7 +48,7 @@ func TestKeyTypesEmission(t *testing.T) {
 			mockStub.CreateAndSetConfig("CC Token", "CC", 8,
 				issuer.AddressBase58Check, "", "", "", nil)
 
-			cc, err := core.NewCC(&FiatTestToken{})
+			cc, err := core.NewCC(NewFiatTestToken(new(token.BaseToken)))
 			require.NoError(t, err)
 
 			_, resp := mockStub.TxInvokeChaincodeSigned(

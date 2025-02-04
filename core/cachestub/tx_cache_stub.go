@@ -7,20 +7,20 @@ import (
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/core/types/big"
 	"github.com/anoideaopen/foundation/proto"
-	"github.com/golang/protobuf/ptypes/timestamp"
-	pb "github.com/hyperledger/fabric-protos-go/peer"
+	pb "github.com/hyperledger/fabric-protos-go-apiv2/peer"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type TxCacheStub struct {
 	*BatchCacheStub
 	txID         string
-	txTimestamp  *timestamp.Timestamp
+	txTimestamp  *timestamppb.Timestamp
 	txWriteCache map[string]*proto.WriteElement
 	events       map[string][]byte
 	Accounting   []*proto.AccountingRecord
 }
 
-func (bs *BatchCacheStub) NewTxCacheStub(txID string, txTimestamp *timestamp.Timestamp) *TxCacheStub {
+func (bs *BatchCacheStub) NewTxCacheStub(txID string, txTimestamp *timestamppb.Timestamp) *TxCacheStub {
 	return &TxCacheStub{
 		BatchCacheStub: bs,
 		txID:           txID,
@@ -36,7 +36,7 @@ func (bts *TxCacheStub) GetTxID() string {
 }
 
 // GetTxTimestamp returns TxCacheStub transaction timestamp
-func (bts *TxCacheStub) GetTxTimestamp() (*timestamp.Timestamp, error) {
+func (bts *TxCacheStub) GetTxTimestamp() (*timestamppb.Timestamp, error) {
 	return bts.txTimestamp, nil
 }
 
@@ -119,6 +119,6 @@ func (bts *TxCacheStub) DelState(key string) error {
 	return nil
 }
 
-func (bts *TxCacheStub) InvokeChaincode(chaincodeName string, args [][]byte, channel string) pb.Response {
+func (bts *TxCacheStub) InvokeChaincode(chaincodeName string, args [][]byte, channel string) *pb.Response {
 	return bts.BatchCacheStub.InvokeChaincode(chaincodeName, args, channel)
 }

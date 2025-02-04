@@ -11,7 +11,7 @@ import (
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/core/types/big"
 	pb "github.com/anoideaopen/foundation/proto"
-	"github.com/golang/protobuf/proto" //nolint:staticcheck
+	"google.golang.org/protobuf/proto"
 )
 
 const defaultMaxChannelTransferItems = 100

@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/anoideaopen/foundation/core/routing"
-	"github.com/hyperledger/fabric-chaincode-go/shim"
+	"github.com/hyperledger/fabric-chaincode-go/v2/shim"
 )
 
 var (

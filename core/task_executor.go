@@ -15,13 +15,13 @@ import (
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/hlfcreator"
 	"github.com/anoideaopen/foundation/proto"
-	pb "github.com/golang/protobuf/proto" //nolint:staticcheck
-	"github.com/golang/protobuf/ptypes/timestamp"
-	"github.com/hyperledger/fabric-chaincode-go/shim"
+	"github.com/hyperledger/fabric-chaincode-go/v2/shim"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/protobuf/encoding/protojson"
+	pb "google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const ExecuteTasksEvent = "executeTasks"
@@ -149,7 +149,7 @@ func (e *TaskExecutor) ExecuteTasks(
 	}
 
 	for taskIdx, task := range tasks {
-		taskTimestamp := &timestamp.Timestamp{
+		taskTimestamp := &timestamppb.Timestamp{
 			Seconds: batchTxTime.GetSeconds(),
 			Nanos:   batchTxTime.GetNanos() + int32(taskIdx),
 		}
@@ -237,7 +237,7 @@ func (e *TaskExecutor) ExecuteTask(
 	traceCtx telemetry.TraceContext,
 	task *proto.Task,
 	stub *cachestub.BatchCacheStub,
-	txTimestamp *timestamp.Timestamp,
+	txTimestamp *timestamppb.Timestamp,
 ) (txResponse *proto.TxResponse, batchTxEvent *proto.BatchTxEvent) {
 	traceCtx, span := e.TracingHandler.StartNewSpan(traceCtx, "TaskExecutor.ExecuteTasks")
 	defer span.End()

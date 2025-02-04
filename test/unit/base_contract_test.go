@@ -13,9 +13,9 @@ import (
 	"github.com/anoideaopen/foundation/mocks/mockstub"
 	pbfound "github.com/anoideaopen/foundation/proto"
 	"github.com/anoideaopen/foundation/token"
-	pb "github.com/golang/protobuf/proto"
-	"github.com/hyperledger/fabric-protos-go/peer"
+	"github.com/hyperledger/fabric-protos-go-apiv2/peer"
 	"github.com/stretchr/testify/require"
+	pb "google.golang.org/protobuf/proto"
 )
 
 const (
@@ -104,7 +104,7 @@ func TestContractMethods(t *testing.T) {
 		name                      string
 		owner                     *mocks.UserFoundation
 		functionName              string
-		invokeFunction            func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, issuer *mocks.UserFoundation, parameters ...string) peer.Response
+		invokeFunction            func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, issuer *mocks.UserFoundation, parameters ...string) *peer.Response
 		resultMessage             string
 		preparePayloadEqual       func() []byte
 		preparePayloadNotEqual    func() []byte
@@ -117,7 +117,7 @@ func TestContractMethods(t *testing.T) {
 			prepareFunctionParameters: func(owner *mocks.UserFoundation) []string {
 				return []string{}
 			},
-			invokeFunction: func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, issuer *mocks.UserFoundation, parameters ...string) peer.Response {
+			invokeFunction: func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, issuer *mocks.UserFoundation, parameters ...string) *peer.Response {
 				return mockStub.NbTxInvokeChaincode(cc, functionName, parameters...)
 			},
 			resultMessage: "",
@@ -131,7 +131,7 @@ func TestContractMethods(t *testing.T) {
 			prepareFunctionParameters: func(owner *mocks.UserFoundation) []string {
 				return []string{"Hi!"}
 			},
-			invokeFunction: func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, issuer *mocks.UserFoundation, parameters ...string) peer.Response {
+			invokeFunction: func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, issuer *mocks.UserFoundation, parameters ...string) *peer.Response {
 				return mockStub.NbTxInvokeChaincode(cc, functionName, parameters...)
 			},
 			resultMessage: "",
@@ -145,7 +145,7 @@ func TestContractMethods(t *testing.T) {
 			prepareFunctionParameters: func(owner *mocks.UserFoundation) []string {
 				return []string{""}
 			},
-			invokeFunction: func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, issuer *mocks.UserFoundation, parameters ...string) peer.Response {
+			invokeFunction: func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, issuer *mocks.UserFoundation, parameters ...string) *peer.Response {
 				return mockStub.NbTxInvokeChaincode(cc, functionName, parameters...)
 			},
 			resultMessage: testMessageDecodeWrongParameter,
@@ -159,7 +159,7 @@ func TestContractMethods(t *testing.T) {
 			prepareFunctionParameters: func(owner *mocks.UserFoundation) []string {
 				return []string{owner.AddressBase58Check}
 			},
-			invokeFunction: func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, issuer *mocks.UserFoundation, parameters ...string) peer.Response {
+			invokeFunction: func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, issuer *mocks.UserFoundation, parameters ...string) *peer.Response {
 				return mockStub.NbTxInvokeChaincode(cc, functionName, parameters...)
 			},
 			resultMessage: "",
@@ -173,7 +173,7 @@ func TestContractMethods(t *testing.T) {
 			prepareFunctionParameters: func(owner *mocks.UserFoundation) []string {
 				return []string{owner.AddressBase58Check}
 			},
-			invokeFunction: func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, issuer *mocks.UserFoundation, parameters ...string) peer.Response {
+			invokeFunction: func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, issuer *mocks.UserFoundation, parameters ...string) *peer.Response {
 				return mockStub.NbTxInvokeChaincode(cc, functionName, parameters...)
 			},
 			prepareMockStubAdditional: func(t *testing.T, mockStub *mockstub.MockStub, owner *mocks.UserFoundation) {
@@ -200,7 +200,7 @@ func TestContractMethods(t *testing.T) {
 			prepareFunctionParameters: func(owner *mocks.UserFoundation) []string {
 				return []string{}
 			},
-			invokeFunction: func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, issuer *mocks.UserFoundation, parameters ...string) peer.Response {
+			invokeFunction: func(cc *core.Chaincode, mockStub *mockstub.MockStub, functionName string, issuer *mocks.UserFoundation, parameters ...string) *peer.Response {
 				_, resp := mockStub.TxInvokeChaincodeSigned(cc, functionName, issuer, "", "", "", parameters...)
 				return resp
 			},

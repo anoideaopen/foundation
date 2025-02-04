@@ -15,8 +15,8 @@ import (
 	"github.com/anoideaopen/foundation/core/telemetry"
 	"github.com/anoideaopen/foundation/hlfcreator"
 	"github.com/anoideaopen/foundation/proto"
-	"github.com/hyperledger/fabric-chaincode-go/shim"
-	"github.com/hyperledger/fabric-protos-go/peer"
+	"github.com/hyperledger/fabric-chaincode-go/v2/shim"
+	"github.com/hyperledger/fabric-protos-go-apiv2/peer"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 )
@@ -365,7 +365,7 @@ func (cc *Chaincode) ValidateTxID(stub shim.ChaincodeStubInterface) error {
 }
 
 // BatchHandler handles the batching logic for chaincode invocations.
-func (cc *Chaincode) BatchHandler(traceCtx telemetry.TraceContext, stub shim.ChaincodeStubInterface) peer.Response {
+func (cc *Chaincode) BatchHandler(traceCtx telemetry.TraceContext, stub shim.ChaincodeStubInterface) *peer.Response {
 	traceCtx, span := cc.contract.TracingHandler().StartNewSpan(traceCtx, "chaincode.BatchHandler")
 	defer span.End()
 
@@ -407,7 +407,7 @@ func (cc *Chaincode) BatchHandler(traceCtx telemetry.TraceContext, stub shim.Cha
 func (cc *Chaincode) noBatchHandler(
 	traceCtx telemetry.TraceContext,
 	stub shim.ChaincodeStubInterface,
-) peer.Response {
+) *peer.Response {
 	traceCtx, span := cc.contract.TracingHandler().StartNewSpan(traceCtx, "chaincode.NoBatchHandler")
 	defer span.End()
 
@@ -455,7 +455,7 @@ func (cc *Chaincode) batchExecuteHandler(
 	stub shim.ChaincodeStubInterface,
 	creatorSKI [32]byte,
 	hashedCert [32]byte,
-) peer.Response {
+) *peer.Response {
 	robotSKIBytes, _ := hex.DecodeString(cc.contract.ContractConfig().GetRobotSKI())
 
 	err := hlfcreator.ValidateSKI(robotSKIBytes, creatorSKI, hashedCert)
@@ -568,7 +568,7 @@ func readTLSConfigFromEnv() ([]byte, []byte, []byte, error) {
 	return key, cert, clientCACerts, nil
 }
 
-func (cc *Chaincode) createIndexHandler(traceCtx telemetry.TraceContext, stub shim.ChaincodeStubInterface) peer.Response {
+func (cc *Chaincode) createIndexHandler(traceCtx telemetry.TraceContext, stub shim.ChaincodeStubInterface) *peer.Response {
 	_, span := cc.contract.TracingHandler().StartNewSpan(traceCtx, "chaincode.CreateIndexHandler")
 	defer span.End()
 

@@ -10,8 +10,8 @@ import (
 	"github.com/anoideaopen/foundation/core/logger"
 	"github.com/anoideaopen/foundation/core/telemetry"
 	"github.com/anoideaopen/foundation/hlfcreator"
-	"github.com/hyperledger/fabric-chaincode-go/shim"
-	"github.com/hyperledger/fabric-protos-go/peer"
+	"github.com/hyperledger/fabric-chaincode-go/v2/shim"
+	"github.com/hyperledger/fabric-protos-go-apiv2/peer"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -19,7 +19,9 @@ import (
 
 // Init is called during chaincode instantiation to initialize any data. Note that upgrade
 // also calls this function to reset or to migrate data.
-func (cc *Chaincode) Init(stub shim.ChaincodeStubInterface) peer.Response {
+func (cc *Chaincode) Init(stub shim.ChaincodeStubInterface) *peer.Response {
+	stub.StartWriteBatch()
+
 	creator, err := stub.GetCreator()
 	if err != nil {
 		return shim.Error("init: getting creator of transaction: " + err.Error())
@@ -68,7 +70,7 @@ func (cc *Chaincode) Init(stub shim.ChaincodeStubInterface) peer.Response {
 
 // Invoke is called to update or query the ledger in a proposal transaction. Given the
 // function name, it delegates the execution to the respective handler.
-func (cc *Chaincode) Invoke(stub shim.ChaincodeStubInterface) (r peer.Response) {
+func (cc *Chaincode) Invoke(stub shim.ChaincodeStubInterface) (r *peer.Response) {
 	r = shim.Error("panic invoke")
 	log := logger.Logger()
 	defer func() {
@@ -76,6 +78,8 @@ func (cc *Chaincode) Invoke(stub shim.ChaincodeStubInterface) (r peer.Response) 
 			log.Errorf("panic invoke\nrc: %v\nstack: %s\n", rc, debug.Stack())
 		}
 	}()
+
+	stub.StartWriteBatch()
 
 	start := time.Now()
 

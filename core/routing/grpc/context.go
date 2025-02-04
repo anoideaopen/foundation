@@ -3,7 +3,7 @@ package grpc
 import (
 	"context"
 
-	"github.com/hyperledger/fabric-chaincode-go/shim"
+	"github.com/hyperledger/fabric-chaincode-go/v2/shim"
 )
 
 // contextKey is a type used for keys in context values.

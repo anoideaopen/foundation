@@ -1,7 +1,7 @@
 package core
 
 import (
-	"github.com/hyperledger/fabric-chaincode-go/shim"
+	"github.com/hyperledger/fabric-chaincode-go/v2/shim"
 )
 
 const (

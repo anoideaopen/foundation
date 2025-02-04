@@ -1,6 +1,6 @@
 package types
 
-import "github.com/hyperledger/fabric-chaincode-go/shim"
+import "github.com/hyperledger/fabric-chaincode-go/v2/shim"
 
 // BytesDecoder defines an interface for decoding an object from bytes.
 type BytesDecoder interface {

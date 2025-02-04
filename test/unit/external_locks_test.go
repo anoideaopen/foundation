@@ -11,9 +11,9 @@ import (
 	"github.com/anoideaopen/foundation/mocks"
 	"github.com/anoideaopen/foundation/mocks/mockstub"
 	"github.com/anoideaopen/foundation/proto"
-	pb "github.com/golang/protobuf/proto"
-	"github.com/hyperledger/fabric-protos-go/peer"
+	"github.com/hyperledger/fabric-protos-go-apiv2/peer"
 	"github.com/stretchr/testify/require"
+	pb "google.golang.org/protobuf/proto"
 )
 
 func TestExternalLocks(t *testing.T) {
@@ -27,8 +27,8 @@ func TestExternalLocks(t *testing.T) {
 			params string,
 			issuer *mocks.UserFoundation,
 			user *mocks.UserFoundation,
-		) (string, peer.Response)
-		checkResponseFunc   func(t *testing.T, resp peer.Response)
+		) (string, *peer.Response)
+		checkResponseFunc   func(t *testing.T, resp *peer.Response)
 		prepareMockStubFunc func(
 			t *testing.T,
 			mockStub *mockstub.MockStub,
@@ -41,7 +41,7 @@ func TestExternalLocks(t *testing.T) {
 		{
 			name:         "external token lock test",
 			functionName: "lockTokenBalance",
-			invokeFunc: func(mockStub *mockstub.MockStub, cc *core.Chaincode, functionName string, params string, issuer *mocks.UserFoundation, user *mocks.UserFoundation) (string, peer.Response) {
+			invokeFunc: func(mockStub *mockstub.MockStub, cc *core.Chaincode, functionName string, params string, issuer *mocks.UserFoundation, user *mocks.UserFoundation) (string, *peer.Response) {
 				return mockStub.TxInvokeChaincodeSigned(cc, functionName, issuer, "", "", "", params)
 			},
 			prepareMockStubFunc: func(t *testing.T, mockStub *mockstub.MockStub, cc *core.Chaincode, issuer, user *mocks.UserFoundation) string {
@@ -99,7 +99,7 @@ func TestExternalLocks(t *testing.T) {
 		{
 			name:         "external allowed lock test",
 			functionName: "lockAllowedBalance",
-			invokeFunc: func(mockStub *mockstub.MockStub, cc *core.Chaincode, functionName string, params string, issuer *mocks.UserFoundation, user *mocks.UserFoundation) (string, peer.Response) {
+			invokeFunc: func(mockStub *mockstub.MockStub, cc *core.Chaincode, functionName string, params string, issuer *mocks.UserFoundation, user *mocks.UserFoundation) (string, *peer.Response) {
 				return mockStub.TxInvokeChaincodeSigned(cc, functionName, issuer, "", "", "", params)
 			},
 			prepareMockStubFunc: func(t *testing.T, mockStub *mockstub.MockStub, cc *core.Chaincode, issuer, user *mocks.UserFoundation) string {
@@ -158,7 +158,7 @@ func TestExternalLocks(t *testing.T) {
 		{
 			name:         "[negative] wrong user token lock test",
 			functionName: "lockTokenBalance",
-			invokeFunc: func(mockStub *mockstub.MockStub, cc *core.Chaincode, functionName string, params string, issuer *mocks.UserFoundation, user *mocks.UserFoundation) (string, peer.Response) {
+			invokeFunc: func(mockStub *mockstub.MockStub, cc *core.Chaincode, functionName string, params string, issuer *mocks.UserFoundation, user *mocks.UserFoundation) (string, *peer.Response) {
 				return mockStub.TxInvokeChaincodeSigned(cc, functionName, user, "", "", "", params)
 			},
 			prepareMockStubFunc: func(t *testing.T, mockStub *mockstub.MockStub, cc *core.Chaincode, issuer, user *mocks.UserFoundation) string {
@@ -181,7 +181,7 @@ func TestExternalLocks(t *testing.T) {
 
 				return string(data)
 			},
-			checkResponseFunc: func(t *testing.T, resp peer.Response) {
+			checkResponseFunc: func(t *testing.T, resp *peer.Response) {
 				payload := &proto.BatchResponse{}
 
 				err := pb.Unmarshal(resp.Payload, payload)
@@ -192,7 +192,7 @@ func TestExternalLocks(t *testing.T) {
 		{
 			name:         "[negative] wrong user allowed lock test",
 			functionName: "lockAllowedBalance",
-			invokeFunc: func(mockStub *mockstub.MockStub, cc *core.Chaincode, functionName string, params string, issuer *mocks.UserFoundation, user *mocks.UserFoundation) (string, peer.Response) {
+			invokeFunc: func(mockStub *mockstub.MockStub, cc *core.Chaincode, functionName string, params string, issuer *mocks.UserFoundation, user *mocks.UserFoundation) (string, *peer.Response) {
 				return mockStub.TxInvokeChaincodeSigned(cc, functionName, user, "", "", "", params)
 			},
 			prepareMockStubFunc: func(t *testing.T, mockStub *mockstub.MockStub, cc *core.Chaincode, issuer, user *mocks.UserFoundation) string {
@@ -215,7 +215,7 @@ func TestExternalLocks(t *testing.T) {
 
 				return string(data)
 			},
-			checkResponseFunc: func(t *testing.T, resp peer.Response) {
+			checkResponseFunc: func(t *testing.T, resp *peer.Response) {
 				payload := &proto.BatchResponse{}
 
 				err := pb.Unmarshal(resp.Payload, payload)
@@ -226,7 +226,7 @@ func TestExternalLocks(t *testing.T) {
 		{
 			name:         "[negative] token lock more than added test",
 			functionName: "lockTokenBalance",
-			invokeFunc: func(mockStub *mockstub.MockStub, cc *core.Chaincode, functionName string, params string, issuer *mocks.UserFoundation, user *mocks.UserFoundation) (string, peer.Response) {
+			invokeFunc: func(mockStub *mockstub.MockStub, cc *core.Chaincode, functionName string, params string, issuer *mocks.UserFoundation, user *mocks.UserFoundation) (string, *peer.Response) {
 				return mockStub.TxInvokeChaincodeSigned(cc, functionName, issuer, "", "", "", params)
 			},
 			prepareMockStubFunc: func(t *testing.T, mockStub *mockstub.MockStub, cc *core.Chaincode, issuer, user *mocks.UserFoundation) string {
@@ -249,7 +249,7 @@ func TestExternalLocks(t *testing.T) {
 
 				return string(data)
 			},
-			checkResponseFunc: func(t *testing.T, resp peer.Response) {
+			checkResponseFunc: func(t *testing.T, resp *peer.Response) {
 				payload := &proto.BatchResponse{}
 
 				err := pb.Unmarshal(resp.Payload, payload)
@@ -260,7 +260,7 @@ func TestExternalLocks(t *testing.T) {
 		{
 			name:         "[negative] allowed lock more than added test",
 			functionName: "lockAllowedBalance",
-			invokeFunc: func(mockStub *mockstub.MockStub, cc *core.Chaincode, functionName string, params string, issuer *mocks.UserFoundation, user *mocks.UserFoundation) (string, peer.Response) {
+			invokeFunc: func(mockStub *mockstub.MockStub, cc *core.Chaincode, functionName string, params string, issuer *mocks.UserFoundation, user *mocks.UserFoundation) (string, *peer.Response) {
 				return mockStub.TxInvokeChaincodeSigned(cc, functionName, issuer, "", "", "", params)
 			},
 			prepareMockStubFunc: func(t *testing.T, mockStub *mockstub.MockStub, cc *core.Chaincode, issuer, user *mocks.UserFoundation) string {
@@ -283,7 +283,7 @@ func TestExternalLocks(t *testing.T) {
 
 				return string(data)
 			},
-			checkResponseFunc: func(t *testing.T, resp peer.Response) {
+			checkResponseFunc: func(t *testing.T, resp *peer.Response) {
 				payload := &proto.BatchResponse{}
 
 				err := pb.Unmarshal(resp.Payload, payload)
@@ -339,7 +339,7 @@ func TestExternalUnlocks(t *testing.T) {
 			params string,
 			issuer *mocks.UserFoundation,
 			user *mocks.UserFoundation,
-		) (string, peer.Response)
+		) (string, *peer.Response)
 		lockBalanceFunc func(
 			t *testing.T,
 			mockStub *mockstub.MockStub,
@@ -347,7 +347,7 @@ func TestExternalUnlocks(t *testing.T) {
 			issuer *mocks.UserFoundation,
 			user *mocks.UserFoundation,
 		) string
-		checkResponseFunc   func(t *testing.T, resp peer.Response)
+		checkResponseFunc   func(t *testing.T, resp *peer.Response)
 		prepareMockStubFunc func(
 			t *testing.T,
 			mockStub *mockstub.MockStub,
@@ -406,7 +406,7 @@ func TestExternalUnlocks(t *testing.T) {
 
 				return string(data)
 			},
-			invokeFunc: func(mockStub *mockstub.MockStub, cc *core.Chaincode, functionName, params string, issuer, user *mocks.UserFoundation) (string, peer.Response) {
+			invokeFunc: func(mockStub *mockstub.MockStub, cc *core.Chaincode, functionName, params string, issuer, user *mocks.UserFoundation) (string, *peer.Response) {
 				return mockStub.TxInvokeChaincodeSigned(cc, functionName, issuer, "", "", "", params)
 			},
 			checkResultFunc: func(t *testing.T, mockStub *mockstub.MockStub, user *mocks.UserFoundation, txID string) {
@@ -491,7 +491,7 @@ func TestExternalUnlocks(t *testing.T) {
 
 				return string(data)
 			},
-			invokeFunc: func(mockStub *mockstub.MockStub, cc *core.Chaincode, functionName, params string, issuer, user *mocks.UserFoundation) (string, peer.Response) {
+			invokeFunc: func(mockStub *mockstub.MockStub, cc *core.Chaincode, functionName, params string, issuer, user *mocks.UserFoundation) (string, *peer.Response) {
 				return mockStub.TxInvokeChaincodeSigned(cc, functionName, issuer, "", "", "", params)
 			},
 			checkResultFunc: func(t *testing.T, mockStub *mockstub.MockStub, user *mocks.UserFoundation, txID string) {
@@ -577,10 +577,10 @@ func TestExternalUnlocks(t *testing.T) {
 
 				return string(data)
 			},
-			invokeFunc: func(mockStub *mockstub.MockStub, cc *core.Chaincode, functionName, params string, issuer, user *mocks.UserFoundation) (string, peer.Response) {
+			invokeFunc: func(mockStub *mockstub.MockStub, cc *core.Chaincode, functionName, params string, issuer, user *mocks.UserFoundation) (string, *peer.Response) {
 				return mockStub.TxInvokeChaincodeSigned(cc, functionName, user, "", "", "", params)
 			},
-			checkResponseFunc: func(t *testing.T, resp peer.Response) {
+			checkResponseFunc: func(t *testing.T, resp *peer.Response) {
 				payload := &proto.BatchResponse{}
 
 				err := pb.Unmarshal(resp.Payload, payload)
@@ -636,10 +636,10 @@ func TestExternalUnlocks(t *testing.T) {
 
 				return string(data)
 			},
-			invokeFunc: func(mockStub *mockstub.MockStub, cc *core.Chaincode, functionName, params string, issuer, user *mocks.UserFoundation) (string, peer.Response) {
+			invokeFunc: func(mockStub *mockstub.MockStub, cc *core.Chaincode, functionName, params string, issuer, user *mocks.UserFoundation) (string, *peer.Response) {
 				return mockStub.TxInvokeChaincodeSigned(cc, functionName, user, "", "", "", params)
 			},
-			checkResponseFunc: func(t *testing.T, resp peer.Response) {
+			checkResponseFunc: func(t *testing.T, resp *peer.Response) {
 				payload := &proto.BatchResponse{}
 
 				err := pb.Unmarshal(resp.Payload, payload)
@@ -696,10 +696,10 @@ func TestExternalUnlocks(t *testing.T) {
 
 				return string(data)
 			},
-			invokeFunc: func(mockStub *mockstub.MockStub, cc *core.Chaincode, functionName, params string, issuer, user *mocks.UserFoundation) (string, peer.Response) {
+			invokeFunc: func(mockStub *mockstub.MockStub, cc *core.Chaincode, functionName, params string, issuer, user *mocks.UserFoundation) (string, *peer.Response) {
 				return mockStub.TxInvokeChaincodeSigned(cc, functionName, issuer, "", "", "", params)
 			},
-			checkResponseFunc: func(t *testing.T, resp peer.Response) {
+			checkResponseFunc: func(t *testing.T, resp *peer.Response) {
 				payload := &proto.BatchResponse{}
 
 				err := pb.Unmarshal(resp.Payload, payload)
@@ -754,10 +754,10 @@ func TestExternalUnlocks(t *testing.T) {
 
 				return string(data)
 			},
-			invokeFunc: func(mockStub *mockstub.MockStub, cc *core.Chaincode, functionName, params string, issuer, user *mocks.UserFoundation) (string, peer.Response) {
+			invokeFunc: func(mockStub *mockstub.MockStub, cc *core.Chaincode, functionName, params string, issuer, user *mocks.UserFoundation) (string, *peer.Response) {
 				return mockStub.TxInvokeChaincodeSigned(cc, functionName, issuer, "", "", "", params)
 			},
-			checkResponseFunc: func(t *testing.T, resp peer.Response) {
+			checkResponseFunc: func(t *testing.T, resp *peer.Response) {
 				payload := &proto.BatchResponse{}
 
 				err := pb.Unmarshal(resp.Payload, payload)
@@ -815,10 +815,10 @@ func TestExternalUnlocks(t *testing.T) {
 
 				return string(data)
 			},
-			invokeFunc: func(mockStub *mockstub.MockStub, cc *core.Chaincode, functionName, params string, issuer, user *mocks.UserFoundation) (string, peer.Response) {
+			invokeFunc: func(mockStub *mockstub.MockStub, cc *core.Chaincode, functionName, params string, issuer, user *mocks.UserFoundation) (string, *peer.Response) {
 				return mockStub.TxInvokeChaincodeSigned(cc, functionName, issuer, "", "", "", params)
 			},
-			checkResponseFunc: func(t *testing.T, resp peer.Response) {
+			checkResponseFunc: func(t *testing.T, resp *peer.Response) {
 				payload := &proto.BatchResponse{}
 
 				err := pb.Unmarshal(resp.Payload, payload)
@@ -874,10 +874,10 @@ func TestExternalUnlocks(t *testing.T) {
 
 				return string(data)
 			},
-			invokeFunc: func(mockStub *mockstub.MockStub, cc *core.Chaincode, functionName, params string, issuer, user *mocks.UserFoundation) (string, peer.Response) {
+			invokeFunc: func(mockStub *mockstub.MockStub, cc *core.Chaincode, functionName, params string, issuer, user *mocks.UserFoundation) (string, *peer.Response) {
 				return mockStub.TxInvokeChaincodeSigned(cc, functionName, issuer, "", "", "", params)
 			},
-			checkResponseFunc: func(t *testing.T, resp peer.Response) {
+			checkResponseFunc: func(t *testing.T, resp *peer.Response) {
 				payload := &proto.BatchResponse{}
 
 				err := pb.Unmarshal(resp.Payload, payload)

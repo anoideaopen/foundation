@@ -2,8 +2,8 @@ package core
 
 import (
 	"github.com/anoideaopen/foundation/core/swap"
-	"github.com/hyperledger/fabric-chaincode-go/shim"
-	"github.com/hyperledger/fabric-protos-go/peer"
+	"github.com/hyperledger/fabric-chaincode-go/v2/shim"
+	"github.com/hyperledger/fabric-protos-go-apiv2/peer"
 )
 
 const (
@@ -17,7 +17,7 @@ const (
 //
 // Returns a shim.Success response if the swap done logic executes successfully.
 // Otherwise, it returns a shim.Error response.
-func (cc *Chaincode) swapDoneHandler(stub shim.ChaincodeStubInterface) peer.Response {
+func (cc *Chaincode) swapDoneHandler(stub shim.ChaincodeStubInterface) *peer.Response {
 	if cc.contract.ContractConfig().GetOptions().GetDisableSwaps() {
 		return shim.Error("handling swap done failed, " + ErrSwapDisabled.Error())
 	}

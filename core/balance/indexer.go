@@ -1,6 +1,6 @@
 package balance
 
-import "github.com/hyperledger/fabric-chaincode-go/shim"
+import "github.com/hyperledger/fabric-chaincode-go/v2/shim"
 
 // IMPORTANT: THE INDEXER CAN BE USED AS A TOOL FOR MIGRATING EXISTING
 // TOKENS. DETAILS IN README.md.

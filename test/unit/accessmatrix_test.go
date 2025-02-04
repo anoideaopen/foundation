@@ -11,11 +11,11 @@ import (
 	"github.com/anoideaopen/foundation/mocks/mockstub"
 	pbfound "github.com/anoideaopen/foundation/proto"
 	"github.com/anoideaopen/foundation/token"
-	"github.com/golang/protobuf/proto"
-	"github.com/hyperledger/fabric-chaincode-go/shim"
-	"github.com/hyperledger/fabric-protos-go/peer"
+	"github.com/hyperledger/fabric-chaincode-go/v2/shim"
+	"github.com/hyperledger/fabric-protos-go-apiv2/peer"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 type IssuerCheckerToken struct {
@@ -110,7 +110,7 @@ func TestRightsAndAddressRightsForNominee(t *testing.T) {
 			functionName: fnGetRight,
 			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
 				mockStub.GetChannelIDReturns("cc")
-				mockStub.InvokeACLMap["getAccountOperationRight"] = func(mockStub *mockstub.MockStub, parameters ...string) peer.Response {
+				mockStub.InvokeACLMap["getAccountOperationRight"] = func(mockStub *mockstub.MockStub, parameters ...string) *peer.Response {
 					if len(parameters) != acl.ArgsQtyGetAccOpRight {
 						return shim.Error(fmt.Sprintf(acl.ErrWrongArgsCount, len(parameters), acl.ArgsQtyGetAccOpRight))
 					}
@@ -133,7 +133,7 @@ func TestRightsAndAddressRightsForNominee(t *testing.T) {
 			functionName: fnGetRight,
 			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
 				mockStub.GetChannelIDReturns("cc")
-				mockStub.InvokeACLMap["getAccountOperationRight"] = func(mockStub *mockstub.MockStub, parameters ...string) peer.Response {
+				mockStub.InvokeACLMap["getAccountOperationRight"] = func(mockStub *mockstub.MockStub, parameters ...string) *peer.Response {
 					if len(parameters) != acl.ArgsQtyGetAccOpRight {
 						return shim.Error(fmt.Sprintf(acl.ErrWrongArgsCount, len(parameters), acl.ArgsQtyGetAccOpRight))
 					}
@@ -156,7 +156,7 @@ func TestRightsAndAddressRightsForNominee(t *testing.T) {
 			functionName: fnGetAddressRightForNominee,
 			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
 				mockStub.GetChannelIDReturns("cc")
-				mockStub.InvokeACLMap["getAddressRightForNominee"] = func(mockStub *mockstub.MockStub, args ...string) peer.Response {
+				mockStub.InvokeACLMap["getAddressRightForNominee"] = func(mockStub *mockstub.MockStub, args ...string) *peer.Response {
 					if len(args) != acl.ArgsQtyGetAddressRightForNominee {
 						return shim.Error(fmt.Sprintf(acl.ErrWrongArgsCount, len(args), acl.ArgsQtyGetAddressRightForNominee))
 					}
@@ -179,7 +179,7 @@ func TestRightsAndAddressRightsForNominee(t *testing.T) {
 			functionName: fnGetAddressRightForNominee,
 			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
 				mockStub.GetChannelIDReturns("cc")
-				mockStub.InvokeACLMap["getAddressRightForNominee"] = func(mockStub *mockstub.MockStub, args ...string) peer.Response {
+				mockStub.InvokeACLMap["getAddressRightForNominee"] = func(mockStub *mockstub.MockStub, args ...string) *peer.Response {
 					if len(args) != acl.ArgsQtyGetAddressRightForNominee {
 						return shim.Error(fmt.Sprintf(acl.ErrWrongArgsCount, len(args), acl.ArgsQtyGetAddressRightForNominee))
 					}

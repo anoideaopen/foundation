@@ -16,12 +16,12 @@ import (
 	pbfound "github.com/anoideaopen/foundation/proto"
 	"github.com/anoideaopen/foundation/test/unit/fixtures"
 	"github.com/anoideaopen/foundation/token"
-	pb "github.com/golang/protobuf/proto"
-	"github.com/hyperledger/fabric-chaincode-go/shim"
-	"github.com/hyperledger/fabric-protos-go/peer"
+	"github.com/hyperledger/fabric-chaincode-go/v2/shim"
+	"github.com/hyperledger/fabric-protos-go-apiv2/peer"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/sha3"
 	"google.golang.org/protobuf/encoding/protojson"
+	pb "google.golang.org/protobuf/proto"
 )
 
 const (
@@ -732,7 +732,7 @@ func TestSwap(t *testing.T) {
 
 			var (
 				txId string
-				resp peer.Response
+				resp *peer.Response
 			)
 			if testCase.isQuery {
 				resp = mockStub.QueryChaincode(cc, testCase.functionName, parameters...)

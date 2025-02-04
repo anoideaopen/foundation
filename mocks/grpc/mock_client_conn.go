@@ -14,7 +14,6 @@ import (
 	"github.com/anoideaopen/foundation/mocks"
 	"github.com/anoideaopen/foundation/mocks/mockstub"
 	pbfound "github.com/anoideaopen/foundation/proto"
-	pb "github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -117,7 +116,7 @@ func checkEvent(t *testing.T, mockStub *mockstub.MockStub, txID string) (eventRe
 	eventName, payload := mockStub.SetEventArgsForCall(0)
 	require.Equal(t, core.BatchExecute, eventName)
 	events := &pbfound.BatchEvent{}
-	require.NoError(t, pb.Unmarshal(payload, events))
+	require.NoError(t, proto.Unmarshal(payload, events))
 	for _, ev := range events.GetEvents() {
 		if hex.EncodeToString(ev.GetId()) == txID {
 			if ev.GetError() != nil {

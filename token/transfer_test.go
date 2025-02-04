@@ -12,10 +12,10 @@ import (
 	"github.com/anoideaopen/foundation/mocks"
 	"github.com/anoideaopen/foundation/mocks/mockstub"
 	pbfound "github.com/anoideaopen/foundation/proto"
-	pb "github.com/golang/protobuf/proto"
-	"github.com/hyperledger/fabric-chaincode-go/shim"
-	"github.com/hyperledger/fabric-protos-go/peer"
+	"github.com/hyperledger/fabric-chaincode-go/v2/shim"
+	"github.com/hyperledger/fabric-protos-go-apiv2/peer"
 	"github.com/stretchr/testify/require"
+	pb "google.golang.org/protobuf/proto"
 )
 
 func TestBaseTokenTransfer(t *testing.T) {
@@ -557,7 +557,7 @@ func TestBaseTokenTransfer(t *testing.T) {
 
 			var (
 				txId string
-				resp peer.Response
+				resp *peer.Response
 			)
 			if testCase.isQuery {
 				resp = mockStub.QueryChaincode(cc, testCase.functionName, parameters...)
