@@ -4,10 +4,10 @@ go 1.23.5
 
 require (
 	github.com/IBM/idemix v0.0.2-0.20240913182345-72941a5f41cd
-	github.com/anoideaopen/acl v0.0.10-0.20250205160856-971f8b18bd5c
-	github.com/anoideaopen/channel-transfer v0.0.12-0.20250205160920-0dafde18f9ea
-	github.com/anoideaopen/foundation v0.0.11-0.20250205160831-835209200134
-	github.com/anoideaopen/robot v0.0.5-0.20250205160911-ea69adc0dc3f
+	github.com/anoideaopen/acl v0.1.0
+	github.com/anoideaopen/channel-transfer v0.1.0
+	github.com/anoideaopen/foundation v0.1.0
+	github.com/anoideaopen/robot v0.1.0
 	github.com/btcsuite/btcd/btcutil v1.1.6
 	github.com/btcsuite/btcutil v1.0.3-0.20201208143702-a53e38424cce
 	github.com/fsouza/go-dockerclient v1.12.0
