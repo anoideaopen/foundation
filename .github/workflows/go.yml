@@ -65,17 +65,13 @@ jobs:
   go-test-unit:
     needs:
       - golangci-lint
-<<<<<<< HEAD
     strategy:
       fail-fast: false
       matrix:
         go-version:
           - '1.23.5'
           - '1.20.3'
-    runs-on: 'ubuntu-20.04'
-=======
     runs-on: 'ubuntu-22.04'
->>>>>>> 8e29e84 (bump ubuntu-22.04 (#221))
     steps:
       - uses: actions/checkout@v4
 
