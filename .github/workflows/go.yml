@@ -13,7 +13,7 @@ env:
 
 jobs:
   check-cyrillic-comments:
-    runs-on: 'ubuntu-20.04'
+    runs-on: 'ubuntu-22.04'
     steps:
       - uses: actions/checkout@v4
       - name: check cyrillic comments
@@ -23,7 +23,7 @@ jobs:
   validate-go:
     needs:
       - check-cyrillic-comments
-    runs-on: 'ubuntu-20.04'
+    runs-on: 'ubuntu-22.04'
     steps:
       - uses: actions/checkout@v4
 
@@ -45,7 +45,7 @@ jobs:
   golangci-lint:
     needs:
       - validate-go
-    runs-on: 'ubuntu-20.04'
+    runs-on: 'ubuntu-22.04'
     steps:
       - uses: actions/checkout@v4
       - name: setup go
@@ -64,7 +64,7 @@ jobs:
   go-test-unit:
     needs:
       - golangci-lint
-    runs-on: 'ubuntu-20.04'
+    runs-on: 'ubuntu-22.04'
     steps:
       - uses: actions/checkout@v4
 
@@ -80,7 +80,7 @@ jobs:
   go-test-coverage:
     needs:
       - golangci-lint
-    runs-on: 'ubuntu-20.04'
+    runs-on: 'ubuntu-22.04'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -105,7 +105,7 @@ jobs:
       fail-fast: false
       matrix:
         INTEGRATION_TEST_SUITE: [ "general basic","swap multisigned-user","version-and-nonce","channel-transfer-only-tx","channel-transfer","task_executor-only-tx channel-transfer-multi channel-transfer-task-executor-only-tx"]
-    runs-on: 'ubuntu-20.04'
+    runs-on: 'ubuntu-22.04'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
