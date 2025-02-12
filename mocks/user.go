@@ -2,6 +2,7 @@ package mocks
 
 import (
 	"crypto/ed25519"
+	"crypto/sha3"
 	"errors"
 	"fmt"
 	"strings"
@@ -9,7 +10,6 @@ import (
 	"github.com/anoideaopen/foundation/keys"
 	pbfound "github.com/anoideaopen/foundation/proto"
 	"github.com/btcsuite/btcd/btcutil/base58"
-	"golang.org/x/crypto/sha3"
 )
 
 type UserFoundation struct {

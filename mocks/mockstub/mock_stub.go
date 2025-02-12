@@ -204,7 +204,7 @@ func (ms *MockStub) TxInvokeChaincode(
 		return "", shim.Error(err.Error())
 	}
 
-	for i := 0; i < ms.PutStateCallCount(); i++ {
+	for i := range ms.PutStateCallCount() {
 		putStateKey, rawValue := ms.PutStateArgsForCall(i)
 		if putStateKey == key { //nolint:nestif
 			pending := &pbfound.PendingTx{}

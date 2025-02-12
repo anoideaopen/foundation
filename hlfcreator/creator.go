@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/ecdsa"
 	"crypto/sha256"
+	"crypto/sha3"
 	"crypto/x509"
 	"encoding/hex"
 	"encoding/pem"
@@ -12,7 +13,6 @@ import (
 	"strings"
 
 	"github.com/hyperledger/fabric-protos-go-apiv2/msp"
-	"golang.org/x/crypto/sha3"
 	pb "google.golang.org/protobuf/proto"
 )
 

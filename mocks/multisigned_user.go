@@ -3,6 +3,7 @@ package mocks
 import (
 	"bytes"
 	"crypto/ed25519"
+	"crypto/sha3"
 	"fmt"
 	"sort"
 	"strings"
@@ -10,7 +11,6 @@ import (
 	"github.com/anoideaopen/foundation/keys"
 	pbfound "github.com/anoideaopen/foundation/proto"
 	"github.com/btcsuite/btcd/btcutil/base58"
-	"golang.org/x/crypto/sha3"
 )
 
 const MultisignKeyDelimiter = "/"
@@ -29,12 +29,12 @@ type PrivateKeyWithType struct {
 
 // NewUserFoundationMultisigned creates multisigned user based on specified key type and policy
 func NewUserFoundationMultisigned(keyType pbfound.KeyType, n int) (*UserFoundationMultisigned, error) {
-	var pKeys [][]byte
+	pKeys := make([][]byte, 0, n)
 	userMultisigned := &UserFoundationMultisigned{
 		Users:  make([]*UserFoundation, 0),
 		UserID: "testUserMultisigned",
 	}
-	for i := 0; i < n; i++ {
+	for range n {
 		user, err := NewUserFoundation(keyType)
 		if err != nil {
 			return nil, err

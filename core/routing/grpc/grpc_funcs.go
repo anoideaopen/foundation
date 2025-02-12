@@ -13,7 +13,7 @@ func FindServiceDescriptor(serviceName string) protoreflect.ServiceDescriptor {
 	var sd protoreflect.ServiceDescriptor
 
 	protoregistry.GlobalFiles.RangeFiles(func(fd protoreflect.FileDescriptor) bool {
-		for i := 0; i < fd.Services().Len(); i++ {
+		for i := range fd.Services().Len() {
 			sd = fd.Services().Get(i)
 			if sd.FullName() == protoreflect.FullName(serviceName) {
 				return false

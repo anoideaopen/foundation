@@ -17,7 +17,7 @@ func (x *TokenRate) CalcPrice(amount *big.Int, rateDecimal uint64) *big.Int {
 			amount, new(big.Int).SetBytes(x.GetRate()),
 		),
 		new(big.Int).Exp(
-			new(big.Int).SetUint64(10), //nolint:gomnd
+			new(big.Int).SetUint64(10),
 			new(big.Int).SetUint64(rateDecimal), nil,
 		),
 	)

@@ -277,7 +277,7 @@ func InitChaincode(n *nwo.Network, channel string, orderer *nwo.Orderer, chainco
 	})
 	Expect(err).NotTo(HaveOccurred())
 	Eventually(sess, n.EventuallyTimeout).Should(gexec.Exit(0))
-	for i := 0; i < len(peerAddresses); i++ {
+	for range peerAddresses {
 		Eventually(sess.Err, n.EventuallyTimeout).Should(gbytes.Say(`\Qcommitted with status (VALID)\E`))
 	}
 	Expect(sess.Err).To(gbytes.Say("Chaincode invoke successful. result: status:200"))

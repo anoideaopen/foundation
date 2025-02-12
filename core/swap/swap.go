@@ -2,6 +2,7 @@ package swap
 
 import (
 	"bytes"
+	"crypto/sha3"
 	"encoding/hex"
 	"fmt"
 	"log"
@@ -17,7 +18,6 @@ import (
 	"github.com/anoideaopen/foundation/proto"
 	"github.com/hyperledger/fabric-chaincode-go/v2/shim"
 	"github.com/hyperledger/fabric-protos-go-apiv2/peer"
-	"golang.org/x/crypto/sha3"
 	pb "google.golang.org/protobuf/proto"
 )
 

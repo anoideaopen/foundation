@@ -14,7 +14,7 @@ func Methods(v any) []string {
 	methodNames := make([]string, 0)
 
 	t := reflect.TypeOf(v)
-	for i := 0; i < t.NumMethod(); i++ {
+	for i := range t.NumMethod() {
 		method := t.Method(i)
 		methodNames = append(methodNames, method.Name)
 	}

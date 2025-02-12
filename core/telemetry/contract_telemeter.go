@@ -36,8 +36,8 @@ func (th *TracingHandler) StartNewSpan(traceCtx TraceContext, spanName string, o
 		traceCtx.ctx = context.Background()
 	}
 
-	ctx, span := th.Tracer.Start(traceCtx.ctx, spanName, opts...)
-	return TraceContext{
+	ctx, span := th.Tracer.Start(traceCtx.ctx, spanName, opts...) //nolint:spancheck
+	return TraceContext{                                          //nolint:spancheck
 		ctx:       ctx,
 		remote:    traceCtx.remote,
 		remoteCtx: traceCtx.remoteCtx,

@@ -80,7 +80,7 @@ func (cc *Chaincode) validateAndExtractInvocationContext(
 
 	oldBehavior := invocation.signersCount != len(acl.GetKeyTypes())
 	invocation.keyTypes = make([]pb.KeyType, len(signers))
-	for i := 0; i < invocation.signersCount; i++ {
+	for i := range invocation.signersCount {
 		if oldBehavior {
 			publicKeyBytes := base58.Decode(signers[i])
 
@@ -122,7 +122,7 @@ func validateSignaturesInInvocation(
 	message []byte,
 ) error {
 	var signs int
-	for i := 0; i < invocation.signersCount; i++ {
+	for i := range invocation.signersCount {
 		if invocation.signatureArgs[i+invocation.signersCount] == "" {
 			continue // Skip the blank signatures.
 		}

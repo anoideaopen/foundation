@@ -1,13 +1,13 @@
 package keys
 
 import (
+	"crypto/ed25519"
+	"crypto/sha3"
 	"fmt"
 
 	"github.com/anoideaopen/foundation/keys/eth"
 	"github.com/anoideaopen/foundation/keys/gost"
 	pb "github.com/anoideaopen/foundation/proto"
-	"golang.org/x/crypto/ed25519"
-	"golang.org/x/crypto/sha3"
 )
 
 const (

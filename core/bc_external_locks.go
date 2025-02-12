@@ -73,7 +73,7 @@ func (bc *BaseContract) TxLockTokenBalance(
 		return fmt.Errorf("address: %w", err)
 	}
 
-	amount, ok := new(big.Int).SetString(req.GetAmount(), 10) //nolint:gomnd
+	amount, ok := new(big.Int).SetString(req.GetAmount(), 10)
 	if !ok {
 		return ErrBigIntFromString
 	}
@@ -147,12 +147,12 @@ func (bc *BaseContract) TxUnlockTokenBalance( //nolint:funlen
 		return fmt.Errorf("address: %w", err)
 	}
 
-	amount, ok := new(big.Int).SetString(req.GetAmount(), 10) //nolint:gomnd
+	amount, ok := new(big.Int).SetString(req.GetAmount(), 10)
 	if !ok {
 		return ErrBigIntFromString
 	}
 
-	cur, ok := new(big.Int).SetString(balanceLock.GetCurrentAmount(), 10) //nolint:gomnd
+	cur, ok := new(big.Int).SetString(balanceLock.GetCurrentAmount(), 10)
 	if !ok {
 		return ErrBigIntFromString
 	}
@@ -242,7 +242,7 @@ func (bc *BaseContract) TxLockAllowedBalance(
 		return fmt.Errorf("address: %w", err)
 	}
 
-	amount, ok := new(big.Int).SetString(req.GetAmount(), 10) //nolint:gomnd
+	amount, ok := new(big.Int).SetString(req.GetAmount(), 10)
 	if !ok {
 		return ErrBigIntFromString
 	}
@@ -316,12 +316,12 @@ func (bc *BaseContract) TxUnlockAllowedBalance( //nolint:funlen
 		return fmt.Errorf("address: %w", err)
 	}
 
-	amount, ok := new(big.Int).SetString(req.GetAmount(), 10) //nolint:gomnd
+	amount, ok := new(big.Int).SetString(req.GetAmount(), 10)
 	if !ok {
 		return ErrBigIntFromString
 	}
 
-	cur, ok := new(big.Int).SetString(balanceLock.GetCurrentAmount(), 10) //nolint:gomnd
+	cur, ok := new(big.Int).SetString(balanceLock.GetCurrentAmount(), 10)
 	if !ok {
 		return ErrBigIntFromString
 	}

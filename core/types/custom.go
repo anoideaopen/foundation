@@ -193,7 +193,7 @@ func ConvertToAsset(in []*MultiSwapAsset) ([]*pb.Asset, error) {
 
 	assets := make([]*pb.Asset, 0, len(in))
 	for _, item := range in {
-		value, ok := new(big.Int).SetString(item.Amount, 10) //nolint:gomnd
+		value, ok := new(big.Int).SetString(item.Amount, 10)
 		if !ok {
 			return nil, fmt.Errorf("couldn't convert %s to bigint", item.Amount)
 		}

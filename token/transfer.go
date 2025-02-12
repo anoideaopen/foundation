@@ -180,7 +180,7 @@ func (bt *BaseToken) TxSetFee(sender *types.Sender, currency string, fee *big.In
 		return errors.New("TxSetFee: unauthorized, sender is not a fee setter")
 	}
 
-	if fee.Cmp(new(big.Int).SetInt64(100000000)) > 0 { //nolint:gomnd
+	if fee.Cmp(new(big.Int).SetInt64(100000000)) > 0 {
 		return errors.New("TxSetFee: fee should be equal or less than 100%")
 	}
 
@@ -225,7 +225,7 @@ func (bt *BaseToken) calcFee(amount *big.Int) (*Predict, error) {
 			new(big.Int).SetBytes(cfg.GetFee().GetFee()),
 		),
 		new(big.Int).Exp(
-			new(big.Int).SetUint64(10), //nolint:gomnd
+			new(big.Int).SetUint64(10),
 			new(big.Int).SetUint64(feeDecimals),
 			nil,
 		),
@@ -246,7 +246,7 @@ func (bt *BaseToken) calcFee(amount *big.Int) (*Predict, error) {
 				new(big.Int).SetBytes(rate.GetRate()),
 			),
 			new(big.Int).Exp(
-				new(big.Int).SetUint64(10), //nolint:gomnd
+				new(big.Int).SetUint64(10),
 				new(big.Int).SetUint64(RateDecimal),
 				nil,
 			),

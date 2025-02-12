@@ -1,7 +1,7 @@
-//nolint:gomnd
 package core
 
 import (
+	"crypto/sha3"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -13,7 +13,6 @@ import (
 	pb "github.com/anoideaopen/foundation/proto"
 	"github.com/btcsuite/btcd/btcutil/base58"
 	"github.com/hyperledger/fabric-chaincode-go/v2/shim"
-	"golang.org/x/crypto/sha3"
 )
 
 // CheckSign exists fo backward compatibility
@@ -29,7 +28,7 @@ func CheckSign(
 	}
 
 	message := []byte(fn + strings.Join(append(args, auth[:signers]...), ""))
-	for i := 0; i < signers; i++ {
+	for i := range signers {
 		key := base58.Decode(auth[i])
 		sign := base58.Decode(auth[i+signers])
 		valid, err := keys.VerifySignatureByKeyType(pb.KeyType_ed25519, key, message, sign)

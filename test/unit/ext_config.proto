@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package unit;
 
-import "config.proto";
+import "foundation_config.proto";
 import "validate/validate.proto";
 
 option go_package = "github.com/anoideaopen/foundation/test/unit";
