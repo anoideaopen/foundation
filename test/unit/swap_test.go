@@ -617,9 +617,6 @@ func TestSwap(t *testing.T) {
 			errorMsg:     "",
 			noBatch:      true,
 			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
-				swapKey, err := mockStub.CreateCompositeKey(swap.SwapCompositeType, []string{mockStub.GetTxID()})
-				require.NoError(t, err)
-
 				txID, err := hex.DecodeString(mockStub.GetTxID())
 				require.NoError(t, err)
 
@@ -635,7 +632,7 @@ func TestSwap(t *testing.T) {
 					Timeout: 10800,
 				})
 				require.NoError(t, err)
-				mockStub.GetStateCallsMap[swapKey] = s
+				mockStub.GetMultipleStatesReturns([][]byte{s}, nil)
 
 				err = mocks.SetCreator(mockStub.ChaincodeStub, mocks.BatchRobotCert)
 				require.NoError(t, err)
@@ -670,9 +667,6 @@ func TestSwap(t *testing.T) {
 			errorMsg:     "",
 			noBatch:      true,
 			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
-				swapKey, err := mockStub.CreateCompositeKey(swap.SwapCompositeType, []string{mockStub.GetTxID()})
-				require.NoError(t, err)
-
 				txID, err := hex.DecodeString(mockStub.GetTxID())
 				require.NoError(t, err)
 
@@ -688,7 +682,7 @@ func TestSwap(t *testing.T) {
 					Timeout: 10800,
 				})
 				require.NoError(t, err)
-				mockStub.GetStateCallsMap[swapKey] = s
+				mockStub.GetMultipleStatesReturns([][]byte{s}, nil)
 
 				err = mocks.SetCreator(mockStub.ChaincodeStub, mocks.BatchRobotCert)
 				require.NoError(t, err)
@@ -708,6 +702,33 @@ func TestSwap(t *testing.T) {
 				swapKey, err := mockStub.CreateCompositeKey(swap.SwapCompositeType, []string{mockStub.GetTxID()})
 				require.NoError(t, err)
 				require.Equal(t, swapKey, mockStub.DelStateArgsForCall(0))
+			},
+		},
+		{
+			description:  "robot done - not found",
+			functionName: "batchExecute",
+			errorMsg:     "swap doesn't exist by key",
+			noBatch:      true,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				txID, err := hex.DecodeString(mockStub.GetTxID())
+				require.NoError(t, err)
+
+				mockStub.GetMultipleStatesReturns([][]byte{nil}, nil)
+
+				err = mocks.SetCreator(mockStub.ChaincodeStub, mocks.BatchRobotCert)
+				require.NoError(t, err)
+
+				dataIn, err := pb.Marshal(&pbfound.Batch{
+					Keys: []*pbfound.SwapKey{
+						{
+							Id:  txID,
+							Key: swapKeyEtl,
+						},
+					},
+				})
+				require.NoError(t, err)
+
+				return []string{string(dataIn)}
 			},
 		},
 	} {
@@ -738,6 +759,7 @@ func TestSwap(t *testing.T) {
 				resp = mockStub.QueryChaincode(cc, testCase.functionName, parameters...)
 			} else if testCase.noBatch {
 				resp = mockStub.NbTxInvokeChaincode(cc, testCase.functionName, parameters...)
+				txId = mockStub.GetTxID()
 			} else {
 				txId, resp = mockStub.TxInvokeChaincodeSigned(cc, testCase.functionName, testCase.signUser, "", "", "", parameters...)
 			}
@@ -764,16 +786,28 @@ func TestSwap(t *testing.T) {
 			err = pb.Unmarshal(resp.GetPayload(), bResp)
 			require.NoError(t, err)
 
-			var respb *pbfound.TxResponse
+			var (
+				respb     *pbfound.TxResponse
+				respError string
+			)
+
 			for _, r := range bResp.GetTxResponses() {
 				if hex.EncodeToString(r.GetId()) == txId {
 					respb = r
+					respError = respb.GetError().GetError()
+					break
+				}
+			}
+
+			for _, r := range bResp.GetSwapKeyResponses() {
+				if hex.EncodeToString(r.GetId()) == txId {
+					respError = r.GetError().GetError()
 					break
 				}
 			}
 
 			if len(testCase.errorMsg) != 0 {
-				require.Contains(t, respb.GetError().GetError(), testCase.errorMsg)
+				require.Contains(t, respError, testCase.errorMsg)
 				return
 			}
 

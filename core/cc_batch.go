@@ -2,6 +2,7 @@ package core
 
 import (
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"runtime/debug"
 	"sort"
@@ -84,64 +85,179 @@ func (cc *Chaincode) saveToBatch(
 	return stub.PutState(key, data)
 }
 
+func (cc *Chaincode) getBatchFromState(stub shim.ChaincodeStubInterface, batch *proto.Batch) error {
+	log := logger.Logger()
+
+	keys, err := cc.collectKeysOfBatch(stub, batch)
+	if err != nil {
+		log.Errorf("couldn't collect kyes of batch: %s", err.Error())
+		return err
+	}
+
+	result, err := stub.GetMultipleStates(keys...)
+	if err != nil {
+		log.Errorf("couldn't get multiple states: %s", err.Error())
+		return err
+	}
+
+	if len(result) != len(keys) {
+		return errors.New("len of result is not equal to len of keys")
+	}
+
+	err = cc.parsingResponseFromBatchKeys(batch, result)
+	if err != nil {
+		log.Errorf("couldn't parsing response from batch keys: %s", err.Error())
+		return err
+	}
+
+	return nil
+}
+
+func (cc *Chaincode) collectKeysOfBatch(stub shim.ChaincodeStubInterface, batch *proto.Batch) ([]string, error) {
+	log := logger.Logger()
+
+	keys := make([]string, 0, len(batch.GetTxIDs())+len(batch.GetKeys())+len(batch.GetMultiSwapsKeys()))
+
+	for _, b := range batch.GetTxIDs() {
+		txID := hex.EncodeToString(b)
+		key, err := stub.CreateCompositeKey(config.BatchPrefix, []string{txID})
+		if err != nil {
+			log.Errorf("Couldn't create composite key for tx %s: %s", txID, err.Error())
+			return nil, err
+		}
+		keys = append(keys, key)
+	}
+
+	for _, sk := range batch.GetKeys() {
+		txID := hex.EncodeToString(sk.GetId())
+		key, err := stub.CreateCompositeKey(swap.SwapCompositeType, []string{txID})
+		if err != nil {
+			log.Errorf("Couldn't create composite key for tx %s: %s", txID, err.Error())
+			return nil, err
+		}
+		keys = append(keys, key)
+	}
+
+	for _, msk := range batch.GetMultiSwapsKeys() {
+		txID := hex.EncodeToString(msk.GetId())
+		key, err := stub.CreateCompositeKey(multiswap.MultiSwapCompositeType, []string{txID})
+		if err != nil {
+			log.Errorf("couldn't create composite key for tx %s: %s", txID, err.Error())
+			return nil, err
+		}
+		keys = append(keys, key)
+	}
+
+	return keys, nil
+}
+
+func (cc *Chaincode) parsingResponseFromBatchKeys(batch *proto.Batch, result [][]byte) error {
+	log := logger.Logger()
+
+	batch.Pendings = make([]*proto.PendingTx, 0, len(batch.GetTxIDs()))
+	for i, b := range batch.GetTxIDs() {
+		if result[i] == nil {
+			batch.Pendings = append(batch.Pendings, nil)
+			continue
+		}
+		txID := hex.EncodeToString(b)
+		pending := new(proto.PendingTx)
+		if err := pb.Unmarshal(result[i], pending); err != nil {
+			log.Errorf("couldn't unmarshal transaction %s: %s", txID, err.Error())
+			return err
+		}
+		batch.Pendings = append(batch.Pendings, pending)
+	}
+
+	result = result[len(batch.GetTxIDs()):]
+
+	for i, sk := range batch.GetKeys() {
+		sks := &proto.SwapKey_Swap{}
+		batch.GetKeys()[i].Payload = sks
+
+		if result[i] == nil {
+			continue
+		}
+
+		txID := hex.EncodeToString(sk.GetId())
+		s := new(proto.Swap)
+		if err := pb.Unmarshal(result[i], s); err != nil {
+			log.Errorf("couldn't unmarshal transaction %s: %s", txID, err.Error())
+			return err
+		}
+
+		sks.Swap = s
+	}
+
+	result = result[len(batch.GetKeys()):]
+
+	for i, sk := range batch.GetMultiSwapsKeys() {
+		skms := &proto.SwapKey_MultiSwap{}
+		batch.GetMultiSwapsKeys()[i].Payload = skms
+
+		if result[i] == nil {
+			continue
+		}
+
+		txID := hex.EncodeToString(sk.GetId())
+		ms := new(proto.MultiSwap)
+		if err := pb.Unmarshal(result[i], ms); err != nil {
+			log.Errorf("couldn't unmarshal transaction %s: %s", txID, err.Error())
+			return err
+		}
+
+		skms.MultiSwap = ms
+	}
+
+	return nil
+}
+
 func (cc *Chaincode) loadFromBatch(
 	stub shim.ChaincodeStubInterface,
 	txID string,
-) (*proto.PendingTx, string, error) {
+	pending *proto.PendingTx,
+) error {
 	log := logger.Logger()
+
+	if pending == nil {
+		log.Warningf("transaction %s not found", txID)
+		return fmt.Errorf("transaction %s not found", txID)
+	}
 
 	key, err := stub.CreateCompositeKey(config.BatchPrefix, []string{txID})
 	if err != nil {
 		log.Errorf("Couldn't create composite key for tx %s: %s", txID, err.Error())
-		return nil, "", err
+		return err
 	}
 
-	data, err := stub.GetState(key)
+	err = stub.DelState(key)
 	if err != nil {
-		log.Errorf("Couldn't load transaction %s from state: %s", txID, err.Error())
-		return nil, "", err
-	}
-	if len(data) == 0 {
-		log.Warningf("Transaction %s not found", txID)
-		return nil, "", fmt.Errorf("transaction %s not found", txID)
-	}
-
-	defer func() {
-		err = stub.DelState(key)
-		if err != nil {
-			log.Errorf("Couldn't delete from state tx %s: %s", txID, err.Error())
-		}
-	}()
-
-	pending := new(proto.PendingTx)
-	if err = pb.Unmarshal(data, pending); err != nil {
-		log.Errorf("couldn't unmarshal transaction %s: %s", txID, err.Error())
-		return nil, key, err
+		log.Errorf("couldn't delete from state tx %s: %s", txID, err.Error())
 	}
 
 	method := cc.Router().Method(pending.GetMethod())
 	if method == "" {
 		log.Errorf("unknown method %s in tx %s", pending.GetMethod(), txID)
-		return pending, key, fmt.Errorf("unknown method %s in tx %s", pending.GetMethod(), txID)
+		return fmt.Errorf("unknown method %s in tx %s", pending.GetMethod(), txID)
 	}
 
 	if !cc.Router().AuthRequired(method) {
-		return pending, key, nil
+		return nil
 	}
 
 	if pending.GetSender() == nil {
 		log.Errorf("no sender in tx %s", txID)
-		return pending, key, fmt.Errorf("no sender in tx %s", txID)
+		return fmt.Errorf("no sender in tx %s", txID)
 	}
 
 	sender := types.NewSenderFromAddr((*types.Address)(pending.GetSender()))
 	n := new(Nonce)
 	if err = n.check(stub, sender, pending.GetNonce()); err != nil {
 		log.Errorf("incorrect tx %s nonce: %s", txID, err.Error())
-		return pending, key, err
+		return err
 	}
 
-	return pending, key, nil
+	return nil
 }
 
 //nolint:funlen
@@ -177,6 +293,11 @@ func (cc *Chaincode) batchExecute(
 
 	log.Warningf("batch: tx id: %s, txs: %d", batchID, len(batch.GetTxIDs()))
 
+	if err = cc.getBatchFromState(stub, &batch); err != nil {
+		log.Errorf("couldn't get batch %s: %s", batchID, err.Error())
+		return shim.Error(err.Error())
+	}
+
 	span.AddEvent("handle transactions in batch")
 	ids := make([]string, 0, len(batch.GetTxIDs()))
 	for txIdx, txID := range batch.GetTxIDs() {
@@ -185,7 +306,7 @@ func (cc *Chaincode) batchExecute(
 			Nanos:   batchTxTime.GetNanos() + int32(txIdx),
 		}
 		ids = append(ids, hex.EncodeToString(txID))
-		resp, event := cc.batchedTxExecute(traceCtx, batchStub, txID, txTimestamp)
+		resp, event := cc.batchedTxExecute(traceCtx, batchStub, txID, txTimestamp, batch.GetPendings()[txIdx])
 		response.TxResponses = append(response.TxResponses, resp)
 		events.Events = append(events.Events, event)
 	}
@@ -197,7 +318,8 @@ func (cc *Chaincode) batchExecute(
 			response.SwapResponses = append(response.SwapResponses, swap.Answer(batchStub, s, robotSideTimeout))
 		}
 		for _, swapKey := range batch.GetKeys() {
-			response.SwapKeyResponses = append(response.SwapKeyResponses, swap.RobotDone(batchStub, swapKey.GetId(), swapKey.GetKey()))
+			s, _ := swapKey.GetPayload().(*proto.SwapKey_Swap)
+			response.SwapKeyResponses = append(response.SwapKeyResponses, swap.RobotDone(batchStub, swapKey.GetId(), swapKey.GetKey(), s.Swap))
 		}
 	}
 
@@ -207,7 +329,8 @@ func (cc *Chaincode) batchExecute(
 			response.SwapResponses = append(response.SwapResponses, multiswap.Answer(batchStub, s, robotSideTimeout))
 		}
 		for _, swapKey := range batch.GetMultiSwapsKeys() {
-			response.SwapKeyResponses = append(response.SwapKeyResponses, multiswap.RobotDone(batchStub, swapKey.GetId(), swapKey.GetKey()))
+			ms, _ := swapKey.GetPayload().(*proto.SwapKey_MultiSwap)
+			response.SwapKeyResponses = append(response.SwapKeyResponses, multiswap.RobotDone(batchStub, swapKey.GetId(), swapKey.GetKey(), ms.MultiSwap))
 		}
 	}
 
@@ -259,6 +382,7 @@ func (cc *Chaincode) batchedTxExecute(
 	stub *cachestub.BatchCacheStub,
 	binaryTxID []byte,
 	txTimestamp *timestamppb.Timestamp,
+	pending *proto.PendingTx,
 ) (r *proto.TxResponse, e *proto.BatchTxEvent) {
 	traceCtx, span := cc.contract.TracingHandler().StartNewSpan(traceCtx, "batchTxExecute")
 	defer span.End()
@@ -283,23 +407,12 @@ func (cc *Chaincode) batchedTxExecute(
 	}()
 
 	span.AddEvent("load from batch")
-	pending, key, err := cc.loadFromBatch(stub, txID)
-	if err != nil && pending != nil {
-		if delErr := stub.DelState(key); delErr != nil {
-			log.Errorf("failed deleting key %s from state on txId: %s", key, delErr.Error())
-		}
+	err := cc.loadFromBatch(stub, txID, pending)
+	if err != nil {
 		ee := proto.ResponseError{Error: "function and args loading error: " + err.Error()}
 		span.SetStatus(codes.Error, err.Error())
 		return &proto.TxResponse{Id: binaryTxID, Method: pending.GetMethod(), Error: &ee},
 			&proto.BatchTxEvent{Id: binaryTxID, Method: pending.GetMethod(), Error: &ee}
-	} else if err != nil {
-		if delErr := stub.DelState(key); delErr != nil {
-			log.Errorf("failed deleting key %s from state: %s", key, delErr.Error())
-		}
-		ee := proto.ResponseError{Error: "function and args loading error: " + err.Error()}
-		span.SetStatus(codes.Error, err.Error())
-		return &proto.TxResponse{Id: binaryTxID, Error: &ee},
-			&proto.BatchTxEvent{Id: binaryTxID, Error: &ee}
 	}
 
 	txStub := stub.NewTxCacheStub(txID, txTimestamp)
@@ -314,7 +427,6 @@ func (cc *Chaincode) batchedTxExecute(
 		span.SetStatus(codes.Error, msg)
 		log.Info(msg)
 
-		_ = stub.DelState(key)
 		ee := proto.ResponseError{Error: "unknown method " + pending.GetMethod()}
 		return &proto.TxResponse{Id: binaryTxID, Method: pending.GetMethod(), Error: &ee},
 			&proto.BatchTxEvent{Id: binaryTxID, Method: pending.GetMethod(), Error: &ee}
@@ -334,7 +446,6 @@ func (cc *Chaincode) batchedTxExecute(
 	span.AddEvent("calling method")
 	response, err := cc.InvokeContractMethod(traceCtx, txStub, pending.GetSender(), method, pending.GetArgs())
 	if err != nil {
-		_ = stub.DelState(key)
 		ee := proto.ResponseError{Error: err.Error()}
 		span.SetStatus(codes.Error, "call method returned error")
 

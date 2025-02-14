@@ -5,6 +5,7 @@ import (
 	"crypto/sha3"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"log"
 	mathbig "math/big"
 	"runtime/debug"
@@ -77,7 +78,7 @@ func Answer(stub *cachestub.BatchCacheStub, swap *proto.MultiSwap, robotSideTime
 	return &proto.SwapResponse{Id: swap.GetId(), Writes: writes}
 }
 
-func RobotDone(stub *cachestub.BatchCacheStub, swapID []byte, key string) (r *proto.SwapResponse) {
+func RobotDone(stub *cachestub.BatchCacheStub, swapID []byte, key string, s *proto.MultiSwap) (r *proto.SwapResponse) {
 	r = &proto.SwapResponse{Id: swapID, Error: &proto.ResponseError{Error: "panic multiSwapRobotDone"}}
 	defer func() {
 		if rc := recover(); rc != nil {
@@ -90,19 +91,21 @@ func RobotDone(stub *cachestub.BatchCacheStub, swapID []byte, key string) (r *pr
 		return &proto.SwapResponse{Id: swapID, Error: &proto.ResponseError{Error: err.Error()}}
 	}
 
-	txStub := stub.NewTxCacheStub(hex.EncodeToString(swapID), ts)
-	swap, err := Load(txStub, hex.EncodeToString(swapID))
-	if err != nil {
+	if s == nil {
+		err = fmt.Errorf("swap doesn't exist by key %s", hex.EncodeToString(swapID))
 		return &proto.SwapResponse{Id: swapID, Error: &proto.ResponseError{Error: err.Error()}}
 	}
+
+	txStub := stub.NewTxCacheStub(hex.EncodeToString(swapID), ts)
+
 	hash := sha3.Sum256([]byte(key))
-	if !bytes.Equal(swap.GetHash(), hash[:]) {
+	if !bytes.Equal(s.GetHash(), hash[:]) {
 		return &proto.SwapResponse{Id: swapID, Error: &proto.ResponseError{Error: ErrIncorrectMultiSwapKey}}
 	}
 
-	if swap.GetToken() == swap.GetFrom() {
-		for _, asset := range swap.GetAssets() {
-			if err = balance.Add(txStub, balance.BalanceTypeGiven, strings.ToUpper(swap.GetTo()), "", new(mathbig.Int).SetBytes(asset.GetAmount())); err != nil {
+	if s.GetToken() == s.GetFrom() {
+		for _, asset := range s.GetAssets() {
+			if err = balance.Add(txStub, balance.BalanceTypeGiven, strings.ToUpper(s.GetTo()), "", new(mathbig.Int).SetBytes(asset.GetAmount())); err != nil {
 				return &proto.SwapResponse{Id: swapID, Error: &proto.ResponseError{Error: err.Error()}}
 			}
 		}

@@ -213,7 +213,7 @@ func (ms *MockStub) TxInvokeChaincode(
 			}
 
 			if pending.GetMethod() == functionName {
-				ms.GetStateCallsMap[key] = rawValue
+				ms.GetMultipleStatesReturns([][]byte{rawValue}, nil)
 
 				hexTxID, err := hex.DecodeString(txID)
 				if err != nil {
@@ -235,8 +235,6 @@ func (ms *MockStub) TxInvokeChaincode(
 				if err != nil {
 					return "", shim.Error(err.Error())
 				}
-
-				delete(ms.GetStateCallsMap, key)
 
 				break
 			}

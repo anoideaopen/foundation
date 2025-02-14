@@ -75,7 +75,7 @@ func Answer(stub *cachestub.BatchCacheStub, swap *proto.Swap, robotSideTimeout i
 	return &proto.SwapResponse{Id: swap.GetId(), Writes: writes}
 }
 
-func RobotDone(stub *cachestub.BatchCacheStub, swapID []byte, key string) (r *proto.SwapResponse) {
+func RobotDone(stub *cachestub.BatchCacheStub, swapID []byte, key string, s *proto.Swap) (r *proto.SwapResponse) {
 	r = &proto.SwapResponse{Id: swapID, Error: &proto.ResponseError{Error: "panic swapRobotDone"}}
 	defer func() {
 		if rc := recover(); rc != nil {
@@ -88,11 +88,13 @@ func RobotDone(stub *cachestub.BatchCacheStub, swapID []byte, key string) (r *pr
 		return &proto.SwapResponse{Id: swapID, Error: &proto.ResponseError{Error: err.Error()}}
 	}
 
-	txStub := stub.NewTxCacheStub(hex.EncodeToString(swapID), ts)
-	s, err := Load(txStub, hex.EncodeToString(swapID))
-	if err != nil {
+	if s == nil {
+		err = fmt.Errorf("swap doesn't exist by key %s", hex.EncodeToString(swapID))
 		return &proto.SwapResponse{Id: swapID, Error: &proto.ResponseError{Error: err.Error()}}
 	}
+
+	txStub := stub.NewTxCacheStub(hex.EncodeToString(swapID), ts)
+
 	hash := sha3.Sum256([]byte(key))
 	if !bytes.Equal(s.GetHash(), hash[:]) {
 		return &proto.SwapResponse{Id: swapID, Error: &proto.ResponseError{Error: ErrIncorrectKey}}

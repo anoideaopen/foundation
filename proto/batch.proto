@@ -36,6 +36,10 @@ message Swap {
 message SwapKey {
     bytes id   = 1;
     string key = 2;
+    oneof Payload {
+        Swap swap = 3;
+        MultiSwap  multiSwap = 4;
+    }
 }
 
 message Batch {
@@ -44,6 +48,7 @@ message Batch {
     repeated SwapKey keys = 3;
     repeated SwapKey multi_swaps_keys = 4;
     repeated MultiSwap multi_swaps   = 5;
+    repeated PendingTx pendings = 6; // payload for field txIDs
 }
 
 message InitArgs {
@@ -234,7 +239,7 @@ message Nonce {
     repeated uint64 nonce = 1;
 }
 
-message pendingTx {
+message PendingTx {
     string method        = 1;
     Address sender       = 2;
     repeated string args = 3;

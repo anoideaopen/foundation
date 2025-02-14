@@ -3,7 +3,6 @@ package core
 import (
 	"bytes"
 	"encoding/hex"
-	"fmt"
 	"testing"
 	"time"
 
@@ -272,7 +271,7 @@ func SaveAndLoadToBatchTest(t *testing.T, ser *serieBatches, args []string) {
 	require.Equal(t, pending.Method, testFnWithFiveArgsMethod)
 	require.Equal(t, pending.Args, args)
 
-	pending, _, err = chainCode.loadFromBatch(mockStub, ser.testID)
+	err = chainCode.loadFromBatch(mockStub, ser.testID, pending)
 	if err != nil {
 		require.Equal(t, ser.errorMsg, err.Error())
 	} else {
@@ -329,9 +328,9 @@ func TestBatchExecuteWithWrongParams(t *testing.T) {
 	require.Len(t, response.TxResponses, 1)
 
 	txResponse := response.TxResponses[0]
-	require.Equal(t, testIDBytes, txResponse.Id)
-	require.Equal(t, "", txResponse.Method)
-	require.Equal(t, "function and args loading error: transaction 776f6e646572 not found", txResponse.Error.Error)
+	require.Equal(t, testIDBytes, txResponse.GetId())
+	require.Equal(t, "", txResponse.GetMethod())
+	require.Equal(t, "function and args loading error: transaction 776f6e646572 not found", txResponse.GetError().GetError())
 }
 
 // BatchExecuteTest - basic test for SaveBatch, LoadBatch and batchExecute
@@ -340,6 +339,7 @@ func BatchExecuteTest(t *testing.T, ser *serieBatchExecute, args []string) *peer
 	require.NoError(t, err)
 
 	mockStub := &mocks.ChaincodeStub{}
+	mockStub.CreateCompositeKeyCalls(shim.CreateCompositeKey)
 
 	cfg := &proto.Config{
 		Contract: &proto.ContractConfig{
@@ -382,9 +382,9 @@ func BatchExecuteTest(t *testing.T, ser *serieBatchExecute, args []string) *peer
 	marshalled, err := pb.Marshal(pendingTx)
 	require.NoError(t, err)
 
-	mockStub.GetStateReturns(marshalled, nil)
+	mockStub.GetMultipleStatesReturns([][]byte{marshalled}, nil)
 
-	state, err := mockStub.GetState(fmt.Sprintf("\u0000batchTransactions\u0000%s\u0000", testEncodedTxID))
+	state, err := mockStub.GetMultipleStates("\u0000batchTransactions\u0000" + testEncodedTxID + "\u0000")
 	require.NotNil(t, state)
 	require.NoError(t, err)
 
@@ -392,7 +392,7 @@ func BatchExecuteTest(t *testing.T, ser *serieBatchExecute, args []string) *peer
 	require.NoError(t, err)
 
 	if ser.paramsWrongON {
-		mockStub.GetStateReturns(nil, fmt.Errorf("transaction 776f6e646572 not found"))
+		mockStub.GetMultipleStatesReturns([][]byte{nil}, nil)
 	}
 
 	return chainCode.batchExecute(telemetry.TraceContext{}, mockStub, string(dataIn))
@@ -454,6 +454,7 @@ func TestBatchedTxExecute(t *testing.T) {
 		batchStub,
 		txIDBytes,
 		batchTimestamp,
+		pendingTx,
 	)
 	require.NotNil(t, resp)
 	require.NotNil(t, event)
