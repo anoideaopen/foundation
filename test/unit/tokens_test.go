@@ -84,6 +84,12 @@ func (ft *FiatTestToken) TxAccountsTest(_ *types.Sender, addr string, pub string
 	return nil
 }
 
+func (ft *FiatTestToken) NBTxDeleteID(id string) error {
+	stub := ft.GetStub()
+
+	return stub.DelState(id)
+}
+
 // QueryIndustrialBalanceOf - returns balance of the token for user address
 // WARNING: DO NOT USE CODE LIKE THIS IN REAL TOKENS AS `map[string]string` IS NOT ORDERED
 // AND WILL CAUSE ENDORSEMENT MISMATCH ON PEERS. THIS IS FOR TESTING PURPOSES ONLY.

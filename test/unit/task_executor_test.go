@@ -55,11 +55,12 @@ func TestTaskExecutor(t *testing.T) {
 					{User: feeSetter, Task: &pbfound.Task{Method: "setFee", Args: []string{"FIAT", "500000", "100", "100000"}}},
 					{User: user, Task: &pbfound.Task{Method: "transfer", Args: []string{user2.AddressBase58Check, "400", ""}}},
 					{User: user2, Task: &pbfound.Task{Method: "accountsTest", Args: []string{user.AddressBase58Check, user.PublicKeyBase58}}},
+					{Task: &pbfound.Task{Method: "deleteID", Args: []string{"pfikey"}}},
 				}
 			},
 			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, resp *pbfound.BatchResponse) {
 				require.Equal(t, mockStub.PutStateCallCount(), 9)
-				require.Len(t, resp.GetTxResponses(), 5)
+				require.Len(t, resp.GetTxResponses(), 6)
 				for _, r := range resp.GetTxResponses() {
 					require.Nil(t, r.GetError())
 				}

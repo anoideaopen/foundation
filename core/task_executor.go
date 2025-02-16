@@ -141,7 +141,7 @@ func (e *TaskExecutor) ExecuteTasks(
 	batchResponse := &proto.BatchResponse{}
 	batchEvent := &proto.BatchEvent{}
 
-	predictACLCalls(e.BatchCacheStub, tasks, e.Chaincode)
+	predictTasksACLCalls(e.BatchCacheStub, tasks, e.Chaincode)
 
 	batchTxTime, err := e.BatchCacheStub.GetTxTimestamp()
 	if err != nil {

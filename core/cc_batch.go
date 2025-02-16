@@ -298,6 +298,8 @@ func (cc *Chaincode) batchExecute(
 		return shim.Error(err.Error())
 	}
 
+	predictPendingsACLCalls(stub, batch.GetPendings(), cc)
+
 	span.AddEvent("handle transactions in batch")
 	ids := make([]string, 0, len(batch.GetTxIDs()))
 	for txIdx, txID := range batch.GetTxIDs() {

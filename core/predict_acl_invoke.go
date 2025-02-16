@@ -23,7 +23,87 @@ type predictACL struct {
 	mu               sync.RWMutex
 }
 
-func predictACLCalls(stub shim.ChaincodeStubInterface, tasks []*proto.Task, chaincode *Chaincode) {
+func predictPendingsACLCalls(stub shim.ChaincodeStubInterface, pendings []*proto.PendingTx, chaincode *Chaincode) {
+	p := predictACL{
+		stub:             stub,
+		invocationBuffer: make(map[string][]byte),
+		mu:               sync.RWMutex{},
+	}
+
+	wg := &sync.WaitGroup{}
+
+	for _, pending := range pendings {
+		if pending == nil {
+			continue
+		}
+
+		wg.Add(1)
+		go func(pending *proto.PendingTx) {
+			defer wg.Done()
+
+			p.predictPendingACLCalls(chaincode, pending)
+		}(pending)
+	}
+
+	wg.Wait()
+
+	if len(p.invocationBuffer) == 0 {
+		return
+	}
+
+	requestBytes := make([][]byte, len(p.invocationBuffer))
+	i := 0
+	for _, bytes := range p.invocationBuffer {
+		requestBytes[i] = bytes
+		i++
+	}
+
+	_, err := helpers.GetAccountsInfo(stub, requestBytes)
+	if err != nil {
+		logger.Logger().Errorf("PredictAclCalls txID %s, failed to invoke acl calls: %v", stub.GetTxID(), err)
+	}
+}
+
+func (p *predictACL) predictPendingACLCalls(chaincode *Chaincode, pending *proto.PendingTx) {
+	var (
+		method       = chaincode.Router().Method(pending.GetMethod())
+		authRequired = chaincode.Router().AuthRequired(method)
+		args         = pending.GetArgs()
+	)
+
+	if !strings.Contains(pending.GetMethod(), FnTransfer) || !authRequired {
+		return
+	}
+
+	inputVal := reflect.ValueOf(chaincode.contract)
+	methodVal := inputVal.MethodByName(method)
+	if !methodVal.IsValid() {
+		return
+	}
+
+	methodType := methodVal.Type()
+
+	// check method input args without signer, to skip signers in future for
+	if methodType.NumIn()-1 != len(args) {
+		return
+	}
+	if strings.Contains(pending.GetMethod(), FnTransfer) && len(args) > 0 {
+		t := methodType.In(1)
+		if t.Kind() != reflect.Pointer {
+			return
+		}
+
+		argInterface := reflect.New(t.Elem()).Interface()
+		_, ok := argInterface.(*types.Address)
+		if !ok {
+			return
+		}
+
+		p.addCall(helpers.FnCheckAddress, args[0])
+	}
+}
+
+func predictTasksACLCalls(stub shim.ChaincodeStubInterface, tasks []*proto.Task, chaincode *Chaincode) {
 	p := predictACL{
 		stub:             stub,
 		invocationBuffer: make(map[string][]byte),
@@ -54,7 +134,6 @@ func predictACLCalls(stub shim.ChaincodeStubInterface, tasks []*proto.Task, chai
 		i++
 	}
 
-	// TODO: need to add retry if error cause is network error
 	_, err := helpers.GetAccountsInfo(stub, requestBytes)
 	if err != nil {
 		logger.Logger().Errorf("PredictAclCalls txID %s, failed to invoke acl calls: %v", stub.GetTxID(), err)
@@ -69,6 +148,7 @@ func (p *predictACL) predictTaskACLCalls(chaincode *Chaincode, task *proto.Task)
 		argCount     = chaincode.Router().ArgCount(method)
 	)
 
+	// get signers for evaluate *Sender
 	signers := getSigners(authRequired, argCount, task)
 	if signers != nil {
 		p.addCall(helpers.FnCheckKeys, strings.Join(signers, "/"))
@@ -79,16 +159,15 @@ func (p *predictACL) predictTaskACLCalls(chaincode *Chaincode, task *proto.Task)
 	if !methodVal.IsValid() {
 		return
 	}
-
-	if argCount == 0 || len(args) < 3+argCount {
-		return
+	methodArgs := args
+	if authRequired {
+		methodArgs = methodArgs[3 : 3+argCount-1]
 	}
-	methodArgs := args[3 : 3+argCount]
 	methodType := methodVal.Type()
 
 	// check method input args without signer, to skip signers in future for
-	lenSigners := len(signers)
-	if methodType.NumIn()-lenSigners != len(methodArgs) {
+	if (authRequired && methodType.NumIn()-1 != len(methodArgs)) ||
+		(!authRequired && methodType.NumIn() != len(methodArgs)) {
 		return
 	}
 	if strings.Contains(task.GetMethod(), FnTransfer) && len(methodArgs) > 0 {
@@ -96,10 +175,10 @@ func (p *predictACL) predictTaskACLCalls(chaincode *Chaincode, task *proto.Task)
 	}
 
 	for i, arg := range methodArgs {
-		// skip signers from methodType args
-		indexInputArg := i + lenSigners
-		if indexInputArg > methodType.NumIn() {
-			continue
+		// skip sender from methodType args
+		indexInputArg := i
+		if authRequired {
+			indexInputArg++
 		}
 
 		t := methodType.In(indexInputArg)
