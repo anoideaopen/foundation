@@ -223,7 +223,7 @@ func TestSaveAndLoadToBatchWithWrongID(t *testing.T) {
 	SaveAndLoadToBatchTest(t, s, argsForTestFnWithFive)
 }
 
-// SaveAndLoadToBatchTest - basic test to check Args in saveToBatch and loadFromBatch
+// SaveAndLoadToBatchTest - basic test to check Args in saveToBatch and checkPending
 func SaveAndLoadToBatchTest(t *testing.T, ser *serieBatches, args []string) {
 	chainCode, errChainCode := NewCC(&testBatchContract{})
 	require.NoError(t, errChainCode)
@@ -271,7 +271,7 @@ func SaveAndLoadToBatchTest(t *testing.T, ser *serieBatches, args []string) {
 	require.Equal(t, pending.Method, testFnWithFiveArgsMethod)
 	require.Equal(t, pending.Args, args)
 
-	err = chainCode.loadFromBatch(mockStub, ser.testID, pending)
+	err = chainCode.checkPending(mockStub, ser.testID, pending)
 	if err != nil {
 		require.Equal(t, ser.errorMsg, err.Error())
 	} else {

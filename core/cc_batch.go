@@ -104,7 +104,7 @@ func (cc *Chaincode) getBatchFromState(stub shim.ChaincodeStubInterface, batch *
 		return errors.New("len of result is not equal to len of keys")
 	}
 
-	err = cc.parsingResponseFromBatchKeys(batch, result)
+	err = cc.parseResponseFromBatchKeys(batch, result)
 	if err != nil {
 		log.Errorf("couldn't parsing response from batch keys: %s", err.Error())
 		return err
@@ -151,7 +151,7 @@ func (cc *Chaincode) collectKeysOfBatch(stub shim.ChaincodeStubInterface, batch 
 	return keys, nil
 }
 
-func (cc *Chaincode) parsingResponseFromBatchKeys(batch *proto.Batch, result [][]byte) error {
+func (cc *Chaincode) parseResponseFromBatchKeys(batch *proto.Batch, result [][]byte) error {
 	log := logger.Logger()
 
 	batch.Pendings = make([]*proto.PendingTx, 0, len(batch.GetTxIDs()))
@@ -212,7 +212,7 @@ func (cc *Chaincode) parsingResponseFromBatchKeys(batch *proto.Batch, result [][
 	return nil
 }
 
-func (cc *Chaincode) loadFromBatch(
+func (cc *Chaincode) checkPending(
 	stub shim.ChaincodeStubInterface,
 	txID string,
 	pending *proto.PendingTx,
@@ -407,7 +407,7 @@ func (cc *Chaincode) batchedTxExecute(
 	}()
 
 	span.AddEvent("load from batch")
-	err := cc.loadFromBatch(stub, txID, pending)
+	err := cc.checkPending(stub, txID, pending)
 	if err != nil {
 		ee := proto.ResponseError{Error: "function and args loading error: " + err.Error()}
 		span.SetStatus(codes.Error, err.Error())
