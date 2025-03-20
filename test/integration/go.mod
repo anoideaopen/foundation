@@ -32,7 +32,7 @@ require (
 	github.com/hyperledger/fabric-protos-go-apiv2 v0.3.6
 	github.com/onsi/ginkgo/v2 v2.22.2
 	github.com/onsi/gomega v1.36.2
-	github.com/redis/go-redis/v9 v9.7.0
+	github.com/redis/go-redis/v9 v9.7.3
 	github.com/tedsuo/ifrit v0.0.0-20230516164442-7862c310ad26
 	google.golang.org/grpc v1.70.0
 	google.golang.org/protobuf v1.36.5
