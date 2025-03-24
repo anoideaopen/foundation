@@ -587,10 +587,16 @@ func (cc *Chaincode) createIndexHandler(traceCtx telemetry.TraceContext, stub sh
 		return shim.Error(errMsg)
 	}
 
-	if err = balance.CreateIndex(stub, balanceType); err != nil {
+	done, err := balance.CreateIndex(stub, balanceType)
+	if err != nil {
 		errMsg := "invoke: create index: " + err.Error()
 		span.SetStatus(codes.Error, errMsg)
 		return shim.Error(errMsg)
+	}
+
+	if !done {
+		span.SetStatus(codes.Ok, "")
+		return shim.Success([]byte(`{"status": "continue"}`))
 	}
 
 	span.SetStatus(codes.Ok, "")
