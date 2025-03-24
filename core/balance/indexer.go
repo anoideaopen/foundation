@@ -24,59 +24,65 @@ const limit = 100
 //
 // Returns:
 //   - completed: bool - True if the indexing has been completed, false if more batches remain.
+//   - offset: int - The offset (position) of the last processed item in the entire dataset.
 //   - err: error - An error if the index creation fails, otherwise nil.
 func CreateIndex(
 	stub shim.ChaincodeStubInterface,
 	balanceType BalanceType,
-) (bool, error) {
-	// Create balance-type specific last indexed key
+) (bool, int, error) {
+	// Create balance-type specific key for last indexed key
 	balanceTypeLastIndexKey := IndexLastKeyPrefix + balanceType.String()
-
-	// Get the last indexed key to resume indexing from that point
-	lastIndexedKeyBytes, err := stub.GetState(balanceTypeLastIndexKey)
-	if err != nil {
-		return false, err
-	}
-
-	lastIndexedKey := string(lastIndexedKeyBytes)
 
 	// Check if indexing was already completed for this balance type
 	flagCompositeKey, err := indexCreatedFlagCompositeKey(stub, balanceType)
 	if err != nil {
-		return false, err
+		return false, 0, err
 	}
 
 	flagBytes, err := stub.GetState(flagCompositeKey)
 	if err != nil {
-		return false, err
+		return false, 0, err
 	}
 
+	// If indexing is already completed, we can't determine the offset
+	// since we're not iterating through the data anymore
 	if flagBytes != nil && string(flagBytes) == "true" {
-		return true, nil // Index already created for this balance type
+		return true, 0, nil
 	}
 
-	// Start iterator from the correct position
-	var stateIterator shim.StateQueryIteratorInterface
-	if lastIndexedKey == "" {
-		// Start from the beginning
-		stateIterator, err = stub.GetStateByPartialCompositeKey(
-			balanceType.String(),
-			[]string{},
-		)
-	} else {
-		// Start after the last processed key
-		stateIterator, err = stub.GetStateByPartialCompositeKey(
-			balanceType.String(),
-			[]string{},
-		)
+	// Get the last indexed key to resume indexing from that point
+	lastIndexedKeyBytes, err := stub.GetState(balanceTypeLastIndexKey)
+	if err != nil {
+		return false, 0, err
+	}
 
-		// Skip to where we left off
+	lastIndexedKey := string(lastIndexedKeyBytes)
+
+	// Initialize the iterator
+	var stateIterator shim.StateQueryIteratorInterface
+	stateIterator, err = stub.GetStateByPartialCompositeKey(
+		balanceType.String(),
+		[]string{},
+	)
+
+	if err != nil {
+		return false, 0, err
+	}
+	defer stateIterator.Close()
+
+	// Counter for total items seen so far (the offset)
+	offset := 0
+
+	// If we have a last indexed key, we need to skip until we find it
+	if lastIndexedKey != "" {
 		for stateIterator.HasNext() {
 			result, err := stateIterator.Next()
 			if err != nil {
 				stateIterator.Close()
-				return false, err
+				return false, offset, err
 			}
+
+			offset++
 
 			if result.GetKey() == lastIndexedKey {
 				break
@@ -84,27 +90,23 @@ func CreateIndex(
 		}
 	}
 
-	if err != nil {
-		return false, err
-	}
-	defer stateIterator.Close()
-
 	// Process items in batches of 'limit'
-	count := 0
+	processedInBatch := 0
 	lastProcessedKey := lastIndexedKey
 
-	for stateIterator.HasNext() && count < limit {
+	for stateIterator.HasNext() && processedInBatch < limit {
 		result, err := stateIterator.Next()
 		if err != nil {
-			return false, err
+			return false, offset, err
 		}
 
+		offset++
 		currentKey := result.GetKey()
 		lastProcessedKey = currentKey
 
 		_, components, err := stub.SplitCompositeKey(currentKey)
 		if err != nil {
-			return false, err
+			return false, offset, err
 		}
 
 		if len(components) < 2 {
@@ -120,19 +122,19 @@ func CreateIndex(
 			[]string{balanceType.String(), token, address},
 		)
 		if err != nil {
-			return false, err
+			return false, offset, err
 		}
 
 		if err = stub.PutState(inverseCompositeKey, balance); err != nil {
-			return false, err
+			return false, offset, err
 		}
 
-		count++
+		processedInBatch++
 	}
 
-	// Update the last indexed key for the next batch with balance type
+	// Update only the last indexed key in the ledger
 	if err = stub.PutState(balanceTypeLastIndexKey, []byte(lastProcessedKey)); err != nil {
-		return false, err
+		return false, offset, err
 	}
 
 	// Check if we've finished processing all items
@@ -141,11 +143,11 @@ func CreateIndex(
 	// If completed, set the flag
 	if isCompleted {
 		if err = stub.PutState(flagCompositeKey, []byte("true")); err != nil {
-			return false, err
+			return false, offset, err
 		}
 	}
 
-	return isCompleted, nil
+	return isCompleted, offset, nil
 }
 
 // HasIndexCreatedFlag checks if the given balance type has an index.
