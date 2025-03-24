@@ -27,9 +27,7 @@ import (
 )
 
 var _ = Describe("Channel transfer multi-transfers foundation Tests", func() {
-	var (
-		ts *client.FoundationTestSuite
-	)
+	var ts *client.FoundationTestSuite
 
 	BeforeEach(func() {
 		ts = client.NewTestSuite(components)

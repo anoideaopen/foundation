@@ -23,7 +23,6 @@ const (
 var testError = fmt.Errorf("test error")
 
 func TestBatchStub(t *testing.T) {
-
 	t.Run("GetState test", func(t *testing.T) {
 		stateStub := &mocks.ChaincodeStub{}
 		stateStub.GetStateReturns([]byte(valKey1Value1), nil)

@@ -619,7 +619,6 @@ func TestMultisigEmitTransfer(t *testing.T) {
 
 	for _, test := range testCollection {
 		t.Run(test.name, func(t *testing.T) {
-
 			mockStub := mockstub.NewMockStub(t)
 
 			owner, err := mocks.NewUserFoundationMultisigned(pbfound.KeyType_ed25519, 3)

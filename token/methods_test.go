@@ -151,7 +151,8 @@ func TestMethods(t *testing.T) {
 				err = json.Unmarshal(payload, &meta)
 				require.NoError(t, err)
 
-				var tokenMethods = []string{"addDocs", "allowedBalanceOf", "lockedAllowedBalanceOf",
+				tokenMethods := []string{
+					"addDocs", "allowedBalanceOf", "lockedAllowedBalanceOf",
 					"allowedIndustrialBalanceTransfer", "balanceOf", "lockedAllowedBalancesWithPagination",
 					"lockedBalanceOf", "lockedTokenBalancesWithPagination", "buildInfo", "buyBack", "buyToken",
 					"cancelCCTransferFrom", "allowedBalancesWithPagination",
@@ -164,7 +165,8 @@ func TestMethods(t *testing.T) {
 					"lockTokenBalance", "metadata", "multiSwapBegin", "multiSwapCancel", "multiSwapGet",
 					"nameOfFiles", "predictFee", "setFee", "setFeeAddress", "setLimits", "setRate",
 					"srcFile", "srcPartFile", "swapBegin", "swapCancel", "swapGet", "systemEnv", "transfer",
-					"unlockAllowedBalance", "healthCheckNb", "unlockTokenBalance", "transferBalance"}
+					"unlockAllowedBalance", "healthCheckNb", "unlockTokenBalance", "transferBalance",
+				}
 				require.ElementsMatch(t, tokenMethods, meta.Methods)
 			},
 		},

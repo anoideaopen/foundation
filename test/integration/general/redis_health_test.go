@@ -19,9 +19,7 @@ import (
 )
 
 var _ = Describe("Health", func() {
-	var (
-		testDir string
-	)
+	var testDir string
 
 	BeforeEach(func() {
 		var err error

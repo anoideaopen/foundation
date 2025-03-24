@@ -27,7 +27,6 @@ import (
 )
 
 var _ = Describe("Basic foundation Tests", func() {
-
 	Describe("smartbft standart test", func() {
 		var (
 			testDir          string

@@ -208,9 +208,7 @@ func TestInitWithCommonConfig(t *testing.T) {
 		},
 	}
 	cfg, _ := protojson.Marshal(cfgEtl)
-	var (
-		cc *core.Chaincode
-	)
+	var cc *core.Chaincode
 
 	// Initializing new chaincode
 	tct := &TestConfigToken{}

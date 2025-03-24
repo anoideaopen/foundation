@@ -29,9 +29,7 @@ var _ = Describe("Task Executor only tx foundation Tests", func() {
 	})
 
 	Describe("task executor test", func() {
-		var (
-			user1 *mocks.UserFoundation
-		)
+		var user1 *mocks.UserFoundation
 
 		BeforeEach(func() {
 			By("add admin to acl")
@@ -45,9 +43,7 @@ var _ = Describe("Task Executor only tx foundation Tests", func() {
 		})
 
 		It("execute tasks with tx", func() {
-			var (
-				emitAmount = "1000"
-			)
+			emitAmount := "1000"
 
 			By("emit tokens 1000")
 			ts.ExecuteTaskWithSign(cmn.ChannelFiat, cmn.ChannelFiat, ts.Admin(),

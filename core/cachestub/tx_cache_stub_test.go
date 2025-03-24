@@ -21,7 +21,6 @@ const (
 )
 
 func TestTxStub(t *testing.T) {
-
 	t.Run("GetState test", func(t *testing.T) {
 		stateStub := &mocks.ChaincodeStub{}
 		// preparing state stub values

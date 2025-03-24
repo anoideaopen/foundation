@@ -24,7 +24,7 @@ var _ = Describe("Basic foundation tests with different key types", func() {
 	})
 
 	Describe("foundation test", func() {
-		var channels = []string{cmn.ChannelACL, cmn.ChannelCC, cmn.ChannelFiat, cmn.ChannelIndustrial}
+		channels := []string{cmn.ChannelACL, cmn.ChannelCC, cmn.ChannelFiat, cmn.ChannelIndustrial}
 
 		BeforeEach(func() {
 			By("start redis")

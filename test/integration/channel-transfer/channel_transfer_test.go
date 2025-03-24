@@ -86,7 +86,6 @@ var _ = Describe("Channel transfer foundation Tests", func() {
 
 		By("emit check")
 		ts.Query(cmn.ChannelFiat, cmn.ChannelFiat, "balanceOf", user.AddressBase58Check).CheckBalance(emitAmount)
-
 	})
 
 	It("transfer by admin test", func() {
@@ -344,7 +343,6 @@ var _ = Describe("Channel transfer foundation Tests", func() {
 		statusResponse, err := apiClient.TransferStatus(ctx, transferStatusRequest)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(statusResponse.Status).To(Equal(cligrpc.TransferStatusResponse_STATUS_COMPLETED))
-
 	})
 
 	It("transfer wrong STATUS_CANCELLED filter test", func() {

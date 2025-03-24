@@ -25,7 +25,7 @@ var _ = Describe("Basic foundation Tests", func() {
 	})
 
 	Describe("foundation test", func() {
-		var channels = []string{cmn.ChannelACL, cmn.ChannelCC, cmn.ChannelFiat, cmn.ChannelIndustrial}
+		channels := []string{cmn.ChannelACL, cmn.ChannelCC, cmn.ChannelFiat, cmn.ChannelIndustrial}
 
 		BeforeEach(func() {
 			By("start redis")
@@ -375,7 +375,6 @@ var _ = Describe("Basic foundation Tests", func() {
 			By("invoking industrial chaincode with user acl rights removed")
 			ts.TxInvokeWithSign(cmn.ChannelIndustrial, cmn.ChannelIndustrial, user1, fnMethodWithRights, "",
 				client.NewNonceByTime().Get()).CheckErrorEquals("unauthorized")
-
 		})
 	})
 })
