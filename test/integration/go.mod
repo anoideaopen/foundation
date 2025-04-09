@@ -1,6 +1,6 @@
 module github.com/anoideaopen/foundation/test/integration
 
-go 1.24.0
+go 1.24.2
 
 tool (
 	github.com/IBM/idemix/tools/idemixgen
@@ -29,7 +29,7 @@ require (
 	github.com/fsouza/go-dockerclient v1.12.0
 	github.com/google/uuid v1.6.0
 	github.com/hyperledger/fabric v1.4.0-rc1.0.20250212230350-0211a21efb5a
-	github.com/hyperledger/fabric-protos-go-apiv2 v0.3.6
+	github.com/hyperledger/fabric-protos-go-apiv2 v0.3.7
 	github.com/onsi/ginkgo/v2 v2.22.2
 	github.com/onsi/gomega v1.36.2
 	github.com/redis/go-redis/v9 v9.7.3
@@ -170,11 +170,11 @@ require (
 	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
-	golang.org/x/crypto v0.35.0 // indirect
-	golang.org/x/net v0.36.0 // indirect
-	golang.org/x/sync v0.11.0 // indirect
-	golang.org/x/sys v0.30.0 // indirect
-	golang.org/x/text v0.22.0 // indirect
+	golang.org/x/crypto v0.37.0 // indirect
+	golang.org/x/net v0.39.0 // indirect
+	golang.org/x/sync v0.13.0 // indirect
+	golang.org/x/sys v0.32.0 // indirect
+	golang.org/x/text v0.24.0 // indirect
 	golang.org/x/tools v0.29.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20250115164207-1a7da9e5054f // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250115164207-1a7da9e5054f // indirect
