@@ -563,6 +563,21 @@ func AllowedBalanceGetAll(
 	return tokensToMap(tokens), nil
 }
 
+func AllowedBalanceLockedGetAll(
+	stub shim.ChaincodeStubInterface,
+	address *types.Address,
+) (map[string]string, error) {
+	tokens, err := balance.ListBalancesByAddress(
+		stub,
+		balance.BalanceTypeAllowedLocked,
+		address.String(),
+	)
+	if err != nil {
+		return nil, err
+	}
+	return tokensToMap(tokens), nil
+}
+
 func GivenBalanceGet(
 	stub shim.ChaincodeStubInterface,
 	token string,

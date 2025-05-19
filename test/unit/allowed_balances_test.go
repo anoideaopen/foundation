@@ -6,6 +6,7 @@ import (
 
 	"github.com/anoideaopen/foundation/core"
 	"github.com/anoideaopen/foundation/core/balance"
+	"github.com/anoideaopen/foundation/core/ledger"
 	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/core/types/big"
 	"github.com/anoideaopen/foundation/mocks"
@@ -47,6 +48,10 @@ func (tt *QueryTestToken) QueryAllowedBalanceBurnLocked(token string, address *t
 
 func (tt *QueryTestToken) QueryAllowedBalanceGetAll(address *types.Address) (map[string]string, error) {
 	return tt.AllowedBalanceGetAll(address)
+}
+
+func (tt *QueryTestToken) QueryAllowedBalanceGetAllLocked(address *types.Address) (map[string]string, error) {
+	return ledger.AllowedBalanceLockedGetAll(tt.GetStub(), address)
 }
 
 type InvokeTestToken struct {
@@ -195,6 +200,44 @@ func TestQuery(t *testing.T) {
 				require.NoError(t, err)
 
 				key2, err := shim.CreateCompositeKey(balance.BalanceTypeAllowed.String(), []string{user.AddressBase58Check, "fiat"})
+				require.NoError(t, err)
+
+				mockIterator.HasNextReturnsOnCall(0, true)
+				mockIterator.HasNextReturnsOnCall(1, true)
+				mockIterator.HasNextReturnsOnCall(2, false)
+
+				mockIterator.NextReturnsOnCall(0, &queryresult.KV{
+					Key:   key1,
+					Value: big.NewInt(100).Bytes(),
+				}, nil)
+				mockIterator.NextReturnsOnCall(1, &queryresult.KV{
+					Key:   key2,
+					Value: big.NewInt(200).Bytes(),
+				}, nil)
+			},
+		},
+		{
+			name:         "Query allowed balances get all locked",
+			functionName: "allowedBalanceGetAllLocked",
+			prepareFunctionParameters: func(user1, user2 *mocks.UserFoundation) []string {
+				return []string{user1.AddressBase58Check}
+			},
+			preparePayloadEqual: func(t *testing.T) []byte {
+				balances := map[string]string{"vt": "100", "fiat": "200"}
+				rawBalances, err := json.Marshal(balances)
+				require.NoError(t, err)
+
+				return rawBalances
+			},
+			prepareMockStubAdditional: func(t *testing.T, mockStub *mockstub.MockStub, owner, user *mocks.UserFoundation) {
+				mockIterator := &mocks.StateIterator{}
+				mockIterator.HasNextReturnsOnCall(0, false)
+				mockStub.GetStateByPartialCompositeKeyReturns(mockIterator, nil)
+
+				key1, err := shim.CreateCompositeKey(balance.BalanceTypeAllowedLocked.String(), []string{user.AddressBase58Check, "vt"})
+				require.NoError(t, err)
+
+				key2, err := shim.CreateCompositeKey(balance.BalanceTypeAllowedLocked.String(), []string{user.AddressBase58Check, "fiat"})
 				require.NoError(t, err)
 
 				mockIterator.HasNextReturnsOnCall(0, true)
