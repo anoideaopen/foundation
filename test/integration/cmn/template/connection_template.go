@@ -32,12 +32,15 @@ client:
 
 channels:{{ range .Channels }}
   {{ .Name }}:
-    peers:{{ range $w.PeersWithChannel .Name }}
+    peers:{{ range $w.PeersWithOrganizationAndChannel Peer.Organization .Name }}
       {{ .ID }}: {}
     {{- end }}
 {{- end }}
 
-orderers:{{ range .Orderers }}
+orderers:
+  _default:
+    grpcOptions:
+      keep-alive-time: 10s{{ range .Orderers }}
   {{ .ID }}:
     url: grpcs://{{ $w.OrdererAddress . "Listen" }}
     tlsCACerts:
@@ -63,7 +66,10 @@ organizations:{{ range .Organizations }}
     {{- end }}
 {{- end }}
 
-peers:{{ range .Peers }}
+peers:
+  _default:
+    grpcOptions:
+      keep-alive-time: 10s{{ range .Peers }}
   {{ .ID }}:
     url: grpcs://{{ $w.PeerAddress . "Listen" }}
     tlsCACerts:
