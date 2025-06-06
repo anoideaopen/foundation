@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"sync"
 	"time"
@@ -366,6 +367,34 @@ func (n *NetworkFoundation) OrdererTLSCACert(o *nwo.Orderer) string {
 	dirName := filepath.Join(n.OrdererLocalMSPDir(o), "tlscacerts")
 	fileName := fmt.Sprintf("tlsca.%s-cert.pem", n.Organization(o.Organization).Domain)
 	return filepath.Join(dirName, fileName)
+}
+
+// PeersWithOrganizationAndChannel returns all Peer instances that have joined the named
+// channel and organization.
+func (n *NetworkFoundation) PeersWithOrganizationAndChannel(orgName string, chanName string) []*nwo.Peer {
+	peers := []*nwo.Peer{}
+	for _, p := range n.Peers {
+		if p.Organization != orgName {
+			continue
+		}
+		for _, c := range p.Channels {
+			if c.Name == chanName {
+				peers = append(peers, p)
+			}
+		}
+	}
+
+	// This is a bit of a hack to make the output of this function deterministic.
+	// When this function's output is supplied as input to functions such as ApproveChaincodeForMyOrg
+	// it causes a different subset of peers to be picked, which can create flakiness in tests.
+	sort.Slice(peers, func(i, j int) bool {
+		if peers[i].Organization < peers[j].Organization {
+			return true
+		}
+
+		return peers[i].Organization == peers[j].Organization && peers[i].Name < peers[j].Name
+	})
+	return peers
 }
 
 func (c *Channel) HasTaskExecutor() bool {
