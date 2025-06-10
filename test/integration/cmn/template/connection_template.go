@@ -5,6 +5,9 @@ const DefaultConnection = `---
 version: 1.0.0
 name: basic-network
 client:
+  global:
+    cache:
+      connectionIdle: "6h"
   connection:
     timeout:
       orderer: "300"
