@@ -1,6 +1,6 @@
 module github.com/anoideaopen/foundation/test/integration
 
-go 1.25.0
+go 1.25.1
 
 tool (
 	github.com/IBM/idemix/tools/idemixgen
@@ -27,7 +27,7 @@ require (
 	github.com/btcsuite/btcd/btcutil v1.1.6
 	github.com/fsouza/go-dockerclient v1.12.0
 	github.com/google/uuid v1.6.0
-	github.com/hyperledger/fabric v1.4.0-rc1.0.20250901115507-bff8952c24e1
+	github.com/hyperledger/fabric v1.4.0-rc1.0.20250929141436-dad09ab05b71
 	github.com/hyperledger/fabric-protos-go-apiv2 v0.3.7
 	github.com/onsi/ginkgo/v2 v2.22.2
 	github.com/onsi/gomega v1.36.2
@@ -61,7 +61,7 @@ require (
 	github.com/cloudflare/cfssl v1.4.1 // indirect
 	github.com/consensys/gnark-crypto v0.19.0 // indirect
 	github.com/containerd/log v0.1.0 // indirect
-	github.com/crate-crypto/go-eth-kzg v1.3.0 // indirect
+	github.com/crate-crypto/go-eth-kzg v1.4.0 // indirect
 	github.com/crate-crypto/go-ipa v0.0.0-20240724233137-53bbb0ceb27a // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/ddulesov/gogost v1.0.0 // indirect
@@ -72,8 +72,8 @@ require (
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/dustin/go-humanize v1.0.0 // indirect
 	github.com/envoyproxy/protoc-gen-validate v1.2.1 // indirect
-	github.com/ethereum/c-kzg-4844/v2 v2.1.0 // indirect
-	github.com/ethereum/go-ethereum v1.16.2 // indirect
+	github.com/ethereum/c-kzg-4844/v2 v2.1.3 // indirect
+	github.com/ethereum/go-ethereum v1.16.4 // indirect
 	github.com/ethereum/go-verkle v0.2.2 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/flowchartsman/swaggerui v0.0.0-20221017034628-909ed4f3701b // indirect
@@ -147,7 +147,7 @@ require (
 	github.com/spf13/viper v1.20.1 // indirect
 	github.com/stretchr/testify v1.10.0 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
-	github.com/supranational/blst v0.3.14 // indirect
+	github.com/supranational/blst v0.3.16-0.20250831170142-f48500c1fdbe // indirect
 	github.com/sykesm/zap-logfmt v0.0.4 // indirect
 	github.com/syndtr/goleveldb v1.0.1-0.20220721030215-126854af5e6d // indirect
 	github.com/weppos/publicsuffix-go v0.5.0 // indirect
@@ -175,7 +175,7 @@ require (
 	golang.org/x/crypto v0.41.0 // indirect
 	golang.org/x/net v0.43.0 // indirect
 	golang.org/x/sync v0.17.0 // indirect
-	golang.org/x/sys v0.35.0 // indirect
+	golang.org/x/sys v0.36.0 // indirect
 	golang.org/x/text v0.29.0 // indirect
 	golang.org/x/tools v0.36.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20250603155806-513f23925822 // indirect
