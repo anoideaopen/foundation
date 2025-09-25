@@ -99,10 +99,10 @@ type ContractConfig struct {
 	TracingCollectorEndpoint *CollectorEndpoint `protobuf:"bytes,5,opt,name=tracingCollectorEndpoint,proto3" json:"tracingCollectorEndpoint,omitempty"`
 	// maxChannelTransferItems maximum count channel transfer items (token amount) for single transfer operation,
 	// if maxChannelTransferItems is 0 will use default value 100
-	MaxChannelTransferItems uint32 `protobuf:"varint,6,opt,name=maxChannelTransferItems,proto3" json:"maxChannelTransferItems,omitempty"`
-	Acl           *ContractConfigACL `protobuf:"bytes,7,opt,name=acl,proto3" json:"acl,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	MaxChannelTransferItems uint32             `protobuf:"varint,6,opt,name=maxChannelTransferItems,proto3" json:"maxChannelTransferItems,omitempty"`
+	Acl                     *ContractConfigACL `protobuf:"bytes,7,opt,name=acl,proto3" json:"acl,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
 }
 
 func (x *ContractConfig) Reset() {
