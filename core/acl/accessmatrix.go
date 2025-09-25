@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/anoideaopen/foundation/core"
+	"github.com/anoideaopen/foundation/core/config"
 	"github.com/anoideaopen/foundation/core/types"
 	pb "github.com/anoideaopen/foundation/proto"
 	"github.com/hyperledger/fabric-chaincode-go/v2/shim"
@@ -44,7 +45,7 @@ func GetAccountRight(stub shim.ChaincodeStubInterface, params []string) (*pb.Hav
 	for _, param := range params {
 		args = append(args, []byte(param))
 	}
-	resp := stub.InvokeChaincode(CcACL, args, ChACL)
+	resp := stub.InvokeChaincode(config.CcACL, args, config.ACLChannelName)
 	if resp.GetStatus() != shim.OK {
 		return nil, errors.New(resp.GetMessage())
 	}
@@ -102,7 +103,7 @@ func GetAddressRightForNominee(stub shim.ChaincodeStubInterface, params []string
 	for _, param := range params {
 		args = append(args, []byte(param))
 	}
-	resp := stub.InvokeChaincode(CcACL, args, ChACL)
+	resp := stub.InvokeChaincode(config.CcACL, args, config.ACLChannelName)
 	if resp.GetStatus() != shim.OK {
 		return nil, errors.New(resp.GetMessage())
 	}
@@ -128,7 +129,7 @@ func GetAddressesListForNominee(stub shim.ChaincodeStubInterface, params []strin
 	for _, param := range params {
 		args = append(args, []byte(param))
 	}
-	resp := stub.InvokeChaincode(CcACL, args, ChACL)
+	resp := stub.InvokeChaincode(config.CcACL, args, config.ACLChannelName)
 	if resp.GetStatus() != shim.OK {
 		return nil, errors.New(resp.GetMessage())
 	}
