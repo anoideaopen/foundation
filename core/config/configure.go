@@ -88,7 +88,7 @@ func Configure(contract Configurator, rawCfg []byte) error {
 		return fmt.Errorf("applying contract config: %w", err)
 	}
 
-	if cfg.GetContract().GetAcl() != nil && cfg.GetContract().GetAcl().GetChannelName() != "" {
+	if cfg.GetContract().GetAcl().GetChannelName() != "" {
 		ACLChannelName = cfg.GetContract().GetAcl().GetChannelName()
 	}
 

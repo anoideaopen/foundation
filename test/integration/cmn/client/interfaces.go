@@ -102,10 +102,10 @@ type StarterInterface interface {
 	StartChannelTransfer()
 	// InitNetwork initializes testsuite network
 	InitNetwork(channels []string, testPort integration.TestPortRange, opts ...NetworkOption)
-	// DeployChaincodes deploys chaincodes to testsuite network defined channels
+	// DeployChaincodes deploys chaincodes to testsuite network-defined channels
 	DeployChaincodes()
-	// DeployChaincodesByName deploys chaincodes to testsuite channels
-	DeployChaincodesByName(channels []string)
+	// DeployChaincodesByChannelName deploys chaincodes to testsuite channels
+	DeployChaincodesByChannelName(channels []string)
 	// DeployFiat deploys FIAT chaincode to testsuite FIAT channel with specified addresses
 	DeployFiat(adminAddress, feeSetterAddress, feeAddressSetterAddress string)
 }

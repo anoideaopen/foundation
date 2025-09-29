@@ -17,6 +17,7 @@ import (
 )
 
 const (
+	ChaincodeACL      = "acl"
 	ChannelACL        = "acl"
 	ChannelCC         = "cc"
 	ChannelFiat       = "fiat"
@@ -31,6 +32,7 @@ func DeployACL(
 	skiBackend string,
 	publicKeyBase58 string,
 	validatorKeyType pb.KeyType,
+	channelName string,
 ) {
 	By("Deploying chaincode acl with validator's key type specified")
 	aclCfg := &aclpb.ACLConfig{
@@ -45,13 +47,13 @@ func DeployACL(
 	cfgBytesACL, err := protojson.Marshal(aclCfg)
 	Expect(err).NotTo(HaveOccurred())
 	ctorACL := CtorFromSlice([]string{string(cfgBytesACL)})
-	DeployChaincodeFoundation(network, ChannelACL, components,
+	DeployChaincodeFoundation(network, channelName, components,
 		ACLModulePath(), ctorACL, testDir)
 
 	By("querying the chaincode from acl")
 	sess, err := network.PeerUserSession(peer, "User1", commands.ChaincodeQuery{
-		ChannelID: ChannelACL,
-		Name:      ChannelACL,
+		ChannelID: channelName,
+		Name:      ChaincodeACL,
 		Ctor:      CtorFromSlice([]string{"getAddresses", "10", ""}),
 	})
 	Expect(err).NotTo(HaveOccurred())

@@ -60,6 +60,7 @@ type FoundationTestSuite struct {
 	feeAddressSetter    *mocks.UserFoundation
 	skiBackend          string
 	skiRobot            string
+	aclChannelName      string
 
 	isInit bool
 }
@@ -101,6 +102,10 @@ func NewTestSuite(components *nwo.Components, opts ...UserOption) *FoundationTes
 	for _, opt := range opts {
 		err := opt(ts.userOptions)
 		Expect(err).NotTo(HaveOccurred())
+	}
+
+	if ts.userOptions.ACLChannelName == "" {
+		ts.userOptions.ACLChannelName = cmn.ChannelACL
 	}
 
 	return ts
@@ -334,14 +339,14 @@ func (ts *FoundationTestSuite) DeployChaincodes() {
 	for i, ch := range ts.options.Channels {
 		channelNames[i] = ch.Name
 	}
-	ts.DeployChaincodesByName(channelNames)
+	ts.DeployChaincodesByChannelName(channelNames)
 }
 
-func (ts *FoundationTestSuite) DeployChaincodesByName(channels []string) {
+func (ts *FoundationTestSuite) DeployChaincodesByChannelName(channels []string) {
 	for _, channel := range channels {
 		switch channel {
 		case cmn.ChannelACL:
-			cmn.DeployACL(ts.Network, ts.components, ts.Peer, ts.testDir, ts.skiBackend, ts.admin.PublicKeyBase58, ts.admin.KeyType)
+			cmn.DeployACL(ts.Network, ts.components, ts.Peer, ts.testDir, ts.skiBackend, ts.admin.PublicKeyBase58, ts.admin.KeyType, ts.aclChannelName)
 		case cmn.ChannelFiat:
 			cmn.DeployFiat(ts.Network, ts.components, ts.Peer, ts.testDir, ts.skiRobot, ts.admin.AddressBase58Check, ts.feeSetter.AddressBase58Check, ts.feeAddressSetter.AddressBase58Check)
 		case cmn.ChannelCC:
