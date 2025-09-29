@@ -36,9 +36,9 @@ const (
 // AddUser adds user to ACL channel
 func (ts *FoundationTestSuite) AddUser(user *mocks.UserFoundation) {
 	sess, err := ts.Network.PeerUserSession(ts.Peer, ts.MainUserName, commands.ChaincodeInvoke{
-		ChannelID: ts.aclChannelName,
+		ChannelID: ts.userOptions.ACLChannelName,
 		Orderer:   ts.Network.OrdererAddress(ts.Orderer, nwo.ListenPort),
-		Name:      ts.aclChannelName,
+		Name:      cmn.ChaincodeACL,
 		Ctor: cmn.CtorFromSlice(
 			[]string{
 				"addUserWithPublicKeyType",
@@ -88,7 +88,7 @@ func (ts *FoundationTestSuite) AddUserMultisigned(user *mocks.UserFoundationMult
 	}
 	ctorArgs = append(append(ctorArgs, publicKeys...), sMsgsStr...)
 	sess, err := ts.Network.PeerUserSession(ts.Peer, ts.MainUserName, commands.ChaincodeInvoke{
-		ChannelID: ts.aclChannelName,
+		ChannelID: ts.userOptions.ACLChannelName,
 		Orderer:   ts.Network.OrdererAddress(ts.Orderer, nwo.ListenPort),
 		Name:      cmn.ChaincodeACL,
 		Ctor:      cmn.CtorFromSlice(ctorArgs),
@@ -109,7 +109,7 @@ func (ts *FoundationTestSuite) AddUserMultisigned(user *mocks.UserFoundationMult
 func (ts *FoundationTestSuite) CheckUser(user *mocks.UserFoundation) {
 	Eventually(func() string {
 		sess, err := ts.Network.PeerUserSession(ts.Peer, ts.MainUserName, commands.ChaincodeQuery{
-			ChannelID: ts.aclChannelName,
+			ChannelID: ts.userOptions.ACLChannelName,
 			Name:      cmn.ChaincodeACL,
 			Ctor:      cmn.CtorFromSlice([]string{"checkKeys", user.PublicKeyBase58}),
 		})
@@ -138,7 +138,7 @@ func (ts *FoundationTestSuite) CheckUser(user *mocks.UserFoundation) {
 func (ts *FoundationTestSuite) CheckUserMultisigned(user *mocks.UserFoundationMultisigned) {
 	Eventually(func() string {
 		sess, err := ts.Network.PeerUserSession(ts.Peer, ts.MainUserName, commands.ChaincodeQuery{
-			ChannelID: ts.aclChannelName,
+			ChannelID: ts.userOptions.ACLChannelName,
 			Name:      cmn.ChaincodeACL,
 			Ctor:      cmn.CtorFromSlice([]string{FnCheckKeys, user.PublicKey()}),
 		})
@@ -169,7 +169,7 @@ func (ts *FoundationTestSuite) CheckUserMultisigned(user *mocks.UserFoundationMu
 // AddRights adds right for a defined user with a specified role and operation to the ACL channel
 func (ts *FoundationTestSuite) AddRights(channelName, chaincodeName, role, operation string, user *mocks.UserFoundation) {
 	sess, err := ts.Network.PeerUserSession(ts.Peer, ts.MainUserName, commands.ChaincodeInvoke{
-		ChannelID: ts.aclChannelName,
+		ChannelID: ts.userOptions.ACLChannelName,
 		Orderer:   ts.Network.OrdererAddress(ts.Orderer, nwo.ListenPort),
 		Name:      cmn.ChaincodeACL,
 		Ctor:      cmn.CtorFromSlice([]string{"addRights", channelName, chaincodeName, role, operation, user.AddressBase58Check}),
@@ -189,7 +189,7 @@ func (ts *FoundationTestSuite) AddRights(channelName, chaincodeName, role, opera
 // RemoveRights removes right for a defined user with a specified role and operation to the ACL channel
 func (ts *FoundationTestSuite) RemoveRights(channelName, chaincodeName, role, operation string, user *mocks.UserFoundation) {
 	sess, err := ts.Network.PeerUserSession(ts.Peer, ts.MainUserName, commands.ChaincodeInvoke{
-		ChannelID: ts.aclChannelName,
+		ChannelID: ts.userOptions.ACLChannelName,
 		Orderer:   ts.Network.OrdererAddress(ts.Orderer, nwo.ListenPort),
 		Name:      cmn.ChaincodeACL,
 		Ctor:      cmn.CtorFromSlice([]string{"removeRights", channelName, chaincodeName, role, operation, user.AddressBase58Check}),
@@ -209,7 +209,7 @@ func (ts *FoundationTestSuite) RemoveRights(channelName, chaincodeName, role, op
 func (ts *FoundationTestSuite) CheckRights(channelName, chaincodeName, role, operation string, user *mocks.UserFoundation, result bool) {
 	Eventually(func() string {
 		sess, err := ts.Network.PeerUserSession(ts.Peer, ts.MainUserName, commands.ChaincodeQuery{
-			ChannelID: ts.aclChannelName,
+			ChannelID: ts.userOptions.ACLChannelName,
 			Name:      cmn.ChaincodeACL,
 			Ctor:      cmn.CtorFromSlice([]string{"getAccountOperationRightJSON", channelName, chaincodeName, role, operation, user.AddressBase58Check}),
 		})
@@ -262,7 +262,7 @@ func (ts *FoundationTestSuite) ChangeMultisigPublicKey(
 	ctorArgs = append(append(ctorArgs, pKeys...), sMsgsStr...)
 
 	sess, err := ts.Network.PeerUserSession(ts.Peer, ts.MainUserName, commands.ChaincodeInvoke{
-		ChannelID: ts.aclChannelName,
+		ChannelID: ts.userOptions.ACLChannelName,
 		Orderer:   ts.Network.OrdererAddress(ts.Orderer, nwo.ListenPort),
 		Name:      cmn.ChaincodeACL,
 		Ctor:      cmn.CtorFromSlice(ctorArgs),
@@ -291,7 +291,7 @@ func (ts *FoundationTestSuite) AddToGrayList(user *mocks.UserFoundation) {
 
 func (ts *FoundationTestSuite) addToList(listType cc.ListType, user *mocks.UserFoundation) {
 	sess, err := ts.Network.PeerUserSession(ts.Peer, ts.MainUserName, commands.ChaincodeInvoke{
-		ChannelID: ts.aclChannelName,
+		ChannelID: ts.userOptions.ACLChannelName,
 		Orderer:   ts.Network.OrdererAddress(ts.Orderer, nwo.ListenPort),
 		Name:      cmn.ChaincodeACL,
 		Ctor: cmn.CtorFromSlice([]string{
@@ -327,7 +327,7 @@ func (ts *FoundationTestSuite) delFromList(
 	user *mocks.UserFoundation,
 ) {
 	sess, err := ts.Network.PeerUserSession(ts.Peer, ts.MainUserName, commands.ChaincodeInvoke{
-		ChannelID: ts.aclChannelName,
+		ChannelID: ts.userOptions.ACLChannelName,
 		Orderer:   ts.Network.OrdererAddress(ts.Orderer, nwo.ListenPort),
 		Name:      cmn.ChaincodeACL,
 		Ctor: cmn.CtorFromSlice([]string{
@@ -352,7 +352,7 @@ func (ts *FoundationTestSuite) delFromList(
 func (ts *FoundationTestSuite) CheckUserInList(listType cc.ListType, user *mocks.UserFoundation) {
 	Eventually(func() string {
 		sess, err := ts.Network.PeerUserSession(ts.Peer, ts.MainUserName, commands.ChaincodeQuery{
-			ChannelID: ts.aclChannelName,
+			ChannelID: ts.userOptions.ACLChannelName,
 			Name:      cmn.ChaincodeACL,
 			Ctor:      cmn.CtorFromSlice([]string{FnCheckKeys, user.PublicKeyBase58}),
 		})
@@ -386,7 +386,7 @@ func (ts *FoundationTestSuite) CheckUserInList(listType cc.ListType, user *mocks
 func (ts *FoundationTestSuite) CheckUserNotInList(listType cc.ListType, user *mocks.UserFoundation) {
 	Eventually(func() string {
 		sess, err := ts.Network.PeerUserSession(ts.Peer, ts.MainUserName, commands.ChaincodeQuery{
-			ChannelID: ts.aclChannelName,
+			ChannelID: ts.userOptions.ACLChannelName,
 			Name:      cmn.ChaincodeACL,
 			Ctor:      cmn.CtorFromSlice([]string{FnCheckKeys, user.PublicKeyBase58}),
 		})
@@ -440,7 +440,7 @@ func (ts *FoundationTestSuite) ChangePublicKey(
 
 	ctorArgs = append(append(ctorArgs, pKeys...), sMsgsStr...)
 	sess, err := ts.Network.PeerUserSession(ts.Peer, ts.MainUserName, commands.ChaincodeInvoke{
-		ChannelID: ts.aclChannelName,
+		ChannelID: ts.userOptions.ACLChannelName,
 		Orderer:   ts.Network.OrdererAddress(ts.Orderer, nwo.ListenPort),
 		Name:      cmn.ChaincodeACL,
 		Ctor:      cmn.CtorFromSlice(ctorArgs),
@@ -484,7 +484,7 @@ func (ts *FoundationTestSuite) ChangePublicKeyBase58signed(
 
 	ctorArgs = append(append(ctorArgs, pKeys...), sMsgsStr...)
 	sess, err := ts.Network.PeerUserSession(ts.Peer, ts.MainUserName, commands.ChaincodeInvoke{
-		ChannelID: ts.aclChannelName,
+		ChannelID: ts.userOptions.ACLChannelName,
 		Orderer:   ts.Network.OrdererAddress(ts.Orderer, nwo.ListenPort),
 		Name:      cmn.ChaincodeACL,
 		Ctor:      cmn.CtorFromSlice(ctorArgs),
@@ -505,7 +505,7 @@ func (ts *FoundationTestSuite) ChangePublicKeyBase58signed(
 func (ts *FoundationTestSuite) CheckUserChangedKey(newPublicKeyBase58Check, oldAddressBase58Check string) {
 	Eventually(func() string {
 		sess, err := ts.Network.PeerUserSession(ts.Peer, ts.MainUserName, commands.ChaincodeQuery{
-			ChannelID: ts.aclChannelName,
+			ChannelID: ts.userOptions.ACLChannelName,
 			Name:      cmn.ChaincodeACL,
 			Ctor:      cmn.CtorFromSlice([]string{"checkKeys", newPublicKeyBase58Check}),
 		})
@@ -539,7 +539,7 @@ func (ts *FoundationTestSuite) CheckAccountInfo(
 ) {
 	Eventually(func() string {
 		sess, err := ts.Network.PeerUserSession(ts.Peer, ts.MainUserName, commands.ChaincodeQuery{
-			ChannelID: ts.aclChannelName,
+			ChannelID: ts.userOptions.ACLChannelName,
 			Name:      cmn.ChaincodeACL,
 			Ctor:      cmn.CtorFromSlice([]string{FnGetAccInfoFn, user.AddressBase58Check}),
 		})
@@ -579,7 +579,7 @@ func (ts *FoundationTestSuite) SetAccountInfo(
 	isBlackListed bool,
 ) {
 	sess, err := ts.Network.PeerUserSession(ts.Peer, ts.MainUserName, commands.ChaincodeInvoke{
-		ChannelID: ts.aclChannelName,
+		ChannelID: ts.userOptions.ACLChannelName,
 		Orderer:   ts.Network.OrdererAddress(ts.Orderer, nwo.ListenPort),
 		Name:      cmn.ChaincodeACL,
 		Ctor: cmn.CtorFromSlice([]string{
@@ -624,7 +624,7 @@ func (ts *FoundationTestSuite) SetKYC(
 
 	ctorArgs = append(append(ctorArgs, pKeys...), sMsgsStr...)
 	sess, err := ts.Network.PeerUserSession(ts.Peer, ts.MainUserName, commands.ChaincodeInvoke{
-		ChannelID: ts.aclChannelName,
+		ChannelID: ts.userOptions.ACLChannelName,
 		Orderer:   ts.Network.OrdererAddress(ts.Orderer, nwo.ListenPort),
 		Name:      cmn.ChaincodeACL,
 		Ctor:      cmn.CtorFromSlice(ctorArgs),
