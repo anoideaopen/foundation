@@ -359,7 +359,7 @@ func (ts *FoundationTestSuite) DeployChaincodesByChannelName(channels []string) 
 }
 
 func (ts *FoundationTestSuite) DeployFiat(adminAddress, feeSetterAddress, feeAddressSetterAddress string) {
-	cmn.DeployFiat(ts.Network, ts.components, ts.Peer, ts.testDir, ts.skiRobot, adminAddress, feeSetterAddress, feeAddressSetterAddress)
+	cmn.DeployFiat(ts.Network, ts.components, ts.Peer, ts.testDir, ts.skiRobot, adminAddress, feeSetterAddress, feeAddressSetterAddress, ts.userOptions.ACLChannelName)
 }
 
 func (ts *FoundationTestSuite) ShutdownNetwork() {
