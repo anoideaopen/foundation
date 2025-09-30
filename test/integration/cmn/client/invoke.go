@@ -229,7 +229,7 @@ func invokeTx(
 	By("waiting for deliver event on peer " + peer.ID())
 	for {
 		resp, err := dc.Recv()
-		Expect(err).NotTo(HaveOccurred())
+		Expect(err).NotTo(HaveOccurred(), channel, ccName, args)
 
 		invokeResult := deliverResponseProcess(resp, txID)
 		if invokeResult != nil {

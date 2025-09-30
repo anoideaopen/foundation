@@ -11,7 +11,7 @@ import "github.com/hyperledger/fabric-chaincode-go/v2/shim"
 // Chaincode configuration
 //go:generate protoc -I=. -I=./validate --go_out=paths=source_relative:. --validate_out=lang=go,paths=source_relative:. foundation_config.proto
 
-//go:generate counterfeiter -generate
+//go:generate go tool counterfeiter -generate
 
 //counterfeiter:generate -o ../mocks/chaincode_stub.go --fake-name ChaincodeStub . chaincodeStub
 type chaincodeStub interface { //nolint:unused

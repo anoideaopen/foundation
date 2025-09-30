@@ -2,14 +2,17 @@ syntax = "proto3";
 
 package proto;
 
-import "validate/validate.proto";
 import "google/protobuf/any.proto";
+import "validate/validate.proto";
 
 option go_package = "github.com/anoideaopen/foundation/proto";
 
 // Config stores all chaincode configuration parameters.
 message Config {
-  ContractConfig contract = 1 [(validate.rules).message = {required: true, skip: false}];
+  ContractConfig contract = 1 [(validate.rules).message = {
+    required: true
+    skip: false
+  }];
   TokenConfig token = 2;
   google.protobuf.Any ext_config = 3;
 }
@@ -34,6 +37,13 @@ message ContractConfig {
   // maxChannelTransferItems maximum count channel transfer items (token amount) for single transfer operation,
   // if maxChannelTransferItems is 0 will use default value 100
   uint32 maxChannelTransferItems = 6;
+
+  //
+  ContractConfigACL acl = 7;
+}
+
+message ContractConfigACL {
+  string channel_name = 1;
 }
 
 message CollectorEndpoint {

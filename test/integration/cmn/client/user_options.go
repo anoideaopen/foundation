@@ -7,6 +7,7 @@ type userOptions struct {
 	AdminKeyType            pbfound.KeyType
 	FeeSetterKeyType        pbfound.KeyType
 	FeeAddressSetterKeyType pbfound.KeyType
+	ACLChannelName          string
 }
 
 // UserOption specifies some userOptions parameter
@@ -32,6 +33,13 @@ func WithFeeSetterKeyType(keyType pbfound.KeyType) UserOption {
 func WithFeeAddressSetterKeyType(keyType pbfound.KeyType) UserOption {
 	return func(opts *userOptions) error {
 		opts.FeeAddressSetterKeyType = keyType
+		return nil
+	}
+}
+
+func WithACLChannelName(channelName string) UserOption {
+	return func(opts *userOptions) error {
+		opts.ACLChannelName = channelName
 		return nil
 	}
 }
