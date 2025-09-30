@@ -68,6 +68,7 @@ func DeployCC(
 	testDir string,
 	skiRobot string,
 	addressBase58Check string,
+	aclChannelName string,
 ) {
 	By("Deploying chaincode cc")
 	cfgCC := &pb.Config{
@@ -75,6 +76,7 @@ func DeployCC(
 			Symbol:   "CC",
 			RobotSKI: skiRobot,
 			Admin:    &pb.Wallet{Address: addressBase58Check},
+			Acl:      &pb.ContractConfigACL{ChannelName: aclChannelName},
 		},
 		Token: &pb.TokenConfig{
 			Name:            "Currency Coin",
@@ -109,6 +111,7 @@ func DeployFiat(
 	adminAddressBase58Check string,
 	feeSetterAddressBase58Check string,
 	feeAddressSetterAddressBase58Check string,
+	aclChannelName string,
 ) {
 	By("Deploying chaincode fiat")
 
@@ -120,6 +123,7 @@ func DeployFiat(
 			Options: &pb.ChaincodeOptions{
 				DisabledFunctions: []string{"TxBuyToken", "TxBuyBack"},
 			},
+			Acl: &pb.ContractConfigACL{ChannelName: aclChannelName},
 		},
 		Token: &pb.TokenConfig{
 			Name:             "FIAT",
@@ -156,6 +160,7 @@ func DeployIndustrial(
 	adminAddressBase58Check string,
 	feeSetterAddressBase58Check string,
 	feeAddressSetterAddressBase58Check string,
+	aclChannelName string,
 ) {
 	extCfg := industrialtoken.ExtConfig{
 		Name:             "Industrial token",
@@ -175,6 +180,7 @@ func DeployIndustrial(
 			Symbol:   "INDUSTRIAL",
 			RobotSKI: skiRobot,
 			Admin:    &pb.Wallet{Address: adminAddressBase58Check},
+			Acl:      &pb.ContractConfigACL{ChannelName: aclChannelName},
 		},
 	}
 	cfgIndustrial.ExtConfig, _ = anypb.New(&extCfg)
