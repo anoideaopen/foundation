@@ -39,7 +39,7 @@ var _ = Describe("Basic foundation tests with different key types", func() {
 			ts.DeployChaincodes()
 		})
 
-		It("transfer", func() {
+		It("emit using unusual acl channel name", func() {
 			By("create users")
 			user1, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
 			Expect(err).NotTo(HaveOccurred())
