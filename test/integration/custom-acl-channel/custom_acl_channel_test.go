@@ -6,14 +6,8 @@ import (
 	"github.com/anoideaopen/foundation/test/integration/cmn"
 	"github.com/anoideaopen/foundation/test/integration/cmn/client"
 	"github.com/hyperledger/fabric/integration"
-	"github.com/hyperledger/fabric/integration/nwo"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-)
-
-var (
-	buildServer *nwo.BuildServer
-	components  *nwo.Components
 )
 
 var _ = Describe("Basic foundation tests with different key types", func() {
