@@ -22,7 +22,7 @@ var _ = Describe("Basic foundation tests with different key types", func() {
 	})
 
 	Describe("foundation test", func() {
-		channels := []string{cmn.ChannelACL, cmn.ChannelFiat}
+		channels := []string{"acl2", cmn.ChannelFiat}
 
 		BeforeEach(func() {
 			By("start redis")
@@ -31,6 +31,18 @@ var _ = Describe("Basic foundation tests with different key types", func() {
 		BeforeEach(func() {
 			ts.InitNetwork(channels, integration.DevModePort)
 			ts.DeployChaincodes()
+		})
+		BeforeEach(func() {
+			By("start robot")
+			ts.StartRobot()
+		})
+		AfterEach(func() {
+			By("stop robot")
+			ts.StopRobot()
+		})
+		AfterEach(func() {
+			By("stop redis")
+			ts.StopRedis()
 		})
 
 		It("emit using unusual acl channel name", func() {
