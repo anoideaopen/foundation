@@ -17,5 +17,5 @@ func Sum256(data []byte) (digest [32]byte) {
 	}
 
 	// Return the calculated hash.
-	return
+	return digest
 }

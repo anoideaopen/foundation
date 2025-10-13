@@ -1004,10 +1004,8 @@ github.com/hyperledger-labs/SmartBFT v0.0.0-20250503203013-eb005eef8866 h1:Mu/6N
 github.com/hyperledger-labs/SmartBFT v0.0.0-20250503203013-eb005eef8866/go.mod h1:9aNHNXsCVy/leGz2gpTC1eOL5QecxbSAGjqsLh4T1LM=
 github.com/hyperledger/aries-bbs-go v0.0.0-20240528084656-761671ea73bc h1:3Ykk6MtyfnlzMOQry9zkxsoLWpCWZwDPqehO/BJwArM=
 github.com/hyperledger/aries-bbs-go v0.0.0-20240528084656-761671ea73bc/go.mod h1:Kofn6A6WWea1ZM8Rys5aBW9dszwJ7Ywa0kyyYL0TPYw=
-github.com/hyperledger/fabric v1.4.0-rc1.0.20250901115507-bff8952c24e1 h1:F/SVjSFpudhgkRkheON+MgP41kEp5BS7q6wtAJqG++0=
-github.com/hyperledger/fabric v1.4.0-rc1.0.20250901115507-bff8952c24e1/go.mod h1:PZ15Nik20e0Uk5s3h1wIWT51CizYqU6rY5B1NW8Vg5s=
-github.com/hyperledger/fabric v1.4.0-rc1.0.20250929141436-dad09ab05b71 h1:tu1523Mgs+vR4zmuH7EKTMsArTkMdDk8FQ7RppKot7w=
-github.com/hyperledger/fabric v1.4.0-rc1.0.20250929141436-dad09ab05b71/go.mod h1:Ns3EsDgHJZSl6WoYOpv4C6NaYVorPdhxAfaE9ukUzyY=
+github.com/hyperledger/fabric v1.4.0-rc1.0.20251012211530-60d501d4140c h1:U/8kX8Vkk2gtkS6ofxS7+H2D7f0mJkU4yTFNGV1HTV4=
+github.com/hyperledger/fabric v1.4.0-rc1.0.20251012211530-60d501d4140c/go.mod h1:V7n5hCibAffeRTrm/CrUe98UsAj2CUChS4H3MQOaXCc=
 github.com/hyperledger/fabric-amcl v0.0.0-20230602173724-9e02669dceb2 h1:B1Nt8hKb//KvgGRprk0h1t4lCnwhE9/ryb1WqfZbV+M=
 github.com/hyperledger/fabric-amcl v0.0.0-20230602173724-9e02669dceb2/go.mod h1:X+DIyUsaTmalOpmpQfIvFZjKHQedrURQ5t4YqquX7lE=
 github.com/hyperledger/fabric-chaincode-go/v2 v2.3.0 h1:NB/QO2t4R5f6Nz/oREqZeaE4splHI2U9gqndfEQZreo=

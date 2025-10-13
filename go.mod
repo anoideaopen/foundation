@@ -1,6 +1,6 @@
 module github.com/anoideaopen/foundation
 
-go 1.24.2
+go 1.25.2
 
 tool github.com/maxbrunsfeld/counterfeiter/v6
 

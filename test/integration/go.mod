@@ -1,6 +1,6 @@
 module github.com/anoideaopen/foundation/test/integration
 
-go 1.25.1
+go 1.25.2
 
 tool (
 	github.com/IBM/idemix/tools/idemixgen
@@ -27,7 +27,7 @@ require (
 	github.com/btcsuite/btcd/btcutil v1.1.6
 	github.com/fsouza/go-dockerclient v1.12.0
 	github.com/google/uuid v1.6.0
-	github.com/hyperledger/fabric v1.4.0-rc1.0.20250929141436-dad09ab05b71
+	github.com/hyperledger/fabric v1.4.0-rc1.0.20251012211530-60d501d4140c
 	github.com/hyperledger/fabric-protos-go-apiv2 v0.3.7
 	github.com/onsi/ginkgo/v2 v2.22.2
 	github.com/onsi/gomega v1.36.2

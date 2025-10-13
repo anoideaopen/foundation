@@ -113,7 +113,7 @@ func (u *UserFoundationMultisigned) Sign(args ...string) (publicKeysBase58 []str
 		signMsgs = append(signMsgs, signature)
 	}
 
-	return
+	return publicKeysBase58, signMsgs, nil
 }
 
 func (u *UserFoundationMultisigned) SignWithUsers(users []*UserFoundation, args ...string) (publicKeysBase58 []string, signMsgs [][]byte, err error) {
@@ -134,7 +134,7 @@ func (u *UserFoundationMultisigned) SignWithUsers(users []*UserFoundation, args 
 		signMsgs = append(signMsgs, signature)
 	}
 
-	return
+	return publicKeysBase58, signMsgs, nil
 }
 
 // PublicKey - returns public key for multisigned user based on keys of its users
