@@ -82,7 +82,7 @@ func (u *UserFoundation) Sign(args ...string) (publicKeyBase58 string, signMsg [
 		return "", nil, err
 	}
 
-	return
+	return publicKeyBase58, signMsg, nil
 }
 
 func (u *UserFoundation) sign(message []byte) (signMsg []byte, err error) {

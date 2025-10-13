@@ -125,5 +125,5 @@ func checkEvent(t *testing.T, mockStub *mockstub.MockStub, txID string) (eventRe
 			eventResult = string(ev.GetResult())
 		}
 	}
-	return
+	return eventResult, eventError
 }
