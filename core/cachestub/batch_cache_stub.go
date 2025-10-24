@@ -31,12 +31,12 @@ func NewBatchCacheStub(stub shim.ChaincodeStubInterface) *BatchCacheStub {
 
 // GetState returns state from BatchCacheStub cache or, if absent, from chaincode state
 func (bs *BatchCacheStub) GetState(key string) ([]byte, error) {
-	if existsElement, ok := bs.batchWriteCache[key]; ok {
-		return existsElement.GetValue(), nil
+	if existingElement, ok := bs.batchWriteCache[key]; ok {
+		return existingElement.GetValue(), nil
 	}
 
-	if existsElement, ok := bs.batchReadeCache[key]; ok {
-		return existsElement.GetValue(), nil
+	if existingElement, ok := bs.batchReadeCache[key]; ok {
+		return existingElement.GetValue(), nil
 	}
 
 	value, err := bs.ChaincodeStubInterface.GetState(key)
@@ -47,6 +47,37 @@ func (bs *BatchCacheStub) GetState(key string) ([]byte, error) {
 	bs.batchReadeCache[key] = &proto.WriteElement{Key: key, Value: value}
 
 	return value, nil
+}
+
+// GetMultipleStates returns state from BatchCacheStub cache or, if absent, from batchState cache
+func (bs *BatchCacheStub) GetMultipleStates(keys ...string) ([][]byte, error) {
+	result := make([][]byte, len(keys))
+	tmpKeys := make([]string, 0, len(keys))
+	tmpNums := make([]int, 0, len(keys))
+
+	for i, key := range keys {
+		if existingElement, ok := bs.batchWriteCache[key]; ok {
+			result[i] = existingElement.GetValue()
+		} else if existingElement, ok = bs.batchReadeCache[key]; ok {
+			result[i] = existingElement.GetValue()
+		} else {
+			tmpKeys = append(tmpKeys, key)
+			tmpNums = append(tmpNums, i)
+		}
+	}
+
+	if len(tmpNums) != 0 {
+		resTmp, err := bs.ChaincodeStubInterface.GetMultipleStates(tmpKeys...)
+		if err != nil {
+			return nil, err
+		}
+		for i, numRes := range tmpNums {
+			result[numRes] = resTmp[i]
+			bs.batchReadeCache[tmpKeys[i]] = &proto.WriteElement{Key: tmpKeys[i], Value: resTmp[i]}
+		}
+	}
+
+	return result, nil
 }
 
 // PutState puts state to a BatchCacheStub cache
