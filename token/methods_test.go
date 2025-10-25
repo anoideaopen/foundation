@@ -166,6 +166,7 @@ func TestMethods(t *testing.T) {
 					"nameOfFiles", "predictFee", "setFee", "setFeeAddress", "setLimits", "setRate",
 					"srcFile", "srcPartFile", "swapBegin", "swapCancel", "swapGet", "systemEnv", "transfer",
 					"unlockAllowedBalance", "healthCheckNb", "unlockTokenBalance", "transferBalance",
+					"allCompositeKeys", "allKeys",
 				}
 				require.ElementsMatch(t, tokenMethods, meta.Methods)
 			},

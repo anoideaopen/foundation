@@ -2,7 +2,9 @@ package basic
 
 import (
 	"encoding/json"
+	"sort"
 
+	"github.com/anoideaopen/foundation/core"
 	"github.com/anoideaopen/foundation/mocks"
 	pbfound "github.com/anoideaopen/foundation/proto"
 	"github.com/anoideaopen/foundation/test/integration/cmn"
@@ -30,20 +32,18 @@ var _ = Describe("Basic foundation Tests", func() {
 		BeforeEach(func() {
 			By("start redis")
 			ts.StartRedis()
-		})
-		BeforeEach(func() {
+
 			ts.InitNetwork(channels, integration.DevModePort)
 			ts.DeployChaincodes()
-		})
-		BeforeEach(func() {
+
 			By("start robot")
 			ts.StartRobot()
 		})
+
 		AfterEach(func() {
 			By("stop robot")
 			ts.StopRobot()
-		})
-		AfterEach(func() {
+
 			By("stop redis")
 			ts.StopRedis()
 		})
@@ -375,6 +375,139 @@ var _ = Describe("Basic foundation Tests", func() {
 			By("invoking industrial chaincode with user acl rights removed")
 			ts.TxInvokeWithSign(cmn.ChannelIndustrial, cmn.ChannelIndustrial, user1, fnMethodWithRights, "",
 				client.NewNonceByTime().Get()).CheckErrorEquals("unauthorized")
+		})
+
+		It("get all keys", func() {
+			var (
+				user1 *mocks.UserFoundation
+				user2 *mocks.UserFoundation
+			)
+
+			By("add admin to acl")
+			ts.AddAdminToACL()
+
+			By("create users")
+			var err error
+
+			user1, err = mocks.NewUserFoundation(pbfound.KeyType_ed25519)
+			Expect(err).NotTo(HaveOccurred())
+			user2, err = mocks.NewUserFoundation(pbfound.KeyType_ed25519)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("add users to acl")
+			user1.UserID = "1111"
+			user2.UserID = "2222"
+
+			ts.AddUser(user1)
+			ts.AddUser(user2)
+			ts.AddFeeSetterToACL()
+			ts.AddFeeAddressSetterToACL()
+
+			feeWallet, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
+			Expect(err).NotTo(HaveOccurred())
+
+			ts.AddUser(feeWallet)
+
+			By("emit tokens")
+			amount := "3"
+			amountOne := "1"
+			ts.TxInvokeWithSign(cmn.ChannelFiat, cmn.ChannelFiat, ts.Admin(), "emit", "", client.NewNonceByTime().Get(), user1.AddressBase58Check, amount).CheckErrorIsNil()
+
+			By("emit check")
+			ts.Query(cmn.ChannelFiat, cmn.ChannelFiat,
+				"balanceOf", user1.AddressBase58Check).CheckBalance(amount)
+
+			By("set fee")
+			ts.TxInvokeWithSign(
+				cmn.ChannelFiat, cmn.ChannelFiat, ts.FeeSetter(),
+				"setFee", "", client.NewNonceByTime().Get(), "FIAT", "1", "1", "100").CheckErrorIsNil()
+
+			By("set fee address")
+			ts.TxInvokeWithSign(cmn.ChannelFiat, cmn.ChannelFiat, ts.FeeAddressSetter(),
+				"setFeeAddress", "", client.NewNonceByTime().Get(), feeWallet.AddressBase58Check).CheckErrorIsNil()
+
+			By("get transfer fee from user1 to user2")
+			req := FeeTransferRequestDTO{
+				SenderAddress:    user1.AddressBase58Check,
+				RecipientAddress: user2.AddressBase58Check,
+				Amount:           amount,
+			}
+			bytes, err := json.Marshal(req)
+			Expect(err).NotTo(HaveOccurred())
+
+			fFeeTransfer := func(out []byte) string {
+				resp := FeeTransferResponseDTO{}
+				err = json.Unmarshal(out, &resp)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(resp.FeeAddress).To(Equal(feeWallet.AddressBase58Check))
+				Expect(resp.Amount).To(Equal("1"))
+				Expect(resp.Currency).To(Equal("FIAT"))
+
+				return ""
+			}
+			ts.Query(cmn.ChannelFiat, cmn.ChannelFiat, "getFeeTransfer", string(bytes)).CheckResponseWithFunc(fFeeTransfer)
+
+			By("transfer tokens from user1 to user2")
+			ts.TxInvokeWithSign(cmn.ChannelFiat, cmn.ChannelFiat, user1, "transfer", "",
+				client.NewNonceByTime().Get(), user2.AddressBase58Check, amountOne, "ref transfer").CheckErrorIsNil()
+
+			By("check balance user1")
+			ts.Query(cmn.ChannelFiat, cmn.ChannelFiat,
+				"balanceOf", user1.AddressBase58Check).CheckBalance(amountOne)
+
+			By("check balance user2")
+			ts.Query(cmn.ChannelFiat, cmn.ChannelFiat,
+				"balanceOf", user2.AddressBase58Check).CheckBalance(amountOne)
+
+			By("check balance feeWallet")
+			ts.Query(cmn.ChannelFiat, cmn.ChannelFiat,
+				"balanceOf", feeWallet.AddressBase58Check).CheckBalance(amountOne)
+
+			By("get all keys non composit")
+			bookmark := ""
+			listKeys := []string{
+				"__config",
+				"tokenMetadata",
+			}
+			allListKeys := func(out []byte) string {
+				resp := core.ListPaginatedKeys{}
+				err = json.Unmarshal(out, &resp)
+				Expect(err).NotTo(HaveOccurred())
+				bookmark = resp.Bookmark
+				for i, key := range resp.Keys {
+					Expect(key).To(Equal(listKeys[i]))
+				}
+				listKeys = listKeys[len(resp.Keys):]
+
+				return ""
+			}
+
+			for {
+				ts.QueryWithSign(cmn.ChannelFiat, cmn.ChannelFiat,
+					ts.Admin(), "allKeys", "", client.NewNonceByTime().Get(),
+					"2", bookmark).CheckResponseWithFunc(allListKeys)
+				if bookmark == "" {
+					break
+				}
+			}
+
+			By("get all keys non composit")
+			bookmark = ""
+			listKeys = []string{}
+			listKeys = append(listKeys,
+				"2a_"+ts.Admin().AddressBase58Check, "2a_"+ts.FeeSetter().AddressBase58Check,
+				"2a_"+ts.FeeAddressSetter().AddressBase58Check, "2a_"+user1.AddressBase58Check,
+				"2b_"+user1.AddressBase58Check, "2b_"+user2.AddressBase58Check, "2b_"+feeWallet.AddressBase58Check)
+			sort.Strings(listKeys)
+
+			for {
+				ts.QueryWithSign(cmn.ChannelFiat, cmn.ChannelFiat,
+					ts.Admin(), "allCompositeKeys", "", client.NewNonceByTime().Get(),
+					"2", bookmark).CheckResponseWithFunc(allListKeys)
+				if bookmark == "" {
+					break
+				}
+			}
 		})
 	})
 })
