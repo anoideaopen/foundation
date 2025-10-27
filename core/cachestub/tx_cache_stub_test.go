@@ -58,6 +58,49 @@ func TestTxStub(t *testing.T) {
 		require.Equal(t, 1, stateStub.GetStateCallCount())
 	})
 
+	t.Run("GetMultipleStates test", func(t *testing.T) {
+		stateStub := &mocks.ChaincodeStub{}
+		stateStub.GetMultipleStatesReturnsOnCall(0, [][]byte{[]byte(valKey1Value1), []byte(valKey1Value2)}, nil)
+		stateStub.GetMultipleStatesReturnsOnCall(1, [][]byte{[]byte(valKey2Value1), []byte(valKey4Value1)}, nil)
+		// creating batch cache stub
+		batchStub := NewBatchCacheStub(stateStub)
+		// creating tx cache stub
+		txTime := createUtcTimestamp()
+		txStub := batchStub.NewTxCacheStub(txID1, txTime)
+
+		// requesting data from state
+		result, err := txStub.GetMultipleStates(valKey1, valKey2)
+		require.NoError(t, err)
+		require.Equal(t, [][]byte{[]byte(valKey1Value1), []byte(valKey1Value2)}, result)
+		require.Equal(t, 1, stateStub.GetMultipleStatesCallCount())
+
+		result, err = txStub.GetMultipleStates(valKey1, valKey3, valKey2, valKey4)
+		require.NoError(t, err)
+		require.Equal(t, [][]byte{[]byte(valKey1Value1), []byte(valKey2Value1), []byte(valKey1Value2), []byte(valKey4Value1)}, result)
+		require.Equal(t, 2, stateStub.GetMultipleStatesCallCount())
+
+		result, err = txStub.GetMultipleStates(valKey1, valKey2, valKey3)
+		require.NoError(t, err)
+		require.Equal(t, [][]byte{[]byte(valKey1Value1), []byte(valKey1Value2), []byte(valKey2Value1)}, result)
+		require.Equal(t, 2, stateStub.GetMultipleStatesCallCount())
+
+		err = txStub.PutState("PFI1", []byte("PFIPFI11"))
+		require.NoError(t, err)
+
+		result, err = txStub.GetMultipleStates(valKey1, "PFI1", valKey2, valKey3)
+		require.NoError(t, err)
+		require.Equal(t, [][]byte{[]byte(valKey1Value1), []byte("PFIPFI11"), []byte(valKey1Value2), []byte(valKey2Value1)}, result)
+		require.Equal(t, 2, stateStub.GetMultipleStatesCallCount())
+
+		err = txStub.DelState("PFI1")
+		require.NoError(t, err)
+
+		result, err = txStub.GetMultipleStates(valKey1, "PFI1", valKey2, valKey3)
+		require.NoError(t, err)
+		require.Equal(t, [][]byte{[]byte(valKey1Value1), nil, []byte(valKey1Value2), []byte(valKey2Value1)}, result)
+		require.Equal(t, 2, stateStub.GetMultipleStatesCallCount())
+	})
+
 	t.Run("PutState test", func(t *testing.T) {
 		stateStub := &mocks.ChaincodeStub{}
 		// preparing state data

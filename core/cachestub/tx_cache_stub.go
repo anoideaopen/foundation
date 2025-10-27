@@ -42,11 +42,40 @@ func (bts *TxCacheStub) GetTxTimestamp() (*timestamppb.Timestamp, error) {
 
 // GetState returns state from TxCacheStub cache or, if absent, from batchState cache
 func (bts *TxCacheStub) GetState(key string) ([]byte, error) {
-	existsElement, ok := bts.txWriteCache[key]
+	existingElement, ok := bts.txWriteCache[key]
 	if ok {
-		return existsElement.GetValue(), nil
+		return existingElement.GetValue(), nil
 	}
 	return bts.BatchCacheStub.GetState(key)
+}
+
+// GetMultipleStates returns state from TxCacheStub cache or, if absent, from batchState cache
+func (bts *TxCacheStub) GetMultipleStates(keys ...string) ([][]byte, error) {
+	result := make([][]byte, len(keys))
+	tmpKeys := make([]string, 0, len(keys))
+	tmpNums := make([]int, 0, len(keys))
+
+	for i, key := range keys {
+		existingElement, ok := bts.txWriteCache[key]
+		if ok {
+			result[i] = existingElement.GetValue()
+		} else {
+			tmpKeys = append(tmpKeys, key)
+			tmpNums = append(tmpNums, i)
+		}
+	}
+
+	if len(tmpNums) != 0 {
+		resTmp, err := bts.BatchCacheStub.GetMultipleStates(tmpKeys...)
+		if err != nil {
+			return nil, err
+		}
+		for i, numRes := range tmpNums {
+			result[numRes] = resTmp[i]
+		}
+	}
+
+	return result, nil
 }
 
 // PutState puts state to the TxCacheStub's cache
