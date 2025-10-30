@@ -40,7 +40,7 @@ var _ = Describe("Multisigned user ACL tests", func() {
 	})
 	BeforeEach(func() {
 		ts.InitNetwork(channels, integration.NWOBasePort)
-		ts.DeployChaincodesByName([]string{cmn.ChannelACL})
+		ts.DeployChaincodesByChannelName([]string{cmn.ChannelACL})
 	})
 	BeforeEach(func() {
 		By("start robot")
@@ -65,7 +65,7 @@ var _ = Describe("Multisigned user ACL tests", func() {
 		ts.AddUser(user)
 
 		By("deploying fiat channel")
-		ts.DeployChaincodesByName([]string{cmn.ChannelFiat})
+		ts.DeployChaincodesByChannelName([]string{cmn.ChannelFiat})
 
 		By("emit tokens")
 		emitAmount := "1000"

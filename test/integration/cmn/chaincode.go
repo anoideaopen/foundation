@@ -17,6 +17,7 @@ import (
 )
 
 const (
+	ChaincodeACL      = "acl"
 	ChannelACL        = "acl"
 	ChannelCC         = "cc"
 	ChannelFiat       = "fiat"
@@ -31,6 +32,7 @@ func DeployACL(
 	skiBackend string,
 	publicKeyBase58 string,
 	validatorKeyType pb.KeyType,
+	channelName string,
 ) {
 	By("Deploying chaincode acl with validator's key type specified")
 	aclCfg := &aclpb.ACLConfig{
@@ -45,13 +47,13 @@ func DeployACL(
 	cfgBytesACL, err := protojson.Marshal(aclCfg)
 	Expect(err).NotTo(HaveOccurred())
 	ctorACL := CtorFromSlice([]string{string(cfgBytesACL)})
-	DeployChaincodeFoundation(network, ChannelACL, components,
+	DeployChaincodeFoundation(network, channelName, ChaincodeACL, components,
 		ACLModulePath(), ctorACL, testDir)
 
 	By("querying the chaincode from acl")
 	sess, err := network.PeerUserSession(peer, "User1", commands.ChaincodeQuery{
-		ChannelID: ChannelACL,
-		Name:      ChannelACL,
+		ChannelID: channelName,
+		Name:      ChaincodeACL,
 		Ctor:      CtorFromSlice([]string{"getAddresses", "10", ""}),
 	})
 	Expect(err).NotTo(HaveOccurred())
@@ -66,6 +68,7 @@ func DeployCC(
 	testDir string,
 	skiRobot string,
 	addressBase58Check string,
+	aclChannelName string,
 ) {
 	By("Deploying chaincode cc")
 	cfgCC := &pb.Config{
@@ -73,6 +76,7 @@ func DeployCC(
 			Symbol:   "CC",
 			RobotSKI: skiRobot,
 			Admin:    &pb.Wallet{Address: addressBase58Check},
+			Acl:      &pb.ContractConfigACL{ChannelName: aclChannelName},
 		},
 		Token: &pb.TokenConfig{
 			Name:            "Currency Coin",
@@ -84,7 +88,7 @@ func DeployCC(
 	cfgBytesCC, err := protojson.Marshal(cfgCC)
 	Expect(err).NotTo(HaveOccurred())
 	ctorCC := CtorFromSlice([]string{string(cfgBytesCC)})
-	DeployChaincodeFoundation(network, ChannelCC, components,
+	DeployChaincodeFoundation(network, ChannelCC, ChannelCC, components,
 		CcModulePath(), ctorCC, testDir)
 
 	By("querying the chaincode from cc")
@@ -107,6 +111,7 @@ func DeployFiat(
 	adminAddressBase58Check string,
 	feeSetterAddressBase58Check string,
 	feeAddressSetterAddressBase58Check string,
+	aclChannelName string,
 ) {
 	By("Deploying chaincode fiat")
 
@@ -118,6 +123,7 @@ func DeployFiat(
 			Options: &pb.ChaincodeOptions{
 				DisabledFunctions: []string{"TxBuyToken", "TxBuyBack"},
 			},
+			Acl: &pb.ContractConfigACL{ChannelName: aclChannelName},
 		},
 		Token: &pb.TokenConfig{
 			Name:             "FIAT",
@@ -131,7 +137,7 @@ func DeployFiat(
 	cfgBytesFiat, err := protojson.Marshal(cfgFiat)
 	Expect(err).NotTo(HaveOccurred())
 	ctorFiat := CtorFromSlice([]string{string(cfgBytesFiat)})
-	DeployChaincodeFoundation(network, ChannelFiat, components,
+	DeployChaincodeFoundation(network, ChannelFiat, ChannelFiat, components,
 		FiatModulePath(), ctorFiat, testDir)
 
 	By("querying the chaincode from fiat")
@@ -154,6 +160,7 @@ func DeployIndustrial(
 	adminAddressBase58Check string,
 	feeSetterAddressBase58Check string,
 	feeAddressSetterAddressBase58Check string,
+	aclChannelName string,
 ) {
 	extCfg := industrialtoken.ExtConfig{
 		Name:             "Industrial token",
@@ -173,6 +180,7 @@ func DeployIndustrial(
 			Symbol:   "INDUSTRIAL",
 			RobotSKI: skiRobot,
 			Admin:    &pb.Wallet{Address: adminAddressBase58Check},
+			Acl:      &pb.ContractConfigACL{ChannelName: aclChannelName},
 		},
 	}
 	cfgIndustrial.ExtConfig, _ = anypb.New(&extCfg)
@@ -181,7 +189,7 @@ func DeployIndustrial(
 	Expect(err).NotTo(HaveOccurred())
 	ctorIndustrial := CtorFromSlice([]string{string(cfgBytesIndustrial)})
 	By("Deploying chaincode industrial")
-	DeployChaincodeFoundation(network, ChannelIndustrial, components,
+	DeployChaincodeFoundation(network, ChannelIndustrial, ChannelIndustrial, components,
 		IndustrialModulePath(), ctorIndustrial, testDir)
 
 	By("querying the chaincode from industrial")
@@ -197,18 +205,19 @@ func DeployIndustrial(
 
 func DeployChaincodeFoundation(
 	network *nwo.Network,
-	channel string,
+	channelName string,
+	chaincodeName string,
 	components *nwo.Components,
 	path string,
 	ctor string,
 	testDir string,
 ) {
-	DeployChaincode(network, channel, network.Orderers[0], nwo.Chaincode{
-		Name:            channel,
+	DeployChaincode(network, channelName, network.Orderers[0], nwo.Chaincode{
+		Name:            chaincodeName,
 		Version:         "0.0",
 		Path:            components.Build(path),
 		Lang:            "binary",
-		PackageFile:     filepath.Join(testDir, channel+".tar.gz"),
+		PackageFile:     filepath.Join(testDir, channelName+".tar.gz"),
 		Ctor:            ctor,
 		SignaturePolicy: `AND ('Org1MSP.member','Org2MSP.member')`,
 		Sequence:        "1",

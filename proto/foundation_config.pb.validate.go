@@ -167,7 +167,7 @@ type ConfigMultiError []error
 
 // Error returns a concatenation of all the error messages it wraps.
 func (m ConfigMultiError) Error() string {
-	var msgs []string
+	msgs := make([]string, 0, len(m))
 	for _, err := range m {
 		msgs = append(msgs, err.Error())
 	}
@@ -364,6 +364,35 @@ func (m *ContractConfig) validate(all bool) error {
 
 	// no validation rules for MaxChannelTransferItems
 
+	if all {
+		switch v := interface{}(m.GetAcl()).(type) {
+		case interface{ ValidateAll() error }:
+			if err := v.ValidateAll(); err != nil {
+				errors = append(errors, ContractConfigValidationError{
+					field:  "Acl",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		case interface{ Validate() error }:
+			if err := v.Validate(); err != nil {
+				errors = append(errors, ContractConfigValidationError{
+					field:  "Acl",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		}
+	} else if v, ok := interface{}(m.GetAcl()).(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
+			return ContractConfigValidationError{
+				field:  "Acl",
+				reason: "embedded message failed validation",
+				cause:  err,
+			}
+		}
+	}
+
 	if len(errors) > 0 {
 		return ContractConfigMultiError(errors)
 	}
@@ -378,7 +407,7 @@ type ContractConfigMultiError []error
 
 // Error returns a concatenation of all the error messages it wraps.
 func (m ContractConfigMultiError) Error() string {
-	var msgs []string
+	msgs := make([]string, 0, len(m))
 	for _, err := range m {
 		msgs = append(msgs, err.Error())
 	}
@@ -446,6 +475,110 @@ var _ContractConfig_Symbol_Pattern = regexp.MustCompile("^[A-Z]+[A-Z0-9]+([-_][A
 
 var _ContractConfig_RobotSKI_Pattern = regexp.MustCompile("^[0-9a-f]+$")
 
+// Validate checks the field values on ContractConfigACL with the rules defined
+// in the proto definition for this message. If any rules are violated, the
+// first error encountered is returned, or nil if there are no violations.
+func (m *ContractConfigACL) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on ContractConfigACL with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// ContractConfigACLMultiError, or nil if none found.
+func (m *ContractConfigACL) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *ContractConfigACL) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for ChannelName
+
+	if len(errors) > 0 {
+		return ContractConfigACLMultiError(errors)
+	}
+
+	return nil
+}
+
+// ContractConfigACLMultiError is an error wrapping multiple validation errors
+// returned by ContractConfigACL.ValidateAll() if the designated constraints
+// aren't met.
+type ContractConfigACLMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m ContractConfigACLMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m ContractConfigACLMultiError) AllErrors() []error { return m }
+
+// ContractConfigACLValidationError is the validation error returned by
+// ContractConfigACL.Validate if the designated constraints aren't met.
+type ContractConfigACLValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e ContractConfigACLValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e ContractConfigACLValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e ContractConfigACLValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e ContractConfigACLValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e ContractConfigACLValidationError) ErrorName() string {
+	return "ContractConfigACLValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e ContractConfigACLValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sContractConfigACL.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = ContractConfigACLValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = ContractConfigACLValidationError{}
+
 // Validate checks the field values on CollectorEndpoint with the rules defined
 // in the proto definition for this message. If any rules are violated, the
 // first error encountered is returned, or nil if there are no violations.
@@ -490,7 +623,7 @@ type CollectorEndpointMultiError []error
 
 // Error returns a concatenation of all the error messages it wraps.
 func (m CollectorEndpointMultiError) Error() string {
-	var msgs []string
+	msgs := make([]string, 0, len(m))
 	for _, err := range m {
 		msgs = append(msgs, err.Error())
 	}
@@ -596,7 +729,7 @@ type ChaincodeOptionsMultiError []error
 
 // Error returns a concatenation of all the error messages it wraps.
 func (m ChaincodeOptionsMultiError) Error() string {
-	var msgs []string
+	msgs := make([]string, 0, len(m))
 	for _, err := range m {
 		msgs = append(msgs, err.Error())
 	}
@@ -705,7 +838,7 @@ type WalletMultiError []error
 
 // Error returns a concatenation of all the error messages it wraps.
 func (m WalletMultiError) Error() string {
-	var msgs []string
+	msgs := make([]string, 0, len(m))
 	for _, err := range m {
 		msgs = append(msgs, err.Error())
 	}
@@ -939,7 +1072,7 @@ type TokenConfigMultiError []error
 
 // Error returns a concatenation of all the error messages it wraps.
 func (m TokenConfigMultiError) Error() string {
-	var msgs []string
+	msgs := make([]string, 0, len(m))
 	for _, err := range m {
 		msgs = append(msgs, err.Error())
 	}

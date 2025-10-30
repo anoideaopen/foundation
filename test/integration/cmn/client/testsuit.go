@@ -103,6 +103,10 @@ func NewTestSuite(components *nwo.Components, opts ...UserOption) *FoundationTes
 		Expect(err).NotTo(HaveOccurred())
 	}
 
+	if ts.userOptions.ACLChannelName == "" {
+		ts.userOptions.ACLChannelName = cmn.ChannelACL
+	}
+
 	return ts
 }
 
@@ -334,20 +338,20 @@ func (ts *FoundationTestSuite) DeployChaincodes() {
 	for i, ch := range ts.options.Channels {
 		channelNames[i] = ch.Name
 	}
-	ts.DeployChaincodesByName(channelNames)
+	ts.DeployChaincodesByChannelName(channelNames)
 }
 
-func (ts *FoundationTestSuite) DeployChaincodesByName(channels []string) {
+func (ts *FoundationTestSuite) DeployChaincodesByChannelName(channels []string) {
 	for _, channel := range channels {
 		switch channel {
-		case cmn.ChannelACL:
-			cmn.DeployACL(ts.Network, ts.components, ts.Peer, ts.testDir, ts.skiBackend, ts.admin.PublicKeyBase58, ts.admin.KeyType)
+		case ts.userOptions.ACLChannelName:
+			cmn.DeployACL(ts.Network, ts.components, ts.Peer, ts.testDir, ts.skiBackend, ts.admin.PublicKeyBase58, ts.admin.KeyType, ts.userOptions.ACLChannelName)
 		case cmn.ChannelFiat:
-			cmn.DeployFiat(ts.Network, ts.components, ts.Peer, ts.testDir, ts.skiRobot, ts.admin.AddressBase58Check, ts.feeSetter.AddressBase58Check, ts.feeAddressSetter.AddressBase58Check)
+			cmn.DeployFiat(ts.Network, ts.components, ts.Peer, ts.testDir, ts.skiRobot, ts.admin.AddressBase58Check, ts.feeSetter.AddressBase58Check, ts.feeAddressSetter.AddressBase58Check, ts.userOptions.ACLChannelName)
 		case cmn.ChannelCC:
-			cmn.DeployCC(ts.Network, ts.components, ts.Peer, ts.testDir, ts.skiRobot, ts.admin.AddressBase58Check)
+			cmn.DeployCC(ts.Network, ts.components, ts.Peer, ts.testDir, ts.skiRobot, ts.admin.AddressBase58Check, ts.userOptions.ACLChannelName)
 		case cmn.ChannelIndustrial:
-			cmn.DeployIndustrial(ts.Network, ts.components, ts.Peer, ts.testDir, ts.skiRobot, ts.admin.AddressBase58Check, ts.feeSetter.AddressBase58Check, ts.feeAddressSetter.AddressBase58Check)
+			cmn.DeployIndustrial(ts.Network, ts.components, ts.Peer, ts.testDir, ts.skiRobot, ts.admin.AddressBase58Check, ts.feeSetter.AddressBase58Check, ts.feeAddressSetter.AddressBase58Check, ts.userOptions.ACLChannelName)
 		default:
 			fabricnetwork.DeployChaincodeFn(ts.components, ts.Network, channel, ts.testDir)
 		}
@@ -355,7 +359,7 @@ func (ts *FoundationTestSuite) DeployChaincodesByName(channels []string) {
 }
 
 func (ts *FoundationTestSuite) DeployFiat(adminAddress, feeSetterAddress, feeAddressSetterAddress string) {
-	cmn.DeployFiat(ts.Network, ts.components, ts.Peer, ts.testDir, ts.skiRobot, adminAddress, feeSetterAddress, feeAddressSetterAddress)
+	cmn.DeployFiat(ts.Network, ts.components, ts.Peer, ts.testDir, ts.skiRobot, adminAddress, feeSetterAddress, feeAddressSetterAddress, ts.userOptions.ACLChannelName)
 }
 
 func (ts *FoundationTestSuite) ShutdownNetwork() {

@@ -31,7 +31,7 @@ type TestConfigToken struct {
 	token.BaseToken
 }
 
-// disabledFnContract is for testing disabled functions.
+// a disabledFnContract is for testing disabled functions.
 type disabledFnContract struct {
 	core.BaseContract
 }
@@ -603,4 +603,37 @@ func TestInitWithExtConfig(t *testing.T) {
 	require.NoError(t, err)
 
 	require.True(t, proto.Equal(&m, extCfgEtl))
+}
+
+func TestConfigWithACL(t *testing.T) {
+	t.Parallel()
+
+	mockStub := mockstub.NewMockStub(t)
+
+	user1, err := mocks.NewUserFoundation(pb.KeyType_ed25519)
+	require.NoError(t, err)
+
+	tt := &disabledFnContract{}
+	cfgEtl := &pb.Config{
+		Contract: &pb.ContractConfig{
+			Symbol:   "TT1",
+			RobotSKI: fixtures.RobotHashedCert,
+			Admin:    &pb.Wallet{Address: fixtures.AdminAddr},
+			Acl:      &pb.ContractConfigACL{ChannelName: "acl2"},
+		},
+	}
+
+	rawCfg, err := protojson.Marshal(cfgEtl)
+	require.NoError(t, err)
+
+	cc, err := core.NewCC(tt)
+	require.NoError(t, err)
+
+	mockStub.SetConfig(string(rawCfg))
+
+	// Calling TxTestFunction while it's not disabled
+	resp := mockStub.NbTxInvokeChaincodeSigned(cc, testFunctionName, user1, "", "", "")
+	require.Equal(t, int32(http.StatusOK), resp.GetStatus())
+	require.Empty(t, resp.GetMessage())
+	require.Equal(t, "acl2", config.ACLChannelName)
 }
