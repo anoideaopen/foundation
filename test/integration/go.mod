@@ -59,7 +59,6 @@ require (
 	github.com/cenkalti/backoff/v5 v5.0.2 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cloudflare/cfssl v1.4.1 // indirect
-	github.com/consensys/bavard v0.2.1 // indirect
 	github.com/consensys/gnark-crypto v0.19.0 // indirect
 	github.com/containerd/log v0.1.0 // indirect
 	github.com/crate-crypto/go-eth-kzg v1.4.0 // indirect
