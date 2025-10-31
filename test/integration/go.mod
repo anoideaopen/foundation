@@ -22,7 +22,7 @@ tool (
 require (
 	github.com/anoideaopen/acl v0.1.1-0.20250505195402-a675a2687c7c
 	github.com/anoideaopen/channel-transfer v0.1.2
-	github.com/anoideaopen/foundation v0.1.2-0.20250612204904-44ff92d89759
+	github.com/anoideaopen/foundation v0.1.3
 	github.com/anoideaopen/robot v0.1.1-0.20250505192659-50e17f33e713
 	github.com/btcsuite/btcd/btcutil v1.1.6
 	github.com/fsouza/go-dockerclient v1.12.0

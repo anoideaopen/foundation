@@ -22,15 +22,17 @@ import (
 )
 
 const (
-	FnAddMultisig                        = "addMultisig"
-	FnAddToList                          = "addToList"
-	FnDelFromList                        = "delFromList"
-	FnCheckKeys                          = "checkKeys"
-	FnGetAccInfoFn                       = "getAccountInfo"
-	FnChangePublicKey                    = "changePublicKey"
-	FnChangePublicKeyWithBase58Signature = "changePublicKeyWithBase58Signature"
-	FnChangeMultisigPublicKey            = "changeMultisigPublicKey"
-	FnSetKYC                             = "setkyc"
+	FnAddMultisig                               = "addMultisig"
+	FnAddToList                                 = "addToList"
+	FnDelFromList                               = "delFromList"
+	FnCheckKeys                                 = "checkKeys"
+	FnGetAccInfoFn                              = "getAccountInfo"
+	FnChangePublicKey                           = "changePublicKey"
+	FnChangePublicKeyWithType                   = "changePublicKeyWithType"
+	FnChangePublicKeyWithBase58Signature        = "changePublicKeyWithBase58Signature"
+	FnChangePublicKeyWithTypeAndBase58Signature = "changePublicKeyWithTypeAndBase58Signature"
+	FnChangeMultisigPublicKey                   = "changeMultisigPublicKey"
+	FnSetKYC                                    = "setkyc"
 )
 
 // AddUser adds user to ACL channel
@@ -457,6 +459,48 @@ func (ts *FoundationTestSuite) ChangePublicKey(
 	ts.CheckUserChangedKey(newPubKeyBase58, user.AddressBase58Check)
 }
 
+// ChangePublicKeyWithType - changes user public key with the key type by validators
+func (ts *FoundationTestSuite) ChangePublicKeyWithType(
+	user *mocks.UserFoundation,
+	newPubKeyBase58 string,
+	newKeyType pb.KeyType,
+	reason string,
+	reasonID string,
+	validators ...*mocks.UserFoundation,
+) {
+	ctorArgs := []string{FnChangePublicKeyWithType, user.AddressBase58Check, reason, reasonID, newPubKeyBase58, newKeyType.String(), NewNonceByTime().Get()}
+	validatorMultisignedUser := &mocks.UserFoundationMultisigned{
+		UserID: "multisigned validators",
+		Users:  validators,
+	}
+
+	pKeys, sMsgsByte, err := validatorMultisignedUser.Sign(ctorArgs...)
+	Expect(err).NotTo(HaveOccurred())
+
+	sMsgsStr := make([]string, 0, len(sMsgsByte))
+	for _, sMsgByte := range sMsgsByte {
+		sMsgsStr = append(sMsgsStr, hex.EncodeToString(sMsgByte))
+	}
+
+	ctorArgs = append(append(ctorArgs, pKeys...), sMsgsStr...)
+	sess, err := ts.Network.PeerUserSession(ts.Peer, ts.MainUserName, commands.ChaincodeInvoke{
+		ChannelID: cmn.ChannelACL,
+		Orderer:   ts.Network.OrdererAddress(ts.Orderer, nwo.ListenPort),
+		Name:      cmn.ChannelACL,
+		Ctor:      cmn.CtorFromSlice(ctorArgs),
+		PeerAddresses: []string{
+			ts.Network.PeerAddress(ts.Network.Peer(ts.Org1Name, ts.Peer.Name), nwo.ListenPort),
+			ts.Network.PeerAddress(ts.Network.Peer(ts.Org2Name, ts.Peer.Name), nwo.ListenPort),
+		},
+		WaitForEvent: true,
+	})
+	Expect(err).NotTo(HaveOccurred())
+	Eventually(sess, ts.Network.EventuallyTimeout).Should(gexec.Exit(0))
+	Expect(sess.Err).To(gbytes.Say("Chaincode invoke successful. result: status:200"))
+
+	ts.CheckUserChangedKey(newPubKeyBase58, user.AddressBase58Check)
+}
+
 // ChangePublicKeyBase58signed - changes user public key by validators with base58 signatures
 func (ts *FoundationTestSuite) ChangePublicKeyBase58signed(
 	user *mocks.UserFoundation,
@@ -487,6 +531,51 @@ func (ts *FoundationTestSuite) ChangePublicKeyBase58signed(
 		ChannelID: ts.userOptions.ACLChannelName,
 		Orderer:   ts.Network.OrdererAddress(ts.Orderer, nwo.ListenPort),
 		Name:      cmn.ChaincodeACL,
+		Ctor:      cmn.CtorFromSlice(ctorArgs),
+		PeerAddresses: []string{
+			ts.Network.PeerAddress(ts.Network.Peer(ts.Org1Name, ts.Peer.Name), nwo.ListenPort),
+			ts.Network.PeerAddress(ts.Network.Peer(ts.Org2Name, ts.Peer.Name), nwo.ListenPort),
+		},
+		WaitForEvent: true,
+	})
+	Expect(err).NotTo(HaveOccurred())
+	Eventually(sess, ts.Network.EventuallyTimeout).Should(gexec.Exit(0))
+	Expect(sess.Err).To(gbytes.Say("Chaincode invoke successful. result: status:200"))
+
+	ts.CheckUserChangedKey(newPubKeyBase58, user.AddressBase58Check)
+}
+
+// ChangePublicKeyWithTypeBase58signed - changes user public key by validators with base58 signatures
+func (ts *FoundationTestSuite) ChangePublicKeyWithTypeBase58signed(
+	user *mocks.UserFoundation,
+	requestID string,
+	chaincodeName string,
+	channelID string,
+	newPubKeyBase58 string,
+	newPubKeyType pb.KeyType,
+	reason string,
+	reasonID string,
+	validators ...*mocks.UserFoundation,
+) {
+	ctorArgs := []string{FnChangePublicKeyWithTypeAndBase58Signature, requestID, chaincodeName, channelID, user.AddressBase58Check, reason, reasonID, newPubKeyBase58, newPubKeyType.String(), NewNonceByTime().Get()}
+	validatorMultisignedUser := &mocks.UserFoundationMultisigned{
+		UserID: "multisigned validators",
+		Users:  validators,
+	}
+
+	pKeys, sMsgsByte, err := validatorMultisignedUser.Sign(ctorArgs...)
+	Expect(err).NotTo(HaveOccurred())
+
+	sMsgsStr := make([]string, 0, len(sMsgsByte))
+	for _, sMsgByte := range sMsgsByte {
+		sMsgsStr = append(sMsgsStr, base58.Encode(sMsgByte))
+	}
+
+	ctorArgs = append(append(ctorArgs, pKeys...), sMsgsStr...)
+	sess, err := ts.Network.PeerUserSession(ts.Peer, ts.MainUserName, commands.ChaincodeInvoke{
+		ChannelID: cmn.ChannelACL,
+		Orderer:   ts.Network.OrdererAddress(ts.Orderer, nwo.ListenPort),
+		Name:      cmn.ChannelACL,
 		Ctor:      cmn.CtorFromSlice(ctorArgs),
 		PeerAddresses: []string{
 			ts.Network.PeerAddress(ts.Network.Peer(ts.Org1Name, ts.Peer.Name), nwo.ListenPort),
