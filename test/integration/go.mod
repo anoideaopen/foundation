@@ -27,7 +27,7 @@ require (
 	github.com/btcsuite/btcd/btcutil v1.1.6
 	github.com/fsouza/go-dockerclient v1.12.0
 	github.com/google/uuid v1.6.0
-	github.com/hyperledger/fabric v1.4.0-rc1.0.20251012211530-60d501d4140c
+	github.com/hyperledger/fabric v1.4.0-rc1.0.20251104071554-c6e65c6704fe
 	github.com/hyperledger/fabric-protos-go-apiv2 v0.3.7
 	github.com/onsi/ginkgo/v2 v2.27.2
 	github.com/onsi/gomega v1.38.2
