@@ -6,8 +6,8 @@ import (
 	pbfound "github.com/anoideaopen/foundation/proto"
 	"github.com/anoideaopen/foundation/test/integration/cmn/client/types"
 	"github.com/anoideaopen/robot/helpers/ntesting"
-	docker "github.com/fsouza/go-dockerclient"
 	"github.com/hyperledger/fabric/integration"
+	dcli "github.com/moby/moby/client"
 )
 
 type InvokeInterface interface {
@@ -133,7 +133,7 @@ type FieldGetter interface {
 	// TestDir returns testsuite temporary test directory
 	TestDir() string
 	// DockerClient returns testsuite docker client
-	DockerClient() *docker.Client
+	DockerClient() dcli.APIClient
 	// CiData return CiData for robot testing
 	CiData(opts ...CiDataOption) ntesting.CiTestData
 }

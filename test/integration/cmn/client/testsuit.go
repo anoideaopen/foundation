@@ -12,11 +12,11 @@ import (
 	"github.com/anoideaopen/foundation/test/integration/cmn/fabricnetwork"
 	"github.com/anoideaopen/foundation/test/integration/cmn/runner"
 	"github.com/anoideaopen/robot/helpers/ntesting"
-	docker "github.com/fsouza/go-dockerclient"
 	"github.com/hyperledger/fabric/integration"
 	"github.com/hyperledger/fabric/integration/nwo"
 	"github.com/hyperledger/fabric/integration/nwo/fabricconfig"
 	runnerFbk "github.com/hyperledger/fabric/integration/nwo/runner"
+	dcli "github.com/moby/moby/client"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gbytes"
@@ -46,7 +46,7 @@ type FoundationTestSuite struct {
 	options             *networkOptions
 	userOptions         *userOptions
 	testDir             string
-	dockerClient        *docker.Client
+	dockerClient        dcli.APIClient
 	redisDB             *runner.RedisDB
 	redisProcess        ifrit.Process
 	robotProc           ifrit.Process
@@ -68,7 +68,7 @@ func NewTestSuite(components *nwo.Components, opts ...UserOption) *FoundationTes
 	testDir, err := os.MkdirTemp("", "foundation")
 	Expect(err).NotTo(HaveOccurred())
 
-	dockerClient, err := docker.NewClientFromEnv()
+	dockerClient, err := dcli.New(dcli.FromEnv)
 	Expect(err).NotTo(HaveOccurred())
 
 	ts := &FoundationTestSuite{
@@ -254,7 +254,7 @@ func (ts *FoundationTestSuite) TestDir() string {
 	return ts.testDir
 }
 
-func (ts *FoundationTestSuite) DockerClient() *docker.Client {
+func (ts *FoundationTestSuite) DockerClient() dcli.APIClient {
 	return ts.dockerClient
 }
 
