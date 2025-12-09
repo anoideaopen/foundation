@@ -12,11 +12,11 @@ import (
 	"github.com/anoideaopen/foundation/test/integration/cmn"
 	"github.com/anoideaopen/foundation/test/integration/cmn/client"
 	"github.com/anoideaopen/foundation/test/integration/cmn/fabricnetwork"
-	docker "github.com/fsouza/go-dockerclient"
 	"github.com/hyperledger/fabric/integration"
 	"github.com/hyperledger/fabric/integration/nwo"
 	"github.com/hyperledger/fabric/integration/nwo/commands"
 	"github.com/hyperledger/fabric/integration/nwo/fabricconfig"
+	dcli "github.com/moby/moby/client"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gbytes"
@@ -30,7 +30,7 @@ var _ = Describe("Basic foundation Tests", func() {
 	Describe("smartbft standart test", func() {
 		var (
 			testDir          string
-			cli              *docker.Client
+			cli              dcli.APIClient
 			network          *nwo.Network
 			networkProcess   ifrit.Process
 			ordererProcesses []ifrit.Process
@@ -45,7 +45,7 @@ var _ = Describe("Basic foundation Tests", func() {
 			testDir, err = os.MkdirTemp("", "foundation")
 			Expect(err).NotTo(HaveOccurred())
 
-			cli, err = docker.NewClientFromEnv()
+			cli, err = dcli.New(dcli.FromEnv)
 			Expect(err).NotTo(HaveOccurred())
 		})
 

@@ -1,19 +1,23 @@
 package runner
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"fmt"
 	"io"
 	"net"
+	"net/netip"
 	"os"
 	"runtime/debug"
 	"strconv"
 	"sync"
 	"time"
 
-	docker "github.com/fsouza/go-dockerclient"
 	runnerFbk "github.com/hyperledger/fabric/integration/nwo/runner"
+	dcontainer "github.com/moby/moby/api/types/container"
+	dnetwork "github.com/moby/moby/api/types/network"
+	dcli "github.com/moby/moby/client"
 	"github.com/redis/go-redis/v9"
 	"github.com/tedsuo/ifrit"
 )
@@ -24,16 +28,15 @@ const (
 
 // RedisDB manages the execution of an instance of a dockerized RedisDB for tests.
 type RedisDB struct {
-	Client        *docker.Client
+	Client        dcli.APIClient
 	Image         string
 	HostIP        string
 	HostPort      int
-	ContainerPort docker.Port
+	ContainerPort dnetwork.Port
 	Name          string
 	StartTimeout  time.Duration
 	Binds         []string
 
-	ErrorStream  io.Writer
 	OutputStream io.Writer
 
 	creator          string
@@ -60,8 +63,8 @@ func (r *RedisDB) Run(sigCh <-chan os.Signal, ready chan<- struct{}) error {
 		r.HostIP = "127.0.0.1"
 	}
 
-	if r.ContainerPort == ("") {
-		r.ContainerPort = "6379/tcp"
+	if r.ContainerPort.IsZero() || r.ContainerPort.Num() == 0 {
+		r.ContainerPort = dnetwork.MustParsePort("6379/tcp")
 	}
 
 	if r.StartTimeout == 0 {
@@ -69,55 +72,53 @@ func (r *RedisDB) Run(sigCh <-chan os.Signal, ready chan<- struct{}) error {
 	}
 
 	if r.Client == nil {
-		client, err := docker.NewClientFromEnv()
+		client, err := dcli.New(dcli.FromEnv)
 		if err != nil {
 			return err
 		}
 		r.Client = client
 	}
 
-	hostConfig := &docker.HostConfig{
-		AutoRemove: true,
-		PortBindings: map[docker.Port][]docker.PortBinding{
+	hostConfig := &dcontainer.HostConfig{
+		Binds: r.Binds,
+		PortBindings: map[dnetwork.Port][]dnetwork.PortBinding{
 			r.ContainerPort: {{
-				HostIP:   r.HostIP,
+				HostIP:   netip.MustParseAddr(r.HostIP),
 				HostPort: strconv.Itoa(r.HostPort),
 			}},
 		},
-		Binds: r.Binds,
+		AutoRemove: true,
 	}
 
-	container, err := r.Client.CreateContainer(
-		docker.CreateContainerOptions{
-			Name: r.Name,
-			Config: &docker.Config{
-				Image: r.Image,
-			},
-			HostConfig: hostConfig,
+	container, err := r.Client.ContainerCreate(context.Background(), dcli.ContainerCreateOptions{
+		Config: &dcontainer.Config{
+			Image: r.Image,
 		},
-	)
+		HostConfig: hostConfig,
+		Name:       r.Name,
+	})
 	if err != nil {
 		return err
 	}
 	r.containerID = container.ID
 
-	err = r.Client.StartContainer(container.ID, nil)
+	_, err = r.Client.ContainerStart(context.Background(), container.ID, dcli.ContainerStartOptions{})
 	if err != nil {
 		return err
 	}
 	defer func() { err = r.Stop() }()
 
-	container, err = r.Client.InspectContainerWithOptions(docker.InspectContainerOptions{ID: container.ID})
+	res, err := r.Client.ContainerInspect(context.Background(), container.ID, dcli.ContainerInspectOptions{})
 	if err != nil {
 		return err
 	}
 	r.hostAddress = net.JoinHostPort(
-		container.NetworkSettings.Ports[r.ContainerPort][0].HostIP,
-		container.NetworkSettings.Ports[r.ContainerPort][0].HostPort,
+		res.Container.NetworkSettings.Ports[r.ContainerPort][0].HostIP.String(),
+		res.Container.NetworkSettings.Ports[r.ContainerPort][0].HostPort,
 	)
 	r.containerAddress = net.JoinHostPort(
-		container.NetworkSettings.IPAddress,
-		r.ContainerPort.Port(),
+		res.Container.NetworkSettings.Networks[res.Container.HostConfig.NetworkMode.NetworkName()].IPAddress.String(),
+		strconv.Itoa(int(r.ContainerPort.Num())),
 	)
 
 	streamCtx, streamCancel := context.WithCancel(context.Background())
@@ -201,35 +202,61 @@ func (r *RedisDB) ready(ctx context.Context, addr string) <-chan struct{} {
 func (r *RedisDB) wait() <-chan error {
 	exitCh := make(chan error)
 	go func() {
-		exitCode, err := r.Client.WaitContainer(r.containerID)
-		if err == nil {
-			err = fmt.Errorf("redisdb: process exited with %d", exitCode)
+		resWait := r.Client.ContainerWait(context.Background(), r.containerID, dcli.ContainerWaitOptions{})
+		select {
+		case res := <-resWait.Result:
+			err := fmt.Errorf("redisdb: process exited with %d", res.StatusCode)
+			exitCh <- err
+		case err := <-resWait.Error:
+			exitCh <- err
 		}
-		exitCh <- err
 	}()
 
 	return exitCh
 }
 
 func (r *RedisDB) streamLogs(ctx context.Context) {
-	if r.ErrorStream == nil && r.OutputStream == nil {
+	if r.OutputStream == nil {
 		return
 	}
 
-	logOptions := docker.LogsOptions{
-		Context:      ctx,
-		Container:    r.containerID,
-		Follow:       true,
-		ErrorStream:  r.ErrorStream,
-		OutputStream: r.OutputStream,
-		Stderr:       r.ErrorStream != nil,
-		Stdout:       r.OutputStream != nil,
-	}
+	go func() {
+		res, err := r.Client.ContainerLogs(ctx, r.containerID, dcli.ContainerLogsOptions{
+			ShowStdout: true,
+			ShowStderr: true,
+			Follow:     true,
+		})
+		if err != nil {
+			fmt.Fprintf(r.OutputStream, "log stream ended with error: %s", err)
+		}
+		defer res.Close()
 
-	err := r.Client.Logs(logOptions)
-	if err != nil {
-		fmt.Fprintf(r.ErrorStream, "log stream ended with error: %s", err)
-	}
+		reader := bufio.NewReader(res)
+
+		for {
+			select {
+			case <-ctx.Done():
+				fmt.Fprint(r.OutputStream, "log stream ended with cancel context")
+				return
+			default:
+				// Loop forever dumping lines of text into the containerLogger
+				// until the pipe is closed
+				line, err := reader.ReadString('\n')
+				if len(line) > 0 {
+					r.OutputStream.Write([]byte(line))
+				}
+				switch err {
+				case nil:
+				case io.EOF:
+					fmt.Fprintf(r.OutputStream, "Container %s has closed its IO channel", r.containerID)
+					return
+				default:
+					fmt.Fprintf(r.OutputStream, "Error reading container output: %s", err)
+					return
+				}
+			}
+		}
+	}()
 }
 
 // Address returns the address successfully used by the readiness check.
@@ -276,7 +303,10 @@ func (r *RedisDB) Stop() error {
 	r.stopped = true
 	r.mutex.Unlock()
 
-	err := r.Client.StopContainer(r.containerID, 0)
+	t := 0
+	_, err := r.Client.ContainerStop(context.Background(), r.containerID, dcli.ContainerStopOptions{
+		Timeout: &t,
+	})
 	if err != nil {
 		return err
 	}
