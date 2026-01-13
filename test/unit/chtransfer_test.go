@@ -10,6 +10,7 @@ import (
 	"github.com/anoideaopen/foundation/core"
 	"github.com/anoideaopen/foundation/core/balance"
 	"github.com/anoideaopen/foundation/core/cctransfer"
+	"github.com/anoideaopen/foundation/core/types"
 	"github.com/anoideaopen/foundation/core/types/big"
 	"github.com/anoideaopen/foundation/mocks"
 	"github.com/anoideaopen/foundation/mocks/mockstub"
@@ -36,8 +37,8 @@ func TestChannelTransfer(t *testing.T) {
 	id := uuid.NewString()
 
 	itemsCCpb := []*pbfound.CCTransferItem{
-		{Token: "CC_1", Amount: new(big.Int).SetInt64(450).Bytes()},
-		{Token: "CC_2", Amount: new(big.Int).SetInt64(900).Bytes()},
+		{Token: "CC_1", Amount: new(big.Int).SetInt64(450).Bytes(), User: user.AddressBytes},
+		{Token: "CC_2", Amount: new(big.Int).SetInt64(900).Bytes(), User: user.AddressBytes},
 	}
 	itemsCC := []core.TransferItem{
 		{Token: "CC_1", Amount: new(big.Int).SetInt64(450)},
@@ -47,8 +48,8 @@ func TestChannelTransfer(t *testing.T) {
 	require.NoError(t, err)
 
 	itemsVTpb := []*pbfound.CCTransferItem{
-		{Token: "VT_1", Amount: new(big.Int).SetInt64(450).Bytes()},
-		{Token: "VT_2", Amount: new(big.Int).SetInt64(900).Bytes()},
+		{Token: "VT_1", Amount: new(big.Int).SetInt64(450).Bytes(), User: user.AddressBytes},
+		{Token: "VT_2", Amount: new(big.Int).SetInt64(900).Bytes(), User: user.AddressBytes},
 	}
 	itemsVT := []core.TransferItem{
 		{Token: "VT_1", Amount: new(big.Int).SetInt64(450)},
@@ -105,10 +106,11 @@ func TestChannelTransfer(t *testing.T) {
 							Id:               id,
 							From:             "CC",
 							To:               "VT",
-							Token:            "CC",
 							User:             user.AddressBytes,
-							Amount:           new(big.Int).SetUint64(450).Bytes(),
 							ForwardDirection: true,
+							Items: []*pbfound.CCTransferItem{
+								{Token: "CC", Amount: new(big.Int).SetInt64(450).Bytes(), User: user.AddressBytes},
+							},
 						}))
 						j++
 					}
@@ -149,10 +151,11 @@ func TestChannelTransfer(t *testing.T) {
 							Id:               id,
 							From:             "CC",
 							To:               "VT",
-							Token:            "VT",
 							User:             user.AddressBytes,
-							Amount:           new(big.Int).SetUint64(450).Bytes(),
 							ForwardDirection: false,
+							Items: []*pbfound.CCTransferItem{
+								{Token: "VT", Amount: new(big.Int).SetInt64(450).Bytes(), User: user.AddressBytes},
+							},
 						}))
 						j++
 					}
@@ -247,10 +250,11 @@ func TestChannelTransfer(t *testing.T) {
 							Id:               id,
 							From:             "CC",
 							To:               "VT",
-							Token:            "CC",
-							User:             user.AddressBytes,
-							Amount:           new(big.Int).SetUint64(450).Bytes(),
+							User:             issuer.AddressBytes,
 							ForwardDirection: true,
+							Items: []*pbfound.CCTransferItem{
+								{Token: "CC", Amount: new(big.Int).SetInt64(450).Bytes(), User: user.AddressBytes},
+							},
 						}))
 						j++
 					}
@@ -291,10 +295,11 @@ func TestChannelTransfer(t *testing.T) {
 							Id:               id,
 							From:             "CC",
 							To:               "VT",
-							Token:            "VT",
-							User:             user.AddressBytes,
-							Amount:           new(big.Int).SetUint64(450).Bytes(),
+							User:             issuer.AddressBytes,
 							ForwardDirection: false,
+							Items: []*pbfound.CCTransferItem{
+								{Token: "VT", Amount: new(big.Int).SetInt64(450).Bytes(), User: user.AddressBytes},
+							},
 						}))
 						j++
 					}
@@ -341,10 +346,52 @@ func TestChannelTransfer(t *testing.T) {
 		{
 			description:  "channelTransferByAdmin - the admin sends the transfer to himself",
 			functionName: "channelTransferByAdmin",
-			errorMsg:     cctransfer.ErrInvalidIDUser.Error(),
 			signUser:     issuer,
 			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				userBalanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{issuer.AddressBase58Check})
+				require.NoError(t, err)
+				mockStub.GetStateCallsMap[userBalanceKey] = new(big.Int).SetUint64(450).Bytes()
+
 				return []string{id, "VT", issuer.AddressBase58Check, "CC", "450"}
+			},
+			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, resp *pbfound.TxResponse) {
+				userBalanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{issuer.AddressBase58Check})
+				require.NoError(t, err)
+
+				givenBalanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeGiven.String(), []string{"VT"})
+				require.NoError(t, err)
+
+				var j int
+				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+					k, v := mockStub.PutStateArgsForCall(i)
+					if k == userBalanceKey {
+						require.Equal(t, new(big.Int).SetUint64(0).Bytes(), v)
+						j++
+					} else if k == givenBalanceKey {
+						require.Equal(t, new(big.Int).SetUint64(450).Bytes(), v)
+						j++
+					} else if k == "/transfer/from/"+id {
+						s := &pbfound.CCTransfer{}
+						err = protojson.Unmarshal(v, s)
+						require.NoError(t, err)
+						require.True(t, pb.Equal(s, &pbfound.CCTransfer{
+							Id:               id,
+							From:             "CC",
+							To:               "VT",
+							User:             issuer.AddressBytes,
+							ForwardDirection: true,
+							Items: []*pbfound.CCTransferItem{
+								{Token: "CC", Amount: new(big.Int).SetInt64(450).Bytes(), User: issuer.AddressBytes},
+							},
+						}))
+						j++
+					}
+
+					if j == 3 {
+						return
+					}
+				}
+				require.Fail(t, "not found checking data")
 			},
 		},
 		{
@@ -504,6 +551,22 @@ func TestChannelTransfer(t *testing.T) {
 			},
 		},
 		{
+			description:  "channelMultiTransferByCustomer - invalid address",
+			functionName: "channelMultiTransferByCustomer",
+			errorMsg:     cctransfer.ErrInvalidMultiAddress.Error(),
+			signUser:     user,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				items := []core.TransferItem{
+					{Token: "CC_1", Amount: new(big.Int).SetInt64(450), User: &types.Address{Address: user.AddressBytes}},
+					{Token: "CC_1", Amount: new(big.Int).SetInt64(450), User: &types.Address{Address: issuer.AddressBytes}},
+				}
+				itemsJSON, err := json.Marshal(items)
+				require.NoError(t, err)
+
+				return []string{id, "VT", string(itemsJSON)}
+			},
+		},
+		{
 			description:  "channelMultiTransferByCustomer - invalid items count found 101",
 			functionName: "channelMultiTransferByCustomer",
 			errorMsg:     "invalid argument transfer items count found 101 but expected from 1 to 100",
@@ -609,7 +672,7 @@ func TestChannelTransfer(t *testing.T) {
 							Id:               id,
 							From:             "CC",
 							To:               "VT",
-							User:             user.AddressBytes,
+							User:             issuer.AddressBytes,
 							ForwardDirection: true,
 							Items:            itemsCCpb,
 						}))
@@ -662,7 +725,7 @@ func TestChannelTransfer(t *testing.T) {
 							Id:               id,
 							From:             "CC",
 							To:               "VT",
-							User:             user.AddressBytes,
+							User:             issuer.AddressBytes,
 							ForwardDirection: false,
 							Items:            itemsVTpb,
 						}))
@@ -670,6 +733,168 @@ func TestChannelTransfer(t *testing.T) {
 					}
 
 					if j == 3 {
+						return
+					}
+				}
+				require.Fail(t, "not found checking data")
+			},
+		},
+		{
+			description:  "channelMultiTransferByAdmin forward (version 3) - ok",
+			functionName: "channelMultiTransferByAdmin",
+			signUser:     issuer,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				userBalanceKey1, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user.AddressBase58Check, "1"})
+				require.NoError(t, err)
+				mockStub.GetStateCallsMap[userBalanceKey1] = new(big.Int).SetUint64(450).Bytes()
+
+				userBalanceKey2, err := mockStub.CreateCompositeKey(balance.BalanceTypeTokenLocked.String(), []string{user.AddressBase58Check, "2"})
+				require.NoError(t, err)
+				mockStub.GetStateCallsMap[userBalanceKey2] = new(big.Int).SetUint64(900).Bytes()
+
+				userBalanceKey3, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{issuer.AddressBase58Check, "2"})
+				require.NoError(t, err)
+				mockStub.GetStateCallsMap[userBalanceKey3] = new(big.Int).SetUint64(100).Bytes()
+
+				itemsFull := []core.TransferItem{
+					{Token: "CC_1", Amount: new(big.Int).SetInt64(450), User: &types.Address{Address: user.AddressBytes}, Hold: false},
+					{Token: "CC_2", Amount: new(big.Int).SetInt64(900), User: &types.Address{Address: user.AddressBytes}, Hold: true},
+					{Token: "CC_2", Amount: new(big.Int).SetInt64(100), User: &types.Address{Address: issuer.AddressBytes}, Hold: false},
+				}
+				itemsFullJSON, err := json.Marshal(itemsFull)
+				require.NoError(t, err)
+
+				return []string{id, "VT", "", string(itemsFullJSON)}
+			},
+			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, resp *pbfound.TxResponse) {
+				userBalanceKey1, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user.AddressBase58Check, "1"})
+				require.NoError(t, err)
+
+				userBalanceKey2, err := mockStub.CreateCompositeKey(balance.BalanceTypeTokenLocked.String(), []string{user.AddressBase58Check, "2"})
+				require.NoError(t, err)
+
+				userBalanceKey3, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{issuer.AddressBase58Check, "2"})
+				require.NoError(t, err)
+
+				givenBalanceKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeGiven.String(), []string{"VT"})
+				require.NoError(t, err)
+
+				var j int
+				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+					k, v := mockStub.PutStateArgsForCall(i)
+					if k == userBalanceKey1 {
+						require.Equal(t, new(big.Int).SetUint64(0).Bytes(), v)
+						j++
+					} else if k == userBalanceKey2 {
+						require.Equal(t, new(big.Int).SetUint64(0).Bytes(), v)
+						j++
+					} else if k == userBalanceKey3 {
+						require.Equal(t, new(big.Int).SetUint64(0).Bytes(), v)
+						j++
+					} else if k == givenBalanceKey {
+						require.Equal(t, new(big.Int).SetUint64(1450).Bytes(), v)
+						j++
+					} else if k == "/transfer/from/"+id {
+						s := &pbfound.CCTransfer{}
+						err = protojson.Unmarshal(v, s)
+						require.NoError(t, err)
+
+						itemsFullpb := []*pbfound.CCTransferItem{
+							{Token: "CC_1", Amount: new(big.Int).SetInt64(450).Bytes(), User: user.AddressBytes, Hold: false},
+							{Token: "CC_2", Amount: new(big.Int).SetInt64(900).Bytes(), User: user.AddressBytes, Hold: true},
+							{Token: "CC_2", Amount: new(big.Int).SetInt64(100).Bytes(), User: issuer.AddressBytes, Hold: false},
+						}
+
+						require.True(t, pb.Equal(s, &pbfound.CCTransfer{
+							Id:               id,
+							From:             "CC",
+							To:               "VT",
+							User:             issuer.AddressBytes,
+							ForwardDirection: true,
+							Items:            itemsFullpb,
+						}))
+						j++
+					}
+
+					if j == 5 {
+						return
+					}
+				}
+				require.Fail(t, "not found checking data")
+			},
+		},
+		{
+			description:  "channelMultiTransferByAdmin backward (version 3) - ok",
+			functionName: "channelMultiTransferByAdmin",
+			signUser:     issuer,
+			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
+				userBalanceKey1, err := mockStub.CreateCompositeKey(balance.BalanceTypeAllowed.String(), []string{user.AddressBase58Check, "VT_1"})
+				require.NoError(t, err)
+				mockStub.GetStateCallsMap[userBalanceKey1] = new(big.Int).SetUint64(450).Bytes()
+
+				userBalanceKey2, err := mockStub.CreateCompositeKey(balance.BalanceTypeAllowedLocked.String(), []string{user.AddressBase58Check, "VT_2"})
+				require.NoError(t, err)
+				mockStub.GetStateCallsMap[userBalanceKey2] = new(big.Int).SetUint64(900).Bytes()
+
+				userBalanceKey3, err := mockStub.CreateCompositeKey(balance.BalanceTypeAllowed.String(), []string{issuer.AddressBase58Check, "VT_2"})
+				require.NoError(t, err)
+				mockStub.GetStateCallsMap[userBalanceKey3] = new(big.Int).SetUint64(100).Bytes()
+
+				itemsFull := []core.TransferItem{
+					{Token: "VT_1", Amount: new(big.Int).SetInt64(450), User: &types.Address{Address: user.AddressBytes}, Hold: false},
+					{Token: "VT_2", Amount: new(big.Int).SetInt64(900), User: &types.Address{Address: user.AddressBytes}, Hold: true},
+					{Token: "VT_2", Amount: new(big.Int).SetInt64(100), User: &types.Address{Address: issuer.AddressBytes}, Hold: false},
+				}
+				itemsFullJSON, err := json.Marshal(itemsFull)
+				require.NoError(t, err)
+
+				return []string{id, "VT", "", string(itemsFullJSON)}
+			},
+			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, resp *pbfound.TxResponse) {
+				userBalanceKey1, err := mockStub.CreateCompositeKey(balance.BalanceTypeAllowed.String(), []string{user.AddressBase58Check, "VT_1"})
+				require.NoError(t, err)
+
+				userBalanceKey2, err := mockStub.CreateCompositeKey(balance.BalanceTypeAllowedLocked.String(), []string{user.AddressBase58Check, "VT_2"})
+				require.NoError(t, err)
+
+				userBalanceKey3, err := mockStub.CreateCompositeKey(balance.BalanceTypeAllowed.String(), []string{issuer.AddressBase58Check, "VT_2"})
+				require.NoError(t, err)
+
+				var j int
+				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+					k, v := mockStub.PutStateArgsForCall(i)
+					if k == userBalanceKey1 {
+						require.Equal(t, new(big.Int).SetUint64(0).Bytes(), v)
+						j++
+					} else if k == userBalanceKey2 {
+						require.Equal(t, new(big.Int).SetUint64(0).Bytes(), v)
+						j++
+					} else if k == userBalanceKey3 {
+						require.Equal(t, new(big.Int).SetUint64(0).Bytes(), v)
+						j++
+					} else if k == "/transfer/from/"+id {
+						s := &pbfound.CCTransfer{}
+						err = protojson.Unmarshal(v, s)
+						require.NoError(t, err)
+
+						itemsFullpb := []*pbfound.CCTransferItem{
+							{Token: "VT_1", Amount: new(big.Int).SetInt64(450).Bytes(), User: user.AddressBytes, Hold: false},
+							{Token: "VT_2", Amount: new(big.Int).SetInt64(900).Bytes(), User: user.AddressBytes, Hold: true},
+							{Token: "VT_2", Amount: new(big.Int).SetInt64(100).Bytes(), User: issuer.AddressBytes, Hold: false},
+						}
+
+						require.True(t, pb.Equal(s, &pbfound.CCTransfer{
+							Id:               id,
+							From:             "CC",
+							To:               "VT",
+							User:             issuer.AddressBytes,
+							ForwardDirection: false,
+							Items:            itemsFullpb,
+						}))
+						j++
+					}
+
+					if j == 4 {
 						return
 					}
 				}

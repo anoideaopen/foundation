@@ -66,6 +66,48 @@ func TokenBalanceLock(
 	)
 }
 
+func TokenBalanceLockWithTicker(
+	stub shim.ChaincodeStubInterface,
+	symbol string,
+	address *types.Address,
+	amount *big.Int,
+	ticker string,
+	opts ...LockOpt,
+) error {
+	opt := applyLockOpts(opts)
+	if opt.reason == `` {
+		opt.reason = DefaultBalanceLockReason
+	}
+
+	token, separator := "", ""
+	parts := strings.Split(ticker, "_")
+	if len(parts) > 1 {
+		separator = "_"
+		token = parts[len(parts)-1]
+	}
+
+	if stub, ok := stub.(Accounting); ok {
+		stub.AddAccountingRecord(
+			symbol+separator+token,
+			address,
+			address,
+			amount,
+			balance.BalanceTypeToken,
+			balance.BalanceTypeTokenLocked,
+			opt.reason,
+		)
+	}
+	return balance.Move(
+		stub,
+		balance.BalanceTypeToken,
+		address.String(),
+		balance.BalanceTypeTokenLocked,
+		address.String(),
+		token,
+		&amount.Int,
+	)
+}
+
 func TokenBalanceUnlock(
 	stub shim.ChaincodeStubInterface,
 	symbol string,
@@ -96,6 +138,48 @@ func TokenBalanceUnlock(
 		balance.BalanceTypeToken,
 		address.String(),
 		"",
+		&amount.Int,
+	)
+}
+
+func TokenBalanceUnlockWithTicker(
+	stub shim.ChaincodeStubInterface,
+	symbol string,
+	address *types.Address,
+	amount *big.Int,
+	ticker string,
+	opts ...LockOpt,
+) error {
+	opt := applyLockOpts(opts)
+	if opt.reason == `` {
+		opt.reason = DefaultBalanceUnlockReason
+	}
+
+	token, separator := "", ""
+	parts := strings.Split(ticker, "_")
+	if len(parts) > 1 {
+		separator = "_"
+		token = parts[len(parts)-1]
+	}
+
+	if stub, ok := stub.(Accounting); ok {
+		stub.AddAccountingRecord(
+			symbol+separator+token,
+			address,
+			address,
+			amount,
+			balance.BalanceTypeTokenLocked,
+			balance.BalanceTypeToken,
+			opt.reason,
+		)
+	}
+	return balance.Move(
+		stub,
+		balance.BalanceTypeTokenLocked,
+		address.String(),
+		balance.BalanceTypeToken,
+		address.String(),
+		token,
 		&amount.Int,
 	)
 }
