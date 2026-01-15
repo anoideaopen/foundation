@@ -17,8 +17,10 @@ import (
 const defaultMaxChannelTransferItems = 100
 
 type TransferItem struct {
-	Token  string   `json:"token"`
-	Amount *big.Int `json:"amount"`
+	Token  string         `json:"token"`
+	Amount *big.Int       `json:"amount"`
+	User   *types.Address `json:"user,omitempty"`
+	Hold   bool           `json:"hold,omitempty"`
 }
 
 type typeOperation int
@@ -54,7 +56,7 @@ func (bc *BaseContract) TxChannelTransferByCustomer(
 	token string,
 	amount *big.Int,
 ) (string, error) {
-	return bc.createCCTransferFrom(idTransfer, to, sender.Address(), token, amount)
+	return bc.createCCTransferFrom(sender, false, idTransfer, to, sender.Address(), token, amount)
 }
 
 // TxChannelMultiTransferByCustomer - transaction initiating transfer between channels.
@@ -66,7 +68,7 @@ func (bc *BaseContract) TxChannelMultiTransferByCustomer(
 	to string,
 	items []TransferItem,
 ) (string, error) {
-	return bc.createMultiCCTransferFrom(idTransfer, to, sender.Address(), items)
+	return bc.createMultiCCTransferFrom(sender, false, idTransfer, to, sender.Address(), items)
 }
 
 // TxChannelTransferByAdmin - transaction initiating transfer between channels.
@@ -93,12 +95,8 @@ func (bc *BaseContract) TxChannelTransferByAdmin(
 		return "", fmt.Errorf("creating admin address: %w", err)
 	}
 
-	if sender.Equal(idUser) {
-		return "", cctransfer.ErrInvalidIDUser
-	}
-
 	// transfer business logic
-	return bc.createCCTransferFrom(idTransfer, to, idUser, token, amount)
+	return bc.createCCTransferFrom(sender, true, idTransfer, to, idUser, token, amount)
 }
 
 // TxChannelMultiTransferByAdmin - transaction initiating transfer between channels.
@@ -124,77 +122,32 @@ func (bc *BaseContract) TxChannelMultiTransferByAdmin(
 		return "", fmt.Errorf("creating admin address: %w", err)
 	}
 
-	if sender.Equal(idUser) {
-		return "", cctransfer.ErrInvalidIDUser
-	}
-
 	// transfer business logic
-	return bc.createMultiCCTransferFrom(idTransfer, to, idUser, items)
+	return bc.createMultiCCTransferFrom(sender, true, idTransfer, to, idUser, items)
 }
 
 func (bc *BaseContract) createCCTransferFrom(
+	sender *types.Sender,
+	isSenderAdmin bool,
 	idTransfer string,
 	to string,
 	idUser *types.Address,
 	token string,
 	amount *big.Int,
 ) (string, error) {
-	if strings.EqualFold(bc.ContractConfig().GetSymbol(), to) {
-		return "", cctransfer.ErrInvalidChannel
-	}
-
-	t := tokenSymbol(token)
-
-	if !strings.EqualFold(bc.ContractConfig().GetSymbol(), t) && !strings.EqualFold(to, t) {
-		return "", cctransfer.ErrInvalidToken
-	}
-
-	// Fulfillment
-	stub := bc.GetStub()
-
-	// see if it's already there.
-	if _, err := cctransfer.LoadCCFromTransfer(stub, idTransfer); err == nil {
-		return "", cctransfer.ErrIDTransferExist
-	}
-
-	ts, err := stub.GetTxTimestamp()
-	if err != nil {
-		return "", err
-	}
-
-	tr := &pb.CCTransfer{
-		Id:               idTransfer,
-		From:             bc.ContractConfig().GetSymbol(),
-		To:               to,
-		Token:            token,
-		User:             idUser.Bytes(),
-		Amount:           amount.Bytes(),
-		ForwardDirection: strings.EqualFold(bc.ContractConfig().GetSymbol(), t),
-		TimeAsNanos:      ts.AsTime().UnixNano(),
-	}
-
-	if err = cctransfer.SaveCCFromTransfer(stub, tr); err != nil {
-		return "", err
-	}
-
-	// rebalancing
-	err = bc.ccTransferChangeBalance(
-		CreateFrom,
-		tr.GetForwardDirection(),
-		idUser,
-		amount,
-		tr.GetFrom(),
-		tr.GetTo(),
-		tr.GetToken(),
-	)
-	if err != nil {
-		return "", err
-	}
-
-	return bc.GetStub().GetTxID(), nil
+	return bc.createMultiCCTransferFrom(sender, isSenderAdmin, idTransfer, to, idUser, []TransferItem{
+		{
+			Token:  token,
+			Amount: amount,
+			User:   idUser,
+			Hold:   false,
+		},
+	})
 }
 
 func (bc *BaseContract) createMultiCCTransferFrom(
+	sender *types.Sender,
+	isSenderAdmin bool,
 	idTransfer string,
 	to string,
 	idUser *types.Address,
@@ -215,24 +168,55 @@ func (bc *BaseContract) createMultiCCTransferFrom(
 		return "", cctransfer.ErrInvalidToken
 	}
 
-	m := make(map[string]struct{}, len(items))
+	type itemKey struct {
+		token string
+		user  string
+		hold  bool
+	}
+
+	etlUser := ""
+	if !isSenderAdmin {
+		etlUser = idUser.String()
+		if items[0].User != nil && items[0].User.String() != "" {
+			etlUser = items[0].User.String()
+		}
+	}
+
+	m := make(map[itemKey]struct{}, len(items))
 	transferItems := make([]*pb.CCTransferItem, 0, len(items))
-	for i, item := range items {
-		_, ok := m[item.Token]
+	for i := range items {
+		// fill items
+		if items[i].User.String() == "" {
+			items[i].User = idUser
+		}
+
+		// check that there is only one address
+		if !isSenderAdmin && etlUser != items[i].User.String() {
+			return "", cctransfer.ErrInvalidMultiAddress
+		}
+
+		key := itemKey{
+			token: items[i].Token,
+			user:  items[i].User.String(),
+			hold:  items[i].Hold,
+		}
+		_, ok := m[key]
 		if ok {
 			return "", cctransfer.ErrInvalidTokenAlreadyExists
 		}
-		itemSymbol := tokenSymbol(item.Token)
+		itemSymbol := tokenSymbol(items[i].Token)
 		if t != itemSymbol {
 			return "", fmt.Errorf("%w found %s [index %d] but expected %s",
-				cctransfer.ErrInvalidToken, tokenSymbol(item.Token), i, t,
+				cctransfer.ErrInvalidToken, tokenSymbol(items[i].Token), i, t,
 			)
 		}
 		transferItems = append(transferItems, &pb.CCTransferItem{
-			Token:  item.Token,
-			Amount: item.Amount.Bytes(),
+			Token:  items[i].Token,
+			Amount: items[i].Amount.Bytes(),
+			User:   items[i].User.Bytes(),
+			Hold:   items[i].Hold,
 		})
-		m[item.Token] = struct{}{}
+		m[key] = struct{}{}
 	}
 
 	// Fulfillment
@@ -253,7 +237,7 @@ func (bc *BaseContract) createMultiCCTransferFrom(
 		From:             bc.ContractConfig().GetSymbol(),
 		To:               to,
 		Items:            transferItems,
-		User:             idUser.Bytes(),
+		User:             sender.Address().Bytes(),
 		ForwardDirection: strings.EqualFold(bc.ContractConfig().GetSymbol(), t),
 		TimeAsNanos:      ts.AsTime().UnixNano(),
 	}
@@ -267,11 +251,12 @@ func (bc *BaseContract) createMultiCCTransferFrom(
 		if err = bc.ccTransferChangeBalance(
 			CreateFrom,
 			tr.GetForwardDirection(),
-			idUser,
+			item.User,
 			item.Amount,
 			tr.GetFrom(),
 			tr.GetTo(),
 			item.Token,
+			item.Hold,
 		); err != nil {
 			return "", err
 		}
@@ -355,14 +340,20 @@ func (bc *BaseContract) TxCreateCCTransferTo(dataIn string) (string, error) {
 	// rebalancing
 	if len(tr.GetItems()) != 0 {
 		for _, item := range tr.GetItems() {
+			user := item.GetUser()
+			if len(user) == 0 {
+				user = tr.GetUser()
+			}
+
 			err := bc.ccTransferChangeBalance(
 				CreateTo,
 				tr.GetForwardDirection(),
-				types.AddrFromBytes(tr.GetUser()),
+				types.AddrFromBytes(user),
 				new(big.Int).SetBytes(item.GetAmount()),
 				tr.GetFrom(),
 				tr.GetTo(),
 				item.GetToken(),
+				item.GetHold(),
 			)
 			if err != nil {
 				return "", err
@@ -377,6 +368,7 @@ func (bc *BaseContract) TxCreateCCTransferTo(dataIn string) (string, error) {
 			tr.GetFrom(),
 			tr.GetTo(),
 			tr.GetToken(),
+			false,
 		)
 		if err != nil {
 			return "", err
@@ -406,14 +398,20 @@ func (bc *BaseContract) TxCancelCCTransferFrom(id string) error {
 	// rebalancing
 	if len(tr.GetItems()) != 0 {
 		for _, item := range tr.GetItems() {
+			user := item.GetUser()
+			if len(user) == 0 {
+				user = tr.GetUser()
+			}
+
 			err = bc.ccTransferChangeBalance(
 				CancelFrom,
 				tr.GetForwardDirection(),
-				types.AddrFromBytes(tr.GetUser()),
+				types.AddrFromBytes(user),
 				new(big.Int).SetBytes(item.GetAmount()),
 				tr.GetFrom(),
 				tr.GetTo(),
 				item.GetToken(),
+				item.GetHold(),
 			)
 			if err != nil {
 				return err
@@ -428,6 +426,7 @@ func (bc *BaseContract) TxCancelCCTransferFrom(id string) error {
 			tr.GetFrom(),
 			tr.GetTo(),
 			tr.GetToken(),
+			false,
 		)
 		if err != nil {
 			return err
@@ -542,6 +541,7 @@ func (bc *BaseContract) ccTransferChangeBalance( //nolint:gocognit
 	from string,
 	to string,
 	token string,
+	hold bool,
 ) error {
 	var err error
 
@@ -558,7 +558,13 @@ func (bc *BaseContract) ccTransferChangeBalance( //nolint:gocognit
 	// or from channel B to channel A transfer tokens A
 	switch t {
 	case CreateFrom:
-		if forwardDirection {
+		if forwardDirection { //nolint:nestif
+			if hold {
+				if err = bc.TokenBalanceUnlockWithTicker(user, amount, token); err != nil {
+					return err
+				}
+			}
+
 			if err = bc.TokenBalanceSubWithTicker(user, amount, token, reason); err != nil {
 				return err
 			}
@@ -567,27 +573,49 @@ func (bc *BaseContract) ccTransferChangeBalance( //nolint:gocognit
 				return err
 			}
 		} else {
+			if hold {
+				if err = bc.AllowedBalanceUnLock(token, user, amount); err != nil {
+					return err
+				}
+			}
+
 			if err = bc.AllowedBalanceSub(token, user, amount, reason); err != nil {
 				return err
 			}
 		}
 	case CreateTo:
-		if forwardDirection {
+		if forwardDirection { //nolint:nestif
 			if err = bc.AllowedBalanceAdd(token, user, amount, reason); err != nil {
 				return err
+			}
+
+			if hold {
+				if err = bc.AllowedBalanceLock(token, user, amount); err != nil {
+					return err
+				}
 			}
 		} else {
 			if err = bc.TokenBalanceAddWithTicker(user, amount, token, reason); err != nil {
 				return err
+			}
+			if hold {
+				if err = bc.TokenBalanceLockWithTicker(user, amount, token); err != nil {
+					return err
+				}
 			}
 			if err = balance.Sub(bc.GetStub(), balance.BalanceTypeGiven, strings.ToUpper(from), "", &amount.Int); err != nil {
 				return err
 			}
 		}
 	case CancelFrom:
-		if forwardDirection {
+		if forwardDirection { //nolint:nestif
 			if err = bc.TokenBalanceAddWithTicker(user, amount, token, reason); err != nil {
 				return err
+			}
+			if hold {
+				if err = bc.TokenBalanceLockWithTicker(user, amount, token); err != nil {
+					return err
+				}
 			}
 			if err = balance.Sub(bc.GetStub(), balance.BalanceTypeGiven, strings.ToUpper(to), "", &amount.Int); err != nil {
 				return err
@@ -595,6 +623,12 @@ func (bc *BaseContract) ccTransferChangeBalance( //nolint:gocognit
 		} else {
 			if err = bc.AllowedBalanceAdd(token, user, amount, reason); err != nil {
 				return err
+			}
+
+			if hold {
+				if err = bc.AllowedBalanceLock(token, user, amount); err != nil {
+					return err
+				}
 			}
 		}
 	default:

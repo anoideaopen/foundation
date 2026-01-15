@@ -254,35 +254,3 @@ message pair {
     string key = 1;
     string value = 2;
 }
-
-message CCTransfer{
-    string id = 1; // unique transfer id
-    string from = 2; // channel from
-    string to = 3; // channel to
-    string token = 4; // transfer token
-    bytes user = 5; // token holder
-    bytes amount = 6; // number of tokens
-    // Transfer direction is an additional variable made for convenience
-    // so that you don't have to calculate it every time. It is calculated 1 time when filling the structure 
-    // when executing a transaction.
-    // Different balances change depending on the direction.
-    // Examples:
-    // Direct transfer: we transfer A tokens from channel A to channel B
-    // or transfer B tokens from channel B to channel A
-    // Reverse transfer:from channel A to channel B transfer tokens B
-    // or from channel B to channel A transfer tokens A
-    bool forward_direction = 7;
-    bool isCommit = 8; // phase 2 sign
-    int64 time_as_nanos = 9; // transfer creation time in nanoseconds
-    repeated CCTransferItem items = 10; // transfer multiple tokens for single transfer
-}
-
-message CCTransfers {
-    string bookmark         = 1;
-    repeated CCTransfer ccts = 2;
-}
-
-message CCTransferItem {
-    string token = 1;
-    bytes amount = 2;
-}

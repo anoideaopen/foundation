@@ -57,7 +57,7 @@ func (a *Address) Bytes() []byte {
 
 // Empty return true if len(a.Address) == 0
 func (a *Address) Empty() bool {
-	return len(a.Address) == 0
+	return a == nil || len(a.Address) == 0
 }
 
 // String returns address string
