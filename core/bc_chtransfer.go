@@ -195,6 +195,11 @@ func (bc *BaseContract) createMultiCCTransferFrom(
 			return "", cctransfer.ErrInvalidMultiAddress
 		}
 
+		// check hold if not admin
+		if !isSenderAdmin && items[i].Hold {
+			return "", cctransfer.ErrHoldTrue
+		}
+
 		key := itemKey{
 			token: items[i].Token,
 			user:  items[i].User.String(),
