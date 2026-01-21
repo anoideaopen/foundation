@@ -22,4 +22,5 @@ var (
 	ErrInvalidTransferItemsCount = errors.New("invalid argument transfer items count")
 	ErrInvalidTokenAlreadyExists = errors.New("invalid argument (token, address, hold) already exists")
 	ErrInvalidMultiAddress       = errors.New("invalid argument user, need only one address")
+	ErrHoldTrue                  = errors.New("not admin set hold is true")
 )
