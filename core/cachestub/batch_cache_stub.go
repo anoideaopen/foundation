@@ -231,7 +231,8 @@ func (bs *BatchCacheStub) makeKeyByte(
 	chaincodeName string,
 	args [][]byte,
 ) string {
-	keys := []string{channel, chaincodeName}
+	keys := make([]string, 0, 2+len(args))
+	keys = append(keys, channel, chaincodeName)
 	for _, arg := range args {
 		keys = append(keys, string(arg))
 	}
@@ -243,7 +244,8 @@ func (bs *BatchCacheStub) makeKeyString(
 	chaincodeName string,
 	args []string,
 ) string {
-	keys := []string{channel, chaincodeName}
+	keys := make([]string, 0, 2+len(args))
+	keys = append(keys, channel, chaincodeName)
 	keys = append(keys, args...)
 	return strings.Join(keys, "")
 }

@@ -42,7 +42,7 @@ func (m *MockClientConn) SetCaller(user *mocks.UserFoundation) *MockClientConn {
 }
 
 // Invoke performs a unary RPC and returns after the response is received into reply.
-func (m *MockClientConn) Invoke(_ context.Context, method string, args interface{}, reply interface{}, _ ...grpc.CallOption) error {
+func (m *MockClientConn) Invoke(_ context.Context, method string, args any, reply any, _ ...grpc.CallOption) error {
 	if m.user == nil {
 		return errors.New("caller not set")
 	}

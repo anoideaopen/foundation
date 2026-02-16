@@ -11,9 +11,9 @@ import (
 // containing the names of all methods that are defined on its type. This function only considers
 // exported methods (those starting with an uppercase letter) due to Go's visibility rules in reflection.
 func Methods(v any) []string {
-	methodNames := make([]string, 0)
-
 	t := reflect.TypeOf(v)
+	methodNames := make([]string, 0, t.NumMethod())
+
 	for i := range t.NumMethod() {
 		method := t.Method(i)
 		methodNames = append(methodNames, method.Name)
@@ -86,5 +86,6 @@ func MethodReturnsError(v any, method string) bool {
 		return false
 	}
 
-	return methodType.Out(numOut-1) == reflect.TypeOf((*error)(nil)).Elem()
+	// TODO: when i install version 1.26 everywhere, remove nolint
+	return methodType.Out(numOut-1) == reflect.TypeOf((*error)(nil)).Elem() //nolint:modernize
 }
