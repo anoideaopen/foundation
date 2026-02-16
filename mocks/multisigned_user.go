@@ -50,7 +50,7 @@ func NewUserFoundationMultisigned(keyType pbfound.KeyType, n int) (*UserFoundati
 	})
 
 	hashedAddr := sha3.Sum256(bytes.Join(binPubKeys, []byte("")))
-	userMultisigned.AddressBase58Check = base58.CheckEncode(hashedAddr[1:], hashedAddr[0])
+	userMultisigned.AddressBase58Check = base58.CheckEncode(hashedAddr[1:], hashedAddr[0]) //nolint:gosec
 	userMultisigned.AddressBytes = hashedAddr[:]
 	return userMultisigned, nil
 }
