@@ -30,7 +30,7 @@ require (
 	github.com/hyperledger/fabric-protos-go-apiv2 v0.3.7
 	github.com/moby/moby/api v1.53.0
 	github.com/moby/moby/client v0.2.2
-	github.com/onsi/ginkgo/v2 v2.28.0
+	github.com/onsi/ginkgo/v2 v2.28.1
 	github.com/onsi/gomega v1.39.1
 	github.com/redis/go-redis/v9 v9.17.2
 	github.com/tedsuo/ifrit v0.0.0-20230516164442-7862c310ad26
