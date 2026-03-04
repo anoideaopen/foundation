@@ -14,8 +14,7 @@ func Methods(v any) []string {
 	t := reflect.TypeOf(v)
 	methodNames := make([]string, 0, t.NumMethod())
 
-	for i := range t.NumMethod() {
-		method := t.Method(i)
+	for method := range t.Methods() {
 		methodNames = append(methodNames, method.Name)
 	}
 
@@ -86,6 +85,5 @@ func MethodReturnsError(v any, method string) bool {
 		return false
 	}
 
-	// TODO: when i install version 1.26 everywhere, remove nolint
-	return methodType.Out(numOut-1) == reflect.TypeOf((*error)(nil)).Elem() //nolint:modernize
+	return methodType.Out(numOut-1) == reflect.TypeFor[error]()
 }

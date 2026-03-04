@@ -9,7 +9,7 @@ import (
 )
 
 func TestAccountingInterfaceMatchWithTxCacheStubImplementation(t *testing.T) {
-	var stub interface{} = &cachestub.TxCacheStub{}
+	var stub any = &cachestub.TxCacheStub{}
 
 	t.Run("Check if TxCacheStub implements Accounting interface", func(t *testing.T) {
 		if _, ok := stub.(ledger.Accounting); !ok {
