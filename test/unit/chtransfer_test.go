@@ -573,7 +573,7 @@ func TestChannelTransfer(t *testing.T) {
 			signUser:     user,
 			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
 				items := make([]core.TransferItem, 0, 101)
-				for i := 0; i < 101; i++ {
+				for i := range 101 {
 					itemToken := fmt.Sprintf("CC_%d", i)
 					items = append(items, core.TransferItem{Token: itemToken, Amount: new(big.Int).SetInt64(1)})
 				}
@@ -589,7 +589,7 @@ func TestChannelTransfer(t *testing.T) {
 			signUser:     user,
 			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
 				items := make([]core.TransferItem, 0, 100)
-				for i := 0; i < 100; i++ {
+				for i := range 100 {
 					n := strconv.Itoa(i)
 					itemToken := "CC_" + n
 					items = append(items, core.TransferItem{Token: itemToken, Amount: new(big.Int).SetInt64(1)})

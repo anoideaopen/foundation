@@ -62,17 +62,17 @@ func (ft *FiatTestToken) TxEmitIndustrial(sender *types.Sender, address *types.A
 func (ft *FiatTestToken) TxAccountsTest(_ *types.Sender, addr string, pub string) error {
 	args := make([][]byte, 0)
 	args = append(args, []byte("getAccountsInfo"))
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		bytes, _ := json.Marshal([]string{"getAccountInfo", addr})
 		args = append(args, bytes)
 	}
 
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		bytes, _ := json.Marshal([]string{"checkKeys", pub})
 		args = append(args, bytes)
 	}
 
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		bytes, _ := json.Marshal([]string{"getAccountInfo", addr})
 		args = append(args, bytes)
 	}

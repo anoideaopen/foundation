@@ -100,10 +100,10 @@ func TestTaskExecutor(t *testing.T) {
 			description: "group TxExecutor 50 - Healthcheck, 50 - HealthCheckNb",
 			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []*mockstub.ExecutorRequest {
 				reqs := make([]*mockstub.ExecutorRequest, 0, 100)
-				for i := 0; i < 50; i++ {
+				for range 50 {
 					reqs = append(reqs, &mockstub.ExecutorRequest{User: issuer, Task: &pbfound.Task{Method: "healthCheck", Args: []string{}}})
 				}
-				for i := 0; i < 50; i++ {
+				for range 50 {
 					reqs = append(reqs, &mockstub.ExecutorRequest{User: issuer, Task: &pbfound.Task{Method: "healthCheckNb", Args: []string{}}})
 				}
 				return reqs
