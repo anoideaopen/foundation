@@ -34,7 +34,7 @@ require (
 	github.com/onsi/gomega v1.39.1
 	github.com/redis/go-redis/v9 v9.18.0
 	github.com/tedsuo/ifrit v0.0.0-20230516164442-7862c310ad26
-	google.golang.org/grpc v1.79.1
+	google.golang.org/grpc v1.79.2
 	google.golang.org/protobuf v1.36.11
 )
 
