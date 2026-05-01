@@ -31,7 +31,7 @@ require (
 	github.com/moby/moby/api v1.54.2
 	github.com/moby/moby/client v0.4.1
 	github.com/onsi/ginkgo/v2 v2.28.1
-	github.com/onsi/gomega v1.39.1
+	github.com/onsi/gomega v1.40.0
 	github.com/redis/go-redis/v9 v9.18.0
 	github.com/tedsuo/ifrit v0.0.0-20260418191334-846868129986
 	google.golang.org/grpc v1.80.0
