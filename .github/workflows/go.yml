@@ -8,13 +8,18 @@ on:
   workflow_dispatch:
 
 env:
+<<<<<<< HEAD
   GO_VER: 1.23.5
   GO_VER_OLD: 1.20.3
   GINKGO_VER: 2.22.0
+=======
+  GO_VER: 1.26.4
+  GINKGO_VER: 2.29.0
+>>>>>>> 6918415 (bump sdk go (#311))
 
 jobs:
   check-cyrillic-comments:
-    runs-on: 'ubuntu-22.04'
+    runs-on: 'ubuntu-24.04'
     steps:
       - uses: actions/checkout@v4
       - name: check cyrillic comments
@@ -24,7 +29,7 @@ jobs:
   validate-go:
     needs:
       - check-cyrillic-comments
-    runs-on: 'ubuntu-22.04'
+    runs-on: 'ubuntu-24.04'
     steps:
       - uses: actions/checkout@v4
 
@@ -46,7 +51,7 @@ jobs:
   golangci-lint:
     needs:
       - validate-go
-    runs-on: 'ubuntu-22.04'
+    runs-on: 'ubuntu-24.04'
     steps:
       - uses: actions/checkout@v4
       - name: setup go
@@ -65,6 +70,7 @@ jobs:
   go-test-unit:
     needs:
       - golangci-lint
+<<<<<<< HEAD
     strategy:
       fail-fast: false
       matrix:
@@ -72,6 +78,9 @@ jobs:
           - '1.23.5'
           - '1.20.3'
     runs-on: 'ubuntu-22.04'
+=======
+    runs-on: 'ubuntu-24.04'
+>>>>>>> 6918415 (bump sdk go (#311))
     steps:
       - uses: actions/checkout@v4
 
@@ -87,7 +96,7 @@ jobs:
   go-test-coverage:
     needs:
       - golangci-lint
-    runs-on: 'ubuntu-22.04'
+    runs-on: 'ubuntu-24.04'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -111,8 +120,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+<<<<<<< HEAD
         INTEGRATION_TEST_SUITE: [ "general basic","swap multisigned-user","version-and-nonce","channel-transfer-only-tx","channel-transfer","task_executor-only-tx channel-transfer-multi channel-transfer-task-executor-only-tx"]
     runs-on: 'ubuntu-22.04'
+=======
+        INTEGRATION_TEST_SUITE: [ "general basic custom-acl-channel","swap multisigned-user","version-and-nonce","channel-transfer-only-tx","channel-transfer","task_executor-only-tx channel-transfer-multi channel-transfer-task-executor-only-tx"]
+    runs-on: 'ubuntu-24.04'
+>>>>>>> 6918415 (bump sdk go (#311))
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
