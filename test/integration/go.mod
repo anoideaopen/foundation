@@ -13,6 +13,7 @@ require (
 	github.com/fsouza/go-dockerclient v1.12.0
 	github.com/golang/protobuf v1.5.4
 	github.com/google/uuid v1.6.0
+<<<<<<< HEAD
 	github.com/hyperledger/fabric v1.4.0-rc1.0.20240729123800-908b9655d423
 	github.com/hyperledger/fabric-protos-go v0.3.4
 	github.com/onsi/ginkgo/v2 v2.22.0
@@ -21,6 +22,18 @@ require (
 	github.com/tedsuo/ifrit v0.0.0-20230516164442-7862c310ad26
 	google.golang.org/grpc v1.68.1
 	google.golang.org/protobuf v1.35.2
+=======
+	github.com/hyperledger/fabric v1.4.0-rc1.0.20260527094612-dd0d56d5b081
+	github.com/hyperledger/fabric-protos-go-apiv2 v0.3.7
+	github.com/moby/moby/api v1.54.2
+	github.com/moby/moby/client v0.4.1
+	github.com/onsi/ginkgo/v2 v2.29.0
+	github.com/onsi/gomega v1.41.0
+	github.com/redis/go-redis/v9 v9.20.1
+	github.com/tedsuo/ifrit v0.0.0-20260418191334-846868129986
+	google.golang.org/grpc v1.81.1
+	google.golang.org/protobuf v1.36.11
+>>>>>>> 74cb535 (Bump github.com/redis/go-redis/v9 in /test/integration (#312))
 )
 
 require (
