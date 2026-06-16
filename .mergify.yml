@@ -1,0 +1,4 @@
+defaults:
+  actions:
+    backport:
+      bot_account: "{{ author }}"
