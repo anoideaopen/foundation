@@ -20,9 +20,9 @@ tool (
 )
 
 require (
-	github.com/anoideaopen/acl v0.1.3
+	github.com/anoideaopen/acl v0.1.4
 	github.com/anoideaopen/channel-transfer v0.1.6-0.20260605211133-707043a8e780
-	github.com/anoideaopen/foundation v0.1.7
+	github.com/anoideaopen/foundation v0.1.8
 	github.com/anoideaopen/robot v0.1.2-0.20260528192439-be92214fb831
 	github.com/btcsuite/btcd/btcutil v1.2.0
 	github.com/google/uuid v1.6.0
