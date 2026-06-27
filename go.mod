@@ -8,7 +8,7 @@ require (
 	github.com/btcsuite/btcd/btcutil v1.2.0
 	github.com/ddulesov/gogost v1.0.0
 	github.com/envoyproxy/protoc-gen-validate v1.3.3
-	github.com/ethereum/go-ethereum v1.17.3
+	github.com/ethereum/go-ethereum v1.17.4
 	github.com/google/uuid v1.6.0
 	github.com/hyperledger/fabric-chaincode-go/v2 v2.3.0
 	github.com/hyperledger/fabric-lib-go v1.1.4
