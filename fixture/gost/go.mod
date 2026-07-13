@@ -1,5 +1,5 @@
 module gost
 
-go 1.26.4
+go 1.26.5
 
 require github.com/ddulesov/gogost v1.0.0
