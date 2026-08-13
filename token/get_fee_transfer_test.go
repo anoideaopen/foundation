@@ -114,6 +114,7 @@ func TestBaseToken_QueryGetFeeTransfer(t *testing.T) {
 	}
 	for _, test := range testCollection {
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
 			mockStub := mockstub.NewMockStub(t)
 
 			issuer, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
@@ -168,12 +169,12 @@ func TestBaseToken_QueryGetFeeTransfer(t *testing.T) {
 			resp := mockStub.QueryChaincode(cc, "getFeeTransfer", []string{string(bytes)}...)
 			test.wantErr(t, err, fmt.Sprintf("QueryGetFeeTransfer(%v, %v, %v)", test.args.chaincodeArgs.SenderAddress, test.args.chaincodeArgs.RecipientAddress, test.args.chaincodeArgs.Amount))
 
-			require.Equal(t, test.wantRespStatus, resp.Status)
-			require.Contains(t, resp.Message, test.wantRespMsg)
+			require.Equal(t, test.wantRespStatus, resp.GetStatus())
+			require.Contains(t, resp.GetMessage(), test.wantRespMsg)
 
 			if test.want != nil {
 				feeTransferRespDTO := FeeTransferResponseDTO{}
-				_ = json.Unmarshal(resp.Payload, &feeTransferRespDTO)
+				_ = json.Unmarshal(resp.GetPayload(), &feeTransferRespDTO)
 				require.Equal(t, test.want.Currency, feeTransferRespDTO.Currency)
 				require.Equal(t, test.want.Amount, feeTransferRespDTO.Amount)
 				require.Equal(t, feeAggregator.AddressBase58Check, feeTransferRespDTO.FeeAddress.String())

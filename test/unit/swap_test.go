@@ -45,18 +45,18 @@ func (ct *CustomToken) OnSwapDoneEvent(
 ) {
 	fmt.Printf(
 		"OnSwapEvent(): symbol: %s, token: %s, owner: %s, amount: %s\n",
-		ct.ContractConfig().Symbol,
+		ct.ContractConfig().GetSymbol(),
 		token,
 		owner.String(),
 		amount.String(),
 	)
 
-	_ = ct.incSwapCallCount()
+	ct.incSwapCallCount()
 }
 
 // incSwapCallCount increments OnSwapDoneEvent function call counter.
 // Counter stored in chaincode state.
-func (ct *CustomToken) incSwapCallCount() error {
+func (ct *CustomToken) incSwapCallCount() {
 	calledBytes, _ := ct.GetStub().GetState(swapDoneEventCounter)
 	var fcc FnCallCount
 	_ = json.Unmarshal(calledBytes, &fcc)
@@ -65,8 +65,6 @@ func (ct *CustomToken) incSwapCallCount() error {
 
 	calledBytes, _ = json.Marshal(fcc)
 	_ = ct.GetStub().PutState(swapDoneEventCounter, calledBytes)
-
-	return nil
 }
 
 // QuerySwapDoneEventCallCount fetches OnSwapDoneEvent call counter value.
@@ -227,12 +225,13 @@ func TestSwap(t *testing.T) {
 				require.NoError(t, err)
 
 				var j int
-				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					k, v := mockStub.PutStateArgsForCall(i)
-					if k == userBalanceKey {
+					switch k {
+					case userBalanceKey:
 						require.Equal(t, new(big.Int).SetUint64(550).Bytes(), v)
 						j++
-					} else if k == swapKey {
+					case swapKey:
 						s := &pbfound.Swap{}
 						err = pb.Unmarshal(v, s)
 						require.NoError(t, err)
@@ -277,12 +276,13 @@ func TestSwap(t *testing.T) {
 				require.NoError(t, err)
 
 				var j int
-				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					k, v := mockStub.PutStateArgsForCall(i)
-					if k == userBalanceKey {
+					switch k {
+					case userBalanceKey:
 						require.Equal(t, new(big.Int).SetUint64(550).Bytes(), v)
 						j++
-					} else if k == swapKey {
+					case swapKey:
 						s := &pbfound.Swap{}
 						err = pb.Unmarshal(v, s)
 						require.NoError(t, err)
@@ -422,12 +422,13 @@ func TestSwap(t *testing.T) {
 				require.NoError(t, err)
 
 				var j int
-				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					k, v := mockStub.PutStateArgsForCall(i)
-					if k == givenBalanceKey {
+					switch k {
+					case givenBalanceKey:
 						require.Equal(t, new(big.Int).SetUint64(0).Bytes(), v)
 						j++
-					} else if k == swapKey {
+					case swapKey:
 						s := &pbfound.Swap{}
 						err = pb.Unmarshal(v, s)
 						require.NoError(t, err)
@@ -546,7 +547,7 @@ func TestSwap(t *testing.T) {
 				require.NoError(t, err)
 
 				var j int
-				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					k, v := mockStub.PutStateArgsForCall(i)
 					if k == userBalanceKey {
 						require.Equal(t, new(big.Int).SetUint64(450).Bytes(), v)
@@ -597,7 +598,7 @@ func TestSwap(t *testing.T) {
 				require.NoError(t, err)
 
 				var j int
-				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					k, v := mockStub.PutStateArgsForCall(i)
 					if k == userBalanceKey {
 						require.Equal(t, new(big.Int).SetUint64(450).Bytes(), v)
@@ -755,12 +756,13 @@ func TestSwap(t *testing.T) {
 				txId string
 				resp *peer.Response
 			)
-			if testCase.isQuery {
+			switch {
+			case testCase.isQuery:
 				resp = mockStub.QueryChaincode(cc, testCase.functionName, parameters...)
-			} else if testCase.noBatch {
+			case testCase.noBatch:
 				resp = mockStub.NbTxInvokeChaincode(cc, testCase.functionName, parameters...)
 				txId = mockStub.GetTxID()
-			} else {
+			default:
 				txId, resp = mockStub.TxInvokeChaincodeSigned(cc, testCase.functionName, testCase.signUser, "", "", "", parameters...)
 			}
 

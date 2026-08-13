@@ -25,7 +25,7 @@ func TestStdBigIntStructMarshalling(t *testing.T) {
 	tbiStr := "{\"num\":" + bigIntVal + "}"
 
 	bi, ok := new(big.Int).SetString(bigIntVal, 10)
-	require.Equal(t, true, ok)
+	require.True(t, ok)
 	tbi := BigInt{
 		NumberField: bi,
 	}
@@ -51,7 +51,7 @@ func TestCustomBigIntStructMarshalling(t *testing.T) {
 	tbiStr := "{\"num\":\"" + bigIntVal + "\"}" // added \" quotes
 
 	bi, ok := new(customBig.Int).SetString(bigIntVal, 10)
-	require.Equal(t, true, ok)
+	require.True(t, ok)
 	tbi := CustomBigInt{
 		NumberField: bi,
 	}

@@ -35,7 +35,7 @@ func TestExternalTransfers(t *testing.T) {
 			checkResultFunc: func(t *testing.T, mockStub *mockstub.MockStub, resp *peer.Response, user1BalanceKey, user2BalanceKey string) {
 				balance1Checked := false
 				balance2Checked := false
-				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					putStateKey, value := mockStub.PutStateArgsForCall(i)
 
 					if putStateKey == user1BalanceKey {
@@ -63,9 +63,9 @@ func TestExternalTransfers(t *testing.T) {
 			checkResultFunc: func(t *testing.T, mockStub *mockstub.MockStub, resp *peer.Response, user1BalanceKey, user2BalanceKey string) {
 				payload := &proto.BatchResponse{}
 
-				err := pb.Unmarshal(resp.Payload, payload)
+				err := pb.Unmarshal(resp.GetPayload(), payload)
 				require.NoError(t, err)
-				require.Equal(t, core.ErrUnauthorisedNotAdmin.Error(), payload.TxResponses[0].Error.Error)
+				require.Equal(t, core.ErrUnauthorisedNotAdmin.Error(), payload.GetTxResponses()[0].GetError().GetError())
 			},
 		},
 		{
@@ -78,9 +78,9 @@ func TestExternalTransfers(t *testing.T) {
 			checkResultFunc: func(t *testing.T, mockStub *mockstub.MockStub, resp *peer.Response, user1BalanceKey, user2BalanceKey string) {
 				payload := &proto.BatchResponse{}
 
-				err := pb.Unmarshal(resp.Payload, payload)
+				err := pb.Unmarshal(resp.GetPayload(), payload)
 				require.NoError(t, err)
-				require.Equal(t, balance.ErrInsufficientBalance.Error(), payload.TxResponses[0].Error.Error)
+				require.Equal(t, balance.ErrInsufficientBalance.Error(), payload.GetTxResponses()[0].GetError().GetError())
 			},
 		},
 		{
@@ -93,9 +93,9 @@ func TestExternalTransfers(t *testing.T) {
 			checkResultFunc: func(t *testing.T, mockStub *mockstub.MockStub, resp *peer.Response, user1BalanceKey, user2BalanceKey string) {
 				payload := &proto.BatchResponse{}
 
-				err := pb.Unmarshal(resp.Payload, payload)
+				err := pb.Unmarshal(resp.GetPayload(), payload)
 				require.NoError(t, err)
-				require.Equal(t, core.ErrAmountMustBeGreaterThanZero.Error(), payload.TxResponses[0].Error.Error)
+				require.Equal(t, core.ErrAmountMustBeGreaterThanZero.Error(), payload.GetTxResponses()[0].GetError().GetError())
 			},
 		},
 		{
@@ -108,9 +108,9 @@ func TestExternalTransfers(t *testing.T) {
 			checkResultFunc: func(t *testing.T, mockStub *mockstub.MockStub, resp *peer.Response, user1BalanceKey, user2BalanceKey string) {
 				payload := &proto.BatchResponse{}
 
-				err := pb.Unmarshal(resp.Payload, payload)
+				err := pb.Unmarshal(resp.GetPayload(), payload)
 				require.NoError(t, err)
-				require.Equal(t, core.ErrAmountMustBeGreaterThanZero.Error(), payload.TxResponses[0].Error.Error)
+				require.Equal(t, core.ErrAmountMustBeGreaterThanZero.Error(), payload.GetTxResponses()[0].GetError().GetError())
 			},
 		},
 	}

@@ -1,6 +1,7 @@
 package cmn
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -289,7 +290,7 @@ func (n *NetworkFoundation) RobotPort(portName nwo.PortName) uint16 {
 // RobotRunner returns an ifrit.Runner for the specified robot. The runner can be
 // used to start and manage a robot process.
 func (n *NetworkFoundation) RobotRunner(env ...string) *ginkgomon.Runner {
-	cmd := exec.Command(n.Components.Build(RobotModulePath()), "-c", n.RobotPath())
+	cmd := exec.CommandContext(context.Background(), n.Components.Build(RobotModulePath()), "-c", n.RobotPath())
 	cmd.Env = os.Environ()
 	cmd.Env = append(cmd.Env, env...)
 
@@ -305,7 +306,7 @@ func (n *NetworkFoundation) RobotRunner(env ...string) *ginkgomon.Runner {
 // ChannelTransferRunner returns an ifrit.Runner for the specified channel_transfer service. The runner can be
 // used to start and manage the channel_transfer process.
 func (n *NetworkFoundation) ChannelTransferRunner(env ...string) *ginkgomon.Runner {
-	cmd := exec.Command(n.Components.Build(ChannelTransferModulePath()), "-c", n.ChannelTransferPath())
+	cmd := exec.CommandContext(context.Background(), n.Components.Build(ChannelTransferModulePath()), "-c", n.ChannelTransferPath())
 	cmd.Env = os.Environ()
 	cmd.Env = append(cmd.Env, env...)
 
@@ -433,8 +434,9 @@ func CtorFromSlice(s []string) string {
 	sa := struct {
 		Function string `json:",omitempty"`
 		Args     []string
-	}{}
-	sa.Args = s
+	}{
+		Args: s,
+	}
 
 	b, err := json.Marshal(&sa)
 	if err != nil {

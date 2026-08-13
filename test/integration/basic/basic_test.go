@@ -463,7 +463,7 @@ var _ = Describe("Basic foundation Tests", func() {
 			ts.Query(cmn.ChannelFiat, cmn.ChannelFiat,
 				"balanceOf", feeWallet.AddressBase58Check).CheckBalance(amountOne)
 
-			By("get all keys non composit")
+			By("get all keys non composite")
 			bookmark := ""
 			listKeys := []string{
 				"__config",
@@ -491,9 +491,9 @@ var _ = Describe("Basic foundation Tests", func() {
 				}
 			}
 
-			By("get all keys non composit")
+			By("get all keys non composite")
 			bookmark = ""
-			listKeys = []string{}
+			listKeys = make([]string, 0, 3)
 			listKeys = append(listKeys,
 				"2a_"+ts.Admin().AddressBase58Check, "2a_"+ts.FeeSetter().AddressBase58Check,
 				"2a_"+ts.FeeAddressSetter().AddressBase58Check, "2a_"+user1.AddressBase58Check,

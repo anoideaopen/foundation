@@ -18,14 +18,14 @@ func TestMetadataMethods(t *testing.T) {
 	mockStub := mockstub.NewMockStub(t)
 
 	issuer, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	tt := &token.BaseToken{}
 	config := mockStub.CreateAndSetConfig("Test Token", "TT", 8,
 		issuer.AddressBase58Check, "", "", "", nil)
 
 	cc, err := core.NewCC(tt)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	mockStub.GetStringArgsReturns([]string{config})
 	cc.Init(mockStub)

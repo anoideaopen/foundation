@@ -201,9 +201,10 @@ func ConvertToAsset(in []*MultiSwapAsset) ([]*pb.Asset, error) {
 			return nil, fmt.Errorf("value %s should be positive", item.Amount)
 		}
 
-		asset := pb.Asset{}
-		asset.Amount = value.Bytes()
-		asset.Group = item.Group
+		asset := pb.Asset{
+			Amount: value.Bytes(),
+			Group:  item.Group,
+		}
 		assets = append(assets, &asset)
 	}
 

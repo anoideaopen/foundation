@@ -26,7 +26,7 @@ import (
 
 func PeerGroupRunners(n *nwo.Network) (ifrit.Runner, []*ginkgomon.Runner) {
 	runners := make([]*ginkgomon.Runner, 0, len(n.Peers))
-	members := grouper.Members{}
+	members := make(grouper.Members, 0, len(n.Peers))
 	for _, p := range n.Peers {
 		peerRunner := n.PeerRunner(p, "FABRIC_LOGGING_SPEC=debug:grpc=debug")
 		members = append(members, grouper.Member{Name: p.ID(), Runner: peerRunner})

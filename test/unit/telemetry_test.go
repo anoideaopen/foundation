@@ -13,7 +13,6 @@ import (
 	"github.com/anoideaopen/foundation/mocks"
 	"github.com/anoideaopen/foundation/mocks/mockstub"
 	"github.com/anoideaopen/foundation/proto"
-	pbfound "github.com/anoideaopen/foundation/proto"
 	"github.com/anoideaopen/foundation/test/unit/fixtures"
 	"github.com/hyperledger/fabric-chaincode-go/v2/shim"
 	"github.com/hyperledger/fabric-protos-go-apiv2/peer"
@@ -33,15 +32,15 @@ const (
 func TestTelemetry(t *testing.T) {
 	t.Parallel()
 
-	issuer, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
+	issuer, err := mocks.NewUserFoundation(proto.KeyType_ed25519)
 	require.NoError(t, err)
 
-	user, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
+	user, err := mocks.NewUserFoundation(proto.KeyType_ed25519)
 	require.NoError(t, err)
 
 	tracerProvider := sdktrace.NewTracerProvider()
 	tr := tracerProvider.Tracer("test")
-	ctx, _ := tr.Start(context.Background(), "top-test")
+	ctx, _ := tr.Start(context.Background(), "top-test") //nolint:spancheck
 
 	spanContext := trace.SpanContextFromContext(ctx)
 	fmt.Println("Start test TraceID: " + spanContext.TraceID().String())
@@ -63,7 +62,7 @@ func TestTelemetry(t *testing.T) {
 		signUser            *mocks.UserFoundation
 		codeResp            int32
 		funcPrepareMockStub func(t *testing.T, mockStub *mockstub.MockStub) []string
-		funcCheckResponse   func(t *testing.T, mockStub *mockstub.MockStub, resp *pbfound.TxResponse)
+		funcCheckResponse   func(t *testing.T, mockStub *mockstub.MockStub, resp *proto.TxResponse)
 		funcCheckQuery      func(t *testing.T, mockStub *mockstub.MockStub, payload []byte)
 	}{
 		{
@@ -71,17 +70,17 @@ func TestTelemetry(t *testing.T) {
 			functionName: "healthCheck",
 			signUser:     user,
 			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
-				cfg := &pbfound.Config{
-					Contract: &pbfound.ContractConfig{
+				cfg := &proto.Config{
+					Contract: &proto.ContractConfig{
 						Symbol:                   testTokenSymbol,
 						RobotSKI:                 fixtures.RobotHashedCert,
-						Admin:                    &pbfound.Wallet{Address: issuer.AddressBase58Check},
+						Admin:                    &proto.Wallet{Address: issuer.AddressBase58Check},
 						TracingCollectorEndpoint: &proto.CollectorEndpoint{Endpoint: collectorEndpoint},
 					},
-					Token: &pbfound.TokenConfig{
+					Token: &proto.TokenConfig{
 						Name:     testTokenName,
 						Decimals: 8,
-						Issuer:   &pbfound.Wallet{Address: issuer.AddressBase58Check},
+						Issuer:   &proto.Wallet{Address: issuer.AddressBase58Check},
 					},
 				}
 				cfgBytes, _ := protojson.Marshal(cfg)
@@ -90,9 +89,9 @@ func TestTelemetry(t *testing.T) {
 
 				return []string{}
 			},
-			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, resp *pbfound.TxResponse) {
+			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, resp *proto.TxResponse) {
 				var j int
-				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					k, v := mockStub.PutStateArgsForCall(i)
 					if strings.Contains(k, config.BatchPrefix) {
 						pending := new(proto.PendingTx)
@@ -116,17 +115,17 @@ func TestTelemetry(t *testing.T) {
 			functionName: "healthCheck",
 			signUser:     user,
 			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
-				cfg := &pbfound.Config{
-					Contract: &pbfound.ContractConfig{
+				cfg := &proto.Config{
+					Contract: &proto.ContractConfig{
 						Symbol:                   testTokenSymbol,
 						RobotSKI:                 fixtures.RobotHashedCert,
-						Admin:                    &pbfound.Wallet{Address: issuer.AddressBase58Check},
+						Admin:                    &proto.Wallet{Address: issuer.AddressBase58Check},
 						TracingCollectorEndpoint: &proto.CollectorEndpoint{Endpoint: collectorEndpoint},
 					},
-					Token: &pbfound.TokenConfig{
+					Token: &proto.TokenConfig{
 						Name:     testTokenName,
 						Decimals: 8,
-						Issuer:   &pbfound.Wallet{Address: issuer.AddressBase58Check},
+						Issuer:   &proto.Wallet{Address: issuer.AddressBase58Check},
 					},
 				}
 				cfgBytes, _ := protojson.Marshal(cfg)
@@ -134,9 +133,9 @@ func TestTelemetry(t *testing.T) {
 
 				return []string{}
 			},
-			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, resp *pbfound.TxResponse) {
+			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, resp *proto.TxResponse) {
 				var j int
-				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					k, v := mockStub.PutStateArgsForCall(i)
 					if strings.Contains(k, config.BatchPrefix) {
 						pending := new(proto.PendingTx)
@@ -161,17 +160,17 @@ func TestTelemetry(t *testing.T) {
 			codeResp:     int32(shim.ERROR),
 			errorMsg:     "incorrect number of arguments: found 6 but expected 0: validate TxFailedTestCall",
 			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
-				cfg := &pbfound.Config{
-					Contract: &pbfound.ContractConfig{
+				cfg := &proto.Config{
+					Contract: &proto.ContractConfig{
 						Symbol:                   testTokenSymbol,
 						RobotSKI:                 fixtures.RobotHashedCert,
-						Admin:                    &pbfound.Wallet{Address: issuer.AddressBase58Check},
+						Admin:                    &proto.Wallet{Address: issuer.AddressBase58Check},
 						TracingCollectorEndpoint: &proto.CollectorEndpoint{Endpoint: collectorEndpoint},
 					},
-					Token: &pbfound.TokenConfig{
+					Token: &proto.TokenConfig{
 						Name:     testTokenName,
 						Decimals: 8,
-						Issuer:   &pbfound.Wallet{Address: issuer.AddressBase58Check},
+						Issuer:   &proto.Wallet{Address: issuer.AddressBase58Check},
 					},
 				}
 				cfgBytes, _ := protojson.Marshal(cfg)
@@ -187,17 +186,17 @@ func TestTelemetry(t *testing.T) {
 			signUser:     user,
 			noBatch:      true,
 			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
-				cfg := &pbfound.Config{
-					Contract: &pbfound.ContractConfig{
+				cfg := &proto.Config{
+					Contract: &proto.ContractConfig{
 						Symbol:                   testTokenSymbol,
 						RobotSKI:                 fixtures.RobotHashedCert,
-						Admin:                    &pbfound.Wallet{Address: issuer.AddressBase58Check},
+						Admin:                    &proto.Wallet{Address: issuer.AddressBase58Check},
 						TracingCollectorEndpoint: &proto.CollectorEndpoint{Endpoint: collectorEndpoint},
 					},
-					Token: &pbfound.TokenConfig{
+					Token: &proto.TokenConfig{
 						Name:     testTokenName,
 						Decimals: 8,
-						Issuer:   &pbfound.Wallet{Address: issuer.AddressBase58Check},
+						Issuer:   &proto.Wallet{Address: issuer.AddressBase58Check},
 					},
 				}
 				cfgBytes, _ := protojson.Marshal(cfg)
@@ -212,17 +211,17 @@ func TestTelemetry(t *testing.T) {
 			functionName: "systemEnv",
 			isQuery:      true,
 			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
-				cfg := &pbfound.Config{
-					Contract: &pbfound.ContractConfig{
+				cfg := &proto.Config{
+					Contract: &proto.ContractConfig{
 						Symbol:                   testTokenSymbol,
 						RobotSKI:                 fixtures.RobotHashedCert,
-						Admin:                    &pbfound.Wallet{Address: issuer.AddressBase58Check},
+						Admin:                    &proto.Wallet{Address: issuer.AddressBase58Check},
 						TracingCollectorEndpoint: &proto.CollectorEndpoint{Endpoint: collectorEndpoint},
 					},
-					Token: &pbfound.TokenConfig{
+					Token: &proto.TokenConfig{
 						Name:     testTokenName,
 						Decimals: 8,
-						Issuer:   &pbfound.Wallet{Address: issuer.AddressBase58Check},
+						Issuer:   &proto.Wallet{Address: issuer.AddressBase58Check},
 					},
 				}
 				cfgBytes, _ := protojson.Marshal(cfg)
@@ -244,9 +243,9 @@ func TestTelemetry(t *testing.T) {
 
 				return []string{}
 			},
-			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, resp *pbfound.TxResponse) {
+			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, resp *proto.TxResponse) {
 				var j int
-				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					k, v := mockStub.PutStateArgsForCall(i)
 					if strings.Contains(k, config.BatchPrefix) {
 						pending := new(proto.PendingTx)
@@ -272,9 +271,9 @@ func TestTelemetry(t *testing.T) {
 			funcPrepareMockStub: func(t *testing.T, mockStub *mockstub.MockStub) []string {
 				return []string{}
 			},
-			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, resp *pbfound.TxResponse) {
+			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, resp *proto.TxResponse) {
 				var j int
-				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					k, v := mockStub.PutStateArgsForCall(i)
 					if strings.Contains(k, config.BatchPrefix) {
 						pending := new(proto.PendingTx)
@@ -318,6 +317,7 @@ func TestTelemetry(t *testing.T) {
 		},
 	} {
 		t.Run(testCase.description, func(t *testing.T) {
+			t.Parallel()
 			mockStub := mockstub.NewMockStub(t)
 
 			mockStub.CreateAndSetConfig(
@@ -340,11 +340,12 @@ func TestTelemetry(t *testing.T) {
 				txId string
 				resp *peer.Response
 			)
-			if testCase.isQuery {
+			switch {
+			case testCase.isQuery:
 				resp = mockStub.QueryChaincode(cc, testCase.functionName, parameters...)
-			} else if testCase.noBatch {
+			case testCase.noBatch:
 				resp = mockStub.NbTxInvokeChaincodeSigned(cc, testCase.functionName, testCase.signUser, "", "", "", parameters...)
-			} else {
+			default:
 				txId, resp = mockStub.TxInvokeChaincodeSigned(cc, testCase.functionName, testCase.signUser, "", "", "", parameters...)
 			}
 
@@ -366,13 +367,13 @@ func TestTelemetry(t *testing.T) {
 				return
 			}
 
-			bResp := &pbfound.BatchResponse{}
+			bResp := &proto.BatchResponse{}
 			if string(resp.GetPayload()) != "null" {
 				err = pb.Unmarshal(resp.GetPayload(), bResp)
 				require.NoError(t, err)
 			}
 
-			var respb *pbfound.TxResponse
+			var respb *proto.TxResponse
 			for _, r := range bResp.GetTxResponses() {
 				if hex.EncodeToString(r.GetId()) == txId {
 					respb = r

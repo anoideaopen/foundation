@@ -84,7 +84,7 @@ func TestTokenBalances(t *testing.T) {
 				balanceChecked := false
 				lockedChecked := false
 
-				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					putStateKey, value := mockStub.PutStateArgsForCall(i)
 					if putStateKey == balanceKey {
 						require.Equal(t, big.NewInt(500), new(big.Int).SetBytes(value))
@@ -142,7 +142,7 @@ func TestTokenBalances(t *testing.T) {
 				balanceChecked := false
 				lockedChecked := false
 
-				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					putStateKey, value := mockStub.PutStateArgsForCall(i)
 					if putStateKey == balanceKey {
 						require.Equal(t, big.NewInt(500), new(big.Int).SetBytes(value))
@@ -182,7 +182,7 @@ func TestTokenBalances(t *testing.T) {
 				balanceChecked := false
 				lockedChecked := false
 
-				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					putStateKey, value := mockStub.PutStateArgsForCall(i)
 					if putStateKey == user1BalanceKey {
 						require.Equal(t, big.NewInt(700), new(big.Int).SetBytes(value))
@@ -218,7 +218,7 @@ func TestTokenBalances(t *testing.T) {
 
 				lockedChecked := false
 
-				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					putStateKey, value := mockStub.PutStateArgsForCall(i)
 					if putStateKey == lockedBalanceKey {
 						require.Equal(t, big.NewInt(500), new(big.Int).SetBytes(value))
@@ -233,6 +233,7 @@ func TestTokenBalances(t *testing.T) {
 
 	for _, test := range testCollection {
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
 			mockStub := mockstub.NewMockStub(t)
 
 			issuer, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)

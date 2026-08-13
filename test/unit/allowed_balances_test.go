@@ -258,6 +258,7 @@ func TestQuery(t *testing.T) {
 
 	for _, test := range testCollection {
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
 			mockStub := mockstub.NewMockStub(t)
 
 			issuer, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
@@ -307,22 +308,21 @@ func TestAllowedBalanceInvoke(t *testing.T) {
 			},
 			checkPutState: func(t *testing.T, mockStub *mockstub.MockStub, user1, user2 *mocks.UserFoundation, payload []byte) {
 				require.Equal(t, 3, mockStub.PutStateCallCount())
-				var i int
-				for i = 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					key, value := mockStub.PutStateArgsForCall(i)
 					prefix, keys, err := mockStub.SplitCompositeKey(key)
 					require.NoError(t, err)
 
 					if prefix == balance.BalanceTypeAllowed.String() {
-						require.Equal(t, keys[0], user1.AddressBase58Check)
-						require.Equal(t, keys[1], "VT")
+						require.Equal(t, user1.AddressBase58Check, keys[0])
+						require.Equal(t, "VT", keys[1])
 						require.Equal(t, big.NewInt(100).Bytes(), value)
 					}
 
 					if prefix == "inverse_balance" {
-						require.Equal(t, keys[0], balance.BalanceTypeAllowed.String())
-						require.Equal(t, keys[1], "VT")
-						require.Equal(t, keys[2], user1.AddressBase58Check)
+						require.Equal(t, balance.BalanceTypeAllowed.String(), keys[0])
+						require.Equal(t, "VT", keys[1])
+						require.Equal(t, user1.AddressBase58Check, keys[2])
 						require.Equal(t, big.NewInt(100).Bytes(), value)
 					}
 				}
@@ -341,22 +341,21 @@ func TestAllowedBalanceInvoke(t *testing.T) {
 			},
 			checkPutState: func(t *testing.T, mockStub *mockstub.MockStub, user1, user2 *mocks.UserFoundation, payload []byte) {
 				require.Equal(t, 3, mockStub.PutStateCallCount())
-				var i int
-				for i = 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					key, value := mockStub.PutStateArgsForCall(i)
 					prefix, keys, err := mockStub.SplitCompositeKey(key)
 					require.NoError(t, err)
 
 					if prefix == balance.BalanceTypeAllowed.String() {
-						require.Equal(t, keys[0], user1.AddressBase58Check)
-						require.Equal(t, keys[1], "VT")
+						require.Equal(t, user1.AddressBase58Check, keys[0])
+						require.Equal(t, "VT", keys[1])
 						require.Equal(t, big.NewInt(900).Bytes(), value)
 					}
 
 					if keys[0] == "inverse_balance" {
-						require.Equal(t, keys[0], balance.BalanceTypeAllowed.String())
-						require.Equal(t, keys[1], "VT")
-						require.Equal(t, keys[2], user1.AddressBase58Check)
+						require.Equal(t, balance.BalanceTypeAllowed.String(), keys[0])
+						require.Equal(t, "VT", keys[1])
+						require.Equal(t, user1.AddressBase58Check, keys[2])
 						require.Equal(t, big.NewInt(900).Bytes(), value)
 					}
 				}
@@ -375,27 +374,26 @@ func TestAllowedBalanceInvoke(t *testing.T) {
 			},
 			checkPutState: func(t *testing.T, mockStub *mockstub.MockStub, user1, user2 *mocks.UserFoundation, payload []byte) {
 				require.Equal(t, 5, mockStub.PutStateCallCount())
-				var i int
-				for i = 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					key, value := mockStub.PutStateArgsForCall(i)
 					prefix, keys, err := mockStub.SplitCompositeKey(key)
 					require.NoError(t, err)
 
 					if prefix == balance.BalanceTypeAllowed.String() {
-						require.Equal(t, keys[0], user1.AddressBase58Check)
-						require.Equal(t, keys[1], "VT")
+						require.Equal(t, user1.AddressBase58Check, keys[0])
+						require.Equal(t, "VT", keys[1])
 						require.Equal(t, big.NewInt(900).Bytes(), value)
 					}
 
 					if prefix == balance.BalanceTypeAllowedLocked.String() {
-						require.Equal(t, keys[0], user1.AddressBase58Check)
-						require.Equal(t, keys[1], "VT")
+						require.Equal(t, user1.AddressBase58Check, keys[0])
+						require.Equal(t, "VT", keys[1])
 						require.Equal(t, big.NewInt(100).Bytes(), value)
 					}
 
 					if prefix == "inverse_balance" {
-						require.Equal(t, keys[1], "VT")
-						require.Equal(t, keys[2], user1.AddressBase58Check)
+						require.Equal(t, "VT", keys[1])
+						require.Equal(t, user1.AddressBase58Check, keys[2])
 
 						if keys[0] == balance.BalanceTypeAllowed.String() {
 							require.Equal(t, big.NewInt(900).Bytes(), value)
@@ -420,27 +418,26 @@ func TestAllowedBalanceInvoke(t *testing.T) {
 			},
 			checkPutState: func(t *testing.T, mockStub *mockstub.MockStub, user1, user2 *mocks.UserFoundation, payload []byte) {
 				require.Equal(t, 5, mockStub.PutStateCallCount())
-				var i int
-				for i = 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					key, value := mockStub.PutStateArgsForCall(i)
 					prefix, keys, err := mockStub.SplitCompositeKey(key)
 					require.NoError(t, err)
 
 					if prefix == balance.BalanceTypeAllowed.String() {
-						require.Equal(t, keys[0], user1.AddressBase58Check)
-						require.Equal(t, keys[1], "VT")
+						require.Equal(t, user1.AddressBase58Check, keys[0])
+						require.Equal(t, "VT", keys[1])
 						require.Equal(t, big.NewInt(100).Bytes(), value)
 					}
 
 					if prefix == balance.BalanceTypeAllowedLocked.String() {
-						require.Equal(t, keys[0], user1.AddressBase58Check)
-						require.Equal(t, keys[1], "VT")
+						require.Equal(t, user1.AddressBase58Check, keys[0])
+						require.Equal(t, "VT", keys[1])
 						require.Equal(t, big.NewInt(900).Bytes(), value)
 					}
 
 					if prefix == "inverse_balance" {
-						require.Equal(t, keys[1], "VT")
-						require.Equal(t, keys[2], user1.AddressBase58Check)
+						require.Equal(t, "VT", keys[1])
+						require.Equal(t, user1.AddressBase58Check, keys[2])
 
 						if keys[0] == balance.BalanceTypeAllowed.String() {
 							require.Equal(t, big.NewInt(100).Bytes(), value)
@@ -465,33 +462,32 @@ func TestAllowedBalanceInvoke(t *testing.T) {
 			},
 			checkPutState: func(t *testing.T, mockStub *mockstub.MockStub, user1, user2 *mocks.UserFoundation, payload []byte) {
 				require.Equal(t, 5, mockStub.PutStateCallCount())
-				var i int
-				for i = 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					key, value := mockStub.PutStateArgsForCall(i)
 					prefix, keys, err := mockStub.SplitCompositeKey(key)
 					require.NoError(t, err)
 
 					if prefix == balance.BalanceTypeAllowed.String() {
-						require.Equal(t, keys[0], user2.AddressBase58Check)
-						require.Equal(t, keys[1], "VT")
+						require.Equal(t, user2.AddressBase58Check, keys[0])
+						require.Equal(t, "VT", keys[1])
 						require.Equal(t, big.NewInt(100).Bytes(), value)
 					}
 
 					if prefix == balance.BalanceTypeAllowedLocked.String() {
-						require.Equal(t, keys[0], user1.AddressBase58Check)
-						require.Equal(t, keys[1], "VT")
+						require.Equal(t, user1.AddressBase58Check, keys[0])
+						require.Equal(t, "VT", keys[1])
 						require.Equal(t, big.NewInt(900).Bytes(), value)
 					}
 
 					if prefix == "inverse_balance" {
-						require.Equal(t, keys[1], "VT")
+						require.Equal(t, "VT", keys[1])
 
 						if keys[0] == balance.BalanceTypeAllowed.String() {
-							require.Equal(t, keys[2], user2.AddressBase58Check)
+							require.Equal(t, user2.AddressBase58Check, keys[2])
 							require.Equal(t, big.NewInt(100).Bytes(), value)
 						}
 						if keys[0] == balance.BalanceTypeAllowedLocked.String() {
-							require.Equal(t, keys[2], user1.AddressBase58Check)
+							require.Equal(t, user1.AddressBase58Check, keys[2])
 							require.Equal(t, big.NewInt(900).Bytes(), value)
 						}
 					}
@@ -511,22 +507,21 @@ func TestAllowedBalanceInvoke(t *testing.T) {
 			},
 			checkPutState: func(t *testing.T, mockStub *mockstub.MockStub, user1, user2 *mocks.UserFoundation, payload []byte) {
 				require.Equal(t, 3, mockStub.PutStateCallCount())
-				var i int
-				for i = 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					key, value := mockStub.PutStateArgsForCall(i)
 					prefix, keys, err := mockStub.SplitCompositeKey(key)
 					require.NoError(t, err)
 
 					if prefix == balance.BalanceTypeAllowedLocked.String() {
-						require.Equal(t, keys[0], user1.AddressBase58Check)
-						require.Equal(t, keys[1], "VT")
+						require.Equal(t, user1.AddressBase58Check, keys[0])
+						require.Equal(t, "VT", keys[1])
 						require.Equal(t, big.NewInt(900).Bytes(), value)
 					}
 
 					if prefix == "inverse_balance" {
-						require.Equal(t, keys[0], balance.BalanceTypeAllowedLocked.String())
-						require.Equal(t, keys[1], "VT")
-						require.Equal(t, keys[2], user1.AddressBase58Check)
+						require.Equal(t, balance.BalanceTypeAllowedLocked.String(), keys[0])
+						require.Equal(t, "VT", keys[1])
+						require.Equal(t, user1.AddressBase58Check, keys[2])
 						require.Equal(t, big.NewInt(900).Bytes(), value)
 					}
 				}
@@ -536,6 +531,7 @@ func TestAllowedBalanceInvoke(t *testing.T) {
 
 	for _, test := range testCollection {
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
 			mockStub := mockstub.NewMockStub(t)
 
 			issuer, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)

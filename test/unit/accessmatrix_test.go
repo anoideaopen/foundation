@@ -36,7 +36,7 @@ func (ict *IssuerCheckerToken) QueryGetRight(ccname string, address *types.Addre
 		return false, err
 	}
 
-	if right.HaveRight {
+	if right.GetHaveRight() {
 		return true, nil
 	}
 
@@ -51,7 +51,7 @@ func (ict *IssuerCheckerToken) QueryGetAddressRightForNominee(chaincodeName stri
 		return false, err
 	}
 
-	if right.HaveRight {
+	if right.GetHaveRight() {
 		return true, nil
 	}
 
@@ -69,10 +69,10 @@ func (ict *IssuerCheckerToken) QueryGetAddressesListForNominee(chaincodeName str
 	var addresses []*types.Address
 	for _, addr := range accounts.GetAddresses() {
 		addresses = append(addresses, &types.Address{
-			UserID:       addr.UserID,
-			Address:      addr.Address,
-			IsIndustrial: addr.IsIndustrial,
-			IsMultisig:   addr.IsMultisig,
+			UserID:       addr.GetUserID(),
+			Address:      addr.GetAddress(),
+			IsIndustrial: addr.GetIsIndustrial(),
+			IsMultisig:   addr.GetIsMultisig(),
 		})
 	}
 
@@ -199,6 +199,7 @@ func TestRightsAndAddressRightsForNominee(t *testing.T) {
 		},
 	} {
 		t.Run(testCase.description, func(t *testing.T) {
+			t.Parallel()
 			mockStub := mockstub.NewMockStub(t)
 
 			mockStub.CreateAndSetConfig(

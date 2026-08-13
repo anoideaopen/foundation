@@ -52,7 +52,7 @@ jobs:
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v9
         with:
-          version: v2.9.0
+          version: v2.13.0
           skip-cache: true
           problem-matchers: true
 
@@ -86,12 +86,10 @@ jobs:
         run: |
           go test ./... -coverprofile=./coverage.out
 
-      # https://github.com/vladopajic/go-test-coverage
-      - uses: vladopajic/go-test-coverage@v2.18.9
+      # https://github.com/codecov/codecov-action
+      - uses: codecov/codecov-action@v5
         with:
-          config: ./.testcoverage.yml
-          profile: coverage.out
-          local-prefix: github.com/${{ github.repository }}
+          files: ./coverage.out
 
   go-test-integration:
     needs:
