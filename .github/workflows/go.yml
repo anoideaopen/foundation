@@ -87,7 +87,7 @@ jobs:
           go test ./... -coverprofile=./coverage.out
 
       # https://github.com/codecov/codecov-action
-      - uses: codecov/codecov-action@v5
+      - uses: codecov/codecov-action@v7
         with:
           files: ./coverage.out
 
