@@ -3,8 +3,8 @@ package channel_transfer_multi
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net"
+	"strconv"
 	"strings"
 
 	cligrpc "github.com/anoideaopen/channel-transfer/proto"
@@ -39,7 +39,6 @@ var _ = Describe("Channel transfer multi-transfers foundation Tests", func() {
 	var (
 		channels     = []string{cmn.ChannelACL, cmn.ChannelCC, cmn.ChannelIndustrial}
 		user         *mocks.UserFoundation
-		clientCtx    context.Context
 		apiClient    cligrpc.APIClient
 		conn         *grpc.ClientConn
 		network      *nwo.Network
@@ -158,24 +157,24 @@ var _ = Describe("Channel transfer multi-transfers foundation Tests", func() {
 
 			ts.Query(cmn.ChannelIndustrial, cmn.ChannelIndustrial,
 				"industrialBalanceOf", ts.Admin().AddressBase58Check).
-				CheckIndustrialBalance(group, initial.Amount)
+				CheckIndustrialBalance(group, initial.GetAmount())
 
 			ts.TxInvokeWithSign(cmn.ChannelIndustrial, cmn.ChannelIndustrial, ts.Admin(),
 				"transferIndustrial", "", client.NewNonceByTime().Get(),
-				user.AddressBase58Check, group, initial.Amount, "transfer industrial tokens")
+				user.AddressBase58Check, group, initial.GetAmount(), "transfer industrial tokens")
 
 			ts.Query(cmn.ChannelIndustrial, cmn.ChannelIndustrial,
 				"industrialBalanceOf", user.AddressBase58Check).
-				CheckIndustrialBalance(group, initial.Amount)
+				CheckIndustrialBalance(group, initial.GetAmount())
 		}
 	})
 
 	It("multi transfer by admin test", func() {
 		By("creating grpc connection")
-		clientCtx = metadata.NewOutgoingContext(context.Background(), metadata.Pairs("authorization", networkFound.ChannelTransfer.AccessToken))
+		clientCtx := metadata.NewOutgoingContext(context.Background(), metadata.Pairs("authorization", networkFound.ChannelTransfer.AccessToken))
 
 		transportCredentials := insecure.NewCredentials()
-		grpcAddress := net.JoinHostPort(networkFound.ChannelTransfer.HostAddress, fmt.Sprintf("%d", networkFound.ChannelTransfer.Ports[cmn.GrpcPort]))
+		grpcAddress := net.JoinHostPort(networkFound.ChannelTransfer.HostAddress, strconv.FormatUint(uint64(networkFound.ChannelTransfer.Ports[cmn.GrpcPort]), 10))
 
 		var err error
 
@@ -221,7 +220,7 @@ var _ = Describe("Channel transfer multi-transfers foundation Tests", func() {
 		By("sending multi transfer request")
 		r, err := apiClient.MultiTransferByAdmin(clientCtx, transfer)
 		Expect(err).NotTo(HaveOccurred())
-		Expect(r.Status).To(Equal(cligrpc.TransferStatusResponse_STATUS_IN_PROCESS))
+		Expect(r.GetStatus()).To(Equal(cligrpc.TransferStatusResponse_STATUS_IN_PROCESS))
 
 		By("checking multi transfer status")
 		transferStatusRequest := &cligrpc.TransferStatusRequest{
@@ -243,7 +242,7 @@ var _ = Describe("Channel transfer multi-transfers foundation Tests", func() {
 		By("awaiting for channel transfer to respond")
 		statusResponse, err := apiClient.TransferStatus(ctx, transferStatusRequest)
 		Expect(err).NotTo(HaveOccurred())
-		Expect(statusResponse.Status).To(Equal(cligrpc.TransferStatusResponse_STATUS_COMPLETED))
+		Expect(statusResponse.GetStatus()).To(Equal(cligrpc.TransferStatusResponse_STATUS_COMPLETED))
 
 		By("checking result balances")
 		for i, expected := range expectedIndustrialBalances {
@@ -261,10 +260,10 @@ var _ = Describe("Channel transfer multi-transfers foundation Tests", func() {
 
 	It("multi transfer by customer test", func() {
 		By("creating grpc connection")
-		clientCtx = metadata.NewOutgoingContext(context.Background(), metadata.Pairs("authorization", networkFound.ChannelTransfer.AccessToken))
+		clientCtx := metadata.NewOutgoingContext(context.Background(), metadata.Pairs("authorization", networkFound.ChannelTransfer.AccessToken))
 
 		transportCredentials := insecure.NewCredentials()
-		grpcAddress := net.JoinHostPort(networkFound.ChannelTransfer.HostAddress, fmt.Sprintf("%d", networkFound.ChannelTransfer.Ports[cmn.GrpcPort]))
+		grpcAddress := net.JoinHostPort(networkFound.ChannelTransfer.HostAddress, strconv.FormatUint(uint64(networkFound.ChannelTransfer.Ports[cmn.GrpcPort]), 10))
 
 		var err error
 
@@ -309,7 +308,7 @@ var _ = Describe("Channel transfer multi-transfers foundation Tests", func() {
 		By("sending transfer request")
 		r, err := apiClient.MultiTransferByCustomer(clientCtx, transfer)
 		Expect(err).NotTo(HaveOccurred())
-		Expect(r.Status).To(Equal(cligrpc.TransferStatusResponse_STATUS_IN_PROCESS))
+		Expect(r.GetStatus()).To(Equal(cligrpc.TransferStatusResponse_STATUS_IN_PROCESS))
 
 		By("checking transfer status")
 		transferStatusRequest := &cligrpc.TransferStatusRequest{
@@ -331,7 +330,7 @@ var _ = Describe("Channel transfer multi-transfers foundation Tests", func() {
 		By("awaiting for channel transfer to respond")
 		statusResponse, err := apiClient.TransferStatus(ctx, transferStatusRequest)
 		Expect(err).NotTo(HaveOccurred())
-		Expect(statusResponse.Status).To(Equal(cligrpc.TransferStatusResponse_STATUS_COMPLETED))
+		Expect(statusResponse.GetStatus()).To(Equal(cligrpc.TransferStatusResponse_STATUS_COMPLETED))
 
 		By("checking result balances")
 		for i, expected := range expectedIndustrialBalances {

@@ -376,7 +376,7 @@ func (ts *FoundationTestSuite) CheckUserInList(listType cc.ListType, user *mocks
 		}
 
 		account := resp.GetAccount()
-		if !((account.GetBlackListed() && listType == cc.BlackList) || (account.GetGrayListed() && listType == cc.GrayList)) {
+		if (!account.GetBlackListed() || listType != cc.BlackList) && (!account.GetGrayListed() || listType != cc.GrayList) {
 			return fmt.Sprintf("Error: expected %s to be added to %s", user.AddressBase58Check, listType.String())
 		}
 
@@ -410,7 +410,7 @@ func (ts *FoundationTestSuite) CheckUserNotInList(listType cc.ListType, user *mo
 		}
 
 		account := resp.GetAccount()
-		if !((!account.GetBlackListed() && listType == cc.BlackList) || (!account.GetGrayListed() && listType == cc.GrayList)) {
+		if (account.GetBlackListed() || listType != cc.BlackList) && (account.GetGrayListed() || listType != cc.GrayList) {
 			return fmt.Sprintf("Error: expected %s to be deleted from %s", user.AddressBase58Check, listType.String())
 		}
 

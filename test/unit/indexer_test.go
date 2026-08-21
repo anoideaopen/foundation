@@ -53,7 +53,7 @@ func TestCreateIndex(t *testing.T) {
 	require.NoError(t, err)
 
 	resp := mockStub.QueryChaincode(cc, "indexCreated", []string{balanceTypeStr}...)
-	require.NoError(t, json.Unmarshal(resp.Payload, &index))
+	require.NoError(t, json.Unmarshal(resp.GetPayload(), &index))
 	require.False(t, index)
 
 	mockIterator := &mocks.StateIterator{}
@@ -97,7 +97,7 @@ func TestCreateIndex(t *testing.T) {
 
 	mockStub.GetFunctionAndParametersReturns("createIndex", []string{balanceTypeStr})
 	resp = cc.Invoke(mockStub)
-	require.Equal(t, "", resp.Message)
+	require.Empty(t, resp.GetMessage())
 
 	// checking index created and owners appears
 	indexCreated, ownersAfterIndexing := checkIndexAndOwners(t, mockStub.ChaincodeStub)
@@ -134,7 +134,7 @@ func TestAutoBalanceIndexing(t *testing.T) {
 
 	// emulating batch execute for emitting tokens to user
 	_, resp := mockStub.TxInvokeChaincodeSigned(cc, "emitIndustrial", owner, "", "", "", []string{user.AddressBase58Check, "1000", "usdt"}...)
-	require.Equal(t, "", resp.Message)
+	require.Empty(t, resp.GetMessage())
 
 	// checking inverse balance appears
 	_, ownersAutoIndexed = checkIndexAndOwners(t, mockStub.ChaincodeStub)
@@ -149,7 +149,7 @@ func checkIndexAndOwners(t *testing.T, stub *mocks.ChaincodeStub) (bool, int) {
 	var ownersAfterIndexing []string
 
 	// Checking index to be constructed.
-	for i := 0; i < stub.PutStateCallCount(); i++ {
+	for i := range stub.PutStateCallCount() {
 		key, value := stub.PutStateArgsForCall(i)
 		if key == indexKey {
 			indexCreated, err = strconv.ParseBool(string(value))

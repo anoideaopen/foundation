@@ -92,7 +92,7 @@ func TestIndustrialBalances(t *testing.T) {
 			funcCheckResult: func(t *testing.T, mockStub *mockstub.MockStub, user1, user2 *mocks.UserFoundation, resp *peer.Response) {
 				payload := map[string]string{}
 
-				err := json.Unmarshal(resp.Payload, &payload)
+				err := json.Unmarshal(resp.GetPayload(), &payload)
 				require.NoError(t, err)
 
 				value, ok := payload[testGroup]
@@ -121,7 +121,7 @@ func TestIndustrialBalances(t *testing.T) {
 				require.NoError(t, err)
 
 				checked := false
-				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					putStateKey, value := mockStub.PutStateArgsForCall(i)
 					if putStateKey == key {
 						require.Equal(t, big.NewInt(1100), new(big.Int).SetBytes(value))
@@ -151,7 +151,7 @@ func TestIndustrialBalances(t *testing.T) {
 				require.NoError(t, err)
 
 				checked := false
-				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					putStateKey, value := mockStub.PutStateArgsForCall(i)
 					if putStateKey == key {
 						require.Equal(t, big.NewInt(900), new(big.Int).SetBytes(value))
@@ -185,7 +185,7 @@ func TestIndustrialBalances(t *testing.T) {
 
 				checkedLocked := false
 				checkedUnlocked := false
-				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					putStateKey, value := mockStub.PutStateArgsForCall(i)
 					if putStateKey == keyLocked {
 						require.Equal(t, big.NewInt(100), new(big.Int).SetBytes(value))
@@ -227,7 +227,7 @@ func TestIndustrialBalances(t *testing.T) {
 			funcCheckResult: func(t *testing.T, mockStub *mockstub.MockStub, user1, user2 *mocks.UserFoundation, resp *peer.Response) {
 				payload := map[string]string{}
 
-				err := json.Unmarshal(resp.Payload, &payload)
+				err := json.Unmarshal(resp.GetPayload(), &payload)
 				require.NoError(t, err)
 
 				value, ok := payload[testGroup]
@@ -260,7 +260,7 @@ func TestIndustrialBalances(t *testing.T) {
 
 				checkedLocked := false
 				checkedUnlocked := false
-				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					putStateKey, value := mockStub.PutStateArgsForCall(i)
 					if putStateKey == keyLocked {
 						require.Equal(t, big.NewInt(900), new(big.Int).SetBytes(value))
@@ -298,7 +298,7 @@ func TestIndustrialBalances(t *testing.T) {
 
 				checkedUser1 := false
 				checkedUser2 := false
-				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					putStateKey, value := mockStub.PutStateArgsForCall(i)
 					if putStateKey == keyBalanceUser1 {
 						require.Equal(t, big.NewInt(900), new(big.Int).SetBytes(value))
@@ -336,7 +336,7 @@ func TestIndustrialBalances(t *testing.T) {
 
 				checkedUser1 := false
 				checkedUser2 := false
-				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					putStateKey, value := mockStub.PutStateArgsForCall(i)
 					if putStateKey == keyBalanceUser1 {
 						require.Equal(t, big.NewInt(900), new(big.Int).SetBytes(value))
@@ -370,7 +370,7 @@ func TestIndustrialBalances(t *testing.T) {
 				require.NoError(t, err)
 
 				checked := false
-				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					putStateKey, value := mockStub.PutStateArgsForCall(i)
 					if putStateKey == keyBalance {
 						require.Equal(t, big.NewInt(900), new(big.Int).SetBytes(value))
@@ -384,6 +384,7 @@ func TestIndustrialBalances(t *testing.T) {
 
 	for _, test := range testCollection {
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
 			mockStub := mockstub.NewMockStub(t)
 
 			owner, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)

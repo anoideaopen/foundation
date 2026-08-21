@@ -17,7 +17,6 @@ import (
 	"github.com/hyperledger/fabric-protos-go-apiv2/peer"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
-	pb "google.golang.org/protobuf/proto"
 )
 
 // FiatToken - base struct
@@ -60,7 +59,7 @@ func (ft *FiatTestToken) TxEmitIndustrial(sender *types.Sender, address *types.A
 }
 
 func (ft *FiatTestToken) TxAccountsTest(_ *types.Sender, addr string, pub string) error {
-	args := make([][]byte, 0)
+	args := make([][]byte, 0, 11)
 	args = append(args, []byte("getAccountsInfo"))
 	for range 2 {
 		bytes, _ := json.Marshal([]string{"getAccountInfo", addr})
@@ -224,7 +223,7 @@ func TestEmitTransfer(t *testing.T) {
 				require.NoError(t, err)
 
 				checked := false
-				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					putStateKey, value := mockStub.PutStateArgsForCall(i)
 					if putStateKey == user1BalanceKey {
 						require.Equal(t, big.NewInt(1000).Bytes(), value)
@@ -268,7 +267,7 @@ func TestEmitTransfer(t *testing.T) {
 				resp *peer.Response,
 			) {
 				checked := false
-				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					putStateKey, value := mockStub.PutStateArgsForCall(i)
 					if putStateKey == keyMetadata {
 						tokenMetadata := &pbfound.Token{}
@@ -276,7 +275,7 @@ func TestEmitTransfer(t *testing.T) {
 						err := proto.Unmarshal(value, tokenMetadata)
 						require.NoError(t, err)
 
-						require.Equal(t, feeAggregator.AddressBytes, tokenMetadata.FeeAddress)
+						require.Equal(t, feeAggregator.AddressBytes, tokenMetadata.GetFeeAddress())
 						checked = true
 					}
 				}
@@ -326,7 +325,7 @@ func TestEmitTransfer(t *testing.T) {
 				}
 
 				checked := false
-				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					putStateKey, value := mockStub.PutStateArgsForCall(i)
 					if putStateKey == keyMetadata {
 						tokenMetadata := &pbfound.Token{}
@@ -334,7 +333,7 @@ func TestEmitTransfer(t *testing.T) {
 						err := proto.Unmarshal(value, tokenMetadata)
 						require.NoError(t, err)
 
-						require.True(t, proto.Equal(metadata.Fee, tokenMetadata.Fee))
+						require.True(t, proto.Equal(metadata.GetFee(), tokenMetadata.GetFee()))
 						checked = true
 					}
 				}
@@ -404,7 +403,7 @@ func TestEmitTransfer(t *testing.T) {
 				user1Checked := false
 				user2Checked := false
 				feeChecked := false
-				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					putStateKey, value := mockStub.PutStateArgsForCall(i)
 					if putStateKey == user1BalanceKey {
 						require.Equal(t, big.NewInt(500).Bytes(), value)
@@ -426,6 +425,7 @@ func TestEmitTransfer(t *testing.T) {
 
 	for _, test := range testCollection {
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
 			mockStub := mockstub.NewMockStub(t)
 
 			owner, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
@@ -526,7 +526,7 @@ func TestMultisigEmitTransfer(t *testing.T) {
 				require.NoError(t, err)
 
 				checked := false
-				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					putStateKey, value := mockStub.PutStateArgsForCall(i)
 					if putStateKey == user1BalanceKey {
 						require.Equal(t, big.NewInt(1000).Bytes(), value)
@@ -597,7 +597,7 @@ func TestMultisigEmitTransfer(t *testing.T) {
 				user1Checked := false
 				user2Checked := false
 				feeChecked := false
-				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					putStateKey, value := mockStub.PutStateArgsForCall(i)
 					if putStateKey == user1BalanceKey {
 						require.Equal(t, big.NewInt(500).Bytes(), value)
@@ -619,6 +619,7 @@ func TestMultisigEmitTransfer(t *testing.T) {
 
 	for _, test := range testCollection {
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
 			mockStub := mockstub.NewMockStub(t)
 
 			owner, err := mocks.NewUserFoundationMultisigned(pbfound.KeyType_ed25519, 3)
@@ -699,7 +700,7 @@ func TestBuyLimit(t *testing.T) {
 			},
 			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, owner *mocks.UserFoundation, user *mocks.UserFoundation, resp *peer.Response) {
 				checked := false
-				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					putStateKey, value := mockStub.PutStateArgsForCall(i)
 					if putStateKey == keyMetadata {
 						tokenMetadata := &pbfound.Token{}
@@ -713,7 +714,7 @@ func TestBuyLimit(t *testing.T) {
 							Rate:     big.NewInt(50000000).Bytes(),
 						}
 
-						require.True(t, proto.Equal(expectedRate, tokenMetadata.Rates[0]))
+						require.True(t, proto.Equal(expectedRate, tokenMetadata.GetRates()[0]))
 						checked = true
 					}
 				}
@@ -764,7 +765,7 @@ func TestBuyLimit(t *testing.T) {
 
 				checkedBalance := false
 				checkedAllowed := false
-				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					putStateKey, value := mockStub.PutStateArgsForCall(i)
 					if putStateKey == keyBalance {
 						require.Equal(t, big.NewInt(100).Bytes(), value)
@@ -805,7 +806,7 @@ func TestBuyLimit(t *testing.T) {
 			},
 			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, owner *mocks.UserFoundation, user *mocks.UserFoundation, resp *peer.Response) {
 				checked := false
-				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					putStateKey, value := mockStub.PutStateArgsForCall(i)
 					if putStateKey == keyMetadata {
 						tokenMetadata := &pbfound.Token{}
@@ -821,7 +822,7 @@ func TestBuyLimit(t *testing.T) {
 							Max:      big.NewInt(200).Bytes(),
 						}
 
-						require.True(t, proto.Equal(expectedRate, tokenMetadata.Rates[0]))
+						require.True(t, proto.Equal(expectedRate, tokenMetadata.GetRates()[0]))
 						checked = true
 					}
 				}
@@ -856,9 +857,9 @@ func TestBuyLimit(t *testing.T) {
 			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, owner *mocks.UserFoundation, user *mocks.UserFoundation, resp *peer.Response) {
 				payload := &pbfound.BatchResponse{}
 
-				err := pb.Unmarshal(resp.Payload, payload)
+				err := proto.Unmarshal(resp.GetPayload(), payload)
 				require.NoError(t, err)
-				require.Equal(t, token.ErrMinLimitGreaterThanMax, payload.TxResponses[0].Error.Error)
+				require.Equal(t, token.ErrMinLimitGreaterThanMax, payload.GetTxResponses()[0].GetError().GetError())
 			},
 		},
 		{
@@ -888,7 +889,7 @@ func TestBuyLimit(t *testing.T) {
 			},
 			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, owner *mocks.UserFoundation, user *mocks.UserFoundation, resp *peer.Response) {
 				checked := false
-				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					putStateKey, value := mockStub.PutStateArgsForCall(i)
 					if putStateKey == keyMetadata {
 						tokenMetadata := &pbfound.Token{}
@@ -904,7 +905,7 @@ func TestBuyLimit(t *testing.T) {
 							Max:      big.NewInt(0).Bytes(),
 						}
 
-						require.True(t, proto.Equal(expectedRate, tokenMetadata.Rates[0]))
+						require.True(t, proto.Equal(expectedRate, tokenMetadata.GetRates()[0]))
 						checked = true
 					}
 				}
@@ -957,7 +958,7 @@ func TestBuyLimit(t *testing.T) {
 
 				checkedBalance := false
 				checkedAllowed := false
-				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					putStateKey, value := mockStub.PutStateArgsForCall(i)
 					if putStateKey == keyBalance {
 						require.Equal(t, big.NewInt(100).Bytes(), value)
@@ -1011,9 +1012,9 @@ func TestBuyLimit(t *testing.T) {
 			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, owner *mocks.UserFoundation, user *mocks.UserFoundation, resp *peer.Response) {
 				payload := &pbfound.BatchResponse{}
 
-				err := pb.Unmarshal(resp.Payload, payload)
+				err := proto.Unmarshal(resp.GetPayload(), payload)
 				require.NoError(t, err)
-				require.Equal(t, token.ErrAmountOutOfLimits, payload.TxResponses[0].Error.Error)
+				require.Equal(t, token.ErrAmountOutOfLimits, payload.GetTxResponses()[0].GetError().GetError())
 			},
 		},
 		{
@@ -1056,15 +1057,16 @@ func TestBuyLimit(t *testing.T) {
 			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, owner *mocks.UserFoundation, user *mocks.UserFoundation, resp *peer.Response) {
 				payload := &pbfound.BatchResponse{}
 
-				err := pb.Unmarshal(resp.Payload, payload)
+				err := proto.Unmarshal(resp.GetPayload(), payload)
 				require.NoError(t, err)
-				require.Equal(t, token.ErrAmountOutOfLimits, payload.TxResponses[0].Error.Error)
+				require.Equal(t, token.ErrAmountOutOfLimits, payload.GetTxResponses()[0].GetError().GetError())
 			},
 		},
 	}
 
 	for _, test := range testCollection {
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
 			mockStub := mockstub.NewMockStub(t)
 
 			owner, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)

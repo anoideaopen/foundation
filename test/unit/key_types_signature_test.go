@@ -37,6 +37,7 @@ func TestKeyTypesEmission(t *testing.T) {
 
 	for _, test := range testCollection {
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
 			mockStub := mockstub.NewMockStub(t)
 
 			issuer, err := mocks.NewUserFoundation(test.keyType)
@@ -66,7 +67,7 @@ func TestKeyTypesEmission(t *testing.T) {
 			// checking put state
 			require.Equal(t, 4, mockStub.PutStateCallCount())
 			var i int
-			for i = 0; i < mockStub.PutStateCallCount(); i++ {
+			for i = range mockStub.PutStateCallCount() {
 				key, value := mockStub.PutStateArgsForCall(i)
 				if key != "tokenMetadata" {
 					prefix, keys, err := mockStub.SplitCompositeKey(key)

@@ -32,7 +32,7 @@ func TestCorrectNonce(t *testing.T) {
 	n := new(Nonce)
 
 	lastNonce := new(pb.Nonce)
-	lastNonce.Nonce, err = n.set(uint64(etlMili)*multiKoeffForGeneralNonce, lastNonce.Nonce, defaultNonceTTL)
+	lastNonce.Nonce, err = n.set(uint64(etlMili)*multiKoeffForGeneralNonce, lastNonce.GetNonce(), defaultNonceTTL)
 	require.NoError(t, err)
 }
 
@@ -41,13 +41,13 @@ func TestNonceOldOk(t *testing.T) {
 	n := new(Nonce)
 
 	lastNonce := new(pb.Nonce)
-	lastNonce.Nonce, err = n.set(1660055050000000000, lastNonce.Nonce, 0)
+	lastNonce.Nonce, err = n.set(1660055050000000000, lastNonce.GetNonce(), 0)
 	require.NoError(t, err)
-	require.Equal(t, []uint64{1660055050000000000}, lastNonce.Nonce)
+	require.Equal(t, []uint64{1660055050000000000}, lastNonce.GetNonce())
 
-	lastNonce.Nonce, err = n.set(1660055050010000000, lastNonce.Nonce, 0)
+	lastNonce.Nonce, err = n.set(1660055050010000000, lastNonce.GetNonce(), 0)
 	require.NoError(t, err)
-	require.Equal(t, []uint64{1660055050010000000}, lastNonce.Nonce)
+	require.Equal(t, []uint64{1660055050010000000}, lastNonce.GetNonce())
 }
 
 func TestNonceOldFail(t *testing.T) {
@@ -55,13 +55,13 @@ func TestNonceOldFail(t *testing.T) {
 	n := new(Nonce)
 
 	lastNonce := new(pb.Nonce)
-	lastNonce.Nonce, err = n.set(1660055050010000000, lastNonce.Nonce, 0)
+	lastNonce.Nonce, err = n.set(1660055050010000000, lastNonce.GetNonce(), 0)
 	require.NoError(t, err)
-	require.Equal(t, []uint64{1660055050010000000}, lastNonce.Nonce)
+	require.Equal(t, []uint64{1660055050010000000}, lastNonce.GetNonce())
 
-	lastNonce.Nonce, err = n.set(1660055050000000000, lastNonce.Nonce, 0)
+	lastNonce.Nonce, err = n.set(1660055050000000000, lastNonce.GetNonce(), 0)
 	require.Error(t, err)
-	require.Equal(t, []uint64{1660055050010000000}, lastNonce.Nonce)
+	require.Equal(t, []uint64{1660055050010000000}, lastNonce.GetNonce())
 }
 
 func TestNonceOk(t *testing.T) {
@@ -69,17 +69,17 @@ func TestNonceOk(t *testing.T) {
 	n := new(Nonce)
 
 	lastNonce := new(pb.Nonce)
-	lastNonce.Nonce, err = n.set(1660055050000000000, lastNonce.Nonce, defaultNonceTTL)
+	lastNonce.Nonce, err = n.set(1660055050000000000, lastNonce.GetNonce(), defaultNonceTTL)
 	require.NoError(t, err)
-	require.Equal(t, []uint64{1660055050000000000}, lastNonce.Nonce)
+	require.Equal(t, []uint64{1660055050000000000}, lastNonce.GetNonce())
 
-	lastNonce.Nonce, err = n.set(1660055050020000000, lastNonce.Nonce, defaultNonceTTL)
+	lastNonce.Nonce, err = n.set(1660055050020000000, lastNonce.GetNonce(), defaultNonceTTL)
 	require.NoError(t, err)
-	require.Equal(t, []uint64{1660055050000000000, 1660055050020000000}, lastNonce.Nonce)
+	require.Equal(t, []uint64{1660055050000000000, 1660055050020000000}, lastNonce.GetNonce())
 
-	lastNonce.Nonce, err = n.set(1660055050010000000, lastNonce.Nonce, defaultNonceTTL)
+	lastNonce.Nonce, err = n.set(1660055050010000000, lastNonce.GetNonce(), defaultNonceTTL)
 	require.NoError(t, err)
-	require.Equal(t, []uint64{1660055050000000000, 1660055050010000000, 1660055050020000000}, lastNonce.Nonce)
+	require.Equal(t, []uint64{1660055050000000000, 1660055050010000000, 1660055050020000000}, lastNonce.GetNonce())
 }
 
 func TestNonceOkCut(t *testing.T) {
@@ -87,17 +87,17 @@ func TestNonceOkCut(t *testing.T) {
 	n := new(Nonce)
 
 	lastNonce := new(pb.Nonce)
-	lastNonce.Nonce, err = n.set(1660055050000000000, lastNonce.Nonce, defaultNonceTTL)
+	lastNonce.Nonce, err = n.set(1660055050000000000, lastNonce.GetNonce(), defaultNonceTTL)
 	require.NoError(t, err)
-	require.Equal(t, []uint64{1660055050000000000}, lastNonce.Nonce)
+	require.Equal(t, []uint64{1660055050000000000}, lastNonce.GetNonce())
 
-	lastNonce.Nonce, err = n.set(1660055050020000000, lastNonce.Nonce, defaultNonceTTL)
+	lastNonce.Nonce, err = n.set(1660055050020000000, lastNonce.GetNonce(), defaultNonceTTL)
 	require.NoError(t, err)
-	require.Equal(t, []uint64{1660055050000000000, 1660055050020000000}, lastNonce.Nonce)
+	require.Equal(t, []uint64{1660055050000000000, 1660055050020000000}, lastNonce.GetNonce())
 
-	lastNonce.Nonce, err = n.set(1660055100010000000, lastNonce.Nonce, defaultNonceTTL)
+	lastNonce.Nonce, err = n.set(1660055100010000000, lastNonce.GetNonce(), defaultNonceTTL)
 	require.NoError(t, err)
-	require.Equal(t, []uint64{1660055050020000000, 1660055100010000000}, lastNonce.Nonce)
+	require.Equal(t, []uint64{1660055050020000000, 1660055100010000000}, lastNonce.GetNonce())
 }
 
 func TestNonceFailTTL(t *testing.T) {
@@ -105,13 +105,13 @@ func TestNonceFailTTL(t *testing.T) {
 	n := new(Nonce)
 
 	lastNonce := new(pb.Nonce)
-	lastNonce.Nonce, err = n.set(1660055050010000000, lastNonce.Nonce, defaultNonceTTL)
+	lastNonce.Nonce, err = n.set(1660055050010000000, lastNonce.GetNonce(), defaultNonceTTL)
 	require.NoError(t, err)
-	require.Equal(t, []uint64{1660055050010000000}, lastNonce.Nonce)
+	require.Equal(t, []uint64{1660055050010000000}, lastNonce.GetNonce())
 
-	lastNonce.Nonce, err = n.set(1660055000009000000, lastNonce.Nonce, defaultNonceTTL)
+	lastNonce.Nonce, err = n.set(1660055000009000000, lastNonce.GetNonce(), defaultNonceTTL)
 	require.EqualError(t, err, "incorrect nonce 1660055000009000000, less than 1660055050010000000")
-	require.Equal(t, []uint64{1660055050010000000}, lastNonce.Nonce)
+	require.Equal(t, []uint64{1660055050010000000}, lastNonce.GetNonce())
 }
 
 func TestNonceFailRepeat(t *testing.T) {
@@ -119,28 +119,28 @@ func TestNonceFailRepeat(t *testing.T) {
 	n := new(Nonce)
 
 	lastNonce := new(pb.Nonce)
-	lastNonce.Nonce, err = n.set(1660055050000000000, lastNonce.Nonce, defaultNonceTTL)
+	lastNonce.Nonce, err = n.set(1660055050000000000, lastNonce.GetNonce(), defaultNonceTTL)
 	require.NoError(t, err)
-	require.Equal(t, []uint64{1660055050000000000}, lastNonce.Nonce)
+	require.Equal(t, []uint64{1660055050000000000}, lastNonce.GetNonce())
 
-	lastNonce.Nonce, err = n.set(1660055050020000000, lastNonce.Nonce, defaultNonceTTL)
+	lastNonce.Nonce, err = n.set(1660055050020000000, lastNonce.GetNonce(), defaultNonceTTL)
 	require.NoError(t, err)
-	require.Equal(t, []uint64{1660055050000000000, 1660055050020000000}, lastNonce.Nonce)
+	require.Equal(t, []uint64{1660055050000000000, 1660055050020000000}, lastNonce.GetNonce())
 
-	lastNonce.Nonce, err = n.set(1660055050010000000, lastNonce.Nonce, defaultNonceTTL)
+	lastNonce.Nonce, err = n.set(1660055050010000000, lastNonce.GetNonce(), defaultNonceTTL)
 	require.NoError(t, err)
-	require.Equal(t, []uint64{1660055050000000000, 1660055050010000000, 1660055050020000000}, lastNonce.Nonce)
+	require.Equal(t, []uint64{1660055050000000000, 1660055050010000000, 1660055050020000000}, lastNonce.GetNonce())
 
 	// repeat nonce
-	lastNonce.Nonce, err = n.set(1660055050000000000, lastNonce.Nonce, defaultNonceTTL)
+	lastNonce.Nonce, err = n.set(1660055050000000000, lastNonce.GetNonce(), defaultNonceTTL)
 	require.EqualError(t, err, "nonce 1660055050000000000 already exists")
-	require.Equal(t, []uint64{1660055050000000000, 1660055050010000000, 1660055050020000000}, lastNonce.Nonce)
+	require.Equal(t, []uint64{1660055050000000000, 1660055050010000000, 1660055050020000000}, lastNonce.GetNonce())
 
-	lastNonce.Nonce, err = n.set(1660055050010000000, lastNonce.Nonce, defaultNonceTTL)
+	lastNonce.Nonce, err = n.set(1660055050010000000, lastNonce.GetNonce(), defaultNonceTTL)
 	require.EqualError(t, err, "nonce 1660055050010000000 already exists")
-	require.Equal(t, []uint64{1660055050000000000, 1660055050010000000, 1660055050020000000}, lastNonce.Nonce)
+	require.Equal(t, []uint64{1660055050000000000, 1660055050010000000, 1660055050020000000}, lastNonce.GetNonce())
 
-	lastNonce.Nonce, err = n.set(1660055050020000000, lastNonce.Nonce, defaultNonceTTL)
+	lastNonce.Nonce, err = n.set(1660055050020000000, lastNonce.GetNonce(), defaultNonceTTL)
 	require.EqualError(t, err, "nonce 1660055050020000000 already exists")
-	require.Equal(t, []uint64{1660055050000000000, 1660055050010000000, 1660055050020000000}, lastNonce.Nonce)
+	require.Equal(t, []uint64{1660055050000000000, 1660055050010000000, 1660055050020000000}, lastNonce.GetNonce())
 }

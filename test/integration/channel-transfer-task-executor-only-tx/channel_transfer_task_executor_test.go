@@ -481,8 +481,8 @@ var _ = Describe("Channel transfer with task executor only tx foundation Tests",
 				resp := pbfound.CCTransfers{}
 				err := json.Unmarshal(out, &resp)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(resp.Bookmark).ToNot(BeEmpty())
-				Expect(resp.Ccts).To(HaveLen(2))
+				Expect(resp.GetBookmark()).ToNot(BeEmpty())
+				Expect(resp.GetCcts()).To(HaveLen(2))
 
 				return ""
 			}
@@ -495,10 +495,10 @@ var _ = Describe("Channel transfer with task executor only tx foundation Tests",
 				resp := pbfound.CCTransfers{}
 				err := json.Unmarshal(out, &resp)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(resp.Bookmark).To(BeEmpty())
-				Expect(resp.Ccts).To(HaveLen(5))
-				for _, cct := range resp.Ccts {
-					Expect(ids).Should(HaveKey(cct.Id))
+				Expect(resp.GetBookmark()).To(BeEmpty())
+				Expect(resp.GetCcts()).To(HaveLen(5))
+				for _, cct := range resp.GetCcts() {
+					Expect(ids).Should(HaveKey(cct.GetId()))
 				}
 
 				return ""
@@ -513,7 +513,7 @@ var _ = Describe("Channel transfer with task executor only tx foundation Tests",
 					resp := pbfound.CCTransfers{}
 					err := json.Unmarshal(out, &resp)
 					Expect(err).NotTo(HaveOccurred())
-					bookmark = resp.Bookmark
+					bookmark = resp.GetBookmark()
 					return ""
 				}
 

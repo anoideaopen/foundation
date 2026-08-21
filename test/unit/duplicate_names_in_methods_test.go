@@ -42,6 +42,7 @@ func TestDuplicateNames(t *testing.T) {
 	t.Parallel()
 	for _, test := range tt {
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
 			_, err := core.NewCC(test.bci)
 			require.ErrorIs(t, err, test.err)
 		})

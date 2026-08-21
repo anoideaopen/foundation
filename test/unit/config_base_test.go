@@ -2,6 +2,7 @@ package unit
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -141,6 +142,7 @@ func TestInitWithPositionedArgs(t *testing.T) {
 
 	for _, test := range testsCollection {
 		t.Run(test.channel, func(t *testing.T) {
+			t.Parallel()
 			mockStub := mockstub.NewMockStub(t)
 
 			cc, err := core.NewCC(test.bci)
@@ -159,15 +161,15 @@ func TestInitWithPositionedArgs(t *testing.T) {
 
 			// Checking config was set to state
 			key, value := mockStub.PutStateArgsForCall(0)
-			require.Equal(t, key, configKey)
+			require.Equal(t, configKey, key)
 
 			cfg, err := config.FromBytes(value)
 			require.NoError(t, err)
 
 			symbolExpected := strings.ToUpper(test.channel)
 
-			require.Equal(t, symbolExpected, cfg.GetContract().Symbol)
-			require.Equal(t, robotSKI, cfg.GetContract().RobotSKI)
+			require.Equal(t, symbolExpected, cfg.GetContract().GetSymbol())
+			require.Equal(t, robotSKI, cfg.GetContract().GetRobotSKI())
 			if test.adminIsIssuer {
 				require.Equal(t, fixtures.IssuerAddr, cfg.GetContract().GetAdmin().GetAddress())
 			} else {
@@ -222,7 +224,7 @@ func TestInitWithCommonConfig(t *testing.T) {
 	// Checking config was set to state
 	var resultCfg pb.Config
 	key, value := mockStub.PutStateArgsForCall(0)
-	require.Equal(t, key, configKey)
+	require.Equal(t, configKey, key)
 
 	err = protojson.Unmarshal(value, &resultCfg)
 	require.NoError(t, err)
@@ -235,7 +237,7 @@ func TestInitWithCommonConfig(t *testing.T) {
 	cc.Invoke(mockStub)
 
 	key = mockStub.GetStateArgsForCall(0)
-	require.Equal(t, key, configKey)
+	require.Equal(t, configKey, key)
 }
 
 func TestWithConfigMapperFunc(t *testing.T) {
@@ -271,7 +273,7 @@ func TestWithConfigMapperFunc(t *testing.T) {
 	// Checking config was set to state
 	var resultCfg pb.Config
 	key, value := mockStub.PutStateArgsForCall(0)
-	require.Equal(t, key, configKey)
+	require.Equal(t, configKey, key)
 
 	err = protojson.Unmarshal(value, &resultCfg)
 	require.NoError(t, err)
@@ -316,9 +318,10 @@ func TestWithConfigMapperFuncFromArgs(t *testing.T) {
 	// Checking config was set to state
 	var resultCfg pb.Config
 	key, value := mockStub.PutStateArgsForCall(0)
-	require.Equal(t, key, configKey)
+	require.Equal(t, configKey, key)
 
 	err = protojson.Unmarshal(value, &resultCfg)
+	require.NoError(t, err)
 
 	// Validating config
 	require.True(t, proto.Equal(&resultCfg, expectedConfig))
@@ -451,17 +454,17 @@ func getExpectedConfigFromArgs(args []string) (*pb.Config, error) {
 
 	robotSKI := args[4]
 	if robotSKI == "" {
-		return nil, fmt.Errorf("robot ski is empty")
+		return nil, errors.New("robot ski is empty")
 	}
 
 	issuerAddress := args[5]
 	if issuerAddress == "" {
-		return nil, fmt.Errorf("issuer address is empty")
+		return nil, errors.New("issuer address is empty")
 	}
 
 	adminAddress := args[6]
 	if adminAddress == "" {
-		return nil, fmt.Errorf("admin address is empty")
+		return nil, errors.New("admin address is empty")
 	}
 
 	cfgEtl := &pb.Config{
@@ -503,8 +506,8 @@ func (tect *TestExtConfigToken) ValidateExtConfig(config []byte) error {
 		return fmt.Errorf("unmarshalling config: %w", err)
 	}
 
-	if cfgFull.ExtConfig.MessageIs(&ec) {
-		if err := cfgFull.ExtConfig.UnmarshalTo(&ec); err != nil {
+	if cfgFull.GetExtConfig().MessageIs(&ec) {
+		if err := cfgFull.GetExtConfig().UnmarshalTo(&ec); err != nil {
 			return fmt.Errorf("unmarshalling ext config: %w", err)
 		}
 	}
@@ -526,15 +529,15 @@ func (tect *TestExtConfigToken) ApplyExtConfig(cfgBytes []byte) error {
 		return fmt.Errorf("unmarshalling config: %w", err)
 	}
 
-	if cfgFull.ExtConfig.MessageIs(&extConfig) {
-		if err := cfgFull.ExtConfig.UnmarshalTo(&extConfig); err != nil {
+	if cfgFull.GetExtConfig().MessageIs(&extConfig) {
+		if err := cfgFull.GetExtConfig().UnmarshalTo(&extConfig); err != nil {
 			return fmt.Errorf("unmarshalling ext config: %w", err)
 		}
 	}
 
-	tect.Asset = extConfig.Asset
-	tect.Amount = extConfig.Amount
-	tect.Issuer = extConfig.Issuer
+	tect.Asset = extConfig.GetAsset()
+	tect.Amount = extConfig.GetAmount()
+	tect.Issuer = extConfig.GetIssuer()
 
 	return nil
 }
@@ -583,7 +586,7 @@ func TestInitWithExtConfig(t *testing.T) {
 	// Checking config was set to state
 	var resultCfg pb.Config
 	key, value := mockStub.PutStateArgsForCall(0)
-	require.Equal(t, key, configKey)
+	require.Equal(t, configKey, key)
 
 	err = protojson.Unmarshal(value, &resultCfg)
 	require.NoError(t, err)

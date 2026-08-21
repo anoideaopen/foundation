@@ -63,7 +63,7 @@ var _ = Describe("Task Executor only tx foundation Tests", func() {
 		})
 
 		It("execute tasks with tx and nbtx", func() {
-			tasks := make([]*pbfound.Task, 0)
+			tasks := make([]*pbfound.Task, 0, 2)
 			task, err := client.CreateTaskWithSignArgs("healthCheckNb", cmn.ChannelFiat, cmn.ChannelFiat, ts.Admin())
 			Expect(err).NotTo(HaveOccurred())
 			tasks = append(tasks, task)

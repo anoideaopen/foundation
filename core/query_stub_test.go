@@ -35,19 +35,19 @@ func TestQueryStub(t *testing.T) {
 	t.Run("PutState [negative]", func(t *testing.T) {
 		_ = qs.PutState(valKey, []byte(""))
 		// checking PutState was not called
-		require.Equal(t, mockStub.PutStateCallCount(), 0)
+		require.Equal(t, 0, mockStub.PutStateCallCount())
 	})
 
 	t.Run("DelState [negative]", func(t *testing.T) {
 		_ = qs.DelState(valKey)
 		// checking DelState was not called
-		require.Equal(t, mockStub.DelStateCallCount(), 0)
+		require.Equal(t, 0, mockStub.DelStateCallCount())
 	})
 
 	t.Run("SetStateValidationParameter [negative]", func(t *testing.T) {
 		_ = qs.SetStateValidationParameter(valKey, []byte(valNew))
 		// checking SetStateValidationParameter was not called
-		require.Equal(t, mockStub.SetStateValidationParameterCallCount(), 0)
+		require.Equal(t, 0, mockStub.SetStateValidationParameterCallCount())
 	})
 
 	t.Run("GetPrivateData [positive]", func(t *testing.T) {
@@ -59,30 +59,30 @@ func TestQueryStub(t *testing.T) {
 	t.Run("PutPrivateData [negative]", func(t *testing.T) {
 		_ = qs.PutPrivateData(valCollection, valKey, []byte(valValue3))
 		// checking PutPrivateData was not called
-		require.Equal(t, mockStub.PutPrivateDataCallCount(), 0)
+		require.Equal(t, 0, mockStub.PutPrivateDataCallCount())
 	})
 
 	t.Run("DelPrivateData [negative]", func(t *testing.T) {
 		_ = qs.DelPrivateData(valCollection, valKey)
 		// checking DelPrivateData was not called
-		require.Equal(t, mockStub.DelPrivateDataCallCount(), 0)
+		require.Equal(t, 0, mockStub.DelPrivateDataCallCount())
 	})
 
 	t.Run("PurgePrivateData [negative]", func(t *testing.T) {
 		_ = qs.PurgePrivateData("collection", "key")
 		// checking PurgePrivateData was not called
-		require.Equal(t, mockStub.PurgePrivateDataCallCount(), 0)
+		require.Equal(t, 0, mockStub.PurgePrivateDataCallCount())
 	})
 
 	t.Run("SetPrivateDataValidationParameter [negative]", func(t *testing.T) {
 		_ = qs.SetPrivateDataValidationParameter(valCollection, valKey, []byte(valNew))
 		// checking SetPrivateDataValidationParameter was not called
-		require.Equal(t, mockStub.SetPrivateDataValidationParameterCallCount(), 0)
+		require.Equal(t, 0, mockStub.SetPrivateDataValidationParameterCallCount())
 	})
 
 	t.Run("SetEvent [negative]", func(t *testing.T) {
 		_ = qs.SetEvent(valEvent, []byte(valPayload))
 		// checking SetEvent was not called
-		require.Equal(t, mockStub.SetEventCallCount(), 0)
+		require.Equal(t, 0, mockStub.SetEventCallCount())
 	})
 }

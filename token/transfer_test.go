@@ -125,18 +125,19 @@ func TestBaseTokenTransfer(t *testing.T) {
 				require.NoError(t, err)
 
 				var j int
-				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					k, v := mockStub.PutStateArgsForCall(i)
-					if k == issuerVTBalanceKey {
+					switch k {
+					case issuerVTBalanceKey:
 						require.Equal(t, new(big.Int).SetUint64(5).Bytes(), v)
 						j++
-					} else if k == issuerUSDBalanceKey {
+					case issuerUSDBalanceKey:
 						require.Equal(t, new(big.Int).SetUint64(5).Bytes(), v)
 						j++
-					} else if k == sellerVTBalanceKey {
+					case sellerVTBalanceKey:
 						require.Equal(t, new(big.Int).SetUint64(5).Bytes(), v)
 						j++
-					} else if k == sellerUSDBalanceKey {
+					case sellerUSDBalanceKey:
 						require.Equal(t, new(big.Int).SetUint64(0).Bytes(), v)
 						j++
 					}
@@ -190,12 +191,13 @@ func TestBaseTokenTransfer(t *testing.T) {
 				require.NoError(t, err)
 
 				var j int
-				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					k, v := mockStub.PutStateArgsForCall(i)
-					if k == buyerVTBalanceKey {
+					switch k {
+					case buyerVTBalanceKey:
 						require.Equal(t, new(big.Int).SetUint64(5).Bytes(), v)
 						j++
-					} else if k == sellerVTBalanceKey {
+					case sellerVTBalanceKey:
 						require.Equal(t, new(big.Int).SetUint64(0).Bytes(), v)
 						j++
 					}
@@ -334,15 +336,16 @@ func TestBaseTokenTransfer(t *testing.T) {
 				require.NoError(t, err)
 
 				var j int
-				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					k, v := mockStub.PutStateArgsForCall(i)
-					if k == buyerVTBalanceKey {
+					switch k {
+					case buyerVTBalanceKey:
 						require.Equal(t, new(big.Int).SetUint64(100).Bytes(), v)
 						j++
-					} else if k == issuerVTBalanceKey {
+					case issuerVTBalanceKey:
 						require.Equal(t, new(big.Int).SetUint64(0).Bytes(), v)
 						j++
-					} else if k == feeAggregatorVTBalanceKey {
+					case feeAggregatorVTBalanceKey:
 						require.Equal(t, new(big.Int).SetUint64(1).Bytes(), v)
 						j++
 					}
@@ -404,12 +407,13 @@ func TestBaseTokenTransfer(t *testing.T) {
 				require.NoError(t, err)
 
 				var j int
-				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					k, v := mockStub.PutStateArgsForCall(i)
-					if k == buyerVTBalanceKey {
+					switch k {
+					case buyerVTBalanceKey:
 						require.Equal(t, new(big.Int).SetUint64(100).Bytes(), v)
 						j++
-					} else if k == issuerVTBalanceKey {
+					case issuerVTBalanceKey:
 						require.Equal(t, new(big.Int).SetUint64(1).Bytes(), v)
 						j++
 					}
@@ -512,18 +516,19 @@ func TestBaseTokenTransfer(t *testing.T) {
 				require.NoError(t, err)
 
 				var j int
-				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					k, v := mockStub.PutStateArgsForCall(i)
-					if k == issuerVTBalanceKeyBA1 {
+					switch k {
+					case issuerVTBalanceKeyBA1:
 						require.Equal(t, new(big.Int).SetUint64(50000000).Bytes(), v)
 						j++
-					} else if k == issuerVTBalanceKeyBA2 {
+					case issuerVTBalanceKeyBA2:
 						require.Equal(t, new(big.Int).SetUint64(0).Bytes(), v)
 						j++
-					} else if k == buyerVTBalanceKeyBA1 {
+					case buyerVTBalanceKeyBA1:
 						require.Equal(t, new(big.Int).SetUint64(50000000).Bytes(), v)
 						j++
-					} else if k == buyerVTBalanceKeyBA2 {
+					case buyerVTBalanceKeyBA2:
 						require.Equal(t, new(big.Int).SetUint64(100000000).Bytes(), v)
 						j++
 					}

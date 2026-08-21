@@ -59,7 +59,7 @@ func TestTaskExecutor(t *testing.T) {
 				}
 			},
 			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, resp *pbfound.BatchResponse) {
-				require.Equal(t, mockStub.PutStateCallCount(), 9)
+				require.Equal(t, 9, mockStub.PutStateCallCount())
 				require.Len(t, resp.GetTxResponses(), 6)
 				for _, r := range resp.GetTxResponses() {
 					require.Nil(t, r.GetError())
@@ -74,7 +74,7 @@ func TestTaskExecutor(t *testing.T) {
 				}
 			},
 			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, resp *pbfound.BatchResponse) {
-				require.Equal(t, mockStub.PutStateCallCount(), 1)
+				require.Equal(t, 1, mockStub.PutStateCallCount())
 				require.Len(t, resp.GetTxResponses(), 1)
 				for _, r := range resp.GetTxResponses() {
 					require.Nil(t, r.GetError())
@@ -89,7 +89,7 @@ func TestTaskExecutor(t *testing.T) {
 				}
 			},
 			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, resp *pbfound.BatchResponse) {
-				require.Equal(t, mockStub.PutStateCallCount(), 1)
+				require.Equal(t, 1, mockStub.PutStateCallCount())
 				require.Len(t, resp.GetTxResponses(), 1)
 				for _, r := range resp.GetTxResponses() {
 					require.Nil(t, r.GetError())
@@ -118,6 +118,7 @@ func TestTaskExecutor(t *testing.T) {
 		},
 	} {
 		t.Run(testCase.description, func(t *testing.T) {
+			t.Parallel()
 			mockStub := mockstub.NewMockStub(t)
 
 			mockStub.CreateAndSetConfig(

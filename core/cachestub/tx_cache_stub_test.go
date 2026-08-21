@@ -43,7 +43,7 @@ func TestTxStub(t *testing.T) {
 	t.Run("[negative] GetState error test", func(t *testing.T) {
 		stateStub := &mocks.ChaincodeStub{}
 		// preparing error response
-		stateStub.GetStateReturns(nil, testError)
+		stateStub.GetStateReturns(nil, errTest)
 		// creating batch cache stub
 		batchStub := NewBatchCacheStub(stateStub)
 		// creating tx cache stub
@@ -52,7 +52,7 @@ func TestTxStub(t *testing.T) {
 
 		// requesting data from state
 		_, err := txStub.GetState(valKey1)
-		require.Errorf(t, err, testError.Error())
+		require.Errorf(t, err, errTest.Error())
 
 		// checking mock stub calls
 		require.Equal(t, 1, stateStub.GetStateCallCount())
@@ -193,7 +193,7 @@ func TestTxStub(t *testing.T) {
 	t.Run("[negative] PutState error test", func(t *testing.T) {
 		stateStub := &mocks.ChaincodeStub{}
 		// preparing error response
-		stateStub.PutStateReturns(testError)
+		stateStub.PutStateReturns(errTest)
 		// creating batch cache stub
 		batchStub := NewBatchCacheStub(stateStub)
 		// creating tx cache stub
@@ -206,7 +206,7 @@ func TestTxStub(t *testing.T) {
 		txStub.Commit()
 
 		err = batchStub.Commit()
-		require.Errorf(t, err, testError.Error())
+		require.Errorf(t, err, errTest.Error())
 
 		// checking mock stub calls
 		require.Equal(t, 1, stateStub.PutStateCallCount())
@@ -303,7 +303,7 @@ func TestTxStub(t *testing.T) {
 
 	t.Run("[negative] DelState error test", func(t *testing.T) {
 		stateStub := &mocks.ChaincodeStub{}
-		stateStub.DelStateReturns(testError)
+		stateStub.DelStateReturns(errTest)
 		// creating batch cache stub
 		batchStub := NewBatchCacheStub(stateStub)
 		// creating tx cache stub
@@ -318,7 +318,7 @@ func TestTxStub(t *testing.T) {
 
 		// committing changes
 		err = batchStub.Commit()
-		require.Errorf(t, err, testError.Error())
+		require.Errorf(t, err, errTest.Error())
 
 		// checking mock stub calls
 		require.Equal(t, 1, stateStub.DelStateCallCount())
@@ -360,7 +360,7 @@ func TestTxStub(t *testing.T) {
 
 		// checking first transaction results were properly committed
 		val, _ := batchStub.GetState(valKey2)
-		require.Equal(t, "", string(val))
+		require.Empty(t, string(val))
 
 		val, _ = batchStub.GetState(valKey1)
 		require.Equal(t, valKey1Value2, string(val))
@@ -378,7 +378,7 @@ func TestTxStub(t *testing.T) {
 
 		// batchStub checks if key 4 was deleted and changes its value
 		val, _ = batchStub.GetState(valKey4)
-		require.Equal(t, "", string(val))
+		require.Empty(t, string(val))
 		_ = batchStub.PutState(valKey4, []byte(valKey4Value2))
 
 		_ = batchStub.Commit()

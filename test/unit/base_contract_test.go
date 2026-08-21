@@ -213,6 +213,7 @@ func TestContractMethods(t *testing.T) {
 
 	for _, test := range testCollection {
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
 			mockStub := mockstub.NewMockStub(t)
 
 			owner, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)
@@ -236,10 +237,10 @@ func TestContractMethods(t *testing.T) {
 			} else {
 				require.Empty(t, resp.GetMessage())
 				if test.preparePayloadEqual != nil {
-					require.Equal(t, test.preparePayloadEqual(), resp.Payload)
+					require.Equal(t, test.preparePayloadEqual(), resp.GetPayload())
 				}
 				if test.preparePayloadNotEqual != nil {
-					require.NotEqual(t, test.preparePayloadNotEqual(), resp.Payload)
+					require.NotEqual(t, test.preparePayloadNotEqual(), resp.GetPayload())
 				}
 			}
 		})

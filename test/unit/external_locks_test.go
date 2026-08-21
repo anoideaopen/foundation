@@ -74,7 +74,7 @@ func TestExternalLocks(t *testing.T) {
 				tokenBalanceLockedInfoKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeTokenExternalLocked.String(), []string{txID})
 				require.NoError(t, err)
 
-				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					putStateKey, value := mockStub.PutStateArgsForCall(i)
 					if putStateKey == tokenBalanceKey {
 						bal := new(big.Int).SetBytes(value)
@@ -90,8 +90,8 @@ func TestExternalLocks(t *testing.T) {
 						info := &proto.TokenBalanceLock{}
 						err = json.Unmarshal(value, info)
 						require.NoError(t, err)
-						require.Equal(t, "cc", info.Token)
-						require.Equal(t, "600", info.InitAmount)
+						require.Equal(t, "cc", info.GetToken())
+						require.Equal(t, "600", info.GetInitAmount())
 					}
 				}
 			},
@@ -132,7 +132,7 @@ func TestExternalLocks(t *testing.T) {
 				allowedBalanceLockedInfoKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeAllowedExternalLocked.String(), []string{txID})
 				require.NoError(t, err)
 
-				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					putStateKey, value := mockStub.PutStateArgsForCall(i)
 
 					if putStateKey == allowedBalanceKey {
@@ -149,8 +149,8 @@ func TestExternalLocks(t *testing.T) {
 						result := &proto.AllowedBalanceLock{}
 						err = json.Unmarshal(value, result)
 						require.NoError(t, err)
-						require.Equal(t, "vk", result.Token)
-						require.Equal(t, "600", result.InitAmount)
+						require.Equal(t, "vk", result.GetToken())
+						require.Equal(t, "600", result.GetInitAmount())
 					}
 				}
 			},
@@ -184,9 +184,9 @@ func TestExternalLocks(t *testing.T) {
 			checkResponseFunc: func(t *testing.T, resp *peer.Response) {
 				payload := &proto.BatchResponse{}
 
-				err := pb.Unmarshal(resp.Payload, payload)
+				err := pb.Unmarshal(resp.GetPayload(), payload)
 				require.NoError(t, err)
-				require.Equal(t, core.ErrUnauthorisedNotAdmin.Error(), payload.TxResponses[0].Error.Error)
+				require.Equal(t, core.ErrUnauthorisedNotAdmin.Error(), payload.GetTxResponses()[0].GetError().GetError())
 			},
 		},
 		{
@@ -218,9 +218,9 @@ func TestExternalLocks(t *testing.T) {
 			checkResponseFunc: func(t *testing.T, resp *peer.Response) {
 				payload := &proto.BatchResponse{}
 
-				err := pb.Unmarshal(resp.Payload, payload)
+				err := pb.Unmarshal(resp.GetPayload(), payload)
 				require.NoError(t, err)
-				require.Equal(t, core.ErrUnauthorisedNotAdmin.Error(), payload.TxResponses[0].Error.Error)
+				require.Equal(t, core.ErrUnauthorisedNotAdmin.Error(), payload.GetTxResponses()[0].GetError().GetError())
 			},
 		},
 		{
@@ -252,9 +252,9 @@ func TestExternalLocks(t *testing.T) {
 			checkResponseFunc: func(t *testing.T, resp *peer.Response) {
 				payload := &proto.BatchResponse{}
 
-				err := pb.Unmarshal(resp.Payload, payload)
+				err := pb.Unmarshal(resp.GetPayload(), payload)
 				require.NoError(t, err)
-				require.Equal(t, "insufficient balance", payload.TxResponses[0].Error.Error)
+				require.Equal(t, "insufficient balance", payload.GetTxResponses()[0].GetError().GetError())
 			},
 		},
 		{
@@ -286,9 +286,9 @@ func TestExternalLocks(t *testing.T) {
 			checkResponseFunc: func(t *testing.T, resp *peer.Response) {
 				payload := &proto.BatchResponse{}
 
-				err := pb.Unmarshal(resp.Payload, payload)
+				err := pb.Unmarshal(resp.GetPayload(), payload)
 				require.NoError(t, err)
-				require.Equal(t, "insufficient balance", payload.TxResponses[0].Error.Error)
+				require.Equal(t, "insufficient balance", payload.GetTxResponses()[0].GetError().GetError())
 			},
 		},
 	}
@@ -316,8 +316,8 @@ func TestExternalLocks(t *testing.T) {
 			txID, resp := test.invokeFunc(mockStub, cc, test.functionName, params, issuer, user)
 
 			// checking result
-			require.Equal(t, int32(http.StatusOK), resp.Status)
-			require.Empty(t, resp.Message)
+			require.Equal(t, int32(http.StatusOK), resp.GetStatus())
+			require.Empty(t, resp.GetMessage())
 			if test.checkResponseFunc != nil {
 				test.checkResponseFunc(t, resp)
 			}
@@ -419,7 +419,7 @@ func TestExternalUnlocks(t *testing.T) {
 				tokenBalanceLockedInfoKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeTokenExternalLocked.String(), []string{txID})
 				require.NoError(t, err)
 
-				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					putStateKey, value := mockStub.PutStateArgsForCall(i)
 
 					if putStateKey == tokenBalanceKey {
@@ -436,9 +436,9 @@ func TestExternalUnlocks(t *testing.T) {
 						info := &proto.TokenBalanceLock{}
 						err := json.Unmarshal(value, info)
 						require.NoError(t, err)
-						require.Equal(t, "cc", info.Token)
-						require.Equal(t, "600", info.InitAmount)
-						require.Equal(t, "450", info.CurrentAmount)
+						require.Equal(t, "cc", info.GetToken())
+						require.Equal(t, "600", info.GetInitAmount())
+						require.Equal(t, "450", info.GetCurrentAmount())
 					}
 				}
 			},
@@ -470,6 +470,8 @@ func TestExternalUnlocks(t *testing.T) {
 					Reason:        "test2",
 				}
 				rawInfo, err := json.Marshal(info)
+				require.NotEmpty(t, rawInfo)
+				require.NoError(t, err)
 
 				mockStub.GetStateCallsMap[allowedBalanceLockedInfoKey] = rawInfo
 
@@ -504,7 +506,7 @@ func TestExternalUnlocks(t *testing.T) {
 				allowedBalanceLockedInfoKey, err := mockStub.CreateCompositeKey(balance.BalanceTypeAllowedExternalLocked.String(), []string{txID})
 				require.NoError(t, err)
 
-				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					putStateKey, value := mockStub.PutStateArgsForCall(i)
 					if putStateKey == allowedBalanceKey {
 						bal := new(big.Int).SetBytes(value)
@@ -520,9 +522,9 @@ func TestExternalUnlocks(t *testing.T) {
 						info := &proto.AllowedBalanceLock{}
 						err := json.Unmarshal(value, info)
 						require.NoError(t, err)
-						require.Equal(t, "vk", info.Token)
-						require.Equal(t, "600", info.InitAmount)
-						require.Equal(t, "450", info.CurrentAmount)
+						require.Equal(t, "vk", info.GetToken())
+						require.Equal(t, "600", info.GetInitAmount())
+						require.Equal(t, "450", info.GetCurrentAmount())
 					}
 				}
 			},
@@ -583,9 +585,9 @@ func TestExternalUnlocks(t *testing.T) {
 			checkResponseFunc: func(t *testing.T, resp *peer.Response) {
 				payload := &proto.BatchResponse{}
 
-				err := pb.Unmarshal(resp.Payload, payload)
+				err := pb.Unmarshal(resp.GetPayload(), payload)
 				require.NoError(t, err)
-				require.Equal(t, core.ErrUnauthorisedNotAdmin.Error(), payload.TxResponses[0].Error.Error)
+				require.Equal(t, core.ErrUnauthorisedNotAdmin.Error(), payload.GetTxResponses()[0].GetError().GetError())
 			},
 		},
 		{
@@ -615,6 +617,8 @@ func TestExternalUnlocks(t *testing.T) {
 					Reason:        "test4",
 				}
 				rawInfo, err := json.Marshal(info)
+				require.NotEmpty(t, rawInfo)
+				require.NoError(t, err)
 
 				mockStub.GetStateCallsMap[allowedBalanceLockedInfoKey] = rawInfo
 
@@ -642,9 +646,9 @@ func TestExternalUnlocks(t *testing.T) {
 			checkResponseFunc: func(t *testing.T, resp *peer.Response) {
 				payload := &proto.BatchResponse{}
 
-				err := pb.Unmarshal(resp.Payload, payload)
+				err := pb.Unmarshal(resp.GetPayload(), payload)
 				require.NoError(t, err)
-				require.Equal(t, core.ErrUnauthorisedNotAdmin.Error(), payload.TxResponses[0].Error.Error)
+				require.Equal(t, core.ErrUnauthorisedNotAdmin.Error(), payload.GetTxResponses()[0].GetError().GetError())
 			},
 		},
 		{
@@ -702,9 +706,9 @@ func TestExternalUnlocks(t *testing.T) {
 			checkResponseFunc: func(t *testing.T, resp *peer.Response) {
 				payload := &proto.BatchResponse{}
 
-				err := pb.Unmarshal(resp.Payload, payload)
+				err := pb.Unmarshal(resp.GetPayload(), payload)
 				require.NoError(t, err)
-				require.Equal(t, core.ErrAlreadyExist.Error(), payload.TxResponses[0].Error.Error)
+				require.Equal(t, core.ErrAlreadyExist.Error(), payload.GetTxResponses()[0].GetError().GetError())
 			},
 		},
 		{
@@ -734,6 +738,8 @@ func TestExternalUnlocks(t *testing.T) {
 					Reason:        "test6",
 				}
 				rawInfo, err := json.Marshal(info)
+				require.NotEmpty(t, rawInfo)
+				require.NoError(t, err)
 
 				mockStub.GetStateCallsMap[allowedBalanceLockedInfoKey] = rawInfo
 
@@ -760,9 +766,9 @@ func TestExternalUnlocks(t *testing.T) {
 			checkResponseFunc: func(t *testing.T, resp *peer.Response) {
 				payload := &proto.BatchResponse{}
 
-				err := pb.Unmarshal(resp.Payload, payload)
+				err := pb.Unmarshal(resp.GetPayload(), payload)
 				require.NoError(t, err)
-				require.Equal(t, core.ErrAlreadyExist.Error(), payload.TxResponses[0].Error.Error)
+				require.Equal(t, core.ErrAlreadyExist.Error(), payload.GetTxResponses()[0].GetError().GetError())
 			},
 		},
 		{
@@ -821,9 +827,9 @@ func TestExternalUnlocks(t *testing.T) {
 			checkResponseFunc: func(t *testing.T, resp *peer.Response) {
 				payload := &proto.BatchResponse{}
 
-				err := pb.Unmarshal(resp.Payload, payload)
+				err := pb.Unmarshal(resp.GetPayload(), payload)
 				require.NoError(t, err)
-				require.Equal(t, balance.ErrAmountMustBeNonNegative.Error(), payload.TxResponses[0].Error.Error)
+				require.Equal(t, balance.ErrAmountMustBeNonNegative.Error(), payload.GetTxResponses()[0].GetError().GetError())
 			},
 		},
 		{
@@ -853,6 +859,8 @@ func TestExternalUnlocks(t *testing.T) {
 					Reason:        "test8",
 				}
 				rawInfo, err := json.Marshal(info)
+				require.NotEmpty(t, rawInfo)
+				require.NoError(t, err)
 
 				mockStub.GetStateCallsMap[allowedBalanceLockedInfoKey] = rawInfo
 
@@ -880,9 +888,9 @@ func TestExternalUnlocks(t *testing.T) {
 			checkResponseFunc: func(t *testing.T, resp *peer.Response) {
 				payload := &proto.BatchResponse{}
 
-				err := pb.Unmarshal(resp.Payload, payload)
+				err := pb.Unmarshal(resp.GetPayload(), payload)
 				require.NoError(t, err)
-				require.Equal(t, balance.ErrAmountMustBeNonNegative.Error(), payload.TxResponses[0].Error.Error)
+				require.Equal(t, balance.ErrAmountMustBeNonNegative.Error(), payload.GetTxResponses()[0].GetError().GetError())
 			},
 		},
 	}
@@ -911,8 +919,8 @@ func TestExternalUnlocks(t *testing.T) {
 
 			// invoking method
 			txID, resp := test.invokeFunc(mockStub, cc, test.functionName, params, issuer, user)
-			require.Equal(t, int32(http.StatusOK), resp.Status)
-			require.Empty(t, resp.Message)
+			require.Equal(t, int32(http.StatusOK), resp.GetStatus())
+			require.Empty(t, resp.GetMessage())
 			if test.checkResponseFunc != nil {
 				test.checkResponseFunc(t, resp)
 			}

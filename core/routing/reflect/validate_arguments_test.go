@@ -2,7 +2,7 @@ package reflect
 
 import (
 	"encoding/json"
-	"fmt"
+	"errors"
 	"math/big"
 	"testing"
 	"time"
@@ -79,7 +79,7 @@ type TestValidator struct {
 
 func (v *TestValidator) Check() error {
 	if v.Value == "" {
-		return fmt.Errorf("invalid value")
+		return errors.New("invalid value")
 	}
 	return nil
 }

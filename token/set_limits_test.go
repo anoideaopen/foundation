@@ -56,7 +56,7 @@ func TestSetLimits(t *testing.T) {
 				return []string{"distribute", "", "1", "10"}
 			},
 			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, resp *pbfound.TxResponse) {
-				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					k, v := mockStub.PutStateArgsForCall(i)
 					if k != metadataKey {
 						continue
@@ -93,7 +93,7 @@ func TestSetLimits(t *testing.T) {
 				return []string{"distribute", "", "1", "0"}
 			},
 			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, resp *pbfound.TxResponse) {
-				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					k, v := mockStub.PutStateArgsForCall(i)
 					if k != metadataKey {
 						continue
@@ -129,7 +129,7 @@ func TestSetLimits(t *testing.T) {
 				return []string{"distribute", "", "0", "3"}
 			},
 			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, resp *pbfound.TxResponse) {
-				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					k, v := mockStub.PutStateArgsForCall(i)
 					if k != metadataKey {
 						continue

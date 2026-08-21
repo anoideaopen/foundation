@@ -1,9 +1,9 @@
 # Foundation
 
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/8822/badge)](https://www.bestpractices.dev/projects/8822)
-[![Go Report Card](https://goreportcard.com/badge/github.com/anoideaopen/foundation)](https://goreportcard.com/report/github.com/anoideaopen/foundation)
 [![Go Reference](https://pkg.go.dev/badge/github.com/anoideaopen/foundation.svg)](https://pkg.go.dev/github.com/anoideaopen/foundation)
 ![GitHub License](https://img.shields.io/github/license/anoideaopen/foundation)
+[![Codecov](https://codecov.io/gh/anoideaopen/foundation/graph/badge.svg)](https://codecov.io/gh/anoideaopen/foundation)
 
 [![Go Verify Build](https://github.com/anoideaopen/foundation/actions/workflows/go.yml/badge.svg?branch=main)](https://github.com/anoideaopen/foundation/actions/workflows/go.yml)
 [![Security vulnerability scan](https://github.com/anoideaopen/foundation/actions/workflows/vulnerability-scan.yml/badge.svg?branch=main)](https://github.com/anoideaopen/foundation/actions/workflows/vulnerability-scan.yml)

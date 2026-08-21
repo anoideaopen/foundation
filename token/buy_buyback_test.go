@@ -13,7 +13,6 @@ import (
 	"github.com/hyperledger/fabric-protos-go-apiv2/peer"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
-	pb "google.golang.org/protobuf/proto"
 )
 
 const keyMetadata = "tokenMetadata"
@@ -72,7 +71,7 @@ func TestBaseTokenTxBuy(t *testing.T) {
 				require.NoError(t, err)
 
 				checked := false
-				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					putStateKey, value := mockStub.PutStateArgsForCall(i)
 					if putStateKey == issuerBalanceKey {
 						require.Equal(t, vEmitAmount, new(big.Int).SetBytes(value))
@@ -100,7 +99,7 @@ func TestBaseTokenTxBuy(t *testing.T) {
 			},
 			funcCheckResult: func(t *testing.T, mockStub *mockstub.MockStub, owner *mocks.UserFoundation, user *mocks.UserFoundation, resp *peer.Response) {
 				checked := false
-				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					putStateKey, value := mockStub.PutStateArgsForCall(i)
 					if putStateKey == keyMetadata {
 						tokenMetadata := &pbfound.Token{}
@@ -114,7 +113,7 @@ func TestBaseTokenTxBuy(t *testing.T) {
 							Rate:     vRate.Bytes(),
 						}
 
-						require.True(t, proto.Equal(expectedRate, tokenMetadata.Rates[0]))
+						require.True(t, proto.Equal(expectedRate, tokenMetadata.GetRates()[0]))
 						checked = true
 						break
 					}
@@ -149,7 +148,7 @@ func TestBaseTokenTxBuy(t *testing.T) {
 			},
 			funcCheckResult: func(t *testing.T, mockStub *mockstub.MockStub, owner *mocks.UserFoundation, user *mocks.UserFoundation, resp *peer.Response) {
 				checked := false
-				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					putStateKey, value := mockStub.PutStateArgsForCall(i)
 					if putStateKey == keyMetadata {
 						tokenMetadata := &pbfound.Token{}
@@ -165,7 +164,7 @@ func TestBaseTokenTxBuy(t *testing.T) {
 							Max:      vLimitMax.Bytes(),
 						}
 
-						require.True(t, proto.Equal(expectedRate, tokenMetadata.Rates[0]))
+						require.True(t, proto.Equal(expectedRate, tokenMetadata.GetRates()[0]))
 						checked = true
 						break
 					}
@@ -230,9 +229,9 @@ func TestBaseTokenTxBuy(t *testing.T) {
 			) {
 				payload := &pbfound.BatchResponse{}
 
-				err := pb.Unmarshal(resp.Payload, payload)
+				err := proto.Unmarshal(resp.GetPayload(), payload)
 				require.NoError(t, err)
-				require.Equal(t, ErrAmountEqualZero, payload.TxResponses[0].Error.Error)
+				require.Equal(t, ErrAmountEqualZero, payload.GetTxResponses()[0].GetError().GetError())
 			},
 		},
 		{
@@ -292,9 +291,9 @@ func TestBaseTokenTxBuy(t *testing.T) {
 			) {
 				payload := &pbfound.BatchResponse{}
 
-				err := pb.Unmarshal(resp.Payload, payload)
+				err := proto.Unmarshal(resp.GetPayload(), payload)
 				require.NoError(t, err)
-				require.Equal(t, ErrWrongCurrency, payload.TxResponses[0].Error.Error)
+				require.Equal(t, ErrWrongCurrency, payload.GetTxResponses()[0].GetError().GetError())
 			},
 		},
 		{
@@ -354,9 +353,9 @@ func TestBaseTokenTxBuy(t *testing.T) {
 			) {
 				payload := &pbfound.BatchResponse{}
 
-				err := pb.Unmarshal(resp.Payload, payload)
+				err := proto.Unmarshal(resp.GetPayload(), payload)
 				require.NoError(t, err)
-				require.Equal(t, ErrAmountOutOfLimits, payload.TxResponses[0].Error.Error)
+				require.Equal(t, ErrAmountOutOfLimits, payload.GetTxResponses()[0].GetError().GetError())
 			},
 		},
 		{
@@ -416,9 +415,9 @@ func TestBaseTokenTxBuy(t *testing.T) {
 			) {
 				payload := &pbfound.BatchResponse{}
 
-				err := pb.Unmarshal(resp.Payload, payload)
+				err := proto.Unmarshal(resp.GetPayload(), payload)
 				require.NoError(t, err)
-				require.Equal(t, ErrAmountOutOfLimits, payload.TxResponses[0].Error.Error)
+				require.Equal(t, ErrAmountOutOfLimits, payload.GetTxResponses()[0].GetError().GetError())
 			},
 		},
 		{
@@ -492,7 +491,7 @@ func TestBaseTokenTxBuy(t *testing.T) {
 				checkedUserAllowed := false
 				checkedIssuerBalance := false
 				checkedIssuerAllowed := false
-				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					putStateKey, value := mockStub.PutStateArgsForCall(i)
 					if putStateKey == keyUserBalance {
 						require.Equal(t, big.NewInt(1).Bytes(), value)
@@ -518,6 +517,7 @@ func TestBaseTokenTxBuy(t *testing.T) {
 
 	for _, testCase := range testCollection {
 		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
 			mockStub := mockstub.NewMockStub(t)
 
 			issuer, err := mocks.NewUserFoundation(pbfound.KeyType_ed25519)

@@ -134,8 +134,8 @@ var _ = Describe("Basic foundation Tests", func() {
 				Eventually(proc.Wait(), network.EventuallyTimeout).Should(Receive())
 			}
 
-			ordererRunners = nil
-			ordererProcesses = nil
+			ordererRunners = make([]*ginkgomon.Runner, 0, len(network.Orderers))
+			ordererProcesses = make([]ifrit.Process, 0, len(network.Orderers))
 			By("Bringing up all the nodes")
 			for _, orderer := range network.Orderers {
 				runner := network.OrdererRunner(orderer)

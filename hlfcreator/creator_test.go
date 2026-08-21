@@ -114,7 +114,7 @@ func Test_CreatorSKIAndHashedCert(t *testing.T) {
 			}
 
 			if err == nil {
-				require.Equal(t, hex.EncodeToString(gotCreatorSKI[:]), tt.wantCreatorSKI)
+				require.Equal(t, tt.wantCreatorSKI, hex.EncodeToString(gotCreatorSKI[:]))
 			}
 		})
 	}

@@ -110,9 +110,10 @@ func TestTokenSeries(t *testing.T) {
 				require.NoError(t, err)
 
 				var j int
-				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					k, v := mockStub.PutStateArgsForCall(i)
-					if k == metadataKey {
+					switch k {
+					case metadataKey:
 						etl := &pbfound.Token{}
 						err = pb.Unmarshal(v, etl)
 						require.NoError(t, err)
@@ -120,7 +121,7 @@ func TestTokenSeries(t *testing.T) {
 							TotalEmission: new(big.Int).SetUint64(1000).Bytes(),
 						}))
 						j++
-					} else if k == userBalanceKey {
+					case userBalanceKey:
 						require.Equal(t, new(big.Int).SetUint64(1000).Bytes(), v)
 						j++
 					}
@@ -155,9 +156,10 @@ func TestTokenSeries(t *testing.T) {
 				require.NoError(t, err)
 
 				var j int
-				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					k, v := mockStub.PutStateArgsForCall(i)
-					if k == metadataKey {
+					switch k {
+					case metadataKey:
 						etl := &pbfound.Token{}
 						err = pb.Unmarshal(v, etl)
 						require.NoError(t, err)
@@ -165,7 +167,7 @@ func TestTokenSeries(t *testing.T) {
 							TotalEmission: new(big.Int).SetUint64(900).Bytes(),
 						}))
 						j++
-					} else if k == userBalanceKey {
+					case userBalanceKey:
 						require.Equal(t, new(big.Int).SetUint64(900).Bytes(), v)
 						j++
 					}
@@ -186,7 +188,7 @@ func TestTokenSeries(t *testing.T) {
 				return []string{feeAggregator.AddressBase58Check}
 			},
 			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, resp *pbfound.TxResponse) {
-				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					k, v := mockStub.PutStateArgsForCall(i)
 					if k != metadataKey {
 						continue
@@ -212,7 +214,7 @@ func TestTokenSeries(t *testing.T) {
 				return []string{testTokenSymbol, "500000", "100", "100000"}
 			},
 			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, resp *pbfound.TxResponse) {
-				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					k, v := mockStub.PutStateArgsForCall(i)
 					if k != metadataKey {
 						continue

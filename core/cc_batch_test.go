@@ -140,7 +140,7 @@ func TestSaveToBatchWithSignedArgs(t *testing.T) {
 		s.FnName,
 		sender,
 		argsForTestFnWithSignedTwoArgs,
-		uint64(batchTimestamp.Seconds),
+		uint64(batchTimestamp.GetSeconds()),
 	)
 	require.NoError(t, err)
 }
@@ -258,7 +258,7 @@ func SaveAndLoadToBatchTest(t *testing.T, ser *serieBatches, args []string) {
 		ser.FnName,
 		sender,
 		args,
-		uint64(batchTimestamp.Seconds),
+		uint64(batchTimestamp.GetSeconds()),
 	)
 	require.NoError(t, errSave)
 
@@ -268,16 +268,16 @@ func SaveAndLoadToBatchTest(t *testing.T, ser *serieBatches, args []string) {
 	err = pb.Unmarshal(value, pending)
 	require.NoError(t, err)
 
-	require.Equal(t, pending.Method, testFnWithFiveArgsMethod)
-	require.Equal(t, pending.Args, args)
+	require.Equal(t, testFnWithFiveArgsMethod, pending.GetMethod())
+	require.Equal(t, args, pending.GetArgs())
 
 	err = chainCode.checkPending(mockStub, ser.testID, pending)
 	if err != nil {
 		require.Equal(t, ser.errorMsg, err.Error())
 	} else {
 		require.NoError(t, err)
-		require.Equal(t, pending.Method, ser.FnName)
-		require.Equal(t, pending.Args, args)
+		require.Equal(t, pending.GetMethod(), ser.FnName)
+		require.Equal(t, pending.GetArgs(), args)
 	}
 }
 
@@ -292,18 +292,18 @@ func TestBatchExecuteWithRightParams(t *testing.T) {
 
 	resp := BatchExecuteTest(t, s, argsForTestFnWithFive)
 	require.NotNil(t, resp)
-	require.Equal(t, resp.GetStatus(), int32(200))
+	require.Equal(t, int32(200), resp.GetStatus())
 
 	response := &proto.BatchResponse{}
 	err := pb.Unmarshal(resp.GetPayload(), response)
 	require.NoError(t, err)
 
-	require.Len(t, response.TxResponses, 1)
+	require.Len(t, response.GetTxResponses(), 1)
 
-	txResponse := response.TxResponses[0]
-	require.Equal(t, txResponse.Id, txIDBytes)
-	require.Equal(t, txResponse.Method, testFnWithFiveArgsMethod)
-	require.Nil(t, txResponse.Error)
+	txResponse := response.GetTxResponses()[0]
+	require.Equal(t, txIDBytes, txResponse.GetId())
+	require.Equal(t, testFnWithFiveArgsMethod, txResponse.GetMethod())
+	require.Nil(t, txResponse.GetError())
 }
 
 // TestBatchExecuteWithWrongParams - negative test with wrong parameters in batchExecute
@@ -319,17 +319,17 @@ func TestBatchExecuteWithWrongParams(t *testing.T) {
 
 	resp := BatchExecuteTest(t, s, argsForTestFnWithFive)
 	require.NotNil(t, resp)
-	require.Equal(t, resp.GetStatus(), int32(200))
+	require.Equal(t, int32(200), resp.GetStatus())
 
 	response := &proto.BatchResponse{}
 	err := pb.Unmarshal(resp.GetPayload(), response)
 	require.NoError(t, err)
 
-	require.Len(t, response.TxResponses, 1)
+	require.Len(t, response.GetTxResponses(), 1)
 
-	txResponse := response.TxResponses[0]
+	txResponse := response.GetTxResponses()[0]
 	require.Equal(t, testIDBytes, txResponse.GetId())
-	require.Equal(t, "", txResponse.GetMethod())
+	require.Empty(t, txResponse.GetMethod())
 	require.Equal(t, "function and args loading error: transaction 776f6e646572 not found", txResponse.GetError().GetError())
 }
 
@@ -369,14 +369,14 @@ func BatchExecuteTest(t *testing.T, ser *serieBatchExecute, args []string) *peer
 		testFnWithFiveArgsMethod,
 		nil,
 		args,
-		uint64(batchTimestamp.Seconds),
+		uint64(batchTimestamp.GetSeconds()),
 	)
 	require.NoError(t, err)
 
 	pendingTx := &proto.PendingTx{
 		Method:    testFnWithFiveArgsMethod,
 		Args:      args,
-		Timestamp: batchTimestamp.Seconds,
+		Timestamp: batchTimestamp.GetSeconds(),
 	}
 
 	marshalled, err := pb.Marshal(pendingTx)
@@ -437,13 +437,13 @@ func TestBatchedTxExecute(t *testing.T) {
 		testFnWithFiveArgsMethod,
 		nil,
 		argsForTestFnWithFive,
-		uint64(batchTimestamp.Seconds))
+		uint64(batchTimestamp.GetSeconds()))
 	require.NoError(t, err)
 
 	pendingTx := &proto.PendingTx{
 		Method:    testFnWithFiveArgsMethod,
 		Args:      argsForTestFnWithFive,
-		Timestamp: batchTimestamp.Seconds,
+		Timestamp: batchTimestamp.GetSeconds(),
 	}
 	marshalled, err := pb.Marshal(pendingTx)
 	require.NoError(t, err)
@@ -458,8 +458,8 @@ func TestBatchedTxExecute(t *testing.T) {
 	)
 	require.NotNil(t, resp)
 	require.NotNil(t, event)
-	require.Nil(t, resp.Error)
-	require.Nil(t, event.Error)
+	require.Nil(t, resp.GetError())
+	require.Nil(t, event.GetError())
 }
 
 // CreateUtcTimestamp returns a Google/protobuf/Timestamp in UTC

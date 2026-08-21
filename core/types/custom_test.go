@@ -85,7 +85,7 @@ func TestConvertToAsset(t *testing.T) {
 			if len(tt.want) == len(got) && len(got) == 0 {
 				return
 			}
-			require.Equal(t, len(tt.want), len(got), "size of array")
+			require.Len(t, got, len(tt.want), "size of array")
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("ConvertToAsset() got = %v, want %v", got, tt.want)
 			}

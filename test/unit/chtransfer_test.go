@@ -90,15 +90,16 @@ func TestChannelTransfer(t *testing.T) {
 				require.NoError(t, err)
 
 				var j int
-				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					k, v := mockStub.PutStateArgsForCall(i)
-					if k == userBalanceKey {
+					switch k {
+					case userBalanceKey:
 						require.Equal(t, new(big.Int).SetUint64(0).Bytes(), v)
 						j++
-					} else if k == givenBalanceKey {
+					case givenBalanceKey:
 						require.Equal(t, new(big.Int).SetUint64(450).Bytes(), v)
 						j++
-					} else if k == "/transfer/from/"+id {
+					case "/transfer/from/" + id:
 						s := &pbfound.CCTransfer{}
 						err = protojson.Unmarshal(v, s)
 						require.NoError(t, err)
@@ -138,12 +139,13 @@ func TestChannelTransfer(t *testing.T) {
 				require.NoError(t, err)
 
 				var j int
-				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					k, v := mockStub.PutStateArgsForCall(i)
-					if k == userBalanceKey {
+					switch k {
+					case userBalanceKey:
 						require.Equal(t, new(big.Int).SetUint64(0).Bytes(), v)
 						j++
-					} else if k == "/transfer/from/"+id {
+					case "/transfer/from/" + id:
 						s := &pbfound.CCTransfer{}
 						err = protojson.Unmarshal(v, s)
 						require.NoError(t, err)
@@ -234,15 +236,16 @@ func TestChannelTransfer(t *testing.T) {
 				require.NoError(t, err)
 
 				var j int
-				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					k, v := mockStub.PutStateArgsForCall(i)
-					if k == userBalanceKey {
+					switch k {
+					case userBalanceKey:
 						require.Equal(t, new(big.Int).SetUint64(0).Bytes(), v)
 						j++
-					} else if k == givenBalanceKey {
+					case givenBalanceKey:
 						require.Equal(t, new(big.Int).SetUint64(450).Bytes(), v)
 						j++
-					} else if k == "/transfer/from/"+id {
+					case "/transfer/from/" + id:
 						s := &pbfound.CCTransfer{}
 						err = protojson.Unmarshal(v, s)
 						require.NoError(t, err)
@@ -282,12 +285,13 @@ func TestChannelTransfer(t *testing.T) {
 				require.NoError(t, err)
 
 				var j int
-				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					k, v := mockStub.PutStateArgsForCall(i)
-					if k == userBalanceKey {
+					switch k {
+					case userBalanceKey:
 						require.Equal(t, new(big.Int).SetUint64(0).Bytes(), v)
 						j++
-					} else if k == "/transfer/from/"+id {
+					case "/transfer/from/" + id:
 						s := &pbfound.CCTransfer{}
 						err = protojson.Unmarshal(v, s)
 						require.NoError(t, err)
@@ -362,15 +366,16 @@ func TestChannelTransfer(t *testing.T) {
 				require.NoError(t, err)
 
 				var j int
-				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					k, v := mockStub.PutStateArgsForCall(i)
-					if k == userBalanceKey {
+					switch k {
+					case userBalanceKey:
 						require.Equal(t, new(big.Int).SetUint64(0).Bytes(), v)
 						j++
-					} else if k == givenBalanceKey {
+					case givenBalanceKey:
 						require.Equal(t, new(big.Int).SetUint64(450).Bytes(), v)
 						j++
-					} else if k == "/transfer/from/"+id {
+					case "/transfer/from/" + id:
 						s := &pbfound.CCTransfer{}
 						err = protojson.Unmarshal(v, s)
 						require.NoError(t, err)
@@ -420,18 +425,19 @@ func TestChannelTransfer(t *testing.T) {
 				require.NoError(t, err)
 
 				var j int
-				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					k, v := mockStub.PutStateArgsForCall(i)
-					if k == userBalanceKey1 {
+					switch k {
+					case userBalanceKey1:
 						require.Equal(t, new(big.Int).SetUint64(0).Bytes(), v)
 						j++
-					} else if k == userBalanceKey2 {
+					case userBalanceKey2:
 						require.Equal(t, new(big.Int).SetUint64(0).Bytes(), v)
 						j++
-					} else if k == givenBalanceKey {
+					case givenBalanceKey:
 						require.Equal(t, new(big.Int).SetUint64(1350).Bytes(), v)
 						j++
-					} else if k == "/transfer/from/"+id {
+					case "/transfer/from/" + id:
 						s := &pbfound.CCTransfer{}
 						err = protojson.Unmarshal(v, s)
 						require.NoError(t, err)
@@ -476,15 +482,16 @@ func TestChannelTransfer(t *testing.T) {
 				require.NoError(t, err)
 
 				var j int
-				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					k, v := mockStub.PutStateArgsForCall(i)
-					if k == userBalanceKey1 {
+					switch k {
+					case userBalanceKey1:
 						require.Equal(t, new(big.Int).SetUint64(0).Bytes(), v)
 						j++
-					} else if k == userBalanceKey2 {
+					case userBalanceKey2:
 						require.Equal(t, new(big.Int).SetUint64(0).Bytes(), v)
 						j++
-					} else if k == "/transfer/from/"+id {
+					case "/transfer/from/" + id:
 						s := &pbfound.CCTransfer{}
 						err = protojson.Unmarshal(v, s)
 						require.NoError(t, err)
@@ -607,16 +614,17 @@ func TestChannelTransfer(t *testing.T) {
 				require.NoError(t, err)
 
 				var j int
-				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					k, v := mockStub.PutStateArgsForCall(i)
-					if k == givenBalanceKey {
+					switch k {
+					case givenBalanceKey:
 						require.Equal(t, new(big.Int).SetUint64(100).Bytes(), v)
 						j++
-					} else if k == "/transfer/from/"+id {
+					case "/transfer/from/" + id:
 						s := &pbfound.CCTransfer{}
 						err = protojson.Unmarshal(v, s)
 						require.NoError(t, err)
-						require.Len(t, s.Items, 100)
+						require.Len(t, s.GetItems(), 100)
 						j++
 					}
 
@@ -653,18 +661,19 @@ func TestChannelTransfer(t *testing.T) {
 				require.NoError(t, err)
 
 				var j int
-				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					k, v := mockStub.PutStateArgsForCall(i)
-					if k == userBalanceKey1 {
+					switch k {
+					case userBalanceKey1:
 						require.Equal(t, new(big.Int).SetUint64(0).Bytes(), v)
 						j++
-					} else if k == userBalanceKey2 {
+					case userBalanceKey2:
 						require.Equal(t, new(big.Int).SetUint64(0).Bytes(), v)
 						j++
-					} else if k == givenBalanceKey {
+					case givenBalanceKey:
 						require.Equal(t, new(big.Int).SetUint64(1350).Bytes(), v)
 						j++
-					} else if k == "/transfer/from/"+id {
+					case "/transfer/from/" + id:
 						s := &pbfound.CCTransfer{}
 						err = protojson.Unmarshal(v, s)
 						require.NoError(t, err)
@@ -709,15 +718,16 @@ func TestChannelTransfer(t *testing.T) {
 				require.NoError(t, err)
 
 				var j int
-				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					k, v := mockStub.PutStateArgsForCall(i)
-					if k == userBalanceKey1 {
+					switch k {
+					case userBalanceKey1:
 						require.Equal(t, new(big.Int).SetUint64(0).Bytes(), v)
 						j++
-					} else if k == userBalanceKey2 {
+					case userBalanceKey2:
 						require.Equal(t, new(big.Int).SetUint64(0).Bytes(), v)
 						j++
-					} else if k == "/transfer/from/"+id {
+					case "/transfer/from/" + id:
 						s := &pbfound.CCTransfer{}
 						err = protojson.Unmarshal(v, s)
 						require.NoError(t, err)
@@ -780,31 +790,30 @@ func TestChannelTransfer(t *testing.T) {
 				require.NoError(t, err)
 
 				var j int
-				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					k, v := mockStub.PutStateArgsForCall(i)
-					if k == userBalanceKey1 {
+					switch k {
+					case userBalanceKey1:
 						require.Equal(t, new(big.Int).SetUint64(0).Bytes(), v)
 						j++
-					} else if k == userBalanceKey2 {
+					case userBalanceKey2:
 						require.Equal(t, new(big.Int).SetUint64(0).Bytes(), v)
 						j++
-					} else if k == userBalanceKey3 {
+					case userBalanceKey3:
 						require.Equal(t, new(big.Int).SetUint64(0).Bytes(), v)
 						j++
-					} else if k == givenBalanceKey {
+					case givenBalanceKey:
 						require.Equal(t, new(big.Int).SetUint64(1450).Bytes(), v)
 						j++
-					} else if k == "/transfer/from/"+id {
+					case "/transfer/from/" + id:
 						s := &pbfound.CCTransfer{}
 						err = protojson.Unmarshal(v, s)
 						require.NoError(t, err)
-
 						itemsFullpb := []*pbfound.CCTransferItem{
 							{Token: "CC_1", Amount: new(big.Int).SetInt64(450).Bytes(), User: user.AddressBytes, Hold: false},
 							{Token: "CC_2", Amount: new(big.Int).SetInt64(900).Bytes(), User: user.AddressBytes, Hold: true},
 							{Token: "CC_2", Amount: new(big.Int).SetInt64(100).Bytes(), User: issuer.AddressBytes, Hold: false},
 						}
-
 						require.True(t, pb.Equal(s, &pbfound.CCTransfer{
 							Id:               id,
 							From:             "CC",
@@ -861,28 +870,27 @@ func TestChannelTransfer(t *testing.T) {
 				require.NoError(t, err)
 
 				var j int
-				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					k, v := mockStub.PutStateArgsForCall(i)
-					if k == userBalanceKey1 {
+					switch k {
+					case userBalanceKey1:
 						require.Equal(t, new(big.Int).SetUint64(0).Bytes(), v)
 						j++
-					} else if k == userBalanceKey2 {
+					case userBalanceKey2:
 						require.Equal(t, new(big.Int).SetUint64(0).Bytes(), v)
 						j++
-					} else if k == userBalanceKey3 {
+					case userBalanceKey3:
 						require.Equal(t, new(big.Int).SetUint64(0).Bytes(), v)
 						j++
-					} else if k == "/transfer/from/"+id {
+					case "/transfer/from/" + id:
 						s := &pbfound.CCTransfer{}
 						err = protojson.Unmarshal(v, s)
 						require.NoError(t, err)
-
 						itemsFullpb := []*pbfound.CCTransferItem{
 							{Token: "VT_1", Amount: new(big.Int).SetInt64(450).Bytes(), User: user.AddressBytes, Hold: false},
 							{Token: "VT_2", Amount: new(big.Int).SetInt64(900).Bytes(), User: user.AddressBytes, Hold: true},
 							{Token: "VT_2", Amount: new(big.Int).SetInt64(100).Bytes(), User: issuer.AddressBytes, Hold: false},
 						}
-
 						require.True(t, pb.Equal(s, &pbfound.CCTransfer{
 							Id:               id,
 							From:             "CC",
@@ -930,18 +938,19 @@ func TestChannelTransfer(t *testing.T) {
 				require.NoError(t, err)
 
 				var j int
-				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					k, v := mockStub.PutStateArgsForCall(i)
-					if k == userBalanceKey {
+					switch k {
+					case userBalanceKey:
 						require.Equal(t, new(big.Int).SetUint64(450).Bytes(), v)
 						j++
-					} else if k == nonceBalanceKey {
+					case nonceBalanceKey:
 						n := new(pbfound.Nonce)
 						err = pb.Unmarshal(v, n)
 						require.NoError(t, err)
 						require.Equal(t, uint64(0), n.GetNonce()[0])
 						j++
-					} else if k == "/transfer/to/"+id {
+					case "/transfer/to/" + id:
 						s := &pbfound.CCTransfer{}
 						err = protojson.Unmarshal(v, s)
 						require.NoError(t, err)
@@ -1000,21 +1009,22 @@ func TestChannelTransfer(t *testing.T) {
 				require.NoError(t, err)
 
 				var j int
-				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					k, v := mockStub.PutStateArgsForCall(i)
-					if k == userBalanceKey {
+					switch k {
+					case userBalanceKey:
 						require.Equal(t, new(big.Int).SetUint64(450).Bytes(), v)
 						j++
-					} else if k == givenBalanceKey {
+					case givenBalanceKey:
 						require.Equal(t, new(big.Int).SetUint64(0).Bytes(), v)
 						j++
-					} else if k == nonceBalanceKey {
+					case nonceBalanceKey:
 						n := new(pbfound.Nonce)
 						err = pb.Unmarshal(v, n)
 						require.NoError(t, err)
 						require.Equal(t, uint64(0), n.GetNonce()[0])
 						j++
-					} else if k == "/transfer/to/"+id {
+					case "/transfer/to/" + id:
 						s := &pbfound.CCTransfer{}
 						err = protojson.Unmarshal(v, s)
 						require.NoError(t, err)
@@ -1068,21 +1078,22 @@ func TestChannelTransfer(t *testing.T) {
 				require.NoError(t, err)
 
 				var j int
-				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					k, v := mockStub.PutStateArgsForCall(i)
-					if k == userBalanceKey1 {
+					switch k {
+					case userBalanceKey1:
 						require.Equal(t, new(big.Int).SetUint64(450).Bytes(), v)
 						j++
-					} else if k == userBalanceKey2 {
+					case userBalanceKey2:
 						require.Equal(t, new(big.Int).SetUint64(900).Bytes(), v)
 						j++
-					} else if k == nonceBalanceKey {
+					case nonceBalanceKey:
 						n := new(pbfound.Nonce)
 						err = pb.Unmarshal(v, n)
 						require.NoError(t, err)
 						require.Equal(t, uint64(0), n.GetNonce()[0])
 						j++
-					} else if k == "/transfer/to/"+id {
+					case "/transfer/to/" + id:
 						s := &pbfound.CCTransfer{}
 						err = protojson.Unmarshal(v, s)
 						require.NoError(t, err)
@@ -1142,24 +1153,25 @@ func TestChannelTransfer(t *testing.T) {
 				require.NoError(t, err)
 
 				var j int
-				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					k, v := mockStub.PutStateArgsForCall(i)
-					if k == userBalanceKey1 {
+					switch k {
+					case userBalanceKey1:
 						require.Equal(t, new(big.Int).SetUint64(450).Bytes(), v)
 						j++
-					} else if k == userBalanceKey2 {
+					case userBalanceKey2:
 						require.Equal(t, new(big.Int).SetUint64(900).Bytes(), v)
 						j++
-					} else if k == givenBalanceKey {
+					case givenBalanceKey:
 						require.Equal(t, new(big.Int).SetUint64(0).Bytes(), v)
 						j++
-					} else if k == nonceBalanceKey {
+					case nonceBalanceKey:
 						n := new(pbfound.Nonce)
 						err = pb.Unmarshal(v, n)
 						require.NoError(t, err)
 						require.Equal(t, uint64(0), n.GetNonce()[0])
 						j++
-					} else if k == "/transfer/to/"+id {
+					case "/transfer/to/" + id:
 						s := &pbfound.CCTransfer{}
 						err = protojson.Unmarshal(v, s)
 						require.NoError(t, err)
@@ -1332,6 +1344,8 @@ func TestChannelTransfer(t *testing.T) {
 					Nonce: []uint64{0},
 				}
 				b, err := pb.Marshal(n)
+				require.NotEmpty(t, b)
+				require.NoError(t, err)
 				mockStub.GetStateCallsMap[nonceBalanceKey] = b
 
 				err = mocks.SetCreator(mockStub.ChaincodeStub, mocks.BatchRobotCert)
@@ -1375,7 +1389,7 @@ func TestChannelTransfer(t *testing.T) {
 			},
 			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, resp *pbfound.TxResponse) {
 				var j int
-				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					k, v := mockStub.PutStateArgsForCall(i)
 					if k == "/transfer/from/"+id {
 						s := &pbfound.CCTransfer{}
@@ -1731,7 +1745,7 @@ func TestChannelTransfer(t *testing.T) {
 			},
 			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, resp *pbfound.TxResponse) {
 				var j int
-				for i := 0; i < mockStub.DelStateCallCount(); i++ {
+				for i := range mockStub.DelStateCallCount() {
 					k := mockStub.DelStateArgsForCall(i)
 					if k == "/transfer/from/"+id {
 						j++
@@ -1752,12 +1766,13 @@ func TestChannelTransfer(t *testing.T) {
 				require.NoError(t, err)
 
 				j = 0
-				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					k, v := mockStub.PutStateArgsForCall(i)
-					if k == userBalanceKey {
+					switch k {
+					case userBalanceKey:
 						require.Equal(t, new(big.Int).SetUint64(450).Bytes(), v)
 						j++
-					} else if k == givenBalanceKey {
+					case givenBalanceKey:
 						require.Equal(t, new(big.Int).SetUint64(0).Bytes(), v)
 						j++
 					}
@@ -1792,7 +1807,7 @@ func TestChannelTransfer(t *testing.T) {
 			},
 			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, resp *pbfound.TxResponse) {
 				var j int
-				for i := 0; i < mockStub.DelStateCallCount(); i++ {
+				for i := range mockStub.DelStateCallCount() {
 					k := mockStub.DelStateArgsForCall(i)
 					if k == "/transfer/from/"+id {
 						j++
@@ -1810,7 +1825,7 @@ func TestChannelTransfer(t *testing.T) {
 				require.NoError(t, err)
 
 				j = 0
-				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					k, v := mockStub.PutStateArgsForCall(i)
 					if k == userBalanceKey {
 						require.Equal(t, new(big.Int).SetUint64(450).Bytes(), v)
@@ -1851,7 +1866,7 @@ func TestChannelTransfer(t *testing.T) {
 			},
 			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, resp *pbfound.TxResponse) {
 				var j int
-				for i := 0; i < mockStub.DelStateCallCount(); i++ {
+				for i := range mockStub.DelStateCallCount() {
 					k := mockStub.DelStateArgsForCall(i)
 					if k == "/transfer/from/"+id {
 						j++
@@ -1875,15 +1890,16 @@ func TestChannelTransfer(t *testing.T) {
 				require.NoError(t, err)
 
 				j = 0
-				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					k, v := mockStub.PutStateArgsForCall(i)
-					if k == userBalanceKey1 {
+					switch k {
+					case userBalanceKey1:
 						require.Equal(t, new(big.Int).SetUint64(450).Bytes(), v)
 						j++
-					} else if k == userBalanceKey2 {
+					case userBalanceKey2:
 						require.Equal(t, new(big.Int).SetUint64(900).Bytes(), v)
 						j++
-					} else if k == givenBalanceKey {
+					case givenBalanceKey:
 						require.Equal(t, new(big.Int).SetUint64(0).Bytes(), v)
 						j++
 					}
@@ -1917,7 +1933,7 @@ func TestChannelTransfer(t *testing.T) {
 			},
 			funcCheckResponse: func(t *testing.T, mockStub *mockstub.MockStub, resp *pbfound.TxResponse) {
 				var j int
-				for i := 0; i < mockStub.DelStateCallCount(); i++ {
+				for i := range mockStub.DelStateCallCount() {
 					k := mockStub.DelStateArgsForCall(i)
 					if k == "/transfer/from/"+id {
 						j++
@@ -1938,12 +1954,13 @@ func TestChannelTransfer(t *testing.T) {
 				require.NoError(t, err)
 
 				j = 0
-				for i := 0; i < mockStub.PutStateCallCount(); i++ {
+				for i := range mockStub.PutStateCallCount() {
 					k, v := mockStub.PutStateArgsForCall(i)
-					if k == userBalanceKey1 {
+					switch k {
+					case userBalanceKey1:
 						require.Equal(t, new(big.Int).SetUint64(450).Bytes(), v)
 						j++
-					} else if k == userBalanceKey2 {
+					case userBalanceKey2:
 						require.Equal(t, new(big.Int).SetUint64(900).Bytes(), v)
 						j++
 					}
@@ -1998,6 +2015,7 @@ func TestChannelTransfer(t *testing.T) {
 		},
 	} {
 		t.Run(testCase.description, func(t *testing.T) {
+			t.Parallel()
 			mockStub := mockstub.NewMockStub(t)
 
 			mockStub.CreateAndSetConfig(
@@ -2020,13 +2038,14 @@ func TestChannelTransfer(t *testing.T) {
 				txId string
 				resp *peer.Response
 			)
-			if testCase.isQuery {
+			switch {
+			case testCase.isQuery:
 				resp = mockStub.QueryChaincode(cc, testCase.functionName, parameters...)
-			} else if testCase.noSign {
+			case testCase.noSign:
 				txId, resp = mockStub.TxInvokeChaincode(cc, testCase.functionName, parameters...)
-			} else if testCase.noBatch {
+			case testCase.noBatch:
 				resp = mockStub.NbTxInvokeChaincode(cc, testCase.functionName, parameters...)
-			} else {
+			default:
 				txId, resp = mockStub.TxInvokeChaincodeSigned(cc, testCase.functionName, testCase.signUser, "", "", "", parameters...)
 			}
 
@@ -2151,10 +2170,10 @@ func TestQueryAllTransfersFrom(t *testing.T) {
 		for _, c := range res.GetCcts() {
 			require.True(t, pb.Equal(cct, c))
 		}
-		if res.Bookmark == "" {
+		if res.GetBookmark() == "" {
 			break
 		}
-		b = res.Bookmark
+		b = res.GetBookmark()
 	}
 
 	resp = mockStub.QueryChaincode(cc, "channelTransfersFrom", "2", "pfi/transfer/from/"+id)

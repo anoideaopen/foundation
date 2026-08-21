@@ -108,19 +108,19 @@ func TestEmbedSrcFilesWithoutFS(t *testing.T) {
 
 	resp := cc.Invoke(mockStub)
 	msg := resp.GetMessage()
-	require.Equal(t, msg, errMsg)
+	require.Equal(t, errMsg, msg)
 
 	mockStub.GetFunctionAndParametersReturns("srcFile", []string{"embed_test.go"})
 
 	resp = cc.Invoke(mockStub)
 	msg = resp.GetMessage()
-	require.Equal(t, msg, errMsg)
+	require.Equal(t, errMsg, msg)
 
 	mockStub.GetFunctionAndParametersReturns("srcPartFile", []string{"embed_test.go", "8", "13"})
 
 	resp = cc.Invoke(mockStub)
 	msg = resp.GetMessage()
-	require.Equal(t, msg, errMsg)
+	require.Equal(t, errMsg, msg)
 }
 
 func TestBuildInfo(t *testing.T) {

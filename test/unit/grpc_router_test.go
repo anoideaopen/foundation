@@ -72,7 +72,7 @@ func TestGRPCRouter(t *testing.T) {
 	require.NoError(t, err)
 	keyBalance, err := mockStub.CreateCompositeKey(balance.BalanceTypeToken.String(), []string{user1.AddressBase58Check})
 	require.NoError(t, err)
-	for i := 0; i < mockStub.PutStateCallCount(); i++ {
+	for i := range mockStub.PutStateCallCount() {
 		key, data := mockStub.PutStateArgsForCall(i)
 		if key == keyBalance {
 			require.Equal(t, big.NewInt(1000).Bytes(), data)
@@ -82,7 +82,7 @@ func TestGRPCRouter(t *testing.T) {
 
 	hello, err := client.HelloWorld(context.Background(), &emptypb.Empty{})
 	require.NoError(t, err)
-	require.Equal(t, "Hello World!", hello.Message)
+	require.Equal(t, "Hello World!", hello.GetMessage())
 
 	resp := mockStub.QueryChaincode(cc, "metadata")
 
@@ -90,6 +90,6 @@ func TestGRPCRouter(t *testing.T) {
 	err = json.Unmarshal(resp.GetPayload(), &meta)
 	require.NoError(t, err)
 
-	require.Equal(t, meta.Methods[0], "/foundation.token.BalanceService/AddBalanceByAdmin")
-	require.Equal(t, meta.Methods[1], "/foundation.token.BalanceService/HelloWorld")
+	require.Equal(t, "/foundation.token.BalanceService/AddBalanceByAdmin", meta.Methods[0])
+	require.Equal(t, "/foundation.token.BalanceService/HelloWorld", meta.Methods[1])
 }

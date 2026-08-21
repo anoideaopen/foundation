@@ -1,7 +1,7 @@
 package cachestub
 
 import (
-	"fmt"
+	"errors"
 	"testing"
 
 	"github.com/anoideaopen/foundation/mocks"
@@ -20,7 +20,7 @@ const (
 	valKey4Value1 = "key4_value1"
 )
 
-var testError = fmt.Errorf("test error")
+var errTest = errors.New("test error")
 
 func TestBatchStub(t *testing.T) {
 	t.Run("GetState test", func(t *testing.T) {
@@ -40,13 +40,13 @@ func TestBatchStub(t *testing.T) {
 
 	t.Run("[negative] GetState error test", func(t *testing.T) {
 		stateStub := &mocks.ChaincodeStub{}
-		stateStub.GetStateReturns(nil, testError)
+		stateStub.GetStateReturns(nil, errTest)
 		// creating batch cache stub
 		batchStub := NewBatchCacheStub(stateStub)
 
 		// requesting data from state
 		_, err := batchStub.GetState(valKey1)
-		require.Errorf(t, err, testError.Error())
+		require.Errorf(t, err, errTest.Error())
 
 		// checking mock stub calls
 		require.Equal(t, 1, stateStub.GetStateCallCount())
@@ -114,7 +114,7 @@ func TestBatchStub(t *testing.T) {
 
 	t.Run("[negative] PutState error test", func(t *testing.T) {
 		stateStub := &mocks.ChaincodeStub{}
-		stateStub.PutStateReturns(testError)
+		stateStub.PutStateReturns(errTest)
 		// creating batch cache stub
 		batchStub := NewBatchCacheStub(stateStub)
 
@@ -122,7 +122,7 @@ func TestBatchStub(t *testing.T) {
 		require.NoError(t, err)
 
 		err = batchStub.Commit()
-		require.Errorf(t, err, testError.Error())
+		require.Errorf(t, err, errTest.Error())
 
 		// checking mock stub calls
 		require.Equal(t, 1, stateStub.PutStateCallCount())
@@ -166,7 +166,7 @@ func TestBatchStub(t *testing.T) {
 
 	t.Run("[negative] DelState error test", func(t *testing.T) {
 		stateStub := &mocks.ChaincodeStub{}
-		stateStub.DelStateReturns(testError)
+		stateStub.DelStateReturns(errTest)
 		// creating batch cache stub
 		batchStub := NewBatchCacheStub(stateStub)
 
@@ -175,7 +175,7 @@ func TestBatchStub(t *testing.T) {
 		require.NoError(t, err)
 
 		err = batchStub.Commit()
-		require.Errorf(t, err, testError.Error())
+		require.Errorf(t, err, errTest.Error())
 
 		// checking mock stub calls
 		require.Equal(t, 1, stateStub.DelStateCallCount())
@@ -243,6 +243,7 @@ func TestBatchStub(t *testing.T) {
 		require.Equal(t, []byte(nil), result)
 
 		err = batchStub.Commit()
+		require.NoError(t, err)
 
 		// checking data after commit
 		result, err = batchStub.GetState(valKey1)
