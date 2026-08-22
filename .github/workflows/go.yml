@@ -85,11 +85,12 @@ jobs:
       - name: generate test coverage
         run: |
           go test ./... -coverprofile=./coverage.out
+          grep -v '\.pb\.go:' ./coverage.out > coverage.tmp && mv coverage.tmp coverage.out
 
-      # https://github.com/codecov/codecov-action
-      - uses: codecov/codecov-action@v7
+      # https://github.com/marketplace/actions/coveralls-github-action
+      - uses: coverallsapp/github-action@v2
         with:
-          files: ./coverage.out
+          file: ./coverage.out
 
   go-test-integration:
     needs:
