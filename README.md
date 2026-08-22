@@ -3,7 +3,7 @@
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/8822/badge)](https://www.bestpractices.dev/projects/8822)
 [![Go Reference](https://pkg.go.dev/badge/github.com/anoideaopen/foundation.svg)](https://pkg.go.dev/github.com/anoideaopen/foundation)
 ![GitHub License](https://img.shields.io/github/license/anoideaopen/foundation)
-[![Codecov](https://codecov.io/gh/anoideaopen/foundation/graph/badge.svg)](https://codecov.io/gh/anoideaopen/foundation)
+[![Coverage Status](https://coveralls.io/repos/github/anoideaopen/foundation/badge.svg?branch=main)](https://coveralls.io/github/anoideaopen/foundation)
 
 [![Go Verify Build](https://github.com/anoideaopen/foundation/actions/workflows/go.yml/badge.svg?branch=main)](https://github.com/anoideaopen/foundation/actions/workflows/go.yml)
 [![Security vulnerability scan](https://github.com/anoideaopen/foundation/actions/workflows/vulnerability-scan.yml/badge.svg?branch=main)](https://github.com/anoideaopen/foundation/actions/workflows/vulnerability-scan.yml)
